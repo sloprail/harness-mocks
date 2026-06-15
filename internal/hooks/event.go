@@ -1,0 +1,72 @@
+// Package hooks defines the Claude Code hook event types and the settings-file
+// schema used to configure which hooks fire for which events.
+package hooks
+
+import "encoding/json"
+
+// EventName identifies a Claude Code lifecycle hook event.
+type EventName string
+
+const (
+	EventSessionStart   EventName = "SessionStart"
+	EventSessionEnd     EventName = "SessionEnd"
+	EventStop           EventName = "Stop"
+	EventSubagentStart  EventName = "SubagentStart"
+	EventSubagentStop   EventName = "SubagentStop"
+	EventStopFailure    EventName = "StopFailure"
+	EventPreToolUse     EventName = "PreToolUse"
+	EventPostToolUse    EventName = "PostToolUse"
+	EventWorktreeCreate EventName = "WorktreeCreate"
+	EventWorktreeRemove EventName = "WorktreeRemove"
+)
+
+// Input is the JSON payload sent to a hook handler via stdin (command hooks)
+// or POST body (HTTP hooks). Fields are populated per event type.
+type Input struct {
+	SessionID      string    `json:"session_id"`
+	TranscriptPath string    `json:"transcript_path,omitempty"`
+	Cwd            string    `json:"cwd"`
+	HookEventName  EventName `json:"hook_event_name"`
+	PermissionMode string    `json:"permission_mode,omitempty"`
+
+	// SessionStart / SessionEnd
+	Source string `json:"source,omitempty"`
+	Model  string `json:"model,omitempty"`
+
+	// Stop / SubagentStop / StopFailure
+	StopReason string `json:"stop_reason,omitempty"`
+
+	// PreToolUse / PostToolUse
+	ToolName   string          `json:"tool_name,omitempty"`
+	ToolInput  json.RawMessage `json:"tool_input,omitempty"`
+	ToolOutput json.RawMessage `json:"tool_output,omitempty"`
+
+	// SubagentStart / SubagentStop — agent type name (matcher for these events)
+	AgentType string `json:"agent_type,omitempty"`
+
+	// WorktreeCreate / WorktreeRemove
+	WorktreeName string `json:"worktree_name,omitempty"`
+}
+
+// Output is the JSON response a hook handler may write to stdout.
+// All fields are optional; unset fields have no effect.
+type Output struct {
+	Continue     *bool  `json:"continue,omitempty"`
+	StopReason   string `json:"stopReason,omitempty"`
+	SystemMessage string `json:"systemMessage,omitempty"`
+	Decision     string `json:"decision,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+
+	HookSpecificOutput *HookSpecificOutput `json:"hookSpecificOutput,omitempty"`
+}
+
+// HookSpecificOutput carries event-specific control fields inside Output.
+type HookSpecificOutput struct {
+	HookEventName            EventName       `json:"hookEventName,omitempty"`
+	AdditionalContext        string          `json:"additionalContext,omitempty"`
+	PermissionDecision       string          `json:"permissionDecision,omitempty"`
+	PermissionDecisionReason string          `json:"permissionDecisionReason,omitempty"`
+	UpdatedInput             json.RawMessage `json:"updatedInput,omitempty"`
+	UpdatedToolOutput        string          `json:"updatedToolOutput,omitempty"`
+	WorktreePath             string          `json:"worktreePath,omitempty"`
+}

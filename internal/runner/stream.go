@@ -1,0 +1,275 @@
+package runner
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"os/exec"
+
+	"github.com/a10n-build/a10n-cli/services/claude-mock/internal/hooks"
+	"github.com/a10n-build/a10n-cli/services/claude-mock/internal/toolexec"
+)
+
+// streamAndHook runs the scenario script in a turn-based loop, reads its JSONL
+// output, fires hooks, executes tool calls, and writes valid lines to cfg.Out.
+//
+// Turn-based protocol:
+//  1. Script runs and emits JSONL records.
+//  2. Each forwarded record is appended to the session JSONL file so the script
+//     can read the full conversation history on subsequent turns.
+//  3. When the script emits an assistant record with a tool_use block, the mock
+//     executes the tool locally, synthesises a user record with a tool_result
+//     block, writes it to stdout AND the session file, then re-invokes the script.
+//  4. The script receives A10N_MOCK_SESSION_FILE pointing at the session JSONL.
+//     It can use any shell tool (grep/tail/jq) to inspect history and decide what
+//     to emit next — no single-value env vars are needed.
+//  5. Repeat until the script emits a result frame or exits.
+//
+// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
+// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
+	for {
+		done, err := runOneTurn(ctx, cfg, inv, sessionFile)
+		if err != nil {
+			return err
+		}
+		if done {
+			return nil
+		}
+	}
+}
+
+// runOneTurn executes the script once, processes its JSONL output, and returns:
+//   - (true,  nil)  when a result frame is seen (conversation complete)
+//   - (false, nil)  when a tool_use was executed; script should be re-run
+//   - (false, err)  on any error
+func runOneTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) (done bool, err error) {
+	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
+	cmd.Dir = cfg.Cwd
+	cmd.Env = buildEnv(cfg, sessionFile)
+	cmd.Stderr = cfg.Stderr
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return false, fmt.Errorf("claude-mock: stdout pipe: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return false, fmt.Errorf("claude-mock: start script: %w", err)
+	}
+
+	pending, done, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, sessionFile)
+	waitErr := cmd.Wait()
+
+	if scanErr != nil {
+		return false, scanErr
+	}
+	if waitErr != nil {
+		return false, waitErr
+	}
+	if done {
+		return true, nil
+	}
+
+	// tool_use was seen — execute it.
+	res := toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd)
+
+	// Synthesise and emit the tool_result user record.
+	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+	if err := emitToolResult(cfg, pending, res, sessionFile); err != nil {
+		return false, err
+	}
+
+	// PostToolUse for the synthesised result.
+	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
+	rawResult, _ := json.Marshal(res.Output)
+	_, _ = inv.Fire(ctx, hooks.Input{
+		SessionID:     cfg.SessionID,
+		Cwd:           cfg.Cwd,
+		HookEventName: hooks.EventPostToolUse,
+		ToolName:      pending.ToolName,
+		ToolInput:     pending.ToolInput,
+		ToolOutput:    rawResult,
+	})
+
+	return false, nil
+}
+
+// pendingToolUse carries the fields needed to execute a tool and synthesise the
+// tool_result record.
+type pendingToolUse struct {
+	ToolUseID string
+	ToolName  string
+	ToolInput json.RawMessage
+}
+
+// scanLines reads one script invocation's JSONL output line by line.
+// Returns (pending, done, err):
+//   - done=true when a result frame is seen
+//   - pending set when a tool_use was encountered (caller should execute + re-run)
+func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, sessionFile *os.File) (pending pendingToolUse, done bool, err error) {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+
+		rec, err := validateRecord(line)
+		if err != nil {
+			fmt.Fprintf(cfg.Stderr, "claude-mock: invalid JSONL line: %v\nline: %s\n", err, line)
+			return pendingToolUse{}, false, fmt.Errorf("claude-mock: script emitted invalid JSONL: %w", err)
+		}
+
+		// Control records: fire hooks, do NOT forward to stdout or session.
+		if handled, err := handleControlRecord(ctx, rec, cfg, inv); err != nil {
+			return pendingToolUse{}, false, err
+		} else if handled {
+			continue
+		}
+
+		// PreToolUse + turn break on tool_use blocks.
+		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse
+		if rec.Type == "assistant" {
+			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
+			if toolName != "" {
+				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
+					SessionID:     cfg.SessionID,
+					Cwd:           cfg.Cwd,
+					HookEventName: hooks.EventPreToolUse,
+					ToolName:      toolName,
+					ToolInput:     toolInput,
+				})
+				if hookErr != nil {
+					fmt.Fprintf(cfg.Stderr, "claude-mock: PreToolUse hook blocked: %v\n", hookErr)
+					return pendingToolUse{}, false, hookErr
+				}
+				denied := hookOut.Decision == "block" ||
+					(hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecision == "deny")
+				if denied {
+					return pendingToolUse{}, false, fmt.Errorf("claude-mock: tool use blocked by hook: %s", hookOut.Reason)
+				}
+
+				// Forward the assistant record, append to session, then return for
+				// tool execution — script will be re-run with updated session file.
+				cfg.Out.Write(line)         //nolint:errcheck
+				cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+				appendToSession(sessionFile, line)
+
+				return pendingToolUse{
+					ToolUseID: toolUseID,
+					ToolName:  toolName,
+					ToolInput: toolInput,
+				}, false, nil
+			}
+		}
+
+		// Forward line to caller and append to session.
+		cfg.Out.Write(line)         //nolint:errcheck
+		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+		appendToSession(sessionFile, line)
+
+		// PostToolUse for inline tool_result blocks (static scripts).
+		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
+		if rec.Type == "user" {
+			toolName, toolOutput := extractFirstToolResult(line)
+			if toolName != "" {
+				_, _ = inv.Fire(ctx, hooks.Input{
+					SessionID:     cfg.SessionID,
+					Cwd:           cfg.Cwd,
+					HookEventName: hooks.EventPostToolUse,
+					ToolName:      toolName,
+					ToolOutput:    toolOutput,
+				})
+			}
+		}
+
+		// SubagentStop on end_turn.
+		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstop
+		if rec.Type == "assistant" && rec.Message != nil && rec.Message.StopReason == "end_turn" {
+			if cfg.IsResume {
+				_, _ = inv.Fire(ctx, hooks.Input{
+					SessionID:     cfg.SessionID,
+					Cwd:           cfg.Cwd,
+					HookEventName: hooks.EventSubagentStop,
+					StopReason:    "end_turn",
+					AgentType:     "general-purpose",
+				})
+			}
+		}
+
+		if rec.Type == "result" {
+			return pendingToolUse{}, true, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Debug("claude-mock: scanner error", "err", err)
+		return pendingToolUse{}, false, err
+	}
+	return pendingToolUse{}, true, nil
+}
+
+// buildEnv constructs the environment for a script invocation.
+// A10N_MOCK_SESSION_FILE points at the session JSONL so the script can read the
+// full conversation history with any shell tool.
+// CLAUDE_CONFIG_DIR is set to the same dir so that tooling that reads Claude
+// Code config also finds the mock's session files.
+// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
+func buildEnv(cfg Config, sessionFile *os.File) []string {
+	sessionPath := ""
+	if sessionFile != nil {
+		sessionPath = sessionFile.Name()
+	}
+	return append(os.Environ(),
+		"A10N_MOCK_SESSION_ID="+cfg.SessionID,
+		"A10N_MOCK_PROMPT="+cfg.Prompt,
+		"A10N_MOCK_IS_RESUME="+boolStr(cfg.IsResume),
+		"A10N_MOCK_SESSION_FILE="+sessionPath,
+		"CLAUDE_CONFIG_DIR="+cfg.ConfigDir,
+	)
+}
+
+// emitToolResult writes a synthetic user record with a tool_result block to
+// cfg.Out and the session file.
+//
+// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sessionFile *os.File) error {
+	content := res.Output
+	if res.IsError {
+		blocks, _ := json.Marshal([]map[string]string{
+			{"type": "text", "text": res.Output},
+		})
+		content = string(blocks)
+	}
+
+	record := map[string]any{
+		"type": "user",
+		"message": map[string]any{
+			"role": "user",
+			"content": []map[string]any{
+				{
+					"type":        "tool_result",
+					"tool_use_id": call.ToolUseID,
+					"content":     content,
+					"is_error":    res.IsError,
+				},
+			},
+		},
+	}
+
+	line, err := json.Marshal(record)
+	if err != nil {
+		return fmt.Errorf("claude-mock: marshal tool_result: %w", err)
+	}
+	cfg.Out.Write(line)         //nolint:errcheck
+	cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+	appendToSession(sessionFile, line)
+	return nil
+}
