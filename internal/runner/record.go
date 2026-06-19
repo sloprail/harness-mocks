@@ -123,6 +123,7 @@ func extractFirstToolUseWithID(line []byte) (toolUseID, toolName string, toolInp
 }
 
 // extractFirstToolUse is a convenience wrapper that drops the tool_use_id.
+// a10n:blueprint:ignore
 func extractFirstToolUse(line []byte) (toolName string, toolInput json.RawMessage) {
 	_, name, input := extractFirstToolUseWithID(line)
 	return name, input

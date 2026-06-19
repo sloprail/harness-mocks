@@ -23,6 +23,7 @@ const (
 )
 
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
+// a10n:blueprint:ignore
 func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagScript, "", "Shell script to run as the mock agent (env: A10N_MOCK_SCRIPT)")
 	cmd.Flags().String(flagSessionID, "", "Session ID (--session-id, as used by claude CLI)")
@@ -38,6 +39,7 @@ func addRunFlags(cmd *cobra.Command) {
 
 // rootRunE implements the root command's RunE — the primary entrypoint when the
 // binary is used as a drop-in for 'claude -p --output-format stream-json ...'.
+// a10n:blueprint:ignore
 func rootRunE(cmd *cobra.Command, args []string) error {
 	scriptPath, _ := cmd.Flags().GetString(flagScript)
 	if scriptPath == "" {
