@@ -99,6 +99,12 @@ func seedSubagentTranscript(configDir, cwd, parentSessionID, agentID, agentType,
 		"type":        "user",
 		"sessionId":   parentSessionID,
 		"isSidechain": true,
+		// agentId mirrors the REAL Claude Code subagent transcript: every record
+		// in subagents/agent-<AGENTID>.jsonl carries a top-level agentId equal to
+		// the file's agent id. The parallel-subagent task-id attribution path
+		// (locate-task-id --agent-id) reads this field, so the mock must seed it
+		// for that deterministic path to be exercised in mock-based harnesses.
+		"agentId":     agentID,
 		"cwd":         cwd,
 		"message":     map[string]any{"role": "user", "content": prompt},
 	}
