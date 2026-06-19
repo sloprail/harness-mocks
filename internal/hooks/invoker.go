@@ -72,11 +72,18 @@ func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, payload []byte) (
 }
 
 func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, payload []byte) (Output, error) {
-	parts := strings.Fields(h.Command)
-	if len(parts) == 0 {
+	command := strings.TrimSpace(h.Command)
+	if command == "" {
 		return Output{}, nil
 	}
-	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...) //nolint:gosec
+	// Run command hooks through the shell, exactly as real Claude Code does. The
+	// command string is an arbitrary shell line — plugins wrap the script path in
+	// double quotes to survive spaces (e.g. "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"),
+	// pass arguments, or reference env vars resolved at hook-run time. Splitting on
+	// whitespace would break all of those, so we delegate parsing to /bin/sh.
+	//
+	// a10n:docs https://code.claude.com/docs/en/hooks#hook-types (command hooks run in the shell)
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec
 	cmd.Dir = inv.cwd
 	cmd.Stdin = bytes.NewReader(payload)
 	var stdout, stderr bytes.Buffer

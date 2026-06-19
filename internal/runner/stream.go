@@ -32,23 +32,42 @@ import (
 //
 // a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
 // a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+// maxIdenticalTurns bounds how many times in a row the script may emit the SAME
+// pending tool_use (same name+input). A static scenario that doesn't advance its
+// output based on conversation history would otherwise loop forever (re-run →
+// same tool_use → re-run …). Hitting the bound is a scenario bug, surfaced as an
+// error instead of a hang.
+const maxIdenticalTurns = 5
+
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
+	var lastSig string
+	var repeats int
 	for {
-		done, err := runOneTurn(ctx, cfg, inv, sessionFile)
+		done, sig, err := runOneTurnSig(ctx, cfg, inv, sessionFile)
 		if err != nil {
 			return err
 		}
 		if done {
 			return nil
 		}
+		if sig != "" && sig == lastSig {
+			repeats++
+			if repeats >= maxIdenticalTurns {
+				return fmt.Errorf("claude-mock: scenario looped — the same tool_use was emitted %d times in a row without advancing (signature %q); the script is re-run once per turn and must vary its output based on conversation history — read $A10N_MOCK_SESSION_FILE (e.g. grep for a prior tool_result/tool_use_id) and emit the next step (or a final result) instead of re-emitting the same tool_use", maxIdenticalTurns, sig)
+			}
+		} else {
+			repeats = 0
+		}
+		lastSig = sig
 	}
 }
 
-// runOneTurn executes the script once, processes its JSONL output, and returns:
-//   - (true,  nil)  when a result frame is seen (conversation complete)
-//   - (false, nil)  when a tool_use was executed; script should be re-run
-//   - (false, err)  on any error
-func runOneTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) (done bool, err error) {
+// runOneTurnSig executes the script once, processes its JSONL output, and returns:
+//   - (true,  "",  nil)  when a result frame is seen (conversation complete)
+//   - (false, sig, nil)  when a tool_use was executed; script should be re-run.
+//     sig is the pending tool_use signature (name+input) for the loop guard.
+//   - (false, "",  err)  on any error
+func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) (done bool, sig string, err error) {
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
 	cmd.Dir = cfg.Cwd
 	cmd.Env = buildEnv(cfg, sessionFile)
@@ -56,32 +75,43 @@ func runOneTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return false, fmt.Errorf("claude-mock: stdout pipe: %w", err)
+		return false, "", fmt.Errorf("claude-mock: stdout pipe: %w", err)
 	}
 	if err := cmd.Start(); err != nil {
-		return false, fmt.Errorf("claude-mock: start script: %w", err)
+		return false, "", fmt.Errorf("claude-mock: start script: %w", err)
 	}
 
 	pending, done, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, sessionFile)
 	waitErr := cmd.Wait()
 
 	if scanErr != nil {
-		return false, scanErr
+		return false, "", scanErr
 	}
 	if waitErr != nil {
-		return false, waitErr
+		return false, "", waitErr
 	}
 	if done {
-		return true, nil
+		return true, "", nil
 	}
 
 	// tool_use was seen — execute it.
-	res := toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd)
+	//
+	// The Agent tool (alias Task; real Claude renamed Task→Agent in v2.1.63)
+	// spawns a NESTED subagent run rather than a pure FS/Bash op, so it is handled
+	// here at the stream layer — it needs ctx, cfg, inv and the session file, none
+	// of which toolexec.Execute has access to.
+	// a10n:docs https://code.claude.com/docs/en/sub-agents
+	var res toolexec.Result
+	if isAgentTool(pending.ToolName) {
+		res = runAgentTool(ctx, cfg, inv, pending.ToolInput)
+	} else {
+		res = toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd)
+	}
 
 	// Synthesise and emit the tool_result user record.
 	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 	if err := emitToolResult(cfg, pending, res, sessionFile); err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	// PostToolUse for the synthesised result.
@@ -96,7 +126,7 @@ func runOneTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile
 		ToolOutput:    rawResult,
 	})
 
-	return false, nil
+	return false, pending.ToolName + ":" + string(pending.ToolInput), nil
 }
 
 // pendingToolUse carries the fields needed to execute a tool and synthesise the
@@ -191,9 +221,10 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		}
 
 		// SubagentStop on end_turn.
+		// Suppressed for nested Agent-tool runs — see Config.SuppressSubagentHooks.
 		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstop
 		if rec.Type == "assistant" && rec.Message != nil && rec.Message.StopReason == "end_turn" {
-			if cfg.IsResume {
+			if cfg.IsResume && !cfg.SuppressSubagentHooks {
 				_, _ = inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
 					Cwd:           cfg.Cwd,

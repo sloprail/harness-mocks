@@ -64,7 +64,36 @@ func validateRecord(line []byte) (*cliRecord, error) {
 	if !knownTypes[strings.ToLower(rec.Type)] {
 		return nil, fmt.Errorf("unknown record type %q (expected: system, assistant, user, result)", rec.Type)
 	}
+	// The scenario script speaks for the ASSISTANT (Claude): it may emit
+	// assistant turns (text / tool_use), result frames, and mock control records.
+	// tool_result blocks are the MOCK's job — they are synthesised after the mock
+	// executes a tool. A scenario that emits its own tool_result is modelling
+	// something Claude Code never produces, so reject it loudly rather than
+	// letting a bogus transcript through.
+	if strings.EqualFold(rec.Type, "user") && lineHasToolResult(line) {
+		return nil, fmt.Errorf("scenario emitted a tool_result block — that is synthesised by the mock after it executes a tool, not by the agent script; emit the tool_use and let the mock produce the result")
+	}
 	return &rec, nil
+}
+
+// lineHasToolResult reports whether a user record carries a tool_result content block.
+func lineHasToolResult(line []byte) bool {
+	var rec struct {
+		Message *struct {
+			Content []struct {
+				Type string `json:"type"`
+			} `json:"content"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(line, &rec) != nil || rec.Message == nil {
+		return false
+	}
+	for _, c := range rec.Message.Content {
+		if c.Type == "tool_result" {
+			return true
+		}
+	}
+	return false
 }
 
 // extractFirstToolUseWithID finds the first tool_use content block in an assistant line.

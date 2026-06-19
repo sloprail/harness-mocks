@@ -28,10 +28,21 @@ type HandlerSpec struct {
 }
 
 // LoadSettings reads hook settings from the standard Claude Code settings files,
-// merging project and local settings (local wins on conflict).
+// merging project and local settings (local wins by appending last). It also
+// loads hooks declared by enabled plugins, resolving each plugin's marketplace
+// from extraKnownMarketplaces and cloning/reusing it under the plugin cache.
 // Missing files are silently ignored.
-func LoadSettings(projectDir string) (*Settings, error) {
+//
+// pluginCacheDirOverride may be empty (falls back to CLAUDE_CODE_PLUGIN_CACHE_DIR
+// env var, then /tmp/a10n-mock-plugins).
+//
+// a10n:docs https://code.claude.com/docs/en/settings
+// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces
+func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) {
 	merged := &Settings{Hooks: make(map[EventName][]HookEntry)}
+	enabledPlugins := make(map[string]bool)
+	marketplaces := make(map[string]marketplaceCfg)
+
 	paths := []string{
 		filepath.Join(projectDir, ".claude", "settings.json"),
 		filepath.Join(projectDir, ".claude", "settings.local.json"),
@@ -44,14 +55,26 @@ func LoadSettings(projectDir string) (*Settings, error) {
 			}
 			return nil, err
 		}
-		var s Settings
+		var s settingsWithPlugins
 		if err := json.Unmarshal(data, &s); err != nil {
 			return nil, err
 		}
 		for evt, entries := range s.Hooks {
 			merged.Hooks[evt] = append(merged.Hooks[evt], entries...)
 		}
+		// Local settings win: later files overwrite earlier per-key values.
+		for key, enabled := range s.EnabledPlugins {
+			enabledPlugins[key] = enabled
+		}
+		for name, cfg := range s.ExtraKnownMarketplaces {
+			marketplaces[name] = cfg
+		}
 	}
+
+	if len(enabledPlugins) > 0 {
+		loadPluginHooks(merged, pluginCacheDir(pluginCacheDirOverride), enabledPlugins, marketplaces)
+	}
+
 	return merged, nil
 }
 

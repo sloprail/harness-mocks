@@ -1,9 +1,11 @@
 package runner
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 const (
@@ -59,6 +61,57 @@ func appendToSession(f *os.File, line []byte) {
 	if f == nil {
 		return
 	}
-	f.Write(line)      //nolint:errcheck
+	f.Write(line)         //nolint:errcheck
 	f.Write([]byte{'\n'}) //nolint:errcheck
+}
+
+// subagentTranscriptPath returns the path of a subagent's sidechain transcript.
+//
+// The <configDir>/projects/<encoded-cwd>/ prefix and the non-alphanumeric→'-'
+// cwd encoding are documented. The <parentSessionID>/subagents/agent-<id>.jsonl
+// suffix is NOT documented — it is replicated from the REAL claude CLI's
+// on-disk layout (observed at ~/.claude/projects/<proj>/<root>/subagents/
+// agent-<hash>.jsonl + .meta.json during the hook PoC), so the mock's
+// transcript_path matches what real subagent hooks receive.
+//
+// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (projects/<encoded-cwd> prefix + CLAUDE_CONFIG_DIR)
+func subagentTranscriptPath(configDir, cwd, parentSessionID, agentID string) string {
+	encoded := nonAlphanumRe.ReplaceAllString(cwd, "-")
+	return filepath.Join(configDir, "projects", encoded, parentSessionID, "subagents", "agent-"+agentID+".jsonl")
+}
+
+// seedSubagentTranscript writes prompt as the first user record of the subagent's
+// sidechain transcript and writes the .meta.json sidecar (agentType/worktreePath/
+// description/toolUseId, as the real CLI does), returning the transcript path.
+//
+// The real Claude subagent transcript's first record IS the dispatch prompt, and
+// the SubagentStart hook receives this path as transcript_path — so a hook can
+// read the prompt out of it (e.g. to recover an embedded `--task-id`). Returns the
+// path even on a best-effort write failure so the hook still gets a target.
+//
+// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions
+func seedSubagentTranscript(configDir, cwd, parentSessionID, agentID, agentType, prompt string) string {
+	path := subagentTranscriptPath(configDir, cwd, parentSessionID, agentID)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return path
+	}
+	rec := map[string]any{
+		"type":        "user",
+		"sessionId":   parentSessionID,
+		"isSidechain": true,
+		"cwd":         cwd,
+		"message":     map[string]any{"role": "user", "content": prompt},
+	}
+	if line, err := json.Marshal(rec); err == nil {
+		if f, ferr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); ferr == nil {
+			appendToSession(f, line)
+			f.Close()
+		}
+	}
+	// Best-effort .meta.json sidecar (mirrors the real layout; not all hooks read it).
+	meta := map[string]any{"agentType": agentType, "worktreePath": "", "description": "", "toolUseId": ""}
+	if mb, err := json.MarshalIndent(meta, "", "  "); err == nil {
+		_ = os.WriteFile(strings.TrimSuffix(path, ".jsonl")+".meta.json", mb, 0o644)
+	}
+	return path
 }

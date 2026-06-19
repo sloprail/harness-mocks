@@ -9,8 +9,8 @@ import (
 func TestMain(m *testing.M) { e2etest.Main(m) }
 
 var (
-	run              = e2etest.Run
-	runWithScript    = e2etest.RunWithScript
-	runInDirWithEnv  = e2etest.RunInDir
-	writeScript      = e2etest.WriteScript
+	run             = e2etest.Run
+	runWithScript   = e2etest.RunWithScript
+	runInDirWithEnv = e2etest.RunInDir
+	writeScript     = e2etest.WriteScript
 )

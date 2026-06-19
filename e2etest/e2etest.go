@@ -63,13 +63,26 @@ func RunWithScript(t *testing.T, scriptContent string, extraArgs ...string) (str
 	return RunInDir(t, dir, nil, args...)
 }
 
+// SharedPluginCacheDir is the fixed plugin cache directory reused across all
+// mock e2e tests so that plugins (which may be git-cloned) are not re-fetched
+// on every test invocation.  It mirrors the default used by pluginCacheDir()
+// in the hooks package.
+//
+// a10n:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
+const SharedPluginCacheDir = "/tmp/a10n-mock-plugins"
+
 // RunInDir invokes the mock binary from dir with optional extra env and args.
+// CLAUDE_CODE_PLUGIN_CACHE_DIR is always injected so every test run shares the
+// same plugin cache and avoids re-cloning plugins on each test.
 func RunInDir(t *testing.T, dir string, env []string, args ...string) (string, int) {
 	t.Helper()
 	cmd := exec.Command(MockBinaryPath, args...)
 	cmd.Dir = dir
+	baseEnv := append(os.Environ(), "CLAUDE_CODE_PLUGIN_CACHE_DIR="+SharedPluginCacheDir)
 	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
+		cmd.Env = append(baseEnv, env...)
+	} else {
+		cmd.Env = baseEnv
 	}
 	var out strings.Builder
 	cmd.Stdout = &out

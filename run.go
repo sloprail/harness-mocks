@@ -12,13 +12,14 @@ import (
 
 // Flag names shared between root (when used as claude replacement) and any future subcommands.
 const (
-	flagScript       = "script"
-	flagSessionID    = "session-id"
-	flagResume       = "resume"
-	flagOutputFormat = "output-format"
-	flagProjectDir   = "project-dir"
-	flagConfigDir    = "config-dir"
-	flagPrint        = "p"
+	flagScript         = "script"
+	flagSessionID      = "session-id"
+	flagResume         = "resume"
+	flagOutputFormat   = "output-format"
+	flagProjectDir     = "project-dir"
+	flagConfigDir      = "config-dir"
+	flagPluginCacheDir = "plugin-cache-dir"
+	flagPrint          = "p"
 )
 
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
@@ -29,6 +30,7 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagOutputFormat, "stream-json", "Output format (must be stream-json)")
 	cmd.Flags().String(flagProjectDir, "", "Project root for settings.json resolution (default: cwd)")
 	cmd.Flags().String(flagConfigDir, "", "Claude config dir for session JSONL storage (env: CLAUDE_CONFIG_DIR, default: /tmp/a10n/claude-mock)")
+	cmd.Flags().String(flagPluginCacheDir, "", "Plugin/marketplace cache root (env: CLAUDE_CODE_PLUGIN_CACHE_DIR, default: /tmp/a10n-mock-plugins)")
 	cmd.Flags().BoolP(flagPrint, "p", false, "Print mode flag (passed by claude runner; accepted and ignored)")
 	// claude also passes --verbose; accept but ignore.
 	cmd.Flags().Bool("verbose", false, "Accepted for CLI compatibility; has no effect")
@@ -74,18 +76,20 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
+	pluginCacheDir, _ := cmd.Flags().GetString(flagPluginCacheDir)
 	prompt := strings.Join(args, " ")
 	cwd, _ := os.Getwd()
 
 	return runner.Run(cmd.Context(), runner.Config{
-		ScriptPath: scriptPath,
-		SessionID:  sessionID,
-		IsResume:   isResume,
-		Prompt:     prompt,
-		Cwd:        cwd,
-		ProjectDir: projectDir,
-		ConfigDir:  configDir,
-		Stderr:     os.Stderr,
-		Out:        os.Stdout,
+		ScriptPath:     scriptPath,
+		SessionID:      sessionID,
+		IsResume:       isResume,
+		Prompt:         prompt,
+		Cwd:            cwd,
+		ProjectDir:     projectDir,
+		ConfigDir:      configDir,
+		PluginCacheDir: pluginCacheDir,
+		Stderr:         os.Stderr,
+		Out:            os.Stdout,
 	})
 }

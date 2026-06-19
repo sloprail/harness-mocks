@@ -29,6 +29,11 @@ type Config struct {
 	Cwd string
 	// ProjectDir is used to resolve .claude/settings.json for hook configuration.
 	ProjectDir string
+	// PluginCacheDir overrides the Claude Code plugin cache root (CLAUDE_CODE_PLUGIN_CACHE_DIR).
+	// Marketplaces are cloned/reused under <PluginCacheDir>/<marketplace-slug>/.
+	// When empty, falls back to the env var, then /tmp/a10n-mock-plugins.
+	// a10n:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
+	PluginCacheDir string
 	// ConfigDir overrides the Claude Code global config directory (CLAUDE_CONFIG_DIR).
 	// When empty, a temporary directory is created and cleaned up after the run.
 	// The session JSONL is written under <ConfigDir>/projects/<encoded-cwd>/<session-id>.jsonl.
@@ -38,6 +43,14 @@ type Config struct {
 	Stderr io.Writer
 	// Out receives the passthrough JSONL (defaults to os.Stdout).
 	Out io.Writer
+
+	// SuppressSubagentHooks disables this run's own SubagentStart (on resume) and
+	// SubagentStop (on end_turn) firing. It is set ONLY for nested subagent runs
+	// spawned via the Agent (alias Task) tool: the Agent-tool layer fires
+	// SubagentStart/SubagentStop itself, WITH the generated agent_id, so the nested
+	// run must not double-fire those events with an agent_id-less payload.
+	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
+	SuppressSubagentHooks bool
 }
 
 // Run executes the mock: runs the script, validates + streams JSONL, fires hooks.
@@ -66,7 +79,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer sessionFile.Close()
 
-	settings, err := hooks.LoadSettings(cfg.ProjectDir)
+	settings, err := hooks.LoadSettings(cfg.ProjectDir, cfg.PluginCacheDir)
 	if err != nil {
 		fmt.Fprintf(cfg.Stderr, "claude-mock: warn: loading settings: %v\n", err)
 		settings = &hooks.Settings{Hooks: make(map[hooks.EventName][]hooks.HookEntry)}
@@ -91,8 +104,9 @@ func Run(ctx context.Context, cfg Config) error {
 	// SubagentStart fires for resumed sessions (subagents always use --resume).
 	// The agent_type defaults to "general-purpose"; scripts can override via a
 	// subagent_start control record to signal a different agent type.
+	// Suppressed for nested Agent-tool runs — see Config.SuppressSubagentHooks.
 	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstart
-	if cfg.IsResume {
+	if cfg.IsResume && !cfg.SuppressSubagentHooks {
 		if _, err := inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
