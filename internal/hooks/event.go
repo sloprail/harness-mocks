@@ -55,6 +55,12 @@ type Input struct {
 	// be correlated.
 	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
 	AgentID string `json:"agent_id,omitempty"`
+	// SubagentStop — path to the subagent's OWN transcript file
+	// (<session>/subagents/agent-<agent_id>.jsonl). The real Claude Code SubagentStop
+	// payload carries this documented field so hooks can read the dispatch prompt
+	// (with --task-id) directly without deriving the path from transcript_path.
+	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+	AgentTranscriptPath string `json:"agent_transcript_path,omitempty"`
 
 	// WorktreeCreate / WorktreeRemove
 	WorktreeName string `json:"worktree_name,omitempty"`

@@ -215,14 +215,15 @@ func runSubagent(ctx context.Context, cfg Config, scriptPath, prompt string) str
 // honours — exit-0 + decision, not a process error). The caller loops on a block.
 func fireSubagentStop(ctx context.Context, cfg Config, inv *hooks.Invoker, agentType, agentID, transcriptPath string, stopHookActive bool) (blocked bool, reason string) {
 	out, err := inv.Fire(ctx, hooks.Input{
-		SessionID:      cfg.SessionID,
-		Cwd:            cfg.Cwd,
-		TranscriptPath: transcriptPath,
-		HookEventName:  hooks.EventSubagentStop,
-		StopReason:     "end_turn",
-		AgentType:      agentType,
-		AgentID:        agentID,
-		StopHookActive: stopHookActive,
+		SessionID:           cfg.SessionID,
+		Cwd:                 cfg.Cwd,
+		TranscriptPath:      transcriptPath,
+		AgentTranscriptPath: transcriptPath,
+		HookEventName:       hooks.EventSubagentStop,
+		StopReason:          "end_turn",
+		AgentType:           agentType,
+		AgentID:             agentID,
+		StopHookActive:      stopHookActive,
 	})
 	if err != nil {
 		return true, err.Error()
