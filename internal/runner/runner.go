@@ -26,6 +26,11 @@ type Config struct {
 	IsResume bool
 	// Prompt is the user prompt forwarded to the script via the A10N_MOCK_PROMPT env var.
 	Prompt string
+	// AdditionalContext is populated from a UserPromptSubmit hook's additionalContext
+	// output and forwarded to the script via A10N_MOCK_ADDITIONAL_CONTEXT. This is the
+	// real Claude Code mechanism by which a UserPromptSubmit hook augments (never
+	// replaces) what the model sees.
+	AdditionalContext string
 	// Cwd is the working directory for the script and hook invocations.
 	Cwd string
 	// ProjectDir is used to resolve .claude/settings.json for hook configuration.
@@ -149,23 +154,22 @@ func Run(ctx context.Context, cfg Config) error {
 		return stopErr
 	}
 
-	// UserPromptSubmit fires before the prompt reaches the model. The hook may
-	// return {"userPrompt": "..."} to replace the message; if so, cfg.Prompt is
-	// updated for the script's A10N_MOCK_PROMPT env var.
+	// UserPromptSubmit fires before the prompt reaches the model. Per the real
+	// Claude Code contract the hook CANNOT replace the prompt — it may only append
+	// additionalContext (exposed to the script via A10N_MOCK_ADDITIONAL_CONTEXT)
+	// or block the prompt (decision=block / exit 2 → Fire returns an error).
 	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
 	if cfg.Prompt != "" {
 		promptOut, err := inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventUserPromptSubmit,
-			UserPrompt:    cfg.Prompt,
+			Prompt:        cfg.Prompt,
 		})
 		if err != nil {
 			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
 		}
-		if promptOut.UserPrompt != "" {
-			cfg.Prompt = promptOut.UserPrompt
-		}
+		cfg.AdditionalContext = additionalContextFrom(promptOut)
 	}
 
 	// SubagentStart fires for resumed sessions (subagents always use --resume).
@@ -215,22 +219,20 @@ func Run(ctx context.Context, cfg Config) error {
 //
 // a10n:docs https://code.claude.com/docs/en/cli-reference#--print
 func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
-	// Fire UserPromptSubmit so the autopilot plugin can intercept even in print mode.
-	// The hook output ({"userPrompt": "..."}) updates cfg.Prompt — which becomes
-	// A10N_MOCK_PROMPT for the script, letting the supervisor see the modified prompt.
+	// Fire UserPromptSubmit so any hook in the project-dir settings can intercept
+	// even in print mode. The hook cannot replace the prompt (real Claude
+	// contract); it may only append additionalContext or block (→ Fire errors).
 	if cfg.Prompt != "" {
 		promptOut, err := inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventUserPromptSubmit,
-			UserPrompt:    cfg.Prompt,
+			Prompt:        cfg.Prompt,
 		})
 		if err != nil {
 			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
 		}
-		if promptOut.UserPrompt != "" {
-			cfg.Prompt = promptOut.UserPrompt
-		}
+		cfg.AdditionalContext = additionalContextFrom(promptOut)
 	}
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
@@ -246,4 +248,14 @@ func boolStr(b bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// additionalContextFrom extracts the additionalContext a UserPromptSubmit hook
+// returned, if any. Real Claude Code appends this to the model's context; the
+// mock forwards it to the script via A10N_MOCK_ADDITIONAL_CONTEXT.
+func additionalContextFrom(out hooks.Output) string {
+	if out.HookSpecificOutput != nil {
+		return out.HookSpecificOutput.AdditionalContext
+	}
+	return ""
 }

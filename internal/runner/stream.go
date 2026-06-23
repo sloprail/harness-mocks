@@ -183,7 +183,11 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				denied := hookOut.Decision == "block" ||
 					(hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecision == "deny")
 				if denied {
-					return pendingToolUse{}, false, fmt.Errorf("claude-mock: tool use blocked by hook: %s", hookOut.Reason)
+					reason := hookOut.Reason
+					if hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecisionReason != "" {
+						reason = hookOut.HookSpecificOutput.PermissionDecisionReason
+					}
+					return pendingToolUse{}, false, fmt.Errorf("claude-mock: tool use blocked by hook: %s", reason)
 				}
 
 				// Forward the assistant record, append to session, then return for
@@ -261,6 +265,7 @@ func buildEnv(cfg Config, sessionFile *os.File) []string {
 	return append(os.Environ(),
 		"A10N_MOCK_SESSION_ID="+cfg.SessionID,
 		"A10N_MOCK_PROMPT="+cfg.Prompt,
+		"A10N_MOCK_ADDITIONAL_CONTEXT="+cfg.AdditionalContext,
 		"A10N_MOCK_IS_RESUME="+boolStr(cfg.IsResume),
 		"A10N_MOCK_SESSION_FILE="+sessionPath,
 		"CLAUDE_CONFIG_DIR="+cfg.ConfigDir,

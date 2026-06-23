@@ -99,7 +99,10 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		os.Setenv("A10N_MOCK_SYSTEM_PROMPT", systemPrompt) //nolint:errcheck
 	}
 	prompt := strings.Join(args, " ")
-	cwd, _ := os.Getwd()
+	// Use projectDir as cwd when explicitly provided — it is the directory the
+	// simulated claude session runs in (the same as what real claude uses).
+	// Fall back to os.Getwd() only when --project-dir is not set.
+	cwd := projectDir
 
 	return runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:     scriptPath,

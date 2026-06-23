@@ -8,23 +8,25 @@ import "encoding/json"
 type EventName string
 
 const (
-	EventSessionStart      EventName = "SessionStart"
-	EventSessionEnd        EventName = "SessionEnd"
-	EventStop              EventName = "Stop"
-	EventSubagentStart     EventName = "SubagentStart"
-	EventSubagentStop      EventName = "SubagentStop"
-	EventStopFailure       EventName = "StopFailure"
-	EventPreToolUse        EventName = "PreToolUse"
-	EventPostToolUse       EventName = "PostToolUse"
-	EventWorktreeCreate    EventName = "WorktreeCreate"
-	EventWorktreeRemove    EventName = "WorktreeRemove"
+	EventSessionStart   EventName = "SessionStart"
+	EventSessionEnd     EventName = "SessionEnd"
+	EventStop           EventName = "Stop"
+	EventSubagentStart  EventName = "SubagentStart"
+	EventSubagentStop   EventName = "SubagentStop"
+	EventStopFailure    EventName = "StopFailure"
+	EventPreToolUse     EventName = "PreToolUse"
+	EventPostToolUse    EventName = "PostToolUse"
+	EventWorktreeCreate EventName = "WorktreeCreate"
+	EventWorktreeRemove EventName = "WorktreeRemove"
 	// EventUserPromptSubmit fires before each user message is sent to the model.
-	// The hook output may include a top-level "userPrompt" field to replace the
-	// message entirely, or "additionalContext" (inside hookSpecificOutput) to
-	// prepend extra context. If the hook outputs nothing, the original prompt
-	// is forwarded unchanged.
+	// Per the real Claude Code contract the hook CANNOT replace the prompt: it
+	// may only append "additionalContext" (inside hookSpecificOutput), or block
+	// the prompt via {"decision":"block","reason":...} / exit 2. There is no
+	// "userPrompt"/"updatedPrompt" field (that is an open upstream feature
+	// request, anthropics/claude-code#27365). If the hook outputs nothing, the
+	// original prompt is forwarded unchanged.
 	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
-	EventUserPromptSubmit  EventName = "UserPromptSubmit"
+	EventUserPromptSubmit EventName = "UserPromptSubmit"
 )
 
 // Input is the JSON payload sent to a hook handler via stdin (command hooks)
@@ -49,9 +51,10 @@ type Input struct {
 	Model   string `json:"model,omitempty"`
 
 	// UserPromptSubmit
-	// UserPrompt is the raw text of the user message being submitted.
+	// Prompt is the raw text of the user message being submitted. The real Claude
+	// Code payload names this field "prompt" (NOT "user_prompt").
 	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
-	UserPrompt string `json:"user_prompt,omitempty"`
+	Prompt string `json:"prompt,omitempty"`
 
 	// Stop / SubagentStop / StopFailure
 	StopReason string `json:"stop_reason,omitempty"`
@@ -92,14 +95,13 @@ type Output struct {
 	Continue      *bool  `json:"continue,omitempty"`
 	StopReason    string `json:"stopReason,omitempty"`
 	SystemMessage string `json:"systemMessage,omitempty"`
-	Decision      string `json:"decision,omitempty"`
-	Reason        string `json:"reason,omitempty"`
-
-	// UserPrompt replaces the user message when set by a UserPromptSubmit hook.
-	// The original prompt is discarded; Claude receives only this text.
-	// If empty, the original prompt is forwarded unchanged.
-	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
-	UserPrompt string `json:"userPrompt,omitempty"`
+	// Decision / Reason are the documented Stop / UserPromptSubmit block controls.
+	// Decision "block" + Reason keeps the agent working (Stop) or rejects the
+	// prompt (UserPromptSubmit). For PreToolUse these top-level fields are
+	// DEPRECATED — use HookSpecificOutput.PermissionDecision instead.
+	// a10n:docs https://code.claude.com/docs/en/hooks#stop
+	Decision string `json:"decision,omitempty"`
+	Reason   string `json:"reason,omitempty"`
 
 	HookSpecificOutput *HookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
