@@ -263,6 +263,11 @@ func buildEnv(cfg Config, sessionFile *os.File) []string {
 		sessionPath = sessionFile.Name()
 	}
 	return append(os.Environ(),
+		// CLAUDE_CODE_SESSION_ID mirrors the real claude CLI, which exports the active
+		// session id into every Bash-tool subprocess. Tools that resolve "the current
+		// session" (e.g. a10n-task-executor session autopilot) read it.
+		// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
+		"CLAUDE_CODE_SESSION_ID="+cfg.SessionID,
 		"A10N_MOCK_SESSION_ID="+cfg.SessionID,
 		"A10N_MOCK_PROMPT="+cfg.Prompt,
 		"A10N_MOCK_ADDITIONAL_CONTEXT="+cfg.AdditionalContext,

@@ -106,7 +106,7 @@ func Run(ctx context.Context, cfg Config) error {
 		fmt.Fprintf(cfg.Stderr, "claude-mock: warn: loading settings: %v\n", err)
 		settings = &hooks.Settings{Hooks: make(map[hooks.EventName][]hooks.HookEntry)}
 	}
-	inv := hooks.NewInvoker(settings, cfg.Cwd)
+	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
 
 	// SessionStart hook — fires for every invocation (new or resumed session).
 	// The real Claude Code payload uses the "trigger" field ("startup" | "resume" |

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -17,13 +18,21 @@ const defaultHookTimeout = 60 * time.Second
 
 // Invoker fires hook handlers for a given event and collects their output.
 type Invoker struct {
-	settings *Settings
-	cwd      string
+	settings  *Settings
+	cwd       string
+	sessionID string
 }
 
-// NewInvoker creates an Invoker backed by the given settings.
-func NewInvoker(settings *Settings, cwd string) *Invoker {
-	return &Invoker{settings: settings, cwd: cwd}
+// NewInvoker creates an Invoker backed by the given settings. sessionID is
+// exported to every command hook as CLAUDE_CODE_SESSION_ID — mirroring the real
+// claude CLI, which puts the active session id in each hook's environment (verified
+// against claude 2.x: SessionStart/UserPromptSubmit/PreToolUse all see it). Tools a
+// hook shells to — e.g. `a10n-task-executor session autopilot` — read it to resolve
+// "the current session" without an explicit flag.
+//
+// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
+func NewInvoker(settings *Settings, cwd, sessionID string) *Invoker {
+	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID}
 }
 
 // Fire invokes all handlers configured for the event and matcher, then returns
@@ -86,6 +95,11 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, payload []
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec
 	cmd.Dir = inv.cwd
 	cmd.Stdin = bytes.NewReader(payload)
+	// Mirror the real claude CLI: expose the active session id to the hook env.
+	cmd.Env = os.Environ()
+	if inv.sessionID != "" {
+		cmd.Env = append(cmd.Env, "CLAUDE_CODE_SESSION_ID="+inv.sessionID)
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

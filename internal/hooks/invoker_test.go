@@ -31,7 +31,7 @@ func TestInvokeCommand_QuotedPathRunsViaShell(t *testing.T) {
 			{Type: "command", Command: `"` + script + `"`}, // quoted, like a plugin
 		}}},
 	}}
-	inv := NewInvoker(settings, dir)
+	inv := NewInvoker(settings, dir, "test-session")
 
 	_, err := inv.Fire(context.Background(), Input{HookEventName: EventStop})
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestInvokeCommand_ArgsAndEnvRunViaShell(t *testing.T) {
 			{Type: "command", Command: `"` + script + `" arg1`},
 		}}},
 	}}
-	inv := NewInvoker(settings, dir)
+	inv := NewInvoker(settings, dir, "test-session")
 
 	_, err := inv.Fire(context.Background(), Input{HookEventName: EventStop})
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestInvokeCommand_Exit2Blocks(t *testing.T) {
 			{Type: "command", Command: `"` + script + `"`},
 		}}},
 	}}
-	inv := NewInvoker(settings, dir)
+	inv := NewInvoker(settings, dir, "test-session")
 
 	_, err := inv.Fire(context.Background(), Input{HookEventName: EventPreToolUse, ToolName: "Agent"})
 	require.Error(t, err)
