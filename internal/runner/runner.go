@@ -129,7 +129,9 @@ func Run(ctx context.Context, cfg Config) error {
 		if runErr != nil {
 			stopReason = "error"
 		}
-		_, _ = inv.Fire(ctx, hooks.Input{
+		// In print mode the Stop hook validates response.json (exit 2 = validation
+		// failure). Propagate this as an error so RunSupervisor knows the run failed.
+		_, stopErr := inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventStop,
@@ -141,7 +143,10 @@ func Run(ctx context.Context, cfg Config) error {
 			HookEventName: hooks.EventSessionEnd,
 			Source:        "prompt_input_exit",
 		})
-		return runErr
+		if runErr != nil {
+			return runErr
+		}
+		return stopErr
 	}
 
 	// UserPromptSubmit fires before the prompt reaches the model. The hook may
