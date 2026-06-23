@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 
 	"github.com/a10n-build/a10n-cli/services/claude-mock/internal/hooks"
 )
@@ -51,6 +52,22 @@ type Config struct {
 	// run must not double-fire those events with an agent_id-less payload.
 	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
 	SuppressSubagentHooks bool
+
+	// PrintMode activates --print mode: the script runs in cfg.Cwd as its working
+	// directory, its raw stdout is captured (no JSONL parsing, no session
+	// persistence), and written to cfg.Out. Only SessionStart, UserPromptSubmit,
+	// and Stop hooks fire. This mirrors the real `claude --print` non-interactive
+	// mode used by the autopilot supervisor.
+	//
+	// The supervisor (RunSupervisor in services/task-executor) invokes claude with
+	// --print and expects:
+	//  - cmd.Dir = session dir (the script writes memory files there)
+	//  - stdout = raw text (the unclassified user prompt remainder), not JSONL
+	//  - no session JSONL written
+	//  - SessionStart/UserPromptSubmit/Stop hooks still fire so plugins can intercept
+	//
+	// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+	PrintMode bool
 }
 
 // Run executes the mock: runs the script, validates + streams JSONL, fires hooks.
@@ -87,18 +104,63 @@ func Run(ctx context.Context, cfg Config) error {
 	inv := hooks.NewInvoker(settings, cfg.Cwd)
 
 	// SessionStart hook — fires for every invocation (new or resumed session).
-	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#session-start
-	source := "startup"
+	// The real Claude Code payload uses the "trigger" field ("startup" | "resume" |
+	// "clear" | "compact"); "source" is a separate field used by SessionEnd.
+	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+	trigger := "startup"
 	if cfg.IsResume {
-		source = "resume"
+		trigger = "resume"
 	}
 	if _, err := inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventSessionStart,
-		Source:        source,
+		Trigger:       trigger,
 	}); err != nil {
 		return fmt.Errorf("claude-mock: SessionStart hook blocked: %w", err)
+	}
+
+	// In print mode: skip SubagentStart/SubagentStop/session-streaming; run the
+	// script once with raw stdout capture, fire UserPromptSubmit + Stop, and return.
+	// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+	if cfg.PrintMode {
+		runErr := runPrintMode(ctx, cfg, inv, sessionFile) //nolint:contextcheck
+		stopReason := "end_turn"
+		if runErr != nil {
+			stopReason = "error"
+		}
+		_, _ = inv.Fire(ctx, hooks.Input{
+			SessionID:     cfg.SessionID,
+			Cwd:           cfg.Cwd,
+			HookEventName: hooks.EventStop,
+			StopReason:    stopReason,
+		})
+		_, _ = inv.Fire(ctx, hooks.Input{
+			SessionID:     cfg.SessionID,
+			Cwd:           cfg.Cwd,
+			HookEventName: hooks.EventSessionEnd,
+			Source:        "prompt_input_exit",
+		})
+		return runErr
+	}
+
+	// UserPromptSubmit fires before the prompt reaches the model. The hook may
+	// return {"userPrompt": "..."} to replace the message; if so, cfg.Prompt is
+	// updated for the script's A10N_MOCK_PROMPT env var.
+	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
+	if cfg.Prompt != "" {
+		promptOut, err := inv.Fire(ctx, hooks.Input{
+			SessionID:     cfg.SessionID,
+			Cwd:           cfg.Cwd,
+			HookEventName: hooks.EventUserPromptSubmit,
+			UserPrompt:    cfg.Prompt,
+		})
+		if err != nil {
+			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
+		}
+		if promptOut.UserPrompt != "" {
+			cfg.Prompt = promptOut.UserPrompt
+		}
 	}
 
 	// SubagentStart fires for resumed sessions (subagents always use --resume).
@@ -139,6 +201,39 @@ func Run(ctx context.Context, cfg Config) error {
 	})
 
 	return runErr
+}
+
+// runPrintMode runs the supervisor script once with raw stdout capture (no JSONL
+// parsing, no session persistence). The script's working directory is cfg.Cwd
+// (set to the session dir by the supervisor caller). Raw stdout is written to
+// cfg.Out. This implements `claude --print` semantics for the autopilot supervisor.
+//
+// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
+	// Fire UserPromptSubmit so the autopilot plugin can intercept even in print mode.
+	// The hook output ({"userPrompt": "..."}) updates cfg.Prompt — which becomes
+	// A10N_MOCK_PROMPT for the script, letting the supervisor see the modified prompt.
+	if cfg.Prompt != "" {
+		promptOut, err := inv.Fire(ctx, hooks.Input{
+			SessionID:     cfg.SessionID,
+			Cwd:           cfg.Cwd,
+			HookEventName: hooks.EventUserPromptSubmit,
+			UserPrompt:    cfg.Prompt,
+		})
+		if err != nil {
+			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
+		}
+		if promptOut.UserPrompt != "" {
+			cfg.Prompt = promptOut.UserPrompt
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
+	cmd.Dir = cfg.Cwd                                          // supervisor writes memory files here
+	cmd.Env = buildEnv(cfg, sessionFile)
+	cmd.Stderr = cfg.Stderr
+	cmd.Stdout = cfg.Out // raw text passthrough — no JSONL parsing
+	return cmd.Run()
 }
 
 func boolStr(b bool) string {

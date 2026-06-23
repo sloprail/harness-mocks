@@ -19,7 +19,7 @@ const (
 	flagProjectDir     = "project-dir"
 	flagConfigDir      = "config-dir"
 	flagPluginCacheDir = "plugin-cache-dir"
-	flagPrint          = "p"
+	flagPrint          = "print"
 )
 
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
@@ -32,9 +32,23 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagProjectDir, "", "Project root for settings.json resolution (default: cwd)")
 	cmd.Flags().String(flagConfigDir, "", "Claude config dir for session JSONL storage (env: CLAUDE_CONFIG_DIR, default: /tmp/a10n/claude-mock)")
 	cmd.Flags().String(flagPluginCacheDir, "", "Plugin/marketplace cache root (env: CLAUDE_CODE_PLUGIN_CACHE_DIR, default: /tmp/a10n-mock-plugins)")
-	cmd.Flags().BoolP(flagPrint, "p", false, "Print mode flag (passed by claude runner; accepted and ignored)")
+	// --print activates non-interactive print mode: the script's raw stdout is
+	// forwarded directly (no JSONL parsing, no session persistence).
+	// This mirrors `claude --print` used by the autopilot supervisor.
+	// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+	cmd.Flags().Bool(flagPrint, false, "Print mode: forward raw script stdout instead of streaming JSONL")
+	// -p is accepted for CLI compatibility with `claude -p` shorthand; it is ignored
+	// (the --print flag above is the real mechanism). Existing tests use -p as a
+	// "pass a prompt" shorthand that cobra treats as the bool flag being set, with
+	// the following arg becoming a positional prompt — this must remain ignored.
+	cmd.Flags().BoolP("print-compat", "p", false, "Accepted for CLI compatibility with -p shorthand; has no effect")
+	_ = cmd.Flags().MarkHidden("print-compat")
 	// claude also passes --verbose; accept but ignore.
 	cmd.Flags().Bool("verbose", false, "Accepted for CLI compatibility; has no effect")
+	// The autopilot supervisor passes these flags; accept them for CLI compatibility.
+	cmd.Flags().String("system-prompt", "", "Accepted for CLI compatibility; passed to script via A10N_MOCK_SYSTEM_PROMPT")
+	cmd.Flags().StringArray("add-dir", nil, "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().Bool("dangerously-skip-permissions", false, "Accepted for CLI compatibility; has no effect")
 }
 
 // rootRunE implements the root command's RunE — the primary entrypoint when the
@@ -79,6 +93,11 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
 	pluginCacheDir, _ := cmd.Flags().GetString(flagPluginCacheDir)
+	printMode, _ := cmd.Flags().GetBool(flagPrint)
+	systemPrompt, _ := cmd.Flags().GetString("system-prompt")
+	if systemPrompt != "" {
+		os.Setenv("A10N_MOCK_SYSTEM_PROMPT", systemPrompt) //nolint:errcheck
+	}
 	prompt := strings.Join(args, " ")
 	cwd, _ := os.Getwd()
 
@@ -91,6 +110,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		ProjectDir:     projectDir,
 		ConfigDir:      configDir,
 		PluginCacheDir: pluginCacheDir,
+		PrintMode:      printMode,
 		Stderr:         os.Stderr,
 		Out:            os.Stdout,
 	})

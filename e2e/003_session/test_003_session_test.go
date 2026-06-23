@@ -37,14 +37,16 @@ func writeScenario(t *testing.T, dir, content string) string {
 
 // --- SessionStart ---
 
-// TestT003_01_SessionStartFiresOnNewSession: source must be "startup" for --session-id.
+// TestT003_01_SessionStartFiresOnNewSession: trigger must be "startup" for --session-id.
+// The real Claude Code sends trigger:"startup"|"resume"|"compact"|"clear" on SessionStart,
+// not "source". The mock mirrors this — hooks must read the "trigger" field.
 func TestT003_01_SessionStartFiresOnNewSession(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
 	hook := hookCapture(t, dir, logFile, `
-src=$(echo "$input" | grep -o '"source":"[^"]*"' | cut -d'"' -f4)
+trig=$(echo "$input" | grep -o '"trigger":"[^"]*"' | cut -d'"' -f4)
 evt=$(echo "$input" | grep -o '"hook_event_name":"[^"]*"' | cut -d'"' -f4)
-echo "$evt:$src" >> "`+logFile+`"`)
+echo "$evt:$trig" >> "`+logFile+`"`)
 	writeHookSettings(t, dir, "SessionStart", hook)
 	script := writeScenario(t, dir, `#!/bin/sh
 printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
@@ -55,13 +57,13 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 	assert.Contains(t, string(data), "SessionStart:startup")
 }
 
-// TestT003_02_SessionStartSourceResumeOnResume: source must be "resume" for --resume.
-func TestT003_02_SessionStartSourceResumeOnResume(t *testing.T) {
+// TestT003_02_SessionStartTriggerResumeOnResume: trigger must be "resume" for --resume.
+func TestT003_02_SessionStartTriggerResumeOnResume(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
 	hook := hookCapture(t, dir, logFile, `
-src=$(echo "$input" | grep -o '"source":"[^"]*"' | cut -d'"' -f4)
-echo "$src" >> "`+logFile+`"`)
+trig=$(echo "$input" | grep -o '"trigger":"[^"]*"' | cut -d'"' -f4)
+echo "$trig" >> "`+logFile+`"`)
 	writeHookSettings(t, dir, "SessionStart", hook)
 	script := writeScenario(t, dir, `#!/bin/sh
 printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'

@@ -8,16 +8,23 @@ import "encoding/json"
 type EventName string
 
 const (
-	EventSessionStart   EventName = "SessionStart"
-	EventSessionEnd     EventName = "SessionEnd"
-	EventStop           EventName = "Stop"
-	EventSubagentStart  EventName = "SubagentStart"
-	EventSubagentStop   EventName = "SubagentStop"
-	EventStopFailure    EventName = "StopFailure"
-	EventPreToolUse     EventName = "PreToolUse"
-	EventPostToolUse    EventName = "PostToolUse"
-	EventWorktreeCreate EventName = "WorktreeCreate"
-	EventWorktreeRemove EventName = "WorktreeRemove"
+	EventSessionStart      EventName = "SessionStart"
+	EventSessionEnd        EventName = "SessionEnd"
+	EventStop              EventName = "Stop"
+	EventSubagentStart     EventName = "SubagentStart"
+	EventSubagentStop      EventName = "SubagentStop"
+	EventStopFailure       EventName = "StopFailure"
+	EventPreToolUse        EventName = "PreToolUse"
+	EventPostToolUse       EventName = "PostToolUse"
+	EventWorktreeCreate    EventName = "WorktreeCreate"
+	EventWorktreeRemove    EventName = "WorktreeRemove"
+	// EventUserPromptSubmit fires before each user message is sent to the model.
+	// The hook output may include a top-level "userPrompt" field to replace the
+	// message entirely, or "additionalContext" (inside hookSpecificOutput) to
+	// prepend extra context. If the hook outputs nothing, the original prompt
+	// is forwarded unchanged.
+	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
+	EventUserPromptSubmit  EventName = "UserPromptSubmit"
 )
 
 // Input is the JSON payload sent to a hook handler via stdin (command hooks)
@@ -30,8 +37,21 @@ type Input struct {
 	PermissionMode string    `json:"permission_mode,omitempty"`
 
 	// SessionStart / SessionEnd
+	// Source mirrors the real Claude Code field for SessionEnd ("prompt_input_exit").
+	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
 	Source string `json:"source,omitempty"`
-	Model  string `json:"model,omitempty"`
+	// Trigger is the SessionStart-specific field in the real Claude Code payload:
+	// "startup" | "resume" | "clear" | "compact".
+	// The mock sets this to "startup" (new) or "resume" (--resume) to mirror the
+	// real client. Hooks that need to detect compaction should read this field.
+	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+	Trigger string `json:"trigger,omitempty"`
+	Model   string `json:"model,omitempty"`
+
+	// UserPromptSubmit
+	// UserPrompt is the raw text of the user message being submitted.
+	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
+	UserPrompt string `json:"user_prompt,omitempty"`
 
 	// Stop / SubagentStop / StopFailure
 	StopReason string `json:"stop_reason,omitempty"`
@@ -74,6 +94,12 @@ type Output struct {
 	SystemMessage string `json:"systemMessage,omitempty"`
 	Decision      string `json:"decision,omitempty"`
 	Reason        string `json:"reason,omitempty"`
+
+	// UserPrompt replaces the user message when set by a UserPromptSubmit hook.
+	// The original prompt is discarded; Claude receives only this text.
+	// If empty, the original prompt is forwarded unchanged.
+	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
+	UserPrompt string `json:"userPrompt,omitempty"`
 
 	HookSpecificOutput *HookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
