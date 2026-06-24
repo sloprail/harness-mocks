@@ -94,6 +94,24 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 		return true, "", nil
 	}
 
+	// PreToolUse DENIED this tool call (exit-0 deny). Do NOT execute it; feed the
+	// reason back as an (error) tool_result so the agent's next turn sees the block
+	// and can self-correct + retry — the real Claude Code contract. No PostToolUse
+	// fires (the tool never ran). The loop guard signature is the blocked tool_use so
+	// an agent that re-emits the identical blocked call without adapting is still
+	// bounded by maxIdenticalTurns.
+	// a10n:docs https://code.claude.com/docs/en/hooks#pretooluse
+	if pending.Blocked {
+		blockRes := toolexec.Result{
+			Output:  "Tool call blocked by a PreToolUse hook: " + pending.BlockReason,
+			IsError: true,
+		}
+		if err := emitToolResult(cfg, pending, blockRes, sessionFile); err != nil {
+			return false, "", err
+		}
+		return false, "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), nil
+	}
+
 	// tool_use was seen — execute it.
 	//
 	// Two tools are special-cased here at the stream layer:
@@ -144,6 +162,15 @@ type pendingToolUse struct {
 	ToolUseID string
 	ToolName  string
 	ToolInput json.RawMessage
+
+	// Blocked is set when a PreToolUse hook DENIED this tool call with
+	// permissionDecision=deny (and EXIT 0 — the real Claude Code contract). The tool
+	// is NOT executed; instead a tool_result carrying BlockReason is fed back to the
+	// agent (the script's next turn), which may then self-correct and retry — exactly
+	// as real Claude surfaces the deny reason and continues the turn rather than
+	// aborting. (An exit-2 hook is a different, fatal path handled via Fire's error.)
+	Blocked     bool
+	BlockReason string
 }
 
 // scanLines reads one script invocation's JSONL output line by line.
@@ -209,20 +236,35 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				}
 				denied := hookOut.Decision == "block" ||
 					(hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecision == "deny")
-				if denied {
-					reason := hookOut.Reason
-					if hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecisionReason != "" {
-						reason = hookOut.HookSpecificOutput.PermissionDecisionReason
-					}
-					return pendingToolUse{}, false, fmt.Errorf("claude-mock: tool use blocked by hook: %s", reason)
-				}
 
-				// Forward the assistant record, append to session, then return for
-				// tool execution — script will be re-run with updated session file.
+				// Forward the assistant record + append to session BEFORE deciding the
+				// tool's fate — the tool_use is part of the trajectory either way.
 				cfg.Out.Write(line)         //nolint:errcheck
 				cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
 				appendToSession(sessionFile, line)
 
+				if denied {
+					// Real Claude Code contract (empirically verified, STEP 0): a
+					// PreToolUse deny with EXIT 0 BLOCKS this tool call and feeds the
+					// reason back to the agent, which can then self-correct and retry —
+					// the turn CONTINUES, it is not aborted. Model that by returning a
+					// Blocked pending: the caller emits a tool_result carrying the reason
+					// and re-runs the script (the agent's next turn) instead of erroring.
+					reason := hookOut.Reason
+					if hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecisionReason != "" {
+						reason = hookOut.HookSpecificOutput.PermissionDecisionReason
+					}
+					return pendingToolUse{
+						ToolUseID:   toolUseID,
+						ToolName:    toolName,
+						ToolInput:   toolInput,
+						Blocked:     true,
+						BlockReason: reason,
+					}, false, nil
+				}
+
+				// Allowed → return for tool execution; the script is re-run with the
+				// updated session file (now carrying this tool_use + its result).
 				return pendingToolUse{
 					ToolUseID: toolUseID,
 					ToolName:  toolName,

@@ -131,6 +131,15 @@ func Run(ctx context.Context, cfg Config) error {
 
 	// In print mode: skip SubagentStart/SubagentStop/session-streaming; run the
 	// script once with raw stdout capture, fire UserPromptSubmit + Stop, and return.
+	//
+	// EXCEPTION (A10N_MOCK_PRINT_STREAM=1): process the script's stdout through the
+	// normal streaming turn loop instead of raw passthrough, so a print-mode agent can
+	// emit tool_use records — notably an Agent/Task tool_use that spawns a nested
+	// sub-agent. The real `claude --print` is fully tool-capable (—print only means
+	// non-interactive output); this opt-in lets the autopilot course-correction
+	// supervisor (which delegates trajectory-slice review to a sub-agent) be exercised
+	// faithfully in e2e. Default-off keeps every existing print-mode scenario (which
+	// writes files / emits raw text) on the original raw path.
 	// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
 	if cfg.PrintMode {
 		runErr := runPrintMode(ctx, cfg, inv, sessionFile) //nolint:contextcheck
@@ -237,6 +246,14 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFi
 			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
 		}
 		cfg.AdditionalContext = additionalContextFrom(promptOut)
+	}
+
+	// Opt-in: drive the script through the streaming turn loop so it can emit
+	// tool_use records (e.g. an Agent/Task tool_use → nested sub-agent). The
+	// supervisor still writes response.json as a side effect inside cfg.Cwd; the
+	// streamed JSONL goes to cfg.Out as usual.
+	if os.Getenv("A10N_MOCK_PRINT_STREAM") == "1" {
+		return streamAndHook(ctx, cfg, inv, sessionFile)
 	}
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
