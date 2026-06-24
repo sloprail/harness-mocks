@@ -39,16 +39,14 @@ type Input struct {
 	PermissionMode string    `json:"permission_mode,omitempty"`
 
 	// SessionStart / SessionEnd
-	// Source mirrors the real Claude Code field for SessionEnd ("prompt_input_exit").
+	// Source is the SessionStart field in the real Claude Code payload:
+	// "startup" | "resume" | "clear" | "compact" — compaction (auto or manual) uses
+	// "compact". Verified empirically against claude 2.x: the SessionStart hook
+	// stdin carries "source" (NOT "trigger"). Also reused by SessionEnd
+	// ("prompt_input_exit"). The mock sets it to "startup"/"resume"/(override).
 	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
 	Source string `json:"source,omitempty"`
-	// Trigger is the SessionStart-specific field in the real Claude Code payload:
-	// "startup" | "resume" | "clear" | "compact".
-	// The mock sets this to "startup" (new) or "resume" (--resume) to mirror the
-	// real client. Hooks that need to detect compaction should read this field.
-	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
-	Trigger string `json:"trigger,omitempty"`
-	Model   string `json:"model,omitempty"`
+	Model  string `json:"model,omitempty"`
 
 	// UserPromptSubmit
 	// Prompt is the raw text of the user message being submitted. The real Claude

@@ -15,18 +15,27 @@ type cliRecord struct {
 	Subtype string `json:"subtype,omitempty"`
 	IsError bool   `json:"is_error,omitempty"`
 
+	// IsCompactSummary marks a compaction record: real Claude Code writes a
+	// {"type":"user","isCompactSummary":true,…} line to the transcript when it
+	// auto-compacts the context window. A scenario script emits this to drive a
+	// compaction event; the runner reacts by firing SessionStart source="compact".
+	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+	IsCompactSummary bool `json:"isCompactSummary,omitempty"`
+
 	// result frame fields
 	Result string   `json:"result,omitempty"`
 	Errors []string `json:"errors,omitempty"`
 
-	// assistant frame: message.stop_reason used to detect end_turn
+	// assistant frame: message.stop_reason used to detect end_turn.
+	// Content is left as raw JSON: Claude Code emits it as an array of blocks for
+	// normal messages but as a plain string for some records (notably the
+	// isCompactSummary compaction record), and validateRecord must accept both.
+	// The per-block extraction helpers (extractFirstToolUse*, lineHasToolResult)
+	// re-parse the line with their own typed shapes, so this field is never decoded
+	// structurally here.
 	Message *struct {
-		StopReason string `json:"stop_reason,omitempty"`
-		Content    []struct {
-			Type  string          `json:"type"`
-			Name  string          `json:"name"`
-			Input json.RawMessage `json:"input"`
-		} `json:"content"`
+		StopReason string          `json:"stop_reason,omitempty"`
+		Content    json.RawMessage `json:"content"`
 	} `json:"message,omitempty"`
 
 	// mock-only control record fields (never forwarded to stdout):

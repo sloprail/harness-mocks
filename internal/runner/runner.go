@@ -8,6 +8,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -109,20 +110,23 @@ func Run(ctx context.Context, cfg Config) error {
 	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
 
 	// SessionStart hook — fires for every invocation (new or resumed session).
-	// The real Claude Code payload uses the "trigger" field ("startup" | "resume" |
-	// "clear" | "compact"); "source" is a separate field used by SessionEnd.
+	// The real Claude Code SessionStart payload uses the "source" field
+	// ("startup" | "resume" | "clear" | "compact") — verified empirically against
+	// claude 2.x (hook stdin carries "source", and compaction uses source="compact").
 	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
-	trigger := "startup"
+	source := "startup"
 	if cfg.IsResume {
-		trigger = "resume"
+		source = "resume"
 	}
-	if _, err := inv.Fire(ctx, hooks.Input{
-		SessionID:     cfg.SessionID,
-		Cwd:           cfg.Cwd,
-		HookEventName: hooks.EventSessionStart,
-		Trigger:       trigger,
-	}); err != nil {
+	ac, err := fireSessionStart(ctx, cfg, inv, source)
+	if err != nil {
 		return fmt.Errorf("claude-mock: SessionStart hook blocked: %w", err)
+	}
+	// Real Claude Code injects a SessionStart hook's additionalContext into the
+	// session context (notably on source="compact", to re-seed a compacted window).
+	// Surface it so the script also sees it via env on this run.
+	if ac != "" {
+		cfg.AdditionalContext = ac
 	}
 
 	// In print mode: skip SubagentStart/SubagentStop/session-streaming; run the
@@ -250,12 +254,54 @@ func boolStr(b bool) string {
 	return "false"
 }
 
-// additionalContextFrom extracts the additionalContext a UserPromptSubmit hook
-// returned, if any. Real Claude Code appends this to the model's context; the
-// mock forwards it to the script via A10N_MOCK_ADDITIONAL_CONTEXT.
+// fireSessionStart fires the SessionStart hook with the given source field
+// ("startup" | "resume" | "compact" | …), surfaces any additionalContext the hook
+// returned (emitting a system record on the output stream, as real Claude Code
+// injects a SessionStart hook's additionalContext into the session context — most
+// notably on source="compact", to re-seed a compacted window), and returns that
+// additionalContext. It is called once at startup/resume, and again on every
+// compaction record the scenario emits (source="compact"; see scanLines). A
+// blocking hook (exit 2) is returned as an error.
+// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, source string) (string, error) {
+	ssOut, err := inv.Fire(ctx, hooks.Input{
+		SessionID:     cfg.SessionID,
+		Cwd:           cfg.Cwd,
+		HookEventName: hooks.EventSessionStart,
+		Source:        source,
+	})
+	if err != nil {
+		return "", err
+	}
+	ac := additionalContextFrom(ssOut)
+	if ac != "" {
+		emitSystemContext(cfg, "session_start", ac)
+	}
+	return ac, nil
+}
+
+// additionalContextFrom extracts the additionalContext a hook returned, if any.
+// Real Claude Code appends this to the model's context; the mock forwards it to
+// the script via A10N_MOCK_ADDITIONAL_CONTEXT.
 func additionalContextFrom(out hooks.Output) string {
 	if out.HookSpecificOutput != nil {
 		return out.HookSpecificOutput.AdditionalContext
 	}
 	return ""
+}
+
+// emitSystemContext writes a JSONL system record carrying additionalContext to the
+// output stream, mirroring how real Claude Code surfaces a hook's injected context
+// (e.g. a SessionStart compact re-seed). source identifies the originating hook.
+func emitSystemContext(cfg Config, source, additionalContext string) {
+	rec := map[string]any{
+		"type":              "system",
+		"subtype":           "hook_additional_context",
+		"source":            source,
+		"additionalContext": additionalContext,
+	}
+	if b, err := json.Marshal(rec); err == nil {
+		cfg.Out.Write(b)            //nolint:errcheck
+		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+	}
 }

@@ -96,15 +96,24 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 
 	// tool_use was seen — execute it.
 	//
-	// The Agent tool (alias Task; real Claude renamed Task→Agent in v2.1.63)
-	// spawns a NESTED subagent run rather than a pure FS/Bash op, so it is handled
-	// here at the stream layer — it needs ctx, cfg, inv and the session file, none
-	// of which toolexec.Execute has access to.
+	// Two tools are special-cased here at the stream layer:
+	//   - Agent (alias Task; real Claude renamed Task→Agent in v2.1.63) spawns a
+	//     NESTED subagent run rather than a pure FS/Bash op, so it needs ctx, cfg,
+	//     inv and the session file (none of which toolexec.Execute has access to).
+	//   - ScheduleWakeup is routed to runScheduleWakeupTool purely for arg
+	//     validation; on success it just returns a success tool_result. There is no
+	//     real delay in the mock — the turn loop ALREADY re-runs the script after
+	//     every tool_use, which IS the "wake-up fired, resume" behaviour. It has no
+	//     compaction side effect (compaction is a separate event the SCRIPT emits as
+	//     an isCompactSummary record; see scanLines).
 	// a10n:docs https://code.claude.com/docs/en/sub-agents
 	var res toolexec.Result
-	if isAgentTool(pending.ToolName) {
+	switch {
+	case isAgentTool(pending.ToolName):
 		res = runAgentTool(ctx, cfg, inv, pending.ToolInput)
-	} else {
+	case isScheduleWakeupTool(pending.ToolName):
+		res = runScheduleWakeupTool(pending.ToolInput)
+	default:
 		res = toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd)
 	}
 
@@ -161,6 +170,24 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if handled, err := handleControlRecord(ctx, rec, cfg, inv); err != nil {
 			return pendingToolUse{}, false, err
 		} else if handled {
+			continue
+		}
+
+		// Compaction record: real Claude Code writes a
+		// {"type":"user","isCompactSummary":true,…} line when it auto-compacts the
+		// context window. When the scenario emits one, forward it (it is part of the
+		// trajectory/history) and react by firing SessionStart source="compact" — the
+		// hook supplies the re-injected additionalContext; the record carries none. A
+		// compaction record is NOT a tool_use, so it does not break the turn loop or
+		// count toward the loop guard.
+		// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+		if rec.IsCompactSummary {
+			cfg.Out.Write(line)         //nolint:errcheck
+			cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+			appendToSession(sessionFile, line)
+			if _, err := fireSessionStart(ctx, cfg, inv, "compact"); err != nil {
+				return pendingToolUse{}, false, fmt.Errorf("claude-mock: SessionStart (compact) hook blocked: %w", err)
+			}
 			continue
 		}
 
