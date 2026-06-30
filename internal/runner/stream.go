@@ -50,13 +50,20 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 			return err
 		}
 		if done {
-			// The script ended its turn (result frame). Real Claude Code fires the Stop hook
-			// HERE; if the hook BLOCKS (exit 2 / exit-0 decision:block — e.g. an a10n drain's
-			// "spawn one sub-agent per parked check" block), the turn is RE-PROMPTED and the
-			// agent CONTINUES. We mirror that: fire Stop, surface its output into the transcript
-			// as an attachment (so the next turn can read the reason/links), and if it blocked,
-			// LOOP again instead of returning — bounded by the Stop-hook block cap. The final
-			// (non-blocking) Stop firing in runner.go still runs after we return.
+			// A SUB-AGENT run (SuppressSubagentHooks) must NOT fire Stop here — the Agent-tool
+			// layer (agent.go) owns the sub-agent's terminal hook: it fires SubagentStop and runs
+			// the block→re-run loop. Firing the ROOT Stop here would (a) wrongly run the root drain
+			// inside a sub-agent and (b) consume the block-retry that agent.go expects to drive.
+			if cfg.SuppressSubagentHooks {
+				return nil
+			}
+			// ROOT agent: the script ended its turn (result frame). Real Claude Code fires the Stop
+			// hook HERE; if the hook BLOCKS (exit 2 / exit-0 decision:block — e.g. an a10n drain's
+			// "spawn one sub-agent per parked check" block), the turn is RE-PROMPTED and the agent
+			// CONTINUES. We mirror that: fire Stop, surface its output into the transcript as an
+			// attachment (so the next turn can read the reason/links), and if it blocked, LOOP again
+			// instead of returning — bounded by the Stop-hook block cap. runner.go fires Stop only
+			// on the error path (this owns the success path).
 			stopOut, stopErr := inv.Fire(ctx, hooks.Input{
 				SessionID:      cfg.SessionID,
 				Cwd:            cfg.Cwd,
@@ -68,8 +75,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 			if blocked {
 				emitStopHookAttachment(sessionFile, "Stop", stopOut, stopErr)
 				stopBlocks++
-				if stopBlocks >= blockCap {
+				if blockCap > 0 && stopBlocks >= blockCap {
 					// Stop kept blocking — give up (matches the real block-cap backstop).
+					// blockCap == 0 means unlimited (same convention as agent.go's SubagentStop loop).
 					return nil
 				}
 				// Re-prompt: continue the loop so the next script turn reacts to the block.
