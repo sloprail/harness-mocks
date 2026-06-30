@@ -235,3 +235,115 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 	require.NoError(t, err, "stop hook log must exist")
 	assert.Contains(t, string(logBytes), "stop:", "stop hook must fire with stop_reason")
 }
+
+// TestT002_06_StopHookBlockReasonSurfacesAsAttachment verifies that a Stop hook returning
+// exit-0 {"decision":"block","reason":...} (the shape an a10n drain emits to spawn resolver
+// sub-agents) is SURFACED into the session transcript as a hook_blocking_error attachment
+// carrying the reason — so a reactive agent can read the a10n://check-runs link and act on it.
+// Before this, the mock discarded the Stop hook's output and the reason never reached the
+// conversation, making reactive flows impossible to test.
+func TestT002_06_StopHookBlockReasonSurfacesAsAttachment(t *testing.T) {
+	dir := t.TempDir()
+	configDir := filepath.Join(dir, "config")
+
+	// A Stop hook that emits the drain-shaped block: exit 0, decision:block + reason w/ a link.
+	stopHook := filepath.Join(dir, "stop-block.sh")
+	require.NoError(t, os.WriteFile(stopHook, []byte(`#!/bin/sh
+printf '%s' '{"decision":"block","reason":"Checks need resolving. Spawn one sub-agent per link below; a10n://check-runs/abc/checks/inv/steps/review"}'
+exit 0
+`), 0o755))
+
+	claudeDir := filepath.Join(dir, ".claude")
+	require.NoError(t, os.MkdirAll(claudeDir, 0o755))
+	settings := `{
+  "hooks": {
+    "Stop": [
+      {"matcher":"*","hooks":[{"type":"command","command":"` + stopHook + `"}]}
+    ]
+  }
+}`
+	require.NoError(t, os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte(settings), 0o644))
+
+	scriptPath := filepath.Join(dir, "scenario.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte(`#!/bin/sh
+printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
+`), 0o755))
+
+	_, code := runInDir(t, dir, nil,
+		"--script", scriptPath,
+		"--session-id", "s-stopblock",
+		"--project-dir", dir,
+		"--config-dir", configDir,
+		"-p", "run",
+	)
+	require.Equal(t, 0, code)
+
+	// The Stop hook's block reason (with the a10n://check-runs link) must be recorded in the
+	// session transcript as an attachment, so a reactive agent turn can read + act on it.
+	var sessionFile string
+	filepath.Walk(configDir, func(p string, info os.FileInfo, _ error) error {
+		if info != nil && !info.IsDir() && filepath.Ext(p) == ".jsonl" {
+			sessionFile = p
+		}
+		return nil
+	})
+	require.NotEmpty(t, sessionFile, "session transcript must exist")
+	data, err := os.ReadFile(sessionFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "hook_blocking_error",
+		"Stop hook block must be recorded as a hook_blocking_error attachment")
+	assert.Contains(t, string(data), "a10n://check-runs/abc/checks/inv/steps/review",
+		"the block reason's link must reach the transcript so a reactive agent can read it")
+}
+
+// TestT002_07_StopBlockRePromptsTurnSameRun verifies the real Claude Code Stop→re-prompt→continue
+// loop: a Stop hook that blocks ONCE re-prompts the agent, and the scenario's NEXT turn fires in
+// the SAME run (reacting to the surfaced block) — rather than the run ending at the first result.
+// This is what lets a reactive scenario spawn a resolver after the Stop drain parks a check.
+func TestT002_07_StopBlockRePromptsTurnSameRun(t *testing.T) {
+	dir := t.TempDir()
+
+	// Stop hook: block ONCE (until a marker file exists), then allow — so the loop is bounded.
+	gate := filepath.Join(dir, "stopped-once")
+	stopHook := filepath.Join(dir, "stop.sh")
+	require.NoError(t, os.WriteFile(stopHook, []byte(`#!/bin/sh
+if [ -f "`+gate+`" ]; then exit 0; fi
+touch "`+gate+`"
+printf '%s' '{"decision":"block","reason":"keep going: a10n://check-runs/x/checks/c/steps/s"}'
+exit 0
+`), 0o755))
+
+	claudeDir := filepath.Join(dir, ".claude")
+	require.NoError(t, os.MkdirAll(claudeDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte(`{
+  "hooks": { "Stop": [ {"matcher":"*","hooks":[{"type":"command","command":"`+stopHook+`"}]} ] }
+}`), 0o644))
+
+	// The scenario: turn 1 emits a result (ends turn → Stop fires + blocks). On the re-prompt,
+	// turn 2 (gated on the surfaced block link being in $SESS) runs a Bash command that proves it
+	// fired in the same run, then a final result.
+	proof := filepath.Join(dir, "second-turn-ran")
+	scriptPath := filepath.Join(dir, "scenario.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte(`#!/bin/sh
+SF="${A10N_MOCK_SESSION_FILE:-/dev/null}"
+SESS=$(cat "$SF" 2>/dev/null || true)
+# turn 2: if the Stop block's link surfaced, run a Bash tool_use to prove we continued.
+if printf '%s' "$SESS" | grep -q 'a10n://check-runs/x/checks/c/steps/s'; then
+  if ! printf '%s' "$SESS" | grep -q 'second-turn-marker'; then
+    printf '%s\n' '{"type":"assistant","message":{"role":"assistant","stop_reason":null,"content":[{"type":"tool_use","id":"second-turn-marker","name":"Bash","input":{"command":"touch `+proof+`"}}]}}'
+    exit 0
+  fi
+fi
+# turn 1 (and final): end the turn.
+printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
+`), 0o755))
+
+	_, code := runInDir(t, dir, nil,
+		"--script", scriptPath, "--session-id", "s-reprompt", "--project-dir", dir, "-p", "run",
+	)
+	require.Equal(t, 0, code)
+
+	// The second turn ran IN THE SAME RUN because the Stop block re-prompted the agent.
+	_, err := os.Stat(proof)
+	assert.NoError(t, err, "Stop-block re-prompt must let the next scenario turn fire in the same run")
+}

@@ -42,12 +42,41 @@ const maxIdenticalTurns = 5
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
 	var lastSig string
 	var repeats int
+	var stopBlocks int
+	blockCap := stopHookBlockCap()
 	for {
 		done, sig, err := runOneTurnSig(ctx, cfg, inv, sessionFile)
 		if err != nil {
 			return err
 		}
 		if done {
+			// The script ended its turn (result frame). Real Claude Code fires the Stop hook
+			// HERE; if the hook BLOCKS (exit 2 / exit-0 decision:block — e.g. an a10n drain's
+			// "spawn one sub-agent per parked check" block), the turn is RE-PROMPTED and the
+			// agent CONTINUES. We mirror that: fire Stop, surface its output into the transcript
+			// as an attachment (so the next turn can read the reason/links), and if it blocked,
+			// LOOP again instead of returning — bounded by the Stop-hook block cap. The final
+			// (non-blocking) Stop firing in runner.go still runs after we return.
+			stopOut, stopErr := inv.Fire(ctx, hooks.Input{
+				SessionID:      cfg.SessionID,
+				Cwd:            cfg.Cwd,
+				TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
+				HookEventName:  hooks.EventStop,
+				StopReason:     "end_turn",
+			})
+			blocked := stopErr != nil || stopOut.Decision == "block"
+			if blocked {
+				emitStopHookAttachment(sessionFile, "Stop", stopOut, stopErr)
+				stopBlocks++
+				if stopBlocks >= blockCap {
+					// Stop kept blocking — give up (matches the real block-cap backstop).
+					return nil
+				}
+				// Re-prompt: continue the loop so the next script turn reacts to the block.
+				lastSig = ""
+				repeats = 0
+				continue
+			}
 			return nil
 		}
 		if sig != "" && sig == lastSig {

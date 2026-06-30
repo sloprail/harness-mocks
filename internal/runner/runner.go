@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/a10n-build/a10n-cli/services/claude-mock/internal/hooks"
 )
@@ -211,21 +212,25 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}
 
+	// streamAndHook owns the SUCCESS Stop lifecycle: on a clean end-of-turn it fires Stop,
+	// surfaces a blocking Stop's output as an attachment, and re-prompts (loops) on a block —
+	// mirroring real Claude Code's Stop→re-prompt→continue — until Stop is non-blocking or the
+	// block cap is hit. So on success we do NOT fire Stop again here (that would double-fire).
+	// On a script ERROR streamAndHook returns early WITHOUT firing Stop, so we fire the
+	// error-Stop here (stop_reason="error") — real Claude fires Stop regardless of turn outcome.
 	runErr := streamAndHook(ctx, cfg, inv, sessionFile)
-
-	// Fire Stop + SessionEnd regardless of script exit status.
-	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#stop
-	stopReason := "end_turn"
 	if runErr != nil {
-		stopReason = "error"
+		stopOut, stopErr := inv.Fire(ctx, hooks.Input{
+			SessionID:      cfg.SessionID,
+			Cwd:            cfg.Cwd,
+			TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
+			HookEventName:  hooks.EventStop,
+			StopReason:     "error",
+		})
+		emitStopHookAttachment(sessionFile, "Stop", stopOut, stopErr)
 	}
-	_, _ = inv.Fire(ctx, hooks.Input{
-		SessionID:      cfg.SessionID,
-		Cwd:            cfg.Cwd,
-		TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
-		HookEventName:  hooks.EventStop,
-		StopReason:     stopReason,
-	})
+
+	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#sessionend
 	_, _ = inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
@@ -234,6 +239,42 @@ func Run(ctx context.Context, cfg Config) error {
 	})
 
 	return runErr
+}
+
+// emitStopHookAttachment appends a hook attachment record to the session transcript matching
+// real Claude Code's shapes (verified from real ~/.claude/projects JSONL):
+//   - a decision:block or non-empty reason → "hook_blocking_error" with
+//     attachment.blockingError.blockingError = the reason (this is how exit-2 blocks AND an
+//     exit-0 {"decision":"block","reason":…} surface the actionable text);
+//   - otherwise, if the hook returned additionalContext / systemMessage text →
+//     "hook_additional_context" with attachment.content = [text];
+//   - otherwise nothing (a silent hook produces no attachment).
+// The block reason re-enters the conversation here so the next scenario turn can read it.
+func emitStopHookAttachment(sessionFile *os.File, hookEvent string, out hooks.Output, fireErr error) {
+	reason := out.Reason
+	if reason == "" && fireErr != nil {
+		// exit-2 path: Fire returns the blocking reason via the error.
+		reason = strings.TrimPrefix(fireErr.Error(), "hooks: command blocked: ")
+	}
+	var att map[string]any
+	switch {
+	case out.Decision == "block" || reason != "":
+		att = map[string]any{
+			"type": "hook_blocking_error", "hookName": hookEvent, "hookEvent": hookEvent,
+			"blockingError": map[string]any{"blockingError": reason},
+		}
+	case additionalContextFrom(out) != "":
+		att = map[string]any{
+			"type": "hook_additional_context", "hookName": hookEvent, "hookEvent": hookEvent,
+			"content": []string{additionalContextFrom(out)},
+		}
+	default:
+		return
+	}
+	rec := map[string]any{"type": "attachment", "attachment": att}
+	if line, err := json.Marshal(rec); err == nil {
+		appendToSession(sessionFile, line)
+	}
 }
 
 // runPrintMode runs the supervisor script once with raw stdout capture (no JSONL
