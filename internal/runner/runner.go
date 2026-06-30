@@ -102,6 +102,15 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer sessionFile.Close()
 
+	// Seed the root prompt as the transcript's first user record (real Claude opens the
+	// transcript with the user prompt). A plugin Stop hook reads the first user message
+	// to harvest a10n:// links into check contexts; without this the root transcript has
+	// no user record and that path is dead. Idempotent: skips when the file is non-empty
+	// (a resume's transcript is already seeded by seedSubagentTranscript).
+	if !cfg.IsResume {
+		seedRootPromptTranscript(sessionFile, cfg.SessionID, cfg.Cwd, cfg.Prompt)
+	}
+
 	settings, err := hooks.LoadSettings(cfg.ProjectDir, cfg.PluginCacheDir)
 	if err != nil {
 		fmt.Fprintf(cfg.Stderr, "claude-mock: warn: loading settings: %v\n", err)
@@ -150,10 +159,11 @@ func Run(ctx context.Context, cfg Config) error {
 		// In print mode the Stop hook validates response.json (exit 2 = validation
 		// failure). Propagate this as an error so RunSupervisor knows the run failed.
 		_, stopErr := inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventStop,
-			StopReason:    stopReason,
+			SessionID:      cfg.SessionID,
+			Cwd:            cfg.Cwd,
+			TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
+			HookEventName:  hooks.EventStop,
+			StopReason:     stopReason,
 		})
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
@@ -210,10 +220,11 @@ func Run(ctx context.Context, cfg Config) error {
 		stopReason = "error"
 	}
 	_, _ = inv.Fire(ctx, hooks.Input{
-		SessionID:     cfg.SessionID,
-		Cwd:           cfg.Cwd,
-		HookEventName: hooks.EventStop,
-		StopReason:    stopReason,
+		SessionID:      cfg.SessionID,
+		Cwd:            cfg.Cwd,
+		TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
+		HookEventName:  hooks.EventStop,
+		StopReason:     stopReason,
 	})
 	_, _ = inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,

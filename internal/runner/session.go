@@ -54,6 +54,31 @@ func openSessionFile(configDir, cwd, sessionID string) (*os.File, error) {
 	return os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 }
 
+// seedRootPromptTranscript writes the root agent's `-p` prompt as the FIRST user record
+// of the session transcript — mirroring real Claude Code, whose transcript opens with the
+// user prompt. A plugin's Stop hook reads the transcript's first user message (e.g. to
+// harvest a10n:// links into check contexts), so the mock must persist the prompt there;
+// without it the root transcript would contain only assistant/result records and that hook
+// path could never be exercised. Best-effort + idempotent: only writes when the session
+// file is still EMPTY (so a resume, whose transcript is already seeded, is left untouched).
+func seedRootPromptTranscript(f *os.File, sessionID, cwd, prompt string) {
+	if f == nil || prompt == "" {
+		return
+	}
+	if fi, err := f.Stat(); err != nil || fi.Size() > 0 {
+		return // already has content (resume / re-entry) — don't duplicate the prompt
+	}
+	rec := map[string]any{
+		"type":      "user",
+		"sessionId": sessionID,
+		"cwd":       cwd,
+		"message":   map[string]any{"role": "user", "content": prompt},
+	}
+	if line, err := json.Marshal(rec); err == nil {
+		appendToSession(f, line)
+	}
+}
+
 // appendToSession writes one JSONL line to the session file.
 // Errors are silently ignored — session persistence is best-effort; the mock
 // must not fail because of a session write error.
