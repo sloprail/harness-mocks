@@ -160,7 +160,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 	// stand-in for Claude's context limit, NOT the task's max_retries budget.
 	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
 	blockCap := stopHookBlockCap() // 0 = unlimited
-	finalText := runSubagent(ctx, cfg, scriptPath, in.Prompt)
+	finalText := runSubagent(ctx, cfg, agentID, scriptPath, in.Prompt)
 	for turn := 0; ; turn++ {
 		blocked, reason := fireSubagentStop(ctx, cfg, subCwd, inv, agentType, agentID, transcriptPath, turn > 0)
 		if !blocked {
@@ -171,7 +171,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 			break
 		}
 		fmt.Fprintf(cfg.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn+1)
-		finalText = runSubagent(ctx, cfg, scriptPath, in.Prompt)
+		finalText = runSubagent(ctx, cfg, agentID, scriptPath, in.Prompt)
 	}
 
 	return toolexec.Result{Output: buildAgentResultContent(agentID, agentType, finalText)}
@@ -198,7 +198,7 @@ func resolveSubagentScript(fromInput string) string {
 // If no script is configured, the subagent is a graceful no-op (not an error).
 //
 // a10n:docs https://code.claude.com/docs/en/sub-agents
-func runSubagent(ctx context.Context, cfg Config, scriptPath, prompt string) string {
+func runSubagent(ctx context.Context, cfg Config, agentID, scriptPath, prompt string) string {
 	if scriptPath == "" {
 		return "no subagent script"
 	}
@@ -207,6 +207,7 @@ func runSubagent(ctx context.Context, cfg Config, scriptPath, prompt string) str
 	subCfg := Config{
 		ScriptPath:            scriptPath,
 		SessionID:             cfg.SessionID,
+		AgentID:               agentID,
 		IsResume:              true,
 		Prompt:                prompt,
 		Cwd:                   cfg.Cwd,

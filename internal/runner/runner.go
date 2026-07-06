@@ -24,6 +24,11 @@ type Config struct {
 	ScriptPath string
 	// SessionID is the Claude Code session identifier passed via --resume or --session-id.
 	SessionID string
+	// AgentID is the sub-agent's id when this Config drives a nested SUB-AGENT run (set by
+	// runAgentTool). Empty for the ROOT run. It is stamped onto every PreToolUse payload
+	// fired inside this run, so a hook can tell a sub-agent's tool call from the root's —
+	// mirroring real claude, where a sub-agent's PreToolUse carries agent_id.
+	AgentID string
 	// IsResume is true when the caller used --resume (existing session) vs --session-id (new).
 	IsResume bool
 	// Prompt is the user prompt forwarded to the script via the A10N_MOCK_PROMPT env var.

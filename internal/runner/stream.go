@@ -262,6 +262,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			if toolName != "" {
 				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
+					AgentID:       cfg.AgentID,
 					Cwd:           cfg.Cwd,
 					HookEventName: hooks.EventPreToolUse,
 					ToolName:      toolName,
