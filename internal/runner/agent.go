@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -66,10 +67,12 @@ type agentToolInput struct {
 	Description  string `json:"description,omitempty"`
 	Prompt       string `json:"prompt,omitempty"`
 	SubagentType string `json:"subagent_type,omitempty"`
-	// Isolation is accepted and recorded but NOT acted on: the mock never binds a
-	// git worktree. The subagent's workspace is provisioned separately by the
-	// `a10n-task-executor workspace ensure` command embedded in Prompt, which the
-	// subagent itself runs. The subagent shares the parent cwd.
+	// Isolation="worktree" makes the mock REPORT the subagent's isolated worktree cwd
+	// (<parent>/.claude/worktrees/agent-<id>) in the SubagentStart/Stop payloads and the
+	// seeded transcript — matching real claude, where the subagent's os.Getwd() differs
+	// from the parent while the session_id stays shared. The mock does not physically
+	// bind a git worktree (its internal machinery stays on the parent cwd); it only
+	// mirrors the OBSERVED identity. Any other isolation value shares the parent cwd.
 	Isolation string `json:"isolation,omitempty"`
 	// Script is the absolute path to the subagent's scenario script (mock-only).
 	Script string `json:"script,omitempty"`
@@ -104,21 +107,37 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 		return toolexec.Result{Output: fmt.Sprintf("Agent: generate agent_id: %v", err), IsError: true}
 	}
 
+	// isolation="worktree" — the real claude runs the subagent in a fresh git worktree
+	// at <parent-cwd>/.claude/worktrees/agent-<agentID>, so the subagent's cwd (and
+	// hence its os.Getwd()-derived session coordinates) DIFFERS from the parent while
+	// the session_id stays SHARED (verified against real claude). The mock does not bind
+	// a real worktree, but it MUST report that cwd everywhere the subagent's env is
+	// observed — SubagentStart/Stop payloads, the seeded transcript's `cwd`, and the
+	// nested run — so a hook (and any a10n tool the subagent shells out to) sees the
+	// isolated cwd, not the parent's. Any other isolation value shares the parent cwd.
+	// a10n:docs https://code.claude.com/docs/en/sub-agents
+	subCwd := cfg.Cwd
+	if in.Isolation == "worktree" {
+		subCwd = filepath.Join(cfg.Cwd, ".claude", "worktrees", "agent-"+agentID)
+	}
+
 	// The subagent gets its OWN sidechain transcript under the parent session's
 	// subagents/ dir — mirroring the real claude layout, whose subagent transcript's
 	// first record IS the dispatch prompt. Seed it before SubagentStart so a hook can
 	// read the prompt (e.g. an embedded `--task-id`) from transcript_path. configDir
-	// is resolved through CLAUDE_CONFIG_DIR so tests stay isolated.
+	// is resolved through CLAUDE_CONFIG_DIR so tests stay isolated. The transcript's
+	// project dir keys off the PARENT cwd (real claude nests subagents/ under the
+	// parent session's transcript dir); only the recorded `cwd` field is the subagent's.
 	// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR + projects/<encoded-cwd>)
 	configDir := resolveConfigDir(cfg.ConfigDir)
-	transcriptPath := seedSubagentTranscript(configDir, cfg.Cwd, cfg.SessionID, agentID, agentType, in.Prompt)
+	transcriptPath := seedSubagentTranscript(configDir, cfg.Cwd, subCwd, cfg.SessionID, agentID, agentType, in.Prompt)
 
 	// SubagentStart — cannot block; a blocking error here is treated as a hard
 	// failure of the Agent tool (the real claude never proceeds past a refused start).
 	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
 	if _, err := inv.Fire(ctx, hooks.Input{
 		SessionID:      cfg.SessionID,
-		Cwd:            cfg.Cwd,
+		Cwd:            subCwd,
 		TranscriptPath: transcriptPath,
 		HookEventName:  hooks.EventSubagentStart,
 		AgentType:      agentType,
@@ -143,7 +162,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 	blockCap := stopHookBlockCap() // 0 = unlimited
 	finalText := runSubagent(ctx, cfg, scriptPath, in.Prompt)
 	for turn := 0; ; turn++ {
-		blocked, reason := fireSubagentStop(ctx, cfg, inv, agentType, agentID, transcriptPath, turn > 0)
+		blocked, reason := fireSubagentStop(ctx, cfg, subCwd, inv, agentType, agentID, transcriptPath, turn > 0)
 		if !blocked {
 			break // clean stop — verify passed or the task was parked by the executor
 		}
@@ -213,10 +232,14 @@ func runSubagent(ctx context.Context, cfg Config, scriptPath, prompt string) str
 // 2 (returned as a non-nil error from Fire), OR it exits 0 with a
 // {"decision":"block"} stdout frame (the SubagentStop contract real Claude
 // honours — exit-0 + decision, not a process error). The caller loops on a block.
-func fireSubagentStop(ctx context.Context, cfg Config, inv *hooks.Invoker, agentType, agentID, transcriptPath string, stopHookActive bool) (blocked bool, reason string) {
+// subCwd is the subagent's OWN cwd (its isolated worktree under isolation="worktree",
+// else == cfg.Cwd) — reported in the SubagentStop payload's `cwd` field so a hook sees
+// the isolated cwd, matching real claude. The mock's internal machinery (session file,
+// block loop, hook invoker) stays on cfg since the mock does not bind a real worktree.
+func fireSubagentStop(ctx context.Context, cfg Config, subCwd string, inv *hooks.Invoker, agentType, agentID, transcriptPath string, stopHookActive bool) (blocked bool, reason string) {
 	out, err := inv.Fire(ctx, hooks.Input{
 		SessionID:           cfg.SessionID,
-		Cwd:                 cfg.Cwd,
+		Cwd:                 subCwd,
 		TranscriptPath:      transcriptPath,
 		AgentTranscriptPath: transcriptPath,
 		HookEventName:       hooks.EventSubagentStop,

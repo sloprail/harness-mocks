@@ -114,9 +114,16 @@ func subagentTranscriptPath(configDir, cwd, parentSessionID, agentID string) str
 // read the prompt out of it (e.g. to recover an embedded `--task-id`). Returns the
 // path even on a best-effort write failure so the hook still gets a target.
 //
+// parentCwd keys the transcript's PROJECT DIR: real claude nests the subagent's
+// sidechain under the PARENT session's transcript directory (…/projects/<encoded
+// parent cwd>/<session>/subagents/…), regardless of the subagent's own worktree.
+// subCwd is what the subagent's env reports (its isolated worktree under
+// isolation="worktree", else == parentCwd); it is what lands in the record's `cwd`
+// and the meta `worktreePath`, so a hook reading the transcript sees the isolated cwd.
+//
 // a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions
-func seedSubagentTranscript(configDir, cwd, parentSessionID, agentID, agentType, prompt string) string {
-	path := subagentTranscriptPath(configDir, cwd, parentSessionID, agentID)
+func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agentID, agentType, prompt string) string {
+	path := subagentTranscriptPath(configDir, parentCwd, parentSessionID, agentID)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return path
 	}
@@ -130,7 +137,7 @@ func seedSubagentTranscript(configDir, cwd, parentSessionID, agentID, agentType,
 		// (locate-task-id --agent-id) reads this field, so the mock must seed it
 		// for that deterministic path to be exercised in mock-based harnesses.
 		"agentId":     agentID,
-		"cwd":         cwd,
+		"cwd":         subCwd,
 		"message":     map[string]any{"role": "user", "content": prompt},
 	}
 	if line, err := json.Marshal(rec); err == nil {
@@ -140,7 +147,13 @@ func seedSubagentTranscript(configDir, cwd, parentSessionID, agentID, agentType,
 		}
 	}
 	// Best-effort .meta.json sidecar (mirrors the real layout; not all hooks read it).
-	meta := map[string]any{"agentType": agentType, "worktreePath": "", "description": "", "toolUseId": ""}
+	// worktreePath is the subagent's isolated cwd when it differs from the parent
+	// (isolation="worktree"), matching the real CLI's sidecar.
+	worktreePath := ""
+	if subCwd != parentCwd {
+		worktreePath = subCwd
+	}
+	meta := map[string]any{"agentType": agentType, "worktreePath": worktreePath, "description": "", "toolUseId": ""}
 	if mb, err := json.MarshalIndent(meta, "", "  "); err == nil {
 		_ = os.WriteFile(strings.TrimSuffix(path, ".jsonl")+".meta.json", mb, 0o644)
 	}

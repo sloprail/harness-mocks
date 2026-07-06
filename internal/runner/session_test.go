@@ -25,7 +25,8 @@ func TestSeedSubagentTranscriptCarriesAgentId(t *testing.T) {
 		prompt          = "do the thing --task-id T42"
 	)
 
-	path := seedSubagentTranscript(configDir, cwd, parentSessionID, agentID, agentType, prompt)
+	// Non-worktree subagent: subCwd == parentCwd (both = cwd).
+	path := seedSubagentTranscript(configDir, cwd, cwd, parentSessionID, agentID, agentType, prompt)
 	require.NotEmpty(t, path)
 	require.Equal(t, path, subagentTranscriptPath(configDir, cwd, parentSessionID, agentID))
 
