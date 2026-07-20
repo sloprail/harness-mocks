@@ -114,7 +114,7 @@ func loadPluginHooks(dst *Settings, cacheDir string, enabledPlugins map[string]b
 	sort.Strings(mpNames)
 
 	for _, mpName := range mpNames {
-		root, err := resolveMarketplace(mpName, marketplaces, cacheDir)
+		root, manifest, err := resolveMarketplace(mpName, marketplaces, cacheDir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "claude-mock: warn: marketplace %s: %v\n", mpName, err)
 			continue
@@ -127,7 +127,15 @@ func loadPluginHooks(dst *Settings, cacheDir string, enabledPlugins map[string]b
 		plugins := byMarketplace[mpName]
 		sort.Strings(plugins)
 		for _, pluginName := range plugins {
-			pluginDir := filepath.Join(root, "plugins", pluginName)
+			// Prefer the manifest's OWN declared source path for this plugin (the general
+			// case — a plugin can live anywhere relative to the marketplace root, e.g.
+			// "./marketplace/plugins/foo" for an in-monorepo marketplace whose manifest sits
+			// at the repo root). Fall back to the historical plugins/<name> layout only when
+			// the manifest has no entry for this plugin (e.g. a hand-rolled test fixture).
+			pluginDir, ok := manifest.pluginSourceDir(root, pluginName)
+			if !ok {
+				pluginDir = filepath.Join(root, "plugins", pluginName)
+			}
 			hooksFile := filepath.Join(pluginDir, "hooks", "hooks.json")
 			data, err := os.ReadFile(hooksFile)
 			if err != nil {
@@ -178,14 +186,14 @@ func splitPluginKey(key string) (pluginName, marketplace string, err error) {
 	return "", "", fmt.Errorf("invalid plugin key %q (expected <name>@<marketplace>)", key)
 }
 
-// resolveMarketplace returns the local filesystem root of the marketplace whose
-// .claude-plugin/marketplace.json "name" equals marketplaceName, scanning every
-// entry in extraKnownMarketplaces. git/github sources are cloned-or-reused under
-// cacheDir; directory sources are read in place. Returns "" when no declared
-// marketplace matches.
+// resolveMarketplace returns the local filesystem root AND parsed manifest of the
+// marketplace whose .claude-plugin/marketplace.json "name" equals marketplaceName, scanning
+// every entry in extraKnownMarketplaces. git/github sources are cloned-or-reused under
+// cacheDir; directory sources are read in place. Returns ("", zero-value, nil) when no
+// declared marketplace matches.
 //
 // a10n:docs https://code.claude.com/docs/en/plugin-marketplaces (source types)
-func resolveMarketplace(marketplaceName string, marketplaces map[string]marketplaceCfg, cacheDir string) (string, error) {
+func resolveMarketplace(marketplaceName string, marketplaces map[string]marketplaceCfg, cacheDir string) (string, marketplaceManifest, error) {
 	// Deterministic scan order over the declared marketplaces.
 	keys := make([]string, 0, len(marketplaces))
 	for k := range marketplaces {
@@ -214,7 +222,7 @@ func resolveMarketplace(marketplaceName string, marketplaces map[string]marketpl
 			}
 			clonePath := filepath.Join(cacheDir, marketplaceSlug(gitURL))
 			if err := ensureCloned(gitURL, clonePath); err != nil {
-				return "", fmt.Errorf("clone %s: %w", gitURL, err)
+				return "", marketplaceManifest{}, fmt.Errorf("clone %s: %w", gitURL, err)
 			}
 			candidate = clonePath
 
@@ -223,16 +231,16 @@ func resolveMarketplace(marketplaceName string, marketplaces map[string]marketpl
 		}
 
 		// Verify identity via the marketplace.json name, exactly like the client.
-		name, err := readMarketplaceName(candidate)
+		manifest, err := readMarketplaceManifest(candidate)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "claude-mock: warn: marketplace.json at %s: %v\n", candidate, err)
 			continue
 		}
-		if name == marketplaceName {
-			return candidate, nil
+		if manifest.Name == marketplaceName {
+			return candidate, manifest, nil
 		}
 	}
-	return "", nil
+	return "", marketplaceManifest{}, nil
 }
 
 // marketplaceSlug derives a stable, filesystem-safe cache directory name from a
@@ -274,20 +282,46 @@ func ensureCloned(gitURL, targetPath string) error {
 	return nil
 }
 
-// readMarketplaceName reads <root>/.claude-plugin/marketplace.json and returns
-// its "name" field.
-func readMarketplaceName(root string) (string, error) {
+// marketplaceManifest is the subset of .claude-plugin/marketplace.json this mock needs:
+// the marketplace's own identity, plus each declared plugin's SOURCE path — which is NOT
+// necessarily "plugins/<name>" (e.g. an in-monorepo marketplace whose manifest sits at the
+// repo root but whose plugins live under a subdirectory, such as "./marketplace/plugins/foo").
+//
+// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces (manifest schema)
+type marketplaceManifest struct {
+	Name    string                    `json:"name"`
+	Plugins []marketplaceManifestItem `json:"plugins"`
+}
+
+type marketplaceManifestItem struct {
+	Name   string `json:"name"`
+	Source string `json:"source"`
+}
+
+// pluginSourceDir returns the plugin's source path, relative-joined against the marketplace
+// root the same way the real Claude Code client resolves it ("./plugins/foo" and "plugins/foo"
+// both join naturally via filepath.Join). ok=false when the manifest declares no entry for
+// pluginName — the caller falls back to the legacy plugins/<name> layout.
+func (m marketplaceManifest) pluginSourceDir(root, pluginName string) (string, bool) {
+	for _, p := range m.Plugins {
+		if p.Name == pluginName && p.Source != "" {
+			return filepath.Join(root, p.Source), true
+		}
+	}
+	return "", false
+}
+
+// readMarketplaceManifest reads <root>/.claude-plugin/marketplace.json.
+func readMarketplaceManifest(root string) (marketplaceManifest, error) {
 	data, err := os.ReadFile(filepath.Join(root, ".claude-plugin", "marketplace.json"))
 	if err != nil {
-		return "", err
+		return marketplaceManifest{}, err
 	}
-	var m struct {
-		Name string `json:"name"`
-	}
+	var m marketplaceManifest
 	if err := json.Unmarshal(data, &m); err != nil {
-		return "", err
+		return marketplaceManifest{}, err
 	}
-	return m.Name, nil
+	return m, nil
 }
 
 // expandPluginRoot replaces ${CLAUDE_PLUGIN_ROOT} in every command with the

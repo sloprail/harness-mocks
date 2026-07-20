@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,6 +97,23 @@ func writeMarketplace(t *testing.T, root, name string) {
 		[]byte(`{"name":"`+name+`"}`), 0o644))
 }
 
+// writeMarketplaceWithPlugins writes a .claude-plugin/marketplace.json declaring the given
+// name plus a plugins[] entry (name, source) per pair in nameSources — the general manifest
+// shape a real marketplace uses (unlike writeMarketplace's bare {"name":...} fixture, which
+// only exercises the plugins/<name> FALLBACK path).
+func writeMarketplaceWithPlugins(t *testing.T, root, name string, nameSources map[string]string) {
+	t.Helper()
+	dir := filepath.Join(root, ".claude-plugin")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	var plugins []marketplaceManifestItem
+	for n, src := range nameSources {
+		plugins = append(plugins, marketplaceManifestItem{Name: n, Source: src})
+	}
+	data, err := json.Marshal(marketplaceManifest{Name: name, Plugins: plugins})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "marketplace.json"), data, 0o644))
+}
+
 // resolveMarketplace returns the directory-source root whose marketplace.json
 // name matches, and "" when no declared marketplace matches.
 func TestResolveMarketplace_DirectorySource(t *testing.T) {
@@ -107,13 +125,13 @@ func TestResolveMarketplace_DirectorySource(t *testing.T) {
 	}
 
 	t.Run("matches by marketplace.json name, not settings key", func(t *testing.T) {
-		got, err := resolveMarketplace("a10n-marketplace", cfgs, t.TempDir())
+		got, _, err := resolveMarketplace("a10n-marketplace", cfgs, t.TempDir())
 		require.NoError(t, err)
 		assert.Equal(t, mpRoot, got)
 	})
 
 	t.Run("no declared marketplace matches → empty", func(t *testing.T) {
-		got, err := resolveMarketplace("not-declared", cfgs, t.TempDir())
+		got, _, err := resolveMarketplace("not-declared", cfgs, t.TempDir())
 		require.NoError(t, err)
 		assert.Equal(t, "", got)
 	})
@@ -193,6 +211,45 @@ func TestLoadPluginHooks_NoFallbackWhenMarketplaceUndeclared(t *testing.T) {
 		map[string]marketplaceCfg{}, // nothing declared
 	)
 	assert.Empty(t, dst.Hooks, "undeclared marketplace must not resolve any hooks")
+}
+
+// A plugin whose manifest declares a NON-STANDARD source path (e.g. an in-monorepo
+// marketplace whose manifest sits at the repo root but whose plugins live under a
+// subdirectory) resolves via that declared path, not the plugins/<name> fallback — the
+// real regression this covers: a repo root .claude-plugin/marketplace.json with
+// "source": "./marketplace/plugins/foo" must find the plugin under marketplace/plugins/foo,
+// not <root>/plugins/foo (which does not exist in that layout).
+func TestLoadPluginHooks_HonorsManifestDeclaredSourcePath(t *testing.T) {
+	mpRoot := t.TempDir()
+	writeMarketplaceWithPlugins(t, mpRoot, "a10n-marketplace", map[string]string{
+		"a10n-spec-capability": "./marketplace/plugins/a10n-spec-capability",
+	})
+	pluginDir := filepath.Join(mpRoot, "marketplace", "plugins", "a10n-spec-capability")
+	require.NoError(t, os.MkdirAll(filepath.Join(pluginDir, "hooks"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "hooks", "hooks.json"), []byte(`{
+  "hooks": {
+    "Stop": [
+      {"matcher":"*","hooks":[{"type":"command","command":"\"${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh\""}]}
+    ]
+  }
+}`), 0o644))
+	// The historical plugins/<name> layout must NOT exist — proves resolution used the
+	// manifest's declared source, not the fallback (which would 404 here anyway, but an
+	// accidental fallback silently returning empty hooks would also make this test pass
+	// for the wrong reason without this guard).
+	_, statErr := os.Stat(filepath.Join(mpRoot, "plugins", "a10n-spec-capability"))
+	require.True(t, os.IsNotExist(statErr), "test setup: plugins/<name> fallback path must not exist")
+
+	dst := &Settings{Hooks: map[EventName][]HookEntry{}}
+	loadPluginHooks(dst,
+		t.TempDir(),
+		map[string]bool{"a10n-spec-capability@a10n-marketplace": true},
+		map[string]marketplaceCfg{"k": {Source: marketplaceSource{Source: "directory", Path: mpRoot}}},
+	)
+
+	got := dst.EntriesFor(EventStop, "")
+	require.Len(t, got, 1)
+	assert.Equal(t, filepath.Join(pluginDir, "hooks", "stop.sh"), trimQuotes(got[0].Command))
 }
 
 // A disabled plugin contributes nothing even when its marketplace is declared.
