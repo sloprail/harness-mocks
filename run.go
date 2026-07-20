@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -102,7 +103,20 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	// Use projectDir as cwd when explicitly provided — it is the directory the
 	// simulated claude session runs in (the same as what real claude uses).
 	// Fall back to os.Getwd() only when --project-dir is not set.
+	//
+	// Symlink-resolved ONCE, here, at the single source every Config.Cwd downstream use
+	// derives from (transcript-path encoding, hook payload `cwd` fields, the nested
+	// subagent run's own Cwd) — matching real Claude Code, which resolves symlinks
+	// consistently everywhere (verified empirically: a real claude run's own PreToolUse
+	// payload `cwd` field is ALREADY the resolved form, e.g. /private/tmp/... on macOS, not
+	// /tmp/...). --project-dir is passed as an unresolved path far more often than a plain
+	// os.Getwd() fallback would ever be (every test harness/caller that hands the mock an
+	// explicit directory string does so unresolved), so resolving only at the getwd()
+	// fallback branch above was never enough on its own.
 	cwd := projectDir
+	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
+		cwd = resolved
+	}
 
 	return runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:     scriptPath,

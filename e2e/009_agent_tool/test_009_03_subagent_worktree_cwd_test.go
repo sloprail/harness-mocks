@@ -22,6 +22,13 @@ import (
 // could never be exercised in a mock-based harness.
 func TestT009_03_SubagentWorktreeCwdIsolated(t *testing.T) {
 	dir := t.TempDir()
+	// The mock now resolves symlinks before reporting/encoding cwd (matching real Claude
+	// Code — verified empirically: its own PreToolUse payload `cwd` is already the resolved
+	// form). On macOS t.TempDir() lives under /var, a symlink to /private/var, so the
+	// reported cwd differs in SPELLING (not identity) from the raw dir string — resolve dir
+	// the same way before comparing.
+	resolvedDir, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
 	startLog := filepath.Join(dir, "start.log")
 
 	// SubagentStart hook records "<session_id>|<cwd>" from the payload.
@@ -54,11 +61,11 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"sub done","is_erro
 	assert.Equal(t, sessionID, subSID, "subagent shares the parent session_id")
 
 	// cwd is the subagent's OWN worktree, not the parent dir.
-	assert.NotEqual(t, dir, subCwd, "worktree subagent cwd must differ from parent cwd")
+	assert.NotEqual(t, resolvedDir, subCwd, "worktree subagent cwd must differ from parent cwd")
 	assert.Contains(t, subCwd, filepath.Join(".claude", "worktrees", "agent-"),
 		"worktree subagent cwd must be <parent>/.claude/worktrees/agent-<id>, got %q", subCwd)
-	assert.True(t, strings.HasPrefix(subCwd, dir),
-		"worktree cwd must be nested under the parent cwd %q, got %q", dir, subCwd)
+	assert.True(t, strings.HasPrefix(subCwd, resolvedDir),
+		"worktree cwd must be nested under the parent cwd %q, got %q", resolvedDir, subCwd)
 }
 
 // TestT009_03_SubagentNoIsolationSharesCwd is the OTHER axis value: without
@@ -66,6 +73,8 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"sub done","is_erro
 // Mirrors the no_isolation subtest of the real-claude proof (test_009_04).
 func TestT009_03_SubagentNoIsolationSharesCwd(t *testing.T) {
 	dir := t.TempDir()
+	resolvedDir, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
 	startLog := filepath.Join(dir, "start.log")
 
 	startHook := writeHook(t, dir, "start.sh",
@@ -93,7 +102,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"sub done","is_erro
 	subSID, subCwd := parts[0], parts[1]
 
 	assert.Equal(t, sessionID, subSID, "subagent shares the parent session_id")
-	assert.Equal(t, dir, subCwd, "no-isolation subagent shares the parent cwd")
+	assert.Equal(t, resolvedDir, subCwd, "no-isolation subagent shares the parent cwd")
 }
 
 // orchestratorNoIsolation spawns a subagent via an Agent tool_use with NO isolation

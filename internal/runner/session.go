@@ -31,15 +31,38 @@ func resolveConfigDir(explicit string) string {
 // sessionFilePath returns the path where the session JSONL is stored, mirroring
 // the real Claude Code layout:
 //
-//	<configDir>/projects/<encoded-cwd>/<session-id>.jsonl
+//	<configDir>/projects/<encoded-resolved-cwd>/<session-id>.jsonl
 //
 // The encoding rule matches Claude Code exactly: every character outside
-// [a-zA-Z0-9] is replaced with '-'.
+// [a-zA-Z0-9] is replaced with '-', applied to the SYMLINK-RESOLVED cwd (see
+// resolveEncodingCwd) — real Claude Code resolves symlinks before encoding (verified
+// empirically: a real claude run in a macOS /tmp/... dir produces transcript paths under
+// /private/tmp/..., the resolved form), so a consumer that independently derives "the
+// transcript path for this cwd" via its OWN symlink-resolving logic (e.g. a10n-workspace's
+// session.ResolveWorkDir + StableSessionID, or a test harness's pre-seeding of a fixture
+// transcript at the resolved path) must land on the SAME encoded directory the mock itself
+// writes to, or the two diverge and any consumer trusting a hook payload's `transcript_path`
+// field literally can never find the file. A prior version encoded cwd directly (no symlink
+// resolution), which is exactly the divergence that broke transcript resolution for any
+// downstream tool run from an isolated worktree.
 //
 // a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions
 func sessionFilePath(configDir, cwd, sessionID string) string {
-	encoded := nonAlphanumRe.ReplaceAllString(cwd, "-")
+	encoded := nonAlphanumRe.ReplaceAllString(resolveEncodingCwd(cwd), "-")
 	return filepath.Join(configDir, "projects", encoded, sessionID+".jsonl")
+}
+
+// resolveEncodingCwd symlink-resolves cwd for transcript-path ENCODING. Verified empirically
+// against real claude: its PreToolUse payload's OWN `cwd` field is ALREADY the resolved form
+// (e.g. `/private/tmp/...` on macOS, not `/tmp/...`) — real Claude Code resolves symlinks
+// consistently everywhere, not just for transcript-path encoding. Falls back to the raw cwd on
+// any resolution error (e.g. a not-yet-existent directory) rather than failing the whole path
+// computation.
+func resolveEncodingCwd(cwd string) string {
+	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
+		return resolved
+	}
+	return cwd
 }
 
 var nonAlphanumRe = regexp.MustCompile(`[^a-zA-Z0-9]`)
@@ -92,16 +115,22 @@ func appendToSession(f *os.File, line []byte) {
 
 // subagentTranscriptPath returns the path of a subagent's sidechain transcript.
 //
-// The <configDir>/projects/<encoded-cwd>/ prefix and the non-alphanumeric→'-'
-// cwd encoding are documented. The <parentSessionID>/subagents/agent-<id>.jsonl
-// suffix is NOT documented — it is replicated from the REAL claude CLI's
-// on-disk layout (observed at ~/.claude/projects/<proj>/<root>/subagents/
-// agent-<hash>.jsonl + .meta.json during the hook PoC), so the mock's
-// transcript_path matches what real subagent hooks receive.
+// The <configDir>/projects/<encoded-resolved-cwd>/ prefix and the non-alphanumeric→'-'
+// encoding are documented; the symlink resolution before encoding matches
+// sessionFilePath's own (see resolveEncodingCwd's doc — real Claude Code resolves
+// symlinks consistently, and any consumer resolving this SAME path independently — e.g.
+// a10n-workspace's StableSessionID/ResolveWorkDir, driven by the sub-agent's OWN
+// os.Getwd() (already resolved) once it walks back up to the parent project dir — must
+// land on the identical encoded directory, or transcript resolution silently fails for
+// any tool trusting a hook payload's `transcript_path` field literally). The
+// <parentSessionID>/subagents/agent-<id>.jsonl suffix is NOT documented — it is
+// replicated from the REAL claude CLI's on-disk layout (observed at
+// ~/.claude/projects/<proj>/<root>/subagents/agent-<hash>.jsonl + .meta.json during the
+// hook PoC), so the mock's transcript_path matches what real subagent hooks receive.
 //
 // a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (projects/<encoded-cwd> prefix + CLAUDE_CONFIG_DIR)
 func subagentTranscriptPath(configDir, cwd, parentSessionID, agentID string) string {
-	encoded := nonAlphanumRe.ReplaceAllString(cwd, "-")
+	encoded := nonAlphanumRe.ReplaceAllString(resolveEncodingCwd(cwd), "-")
 	return filepath.Join(configDir, "projects", encoded, parentSessionID, "subagents", "agent-"+agentID+".jsonl")
 }
 
