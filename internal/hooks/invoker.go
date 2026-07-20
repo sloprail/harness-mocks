@@ -50,9 +50,23 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 		return Output{}, fmt.Errorf("hooks: marshal input: %w", err)
 	}
 
+	// The hook subprocess's OWN working directory must be THIS event's cwd, not the
+	// Invoker's fixed construction-time cwd: a SubagentStart/Stop fired for a
+	// isolation="worktree" subagent carries input.Cwd = the subagent's isolated worktree
+	// (see agent.go's subCwd), and a hook command that shells out to an a10n-* binary
+	// (e.g. `a10n-workspace session subagent-stop`) resolves ITS OWN identity from
+	// os.Getwd() — so if the subprocess actually ran in the PARENT's cwd regardless of
+	// what the payload claimed, any such binary would silently see the parent's tree,
+	// not the isolated one, no matter what "cwd" the JSON stdin says. Falls back to
+	// inv.cwd only for the (should-never-happen) case of an empty input.Cwd.
+	hookCwd := input.Cwd
+	if hookCwd == "" {
+		hookCwd = inv.cwd
+	}
+
 	var merged Output
 	for _, h := range handlers {
-		out, blockErr := inv.invoke(ctx, h, payload)
+		out, blockErr := inv.invoke(ctx, h, hookCwd, payload)
 		if blockErr != nil {
 			return merged, blockErr
 		}
@@ -61,7 +75,7 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	return merged, nil
 }
 
-func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, payload []byte) (Output, error) {
+func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (Output, error) {
 	timeout := defaultHookTimeout
 	if h.Timeout > 0 {
 		timeout = time.Duration(h.Timeout) * time.Second
@@ -71,7 +85,7 @@ func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, payload []byte) (
 
 	switch h.Type {
 	case "command":
-		return inv.invokeCommand(ctx, h, payload)
+		return inv.invokeCommand(ctx, h, hookCwd, payload)
 	case "http":
 		return inv.invokeHTTP(ctx, h, payload)
 	default:
@@ -80,7 +94,7 @@ func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, payload []byte) (
 	}
 }
 
-func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, payload []byte) (Output, error) {
+func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (Output, error) {
 	command := strings.TrimSpace(h.Command)
 	if command == "" {
 		return Output{}, nil
@@ -93,7 +107,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, payload []
 	//
 	// a10n:docs https://code.claude.com/docs/en/hooks#hook-types (command hooks run in the shell)
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec
-	cmd.Dir = inv.cwd
+	cmd.Dir = hookCwd
 	cmd.Stdin = bytes.NewReader(payload)
 	// Mirror the real claude CLI: expose the active session id to the hook env.
 	cmd.Env = os.Environ()

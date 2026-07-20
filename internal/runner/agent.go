@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -110,15 +111,30 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 	// isolation="worktree" — the real claude runs the subagent in a fresh git worktree
 	// at <parent-cwd>/.claude/worktrees/agent-<agentID>, so the subagent's cwd (and
 	// hence its os.Getwd()-derived session coordinates) DIFFERS from the parent while
-	// the session_id stays SHARED (verified against real claude). The mock does not bind
-	// a real worktree, but it MUST report that cwd everywhere the subagent's env is
-	// observed — SubagentStart/Stop payloads, the seeded transcript's `cwd`, and the
-	// nested run — so a hook (and any a10n tool the subagent shells out to) sees the
-	// isolated cwd, not the parent's. Any other isolation value shares the parent cwd.
+	// the session_id stays SHARED (verified against real claude). The mock binds a REAL
+	// directory here (not just a reported string) — a `git worktree add` when cfg.Cwd is a
+	// git repo (matching real claude's own mechanism exactly: a genuine worktree, same repo,
+	// isolated files), falling back to a plain mkdir when it is not (or the git command
+	// fails — e.g. no commits yet) so isolation is never silently skipped. This directory is
+	// what BOTH the SubagentStart/Stop hook subprocess's cmd.Dir (invoker.go) AND the
+	// subagent's own Bash tool_use commands (via runSubagent's subCfg.Cwd below) actually
+	// execute in — a prior version only reported subCwd in hook JSON payloads while every
+	// subprocess still silently ran in the PARENT's real directory, so isolation="worktree"
+	// was observable in transcripts/payloads but had NO effect on where anything actually
+	// ran (caught via an empirical real-claude cwd probe: real claude's subagent process
+	// itself reports a different `pwd`, which this mock did not reproduce). Any other
+	// isolation value shares the parent cwd.
 	// a10n:docs https://code.claude.com/docs/en/sub-agents
 	subCwd := cfg.Cwd
 	if in.Isolation == "worktree" {
 		subCwd = filepath.Join(cfg.Cwd, ".claude", "worktrees", "agent-"+agentID)
+		if err := bindWorktree(ctx, cfg.Cwd, subCwd); err != nil {
+			fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: bind %s: %v (falling back to a plain directory)\n", subCwd, err)
+			if mkErr := os.MkdirAll(subCwd, 0o755); mkErr != nil {
+				fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: mkdir %s: %v — isolation NOT applied, sharing parent cwd\n", subCwd, mkErr)
+				subCwd = cfg.Cwd
+			}
+		}
 	}
 
 	// The subagent gets its OWN sidechain transcript under the parent session's
@@ -160,7 +176,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 	// stand-in for Claude's context limit, NOT the task's max_retries budget.
 	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
 	blockCap := stopHookBlockCap() // 0 = unlimited
-	finalText := runSubagent(ctx, cfg, agentID, scriptPath, in.Prompt)
+	finalText := runSubagent(ctx, cfg, subCwd, agentID, scriptPath, in.Prompt)
 	for turn := 0; ; turn++ {
 		blocked, reason := fireSubagentStop(ctx, cfg, subCwd, inv, agentType, agentID, transcriptPath, turn > 0)
 		if !blocked {
@@ -171,10 +187,40 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 			break
 		}
 		fmt.Fprintf(cfg.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn+1)
-		finalText = runSubagent(ctx, cfg, agentID, scriptPath, in.Prompt)
+		finalText = runSubagent(ctx, cfg, subCwd, agentID, scriptPath, in.Prompt)
 	}
 
 	return toolexec.Result{Output: buildAgentResultContent(agentID, agentType, finalText)}
+}
+
+// bindWorktree makes worktreeDir a REAL, usable directory for isolation="worktree": a genuine
+// `git worktree add` of parentCwd's current HEAD when parentCwd is a git repo with at least one
+// commit (mirroring real claude's own mechanism — a real worktree, same repo, isolated files),
+// or a plain empty directory otherwise (parentCwd isn't a git repo, or has no commits yet — a
+// worktree needs a HEAD to branch from). The caller (runAgentTool) already falls back to a plain
+// mkdir on any error this returns, so this only needs to try the real thing and report failure.
+func bindWorktree(ctx context.Context, parentCwd, worktreeDir string) error {
+	if err := os.MkdirAll(filepath.Dir(worktreeDir), 0o755); err != nil {
+		return fmt.Errorf("mkdir parent: %w", err)
+	}
+	checkGit := exec.CommandContext(ctx, "git", "-C", parentCwd, "rev-parse", "--is-inside-work-tree")
+	if err := checkGit.Run(); err != nil {
+		return fmt.Errorf("not a git repo: %w", err)
+	}
+	checkHead := exec.CommandContext(ctx, "git", "-C", parentCwd, "rev-parse", "--verify", "HEAD")
+	if err := checkHead.Run(); err != nil {
+		return fmt.Errorf("no HEAD (no commits yet): %w", err)
+	}
+	// A detached worktree (no new branch) at the current HEAD — the subagent's own commits
+	// inside it are exactly what a real isolation="worktree" dispatch is FOR (e.g. a spec-applier
+	// authoring impl+spec that a10n-checks later drains from this directory).
+	add := exec.CommandContext(ctx, "git", "-C", parentCwd, "worktree", "add", "--detach", worktreeDir, "HEAD")
+	var stderr bytes.Buffer
+	add.Stderr = &stderr
+	if err := add.Run(); err != nil {
+		return fmt.Errorf("git worktree add: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
 }
 
 // resolveSubagentScript picks the subagent scenario script: the Agent input's
@@ -188,17 +234,18 @@ func resolveSubagentScript(fromInput string) string {
 
 // runSubagent executes the subagent scenario and returns its final result text.
 //
-// The nested run shares the parent session_id and cwd, runs with IsResume=true
-// (so the test's own SubagentStart/Stop wiring applies inside it if desired) but
-// with SuppressSubagentHooks=true so it does NOT double-fire SubagentStart/Stop —
-// the Agent-tool layer owns those, fired WITH the agent_id. Its JSONL is captured
-// (not forwarded to the parent's stdout): in real claude the subagent runs as a
-// sidechain and only the Agent tool_result surfaces to the parent stream.
+// The nested run shares the parent session_id and runs at subCwd (== cfg.Cwd unless
+// isolation="worktree" bound a real separate directory — see runAgentTool), with
+// IsResume=true (so the test's own SubagentStart/Stop wiring applies inside it if
+// desired) but with SuppressSubagentHooks=true so it does NOT double-fire
+// SubagentStart/Stop — the Agent-tool layer owns those, fired WITH the agent_id. Its
+// JSONL is captured (not forwarded to the parent's stdout): in real claude the subagent
+// runs as a sidechain and only the Agent tool_result surfaces to the parent stream.
 //
 // If no script is configured, the subagent is a graceful no-op (not an error).
 //
 // a10n:docs https://code.claude.com/docs/en/sub-agents
-func runSubagent(ctx context.Context, cfg Config, agentID, scriptPath, prompt string) string {
+func runSubagent(ctx context.Context, cfg Config, subCwd, agentID, scriptPath, prompt string) string {
 	if scriptPath == "" {
 		return "no subagent script"
 	}
@@ -210,7 +257,7 @@ func runSubagent(ctx context.Context, cfg Config, agentID, scriptPath, prompt st
 		AgentID:               agentID,
 		IsResume:              true,
 		Prompt:                prompt,
-		Cwd:                   cfg.Cwd,
+		Cwd:                   subCwd,
 		ProjectDir:            cfg.ProjectDir,
 		ConfigDir:             cfg.ConfigDir,
 		PluginCacheDir:        cfg.PluginCacheDir,
