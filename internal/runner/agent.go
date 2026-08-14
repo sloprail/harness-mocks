@@ -86,13 +86,22 @@ type agentToolInput struct {
 //  3. Run the subagent (its own conversation, sharing the parent session_id).
 //  4. Fire SubagentStop with {agent_type, agent_id, stop_reason}. SubagentStop CAN
 //     block (exit 2 / decision:block) — on a block the subagent re-runs once more,
-//     then gives up. A block is never silently ignored.
+//     then gives up. A block is never silently ignored: it re-runs the turn AND
+//     lands a hook_blocking_error attachment in the transcript, the same channel
+//     the root's Stop uses, so the refusal's TEXT is readable afterwards.
 //  5. Return a tool_result whose content carries the literal `agentId: <id>` plus
 //     the subagent's final result text.
 //
+// sessionFile is the parent conversation's transcript, needed for (4)'s
+// attachment. The subagent's own refusal is recorded in the DISPATCHING
+// session's record because that is the conversation a reader has: the subagent's
+// nested run captures its JSONL to a buffer rather than to a file of its own
+// (see runSubagent), exactly as a real sidechain surfaces only through its
+// parent.
+//
 // a10n:docs https://code.claude.com/docs/en/sub-agents
 // a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
-func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput json.RawMessage) toolexec.Result {
+func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput json.RawMessage, sessionFile *os.File) toolexec.Result {
 	var in agentToolInput
 	if err := json.Unmarshal(rawInput, &in); err != nil {
 		return toolexec.Result{Output: fmt.Sprintf("Agent: invalid tool input: %v", err), IsError: true}
@@ -178,7 +187,11 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 	blockCap := stopHookBlockCap() // 0 = unlimited
 	finalText := runSubagent(ctx, cfg, subCwd, agentID, scriptPath, in.Prompt)
 	for turn := 0; ; turn++ {
-		blocked, reason := fireSubagentStop(ctx, cfg, subCwd, inv, agentType, agentID, transcriptPath, turn > 0)
+		blocked, reason, out, fireErr := fireSubagentStop(ctx, cfg, subCwd, inv, agentType, agentID, transcriptPath, turn > 0)
+		// Record what the hook said BEFORE deciding whether to loop, so the last
+		// refusal before the cap is on the record too. A refusal that stopped the
+		// mock from giving the subagent another turn is the one most worth reading.
+		emitStopHookAttachment(sessionFile, "SubagentStop", out, fireErr)
 		if !blocked {
 			break // clean stop — verify passed or the task was parked by the executor
 		}
@@ -284,7 +297,15 @@ func runSubagent(ctx context.Context, cfg Config, subCwd, agentID, scriptPath, p
 // else == cfg.Cwd) — reported in the SubagentStop payload's `cwd` field so a hook sees
 // the isolated cwd, matching real claude. The mock's internal machinery (session file,
 // block loop, hook invoker) stays on cfg since the mock does not bind a real worktree.
-func fireSubagentStop(ctx context.Context, cfg Config, subCwd string, inv *hooks.Invoker, agentType, agentID, transcriptPath string, stopHookActive bool) (blocked bool, reason string) {
+//
+// The raw hooks.Output and the fire error are returned alongside the verdict
+// because the caller records the refusal as a transcript attachment, and the two
+// blocking forms carry their text differently: exit 2 puts it on the error,
+// exit-0 {"decision":"block"} puts it on out.Reason. emitStopHookAttachment
+// already knows how to read either, so both are handed over intact rather than
+// flattened into the reason string — which would lose the decision field and
+// mis-classify an exit-0 block as a bare message.
+func fireSubagentStop(ctx context.Context, cfg Config, subCwd string, inv *hooks.Invoker, agentType, agentID, transcriptPath string, stopHookActive bool) (blocked bool, reason string, out hooks.Output, fireErr error) {
 	out, err := inv.Fire(ctx, hooks.Input{
 		SessionID:           cfg.SessionID,
 		Cwd:                 subCwd,
@@ -297,12 +318,12 @@ func fireSubagentStop(ctx context.Context, cfg Config, subCwd string, inv *hooks
 		StopHookActive:      stopHookActive,
 	})
 	if err != nil {
-		return true, err.Error()
+		return true, err.Error(), out, err
 	}
 	if out.Decision == "block" {
-		return true, out.Reason
+		return true, out.Reason, out, nil
 	}
-	return false, ""
+	return false, "", out, nil
 }
 
 // lastResultText scans captured JSONL for the last result frame and returns its
