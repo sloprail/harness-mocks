@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,10 +12,17 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
 const defaultHookTimeout = 60 * time.Second
+
+// hookKillGrace bounds how long Run may go on waiting after the process group
+// has been killed — the ceiling on a descendant that does not die. It is a
+// backstop for an already-abnormal case, so it is short; the kill itself is
+// what ends the hook.
+const hookKillGrace = 2 * time.Second
 
 // Invoker fires hook handlers for a given event and collects their output.
 type Invoker struct {
@@ -108,6 +116,41 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	// a10n:docs https://code.claude.com/docs/en/hooks#hook-types (command hooks run in the shell)
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec
 	cmd.Dir = hookCwd
+
+	// The deadline has to reach the hook's DESCENDANTS, not just the shell.
+	//
+	// A command hook is a shell line, and the interesting ones spawn something:
+	// `sr-agent ...`, a model call, a script that backgrounds work. Those are the
+	// shell's children. Default CommandContext kills only the direct child, so on
+	// expiry the shell died and its children did not — they inherited the stdout
+	// and stderr pipes, and cmd.Run() waits for every writer to close them, not
+	// for the shell alone. A hook declaring `"timeout": 3` around a backgrounded
+	// 25s sleep therefore returned after 25 seconds, and the declared bound did
+	// nothing.
+	//
+	// Setpgid puts the shell in a new process group that its children inherit, so
+	// one kill to the negated pgid reaches the whole tree. Cancel does exactly
+	// that; returning os.ErrProcessDone keeps an already-finished hook from being
+	// reported as killed.
+	//
+	// WaitDelay is the backstop, not the mechanism: if anything in that group
+	// survives the signal (SIGKILL is not catchable, but a process wedged in an
+	// uninterruptible syscall can outlast it) it caps how long Run may keep
+	// waiting on the inherited pipes. Without it, one unkillable descendant
+	// restores the original unbounded hang.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		// Negative pid = "the whole process group". Signalling the group is why
+		// the grandchildren die; signalling cmd.Process alone is the bug.
+		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
+			if errors.Is(err, syscall.ESRCH) {
+				return os.ErrProcessDone
+			}
+			return err
+		}
+		return nil
+	}
+	cmd.WaitDelay = hookKillGrace
 	cmd.Stdin = bytes.NewReader(payload)
 	// Mirror the real claude CLI: expose the active session id to the hook env.
 	cmd.Env = os.Environ()
