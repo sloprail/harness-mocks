@@ -1,7 +1,9 @@
 package runner
 
 import (
+	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -102,6 +104,25 @@ func seedRootPromptTranscript(f *os.File, sessionID, cwd, prompt string) {
 	}
 }
 
+// newRecordUUID returns a random RFC-4122 v4 uuid, the shape real Claude Code
+// stamps on every transcript record.
+//
+// The format matters and not merely the uniqueness: a consumer that parses the
+// field, or matches a transcript's records against a uuid it was handed
+// elsewhere, is entitled to a uuid rather than an arbitrary token. On a failure
+// of the random source it returns the empty string, and the caller's record
+// simply carries no uuid — the pre-existing behaviour, and better than a
+// predictable constant that would make two sub-agents share an identity.
+func newRecordUUID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return ""
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
 // appendToSession writes one JSONL line to the session file.
 // Errors are silently ignored — session persistence is best-effort; the mock
 // must not fail because of a session write error.
@@ -157,17 +178,28 @@ func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agent
 		return path
 	}
 	rec := map[string]any{
-		"type":        "user",
-		"sessionId":   parentSessionID,
+		"type":      "user",
+		"sessionId": parentSessionID,
+		// uuid + an explicit null parentUuid make this record the transcript's
+		// ORIGIN, which is what a consumer keys the sub-agent's identity by.
+		// Verified against a real Claude sub-agent transcript, whose first record
+		// carries a uuid with parentUuid null and every later record chains from
+		// it. The mock omitted the uuid, so every record in the file looked
+		// parentless-but-anonymous and no origin could be found at all — a
+		// consumer resolving a stable session id from this path got "every entry
+		// has a parent" and had to stand down, which read from the outside as a
+		// sub-agent whose cycle could not be judged.
+		"uuid":        newRecordUUID(),
+		"parentUuid":  nil,
 		"isSidechain": true,
 		// agentId mirrors the REAL Claude Code subagent transcript: every record
 		// in subagents/agent-<AGENTID>.jsonl carries a top-level agentId equal to
 		// the file's agent id. The parallel-subagent task-id attribution path
 		// (locate-task-id --agent-id) reads this field, so the mock must seed it
 		// for that deterministic path to be exercised in mock-based harnesses.
-		"agentId":     agentID,
-		"cwd":         subCwd,
-		"message":     map[string]any{"role": "user", "content": prompt},
+		"agentId": agentID,
+		"cwd":     subCwd,
+		"message": map[string]any{"role": "user", "content": prompt},
 	}
 	if line, err := json.Marshal(rec); err == nil {
 		if f, ferr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); ferr == nil {

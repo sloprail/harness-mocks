@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -321,6 +322,128 @@ exit 0`)
 	assert.Equal(t, "false", active[0], "stop_hook_active must be FALSE on the first SubagentStop fire")
 	assert.Equal(t, "true", active[1], "stop_hook_active must be TRUE on the first re-fire (after a block)")
 	assert.Equal(t, "true", active[2], "stop_hook_active must be TRUE on every subsequent re-fire")
+}
+
+// TestT010_07_BlockedSubagentStopSurfacesAsAttachment: a SubagentStop hook's
+// refusal must reach the session transcript as a hook_blocking_error attachment
+// carrying its TEXT — the same channel the root's Stop already uses.
+//
+// The re-run loop alone is not an observable consequence for anything outside
+// the mock. It changes how many times the subagent script runs, which only the
+// subagent's own side effects reveal; the orchestrator sees the same
+// tool_result either way, and a consumer reading the conversation cannot tell a
+// refused sub-agent cycle from a clean one. Without this, the only trace a
+// SubagentStop refusal left was a line on the mock's stderr — a diagnostic, not
+// a record — so a guardrail refusing at the end of a delegated cycle had no
+// channel by which its words reached the conversation it was judging.
+//
+// Both blocking forms are covered in one run because they land by different
+// routes inside emitStopHookAttachment (exit 2 arrives as a fire error, exit-0
+// decision:block as out.Reason) and a fix could plausibly deliver one and drop
+// the other.
+//
+// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		hookBody string
+		want     string
+	}{
+		{
+			name: "exit 2 with text on stderr",
+			want: "verify failed: the delegated work is refused",
+			hookBody: `cat >/dev/null
+echo "verify failed: the delegated work is refused" 1>&2
+exit 2`,
+		},
+		{
+			name: "exit 0 with decision block",
+			want: "a10n://check-runs/xyz needs resolving before this subagent may stop",
+			hookBody: `cat >/dev/null
+printf '%s' '{"decision":"block","reason":"a10n://check-runs/xyz needs resolving before this subagent may stop"}'
+exit 0`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			configDir := filepath.Join(dir, "config")
+			counter := filepath.Join(dir, "subagent-runs.txt")
+
+			stopHook := writeHook(t, dir, "stop.sh", tc.hookBody)
+			subScript := writeScript(t, dir, "sub.sh", countingSubagent(counter))
+			writeSettings(t, dir, map[string]string{"SubagentStop": stopHook})
+			orch := writeScript(t, dir, "orch.sh", orchestratorScript(subScript))
+
+			// Cap the loop at 1 so the always-blocking hook terminates quickly;
+			// the assertion is about the record, not about how far it looped.
+			out, code := runInDir(t, dir, []string{envStopHookBlockCap + "=1"},
+				"--script", orch, "--session-id", "sess-stop-attach",
+				"--project-dir", dir, "--config-dir", configDir, "-p", "go")
+			require.Equal(t, 0, code, "mock gives up gracefully at the cap; output:\n%s", out)
+			require.GreaterOrEqual(t, runCount(t, counter), 2,
+				"the hook blocked, so the subagent turn must have been re-run")
+
+			transcript := readTranscript(t, configDir, dir, "sess-stop-attach")
+			assert.Contains(t, transcript, "hook_blocking_error",
+				"a blocked SubagentStop must be recorded as a hook_blocking_error attachment, as a blocked Stop already is")
+			assert.Contains(t, transcript, `"hookEvent":"SubagentStop"`,
+				"the attachment must name SubagentStop, so a reader can tell which cycle refused")
+			assert.Contains(t, transcript, tc.want,
+				"the refusal's own text must reach the transcript — a block with no words is not a reportable refusal")
+		})
+	}
+}
+
+// TestT010_08_CleanSubagentStopWritesNoAttachment: the companion constraint. A
+// SubagentStop that does not block must leave no blocking-error attachment, or
+// the attachment stops meaning "refused" and every delegated cycle looks
+// refused — which would make the assertion above pass for a broken mock.
+func TestT010_08_CleanSubagentStopWritesNoAttachment(t *testing.T) {
+	dir := t.TempDir()
+	configDir := filepath.Join(dir, "config")
+	counter := filepath.Join(dir, "subagent-runs.txt")
+
+	stopHook := writeHook(t, dir, "stop.sh", `cat >/dev/null
+exit 0`)
+	subScript := writeScript(t, dir, "sub.sh", countingSubagent(counter))
+	writeSettings(t, dir, map[string]string{"SubagentStop": stopHook})
+	orch := writeScript(t, dir, "orch.sh", orchestratorScript(subScript))
+
+	out, code := runInDir(t, dir, nil,
+		"--script", orch, "--session-id", "sess-stop-clean",
+		"--project-dir", dir, "--config-dir", configDir, "-p", "go")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	require.Equal(t, 1, runCount(t, counter), "a clean SubagentStop must not re-run the subagent")
+
+	assert.NotContains(t, readTranscript(t, configDir, dir, "sess-stop-clean"), "hook_blocking_error",
+		"a SubagentStop that allowed the stop must record no blocking error")
+}
+
+// readTranscript returns the contents of the DISPATCHING session's JSONL — the
+// record the mock writes for a run at projDir with the given session id.
+//
+// Addressed rather than walked, and the session id alone is not enough to
+// address it. A dispatch under isolation="worktree" leaves THREE .jsonl files:
+// the parent's, the subagent's nested run under the WORKTREE's own encoded
+// project directory — which shares the parent's session id and therefore its
+// exact basename — and the subagent sidechain file. So neither "the last .jsonl
+// the walk saw" nor "the one named <sessionID>.jsonl" names one conversation;
+// both were tried and both read the subagent's two-line record, making a
+// working mock look broken.
+//
+// What distinguishes them is the project directory each is filed under, which
+// is the mock's own cwd encoding (sessionFilePath): symlinks resolved, then
+// every non-alphanumeric byte replaced by a dash. Reproduced here because it is
+// the only thing that separates the parent's record from a subagent's sharing
+// its id.
+func readTranscript(t *testing.T, configDir, projDir, sessionID string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(projDir)
+	require.NoError(t, err, "resolve project dir")
+	encoded := regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(resolved, "-")
+	path := filepath.Join(configDir, "projects", encoded, sessionID+".jsonl")
+	require.FileExists(t, path, "the dispatching session's transcript must exist")
+	return readFile(t, path)
 }
 
 // --- shared helpers ---
