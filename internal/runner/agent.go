@@ -99,9 +99,15 @@ type agentToolInput struct {
 // (see runSubagent), exactly as a real sidechain surfaces only through its
 // parent.
 //
+// toolUseID is the id of the Agent/Task tool_use block that spawned this
+// subagent. Real Claude Code records it as the `toolUseId` in the subagent's
+// .meta.json sidecar; a consumer deriving the subagent's parentPath (which
+// tool_use in the PARENT transcript spawned this sidechain) reads it. Empty only
+// when the spawning tool_use carried no id.
+//
 // a10n:docs https://code.claude.com/docs/en/sub-agents
 // a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
-func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput json.RawMessage, sessionFile *os.File) toolexec.Result {
+func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID string, rawInput json.RawMessage, sessionFile *os.File) toolexec.Result {
 	var in agentToolInput
 	if err := json.Unmarshal(rawInput, &in); err != nil {
 		return toolexec.Result{Output: fmt.Sprintf("Agent: invalid tool input: %v", err), IsError: true}
@@ -155,7 +161,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, rawInput 
 	// parent session's transcript dir); only the recorded `cwd` field is the subagent's.
 	// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR + projects/<encoded-cwd>)
 	configDir := resolveConfigDir(cfg.ConfigDir)
-	transcriptPath := seedSubagentTranscript(configDir, cfg.Cwd, subCwd, cfg.SessionID, agentID, agentType, in.Prompt)
+	transcriptPath := seedSubagentTranscript(configDir, cfg.Cwd, subCwd, cfg.SessionID, agentID, agentType, toolUseID, in.Prompt)
 
 	// SubagentStart — cannot block; a blocking error here is treated as a hard
 	// failure of the Agent tool (the real claude never proceeds past a refused start).

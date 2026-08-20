@@ -165,7 +165,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 	var res toolexec.Result
 	switch {
 	case isAgentTool(pending.ToolName):
-		res = runAgentTool(ctx, cfg, inv, pending.ToolInput, sessionFile)
+		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, sessionFile)
 	case isScheduleWakeupTool(pending.ToolName):
 		res = runScheduleWakeupTool(pending.ToolInput)
 	default:

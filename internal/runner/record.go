@@ -30,7 +30,7 @@ type cliRecord struct {
 	// Content is left as raw JSON: Claude Code emits it as an array of blocks for
 	// normal messages but as a plain string for some records (notably the
 	// isCompactSummary compaction record), and validateRecord must accept both.
-	// The per-block extraction helpers (extractFirstToolUse*, lineHasToolResult)
+	// The per-block extraction helpers (extractFirstToolUse*, hasIDLessToolResult)
 	// re-parse the line with their own typed shapes, so this field is never decoded
 	// structurally here.
 	Message *struct {
@@ -73,24 +73,45 @@ func validateRecord(line []byte) (*cliRecord, error) {
 	if !knownTypes[strings.ToLower(rec.Type)] {
 		return nil, fmt.Errorf("unknown record type %q (expected: system, assistant, user, result)", rec.Type)
 	}
-	// The scenario script speaks for the ASSISTANT (Claude): it may emit
-	// assistant turns (text / tool_use), result frames, and mock control records.
-	// tool_result blocks are the MOCK's job — they are synthesised after the mock
-	// executes a tool. A scenario that emits its own tool_result is modelling
-	// something Claude Code never produces, so reject it loudly rather than
-	// letting a bogus transcript through.
-	if strings.EqualFold(rec.Type, "user") && lineHasToolResult(line) {
-		return nil, fmt.Errorf("scenario emitted a tool_result block — that is synthesised by the mock after it executes a tool, not by the agent script; emit the tool_use and let the mock produce the result")
+	// The scenario script speaks for the ASSISTANT (Claude): it emits assistant
+	// turns (text / tool_use), result frames, and mock control records. When it
+	// emits a tool_use for a tool the mock executes (Bash/Read/Write/Edit/Glob),
+	// the mock runs the tool and SYNTHESISES the tool_result itself — a scenario
+	// must NOT hand-write that result, or the transcript would carry a fabricated
+	// tool output the mock never produced.
+	//
+	// BUT a tool_result IS, in real Claude Code, delivered as a user-role message
+	// — that is how EVERY tool result re-enters the conversation, and it is the
+	// only shape available for tools the mock does not execute locally. The
+	// motivating case is an AskUserQuestion answer envelope: the human's answer is
+	// authored as a {"type":"user","message":{"content":[{"type":"tool_result",
+	// "tool_use_id":…}]}} record, not synthesised from any local tool run. So a
+	// scenario-authored user+tool_result is a REAL CC shape and must be accepted;
+	// it is forwarded and persisted as a genuine trajectory record (scanLines does
+	// not re-execute a tool for it — it only fires PostToolUse, matching the
+	// "inline tool_result" path). Empirically, real CC always stamps a
+	// `tool_use_id` on a tool_result; a tool_result WITHOUT one is malformed and
+	// is the actual footgun the old blanket rejection was guarding against, so
+	// that narrow case stays an error.
+	// a10n:docs https://code.claude.com/docs/en/sdk#stream-json-output-format
+	if strings.EqualFold(rec.Type, "user") && hasIDLessToolResult(line) {
+		return nil, fmt.Errorf("scenario emitted a tool_result block with no tool_use_id — a real Claude Code tool_result always references the tool_use it answers; add a \"tool_use_id\", or (for a tool the mock executes) emit only the tool_use and let the mock synthesise the result")
 	}
 	return &rec, nil
 }
 
-// lineHasToolResult reports whether a user record carries a tool_result content block.
-func lineHasToolResult(line []byte) bool {
+// hasIDLessToolResult reports whether a user record carries a tool_result block
+// that lacks a tool_use_id. Such a block is malformed: real Claude Code always
+// references the answered tool_use, so a scenario emitting one either fabricated
+// a result for a tool the mock executes, or wrote a broken answer envelope. A
+// well-formed authored tool_result (with a tool_use_id) is a real CC shape and is
+// accepted.
+func hasIDLessToolResult(line []byte) bool {
 	var rec struct {
 		Message *struct {
 			Content []struct {
-				Type string `json:"type"`
+				Type      string `json:"type"`
+				ToolUseID string `json:"tool_use_id"`
 			} `json:"content"`
 		} `json:"message"`
 	}
@@ -98,7 +119,7 @@ func lineHasToolResult(line []byte) bool {
 		return false
 	}
 	for _, c := range rec.Message.Content {
-		if c.Type == "tool_result" {
+		if c.Type == "tool_result" && c.ToolUseID == "" {
 			return true
 		}
 	}

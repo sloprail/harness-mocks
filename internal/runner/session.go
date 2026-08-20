@@ -171,8 +171,15 @@ func subagentTranscriptPath(configDir, cwd, parentSessionID, agentID string) str
 // isolation="worktree", else == parentCwd); it is what lands in the record's `cwd`
 // and the meta `worktreePath`, so a hook reading the transcript sees the isolated cwd.
 //
+// toolUseId is the id of the Agent/Task tool_use in the PARENT transcript that
+// spawned this subagent. Real Claude Code records it in the .meta.json sidecar,
+// and a consumer deriving the subagent's parentPath (which parent tool_use this
+// sidechain answers) reads it — so the mock must stamp the REAL id here rather
+// than the empty string a prior version hardcoded. Empty only when the spawning
+// tool_use carried no id (e.g. a scenario that omitted one).
+//
 // a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions
-func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agentID, agentType, prompt string) string {
+func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agentID, agentType, toolUseID, prompt string) string {
 	path := subagentTranscriptPath(configDir, parentCwd, parentSessionID, agentID)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return path
@@ -214,7 +221,7 @@ func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agent
 	if subCwd != parentCwd {
 		worktreePath = subCwd
 	}
-	meta := map[string]any{"agentType": agentType, "worktreePath": worktreePath, "description": "", "toolUseId": ""}
+	meta := map[string]any{"agentType": agentType, "worktreePath": worktreePath, "description": "", "toolUseId": toolUseID}
 	if mb, err := json.MarshalIndent(meta, "", "  "); err == nil {
 		_ = os.WriteFile(strings.TrimSuffix(path, ".jsonl")+".meta.json", mb, 0o644)
 	}

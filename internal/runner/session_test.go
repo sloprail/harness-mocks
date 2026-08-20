@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,11 +23,12 @@ func TestSeedSubagentTranscriptCarriesAgentId(t *testing.T) {
 		parentSessionID = "parent-session-xyz"
 		agentID         = "agent-abc123"
 		agentType       = "general-purpose"
+		toolUseID       = "toolu_parent_task_1"
 		prompt          = "do the thing --task-id T42"
 	)
 
 	// Non-worktree subagent: subCwd == parentCwd (both = cwd).
-	path := seedSubagentTranscript(configDir, cwd, cwd, parentSessionID, agentID, agentType, prompt)
+	path := seedSubagentTranscript(configDir, cwd, cwd, parentSessionID, agentID, agentType, toolUseID, prompt)
 	require.NotEmpty(t, path)
 	require.Equal(t, path, subagentTranscriptPath(configDir, cwd, parentSessionID, agentID))
 
@@ -44,6 +46,16 @@ func TestSeedSubagentTranscriptCarriesAgentId(t *testing.T) {
 	assert.Equal(t, true, rec["isSidechain"])
 	assert.Equal(t, parentSessionID, rec["sessionId"])
 	assert.Equal(t, "user", rec["type"])
+
+	// The .meta.json sidecar must record the SPAWNING tool_use's id as toolUseId,
+	// matching real Claude Code — a consumer deriving the subagent's parentPath
+	// reads this field, so a prior hardcoded "" broke that derivation.
+	metaData, err := os.ReadFile(strings.TrimSuffix(path, ".jsonl") + ".meta.json")
+	require.NoError(t, err, ".meta.json sidecar must be written")
+	var meta map[string]any
+	require.NoError(t, json.Unmarshal(metaData, &meta))
+	assert.Equal(t, toolUseID, meta["toolUseId"], "meta.json toolUseId must be the spawning tool_use id")
+	assert.Equal(t, agentType, meta["agentType"])
 }
 
 // TestSeedSubagentTranscript_SeedsAnOriginRecord: the seeded record must be an
@@ -64,7 +76,7 @@ func TestSeedSubagentTranscript_SeedsAnOriginRecord(t *testing.T) {
 	configDir := t.TempDir()
 	const cwd = "/some/work/dir"
 
-	path := seedSubagentTranscript(configDir, cwd, cwd, "parent-session", "agent-1", "general-purpose", "do it")
+	path := seedSubagentTranscript(configDir, cwd, cwd, "parent-session", "agent-1", "general-purpose", "toolu_parent_task_1", "do it")
 
 	f, err := os.Open(path)
 	require.NoError(t, err)
