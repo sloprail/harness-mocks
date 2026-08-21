@@ -108,12 +108,37 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer sessionFile.Close()
 
-	// Seed the root prompt as the transcript's first user record (real Claude opens the
-	// transcript with the user prompt). A plugin Stop hook reads the first user message
-	// to harvest a10n:// links into check contexts; without this the root transcript has
-	// no user record and that path is dead. Idempotent: skips when the file is non-empty
-	// (a resume's transcript is already seeded by seedSubagentTranscript).
-	if !cfg.IsResume {
+	// Persist the `-p` prompt into the transcript as a HUMAN turn — the shape real Claude
+	// opens (fresh) or continues (resume) a conversation with. The two paths differ:
+	//
+	//   - FRESH (!IsResume): the prompt is the transcript's FIRST user record, a parentless
+	//     ROOT — the conversation's origin a reader scans for. seedRootPromptTranscript only
+	//     writes into a still-EMPTY file, so a re-entry that re-opens a seeded file is a no-op.
+	//
+	//   - RESUME (IsResume): the prompt is the NEXT human turn — a user record with its own
+	//     uuid and a NON-null parentUuid chaining into the transcript already on disk, so a
+	//     reader treats it as a mid-conversation human message, not a second root. This is
+	//     what lets two same-session runs build a genuine multi-human-turn transcript (run 1
+	//     seeds the root prompt; run 2, a --resume, appends its prompt as a continuation).
+	//     appendResumePromptTranscript carries its own re-entry guard (it skips when the last
+	//     human turn already IS this prompt), so it fires exactly once per resume invocation.
+	//
+	// The resume-append is NOT for a nested sub-agent run. A sub-agent (spawned via the
+	// Agent tool) runs with IsResume=true AND SuppressSubagentHooks=true, and its nested
+	// runner.Run opens the PARENT's root session file (same cwd + session id) — its
+	// dispatch prompt is the parent's Agent tool_use input, NOT a human turn in the
+	// parent's conversation. Appending it would forge a human message the user never sent.
+	// The sub-agent's OWN human-origin record is the dispatch prompt seeded by
+	// seedSubagentTranscript into the sidechain file, so the sub-agent path needs nothing
+	// here. SuppressSubagentHooks is set ONLY for those nested runs, so it is the exact
+	// gate: append only on a top-level resume.
+	//
+	// A plugin Stop hook reads the transcript's first user message to harvest a10n:// links
+	// into check contexts; both the fresh and top-level-resume paths keep a user record present.
+	switch {
+	case cfg.IsResume && !cfg.SuppressSubagentHooks:
+		appendResumePromptTranscript(sessionFile, cfg.SessionID, cfg.Cwd, cfg.Prompt)
+	case !cfg.IsResume:
 		seedRootPromptTranscript(sessionFile, cfg.SessionID, cfg.Cwd, cfg.Prompt)
 	}
 
