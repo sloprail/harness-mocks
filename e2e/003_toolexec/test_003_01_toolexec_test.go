@@ -48,7 +48,9 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","stop_reason":n
 }
 
 // TestT003_02_SessionFileContainsHistory verifies that A10N_MOCK_SESSION_FILE is
-// written and contains all forwarded records after the run.
+// written and contains the forwarded trajectory records after the run — but NOT the
+// `result` frame, which real Claude Code streams to stdout and never persists to the
+// transcript file (verified: 0 type:"result" records in a real transcript).
 func TestT003_02_SessionFileContainsHistory(t *testing.T) {
 	dir := t.TempDir()
 
@@ -59,7 +61,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 `), 0o755))
 
 	configDir := filepath.Join(dir, "config")
-	_, code := runInDir(t, dir, nil,
+	stdout, code := runInDir(t, dir, nil,
 		"--script", scriptPath,
 		"--session-id", "s2",
 		"--project-dir", dir,
@@ -80,8 +82,13 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 
 	data, err := os.ReadFile(sessionFiles[0])
 	require.NoError(t, err)
+	// The forwarded system record is persisted…
 	assert.Contains(t, string(data), `"type":"system"`)
-	assert.Contains(t, string(data), `"type":"result"`)
+	// …the result frame is streamed to stdout…
+	assert.Contains(t, stdout, `"type":"result"`, "the result frame must be streamed to stdout")
+	// …but is NOT persisted to the transcript file, matching real Claude Code.
+	assert.NotContains(t, string(data), `"type":"result"`,
+		"real Claude Code never persists the result frame to the transcript file")
 }
 
 // TestT003_03_WriteToolCreatesFile verifies that the Write tool creates a file

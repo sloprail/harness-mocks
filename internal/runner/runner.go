@@ -140,6 +140,17 @@ func Run(ctx context.Context, cfg Config) error {
 		appendResumePromptTranscript(sessionFile, cfg.SessionID, cfg.Cwd, cfg.Prompt)
 	case !cfg.IsResume:
 		seedRootPromptTranscript(sessionFile, cfg.SessionID, cfg.Cwd, cfg.Prompt)
+		// Real Claude Code opens a FRESH transcript with no-uuid preamble records
+		// (custom-title / mode / last-prompt / …) AHEAD of the root prompt. The mock
+		// mirrors that so its transcript file has the same head shape — a fidelity fix,
+		// not a test hook. seedPreamble prepends the block ahead of the root just seeded
+		// (or ahead of a root the sloprail harness pre-seeded before the mock ran), so
+		// the head lands as [preamble…, root, conversation…]. Skipped for resume (the
+		// transcript already opened) and for nested sub-agent runs (SuppressSubagentHooks:
+		// a sub-agent continues the parent's file, it does not open a session).
+		if !cfg.SuppressSubagentHooks {
+			seedPreamble(sessionFile, cfg.SessionID)
+		}
 	}
 
 	settings, err := hooks.LoadSettings(cfg.ProjectDir, cfg.PluginCacheDir)
@@ -279,6 +290,7 @@ func Run(ctx context.Context, cfg Config) error {
 //   - otherwise, if the hook returned additionalContext / systemMessage text →
 //     "hook_additional_context" with attachment.content = [text];
 //   - otherwise nothing (a silent hook produces no attachment).
+//
 // The block reason re-enters the conversation here so the next scenario turn can read it.
 func emitStopHookAttachment(sessionFile *os.File, hookEvent string, out hooks.Output, fireErr error) {
 	reason := out.Reason

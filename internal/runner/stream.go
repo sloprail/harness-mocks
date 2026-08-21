@@ -40,12 +40,18 @@ import (
 const maxIdenticalTurns = 5
 
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
+	// One chained writer for the whole run: every FILE record persisted below chains
+	// from the one before it (real-CC shape — see sessionWriter). The chain seeds from
+	// the last uuid already on disk, so a resume or a nested sub-agent run re-opening
+	// the parent transcript continues the existing chain. The STDOUT stream is written
+	// directly with cfg.Out and is NOT chained (it must stay the mock's claude stream).
+	sw := newSessionWriter(sessionFile)
 	var lastSig string
 	var repeats int
 	var stopBlocks int
 	blockCap := stopHookBlockCap()
 	for {
-		done, sig, err := runOneTurnSig(ctx, cfg, inv, sessionFile)
+		done, sig, err := runOneTurnSig(ctx, cfg, inv, sessionFile, sw)
 		if err != nil {
 			return err
 		}
@@ -104,7 +110,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 //   - (false, sig, nil)  when a tool_use was executed; script should be re-run.
 //     sig is the pending tool_use signature (name+input) for the loop guard.
 //   - (false, "",  err)  on any error
-func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) (done bool, sig string, err error) {
+func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File, sw *sessionWriter) (done bool, sig string, err error) {
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
 	cmd.Dir = cfg.Cwd
 	cmd.Env = buildEnv(cfg, sessionFile)
@@ -118,7 +124,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 		return false, "", fmt.Errorf("claude-mock: start script: %w", err)
 	}
 
-	pending, done, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, sessionFile)
+	pending, done, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, sessionFile, sw)
 	waitErr := cmd.Wait()
 
 	if scanErr != nil {
@@ -143,7 +149,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 			Output:  "Tool call blocked by a PreToolUse hook: " + pending.BlockReason,
 			IsError: true,
 		}
-		if err := emitToolResult(cfg, pending, blockRes, sessionFile); err != nil {
+		if err := emitToolResult(cfg, pending, blockRes, sw); err != nil {
 			return false, "", err
 		}
 		return false, "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), nil
@@ -174,7 +180,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 
 	// Synthesise and emit the tool_result user record.
 	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
-	if err := emitToolResult(cfg, pending, res, sessionFile); err != nil {
+	if err := emitToolResult(cfg, pending, res, sw); err != nil {
 		return false, "", err
 	}
 
@@ -214,7 +220,7 @@ type pendingToolUse struct {
 // Returns (pending, done, err):
 //   - done=true when a result frame is seen
 //   - pending set when a tool_use was encountered (caller should execute + re-run)
-func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, sessionFile *os.File) (pending pendingToolUse, done bool, err error) {
+func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, sessionFile *os.File, sw *sessionWriter) (pending pendingToolUse, done bool, err error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 
@@ -248,7 +254,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.IsCompactSummary {
 			cfg.Out.Write(line)         //nolint:errcheck
 			cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-			appendToSession(sessionFile, line)
+			sw.persist(line)
 			if _, err := fireSessionStart(ctx, cfg, inv, "compact"); err != nil {
 				return pendingToolUse{}, false, fmt.Errorf("claude-mock: SessionStart (compact) hook blocked: %w", err)
 			}
@@ -279,7 +285,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				// tool's fate — the tool_use is part of the trajectory either way.
 				cfg.Out.Write(line)         //nolint:errcheck
 				cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-				appendToSession(sessionFile, line)
+				sw.persist(line)
 
 				if denied {
 					// Real Claude Code contract (empirically verified, STEP 0): a
@@ -311,10 +317,20 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			}
 		}
 
-		// Forward line to caller and append to session.
+		// Forward line to the STDOUT stream always — it is the mock's claude-compatible
+		// output and every record (result included) belongs on it.
 		cfg.Out.Write(line)         //nolint:errcheck
 		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-		appendToSession(sessionFile, line)
+
+		// The FILE is different from the stream. Real Claude Code NEVER persists the
+		// `result` frame to the transcript file — verified: 0 type:"result" records in a
+		// real ~/.claude/projects/<proj>/<session>.jsonl, even though the frame is on the
+		// --output-format stream-json STDOUT. The `result` is a stdout-stream-only frame;
+		// the transcript ends at the last assistant/tool_result record. So stream it
+		// (above) but do NOT persist it. Every other record is chained into the file.
+		if rec.Type != "result" {
+			sw.persist(line)
+		}
 
 		// PostToolUse for inline tool_result blocks (static scripts).
 		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
@@ -384,11 +400,17 @@ func buildEnv(cfg Config, sessionFile *os.File) []string {
 	)
 }
 
-// emitToolResult writes a synthetic user record with a tool_result block to
-// cfg.Out and the session file.
+// emitToolResult writes a synthetic user record with a tool_result block to the
+// STDOUT stream and, chained into the transcript, to the session FILE.
+//
+// The record carries no uuid/parentUuid of its own — sw.persist mints a uuid and
+// chains it from the previous persisted record, which is exactly the shape a real
+// tool_result (type:"user") has on disk: uuid + a non-null parentUuid. The STDOUT
+// copy stays uuid-less, matching the mock's claude stream (the stream frames carry no
+// transcript uuid; the FILE is where the chained identity lives).
 //
 // a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
-func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sessionFile *os.File) error {
+func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sw *sessionWriter) error {
 	content := res.Output
 	if res.IsError {
 		blocks, _ := json.Marshal([]map[string]string{
@@ -418,6 +440,6 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sessio
 	}
 	cfg.Out.Write(line)         //nolint:errcheck
 	cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-	appendToSession(sessionFile, line)
+	sw.persist(line)
 	return nil
 }

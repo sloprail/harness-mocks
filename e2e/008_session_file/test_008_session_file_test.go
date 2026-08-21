@@ -70,11 +70,16 @@ func TestT008_02_SessionFilePathEncoding(t *testing.T) {
 		"encoded project dir must only contain [a-zA-Z0-9-], got: %s", projectDirs[0])
 }
 
-// TestT008_03_SessionFileContainsForwardedRecords: session file contains all forwarded JSONL lines.
+// TestT008_03_SessionFileContainsForwardedRecords: the session file contains the
+// forwarded trajectory records (a system init here), but NOT the `result` frame —
+// real Claude Code never persists the result to the transcript file (verified: 0
+// type:"result" records in a real ~/.claude/projects/<proj>/<session>.jsonl). The
+// result is a stdout-stream-only frame, so it must appear on stdout and be absent
+// from the file.
 func TestT008_03_SessionFileContainsForwardedRecords(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
-	_, code := runMock(t, dir, configDir, "sess-3")
+	stdout, code := runMock(t, dir, configDir, "sess-3")
 	require.Equal(t, 0, code)
 
 	var sessionFile string
@@ -87,8 +92,12 @@ func TestT008_03_SessionFileContainsForwardedRecords(t *testing.T) {
 	require.NotEmpty(t, sessionFile)
 	data, err := os.ReadFile(sessionFile)
 	require.NoError(t, err)
-	assert.Contains(t, string(data), `"type":"system"`)
-	assert.Contains(t, string(data), `"type":"result"`)
+	assert.Contains(t, string(data), `"type":"system"`, "forwarded trajectory records are persisted")
+	// FIX 2: the result frame is stream-only. It is on stdout…
+	assert.Contains(t, stdout, `"type":"result"`, "the result frame must be streamed to stdout")
+	// …and NOT in the transcript file, matching real Claude Code.
+	assert.NotContains(t, string(data), `"type":"result"`,
+		"real Claude Code never persists the result frame to the transcript file")
 }
 
 // TestT008_04_SessionFileAppendsAcrossTurns: tool_result from second turn appears in session file.
