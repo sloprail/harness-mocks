@@ -31,14 +31,23 @@ type Invoker struct {
 	sessionID string
 }
 
-// NewInvoker creates an Invoker backed by the given settings. sessionID is
-// exported to every command hook as CLAUDE_CODE_SESSION_ID — mirroring the real
-// claude CLI, which puts the active session id in each hook's environment (verified
-// against claude 2.x: SessionStart/UserPromptSubmit/PreToolUse all see it). Tools a
-// hook shells to — e.g. `a10n-task-executor session autopilot` — read it to resolve
-// "the current session" without an explicit flag.
+// NewInvoker creates an Invoker backed by the given settings. Every command hook
+// runs with three Claude-Code environment variables the real CLI sets on each
+// session, so a tool the hook shells to sees the same environment it would under
+// real claude:
 //
-// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
+//   - CLAUDE_CODE_SESSION_ID — the active session id (from sessionID here), which
+//     a tool like `a10n-task-executor session autopilot` reads to resolve "the
+//     current session" without an explicit flag. Verified against claude 2.x:
+//     SessionStart/UserPromptSubmit/PreToolUse all see it. Set only when non-empty.
+//   - CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=cli — the two variables the real CLI
+//     stamps on every session (both confirmed present in a live session). A tool
+//     that detects "am I running under a harness" keys off them (sr-agent's harness
+//     detection recognises Claude Code by exactly these two and REFUSES with
+//     ErrNoHarness when neither is set). The mock STANDS IN FOR Claude Code, so it
+//     must present that env unconditionally — see invokeCommand.
+//
+// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID, CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)
 func NewInvoker(settings *Settings, cwd, sessionID string) *Invoker {
 	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID}
 }
@@ -152,8 +161,17 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	}
 	cmd.WaitDelay = hookKillGrace
 	cmd.Stdin = bytes.NewReader(payload)
-	// Mirror the real claude CLI: expose the active session id to the hook env.
-	cmd.Env = os.Environ()
+	// Mirror the real claude CLI's hook environment. CLAUDECODE=1 and
+	// CLAUDE_CODE_ENTRYPOINT=cli are set unconditionally: the real CLI stamps both
+	// on every session (both confirmed present in a live session), and a tool the
+	// hook shells to that detects "am I under a harness" keys off them — sr-agent's
+	// harness detection recognises Claude Code by exactly these two and REFUSES with
+	// ErrNoHarness when neither is present. The mock stands in for Claude Code, so it
+	// must present them whether or not a session id is known. CLAUDE_CODE_SESSION_ID
+	// is set only when non-empty (the real CLI carries the active session id in each
+	// hook's env; a tool reads it to resolve "the current session").
+	// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID)
+	cmd.Env = append(os.Environ(), "CLAUDECODE=1", "CLAUDE_CODE_ENTRYPOINT=cli")
 	if inv.sessionID != "" {
 		cmd.Env = append(cmd.Env, "CLAUDE_CODE_SESSION_ID="+inv.sessionID)
 	}
