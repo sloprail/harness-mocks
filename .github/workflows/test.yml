@@ -1,0 +1,39 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call: {}
+
+jobs:
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -race -count=1 ./claude-mock/internal/...
+
+  e2e:
+    name: e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # claude-mock's own e2e suite drives real hook flows (see e2e/016_*
+      # for the newest), so it needs the same git identity a mocked run
+      # itself sets up for any repo it seeds.
+      - name: git identity
+        run: |
+          git config --global user.email ci@sloprail.invalid
+          git config --global user.name  harness-mocks CI
+
+      - run: make -C claude-mock test-e2e
