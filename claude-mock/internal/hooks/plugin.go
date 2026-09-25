@@ -29,8 +29,8 @@ import (
 // There is NO fallback: a plugin whose marketplace is not declared in
 // extraKnownMarketplaces does not resolve, exactly like the real client.
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces
-// a10n:docs https://code.claude.com/docs/en/settings (extraKnownMarketplaces, enabledPlugins)
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces
+// sr:docs https://code.claude.com/docs/en/settings (extraKnownMarketplaces, enabledPlugins)
 
 // pluginCacheDir returns the directory used to cache cloned marketplace repos.
 //
@@ -40,7 +40,7 @@ import (
 //  3. /tmp/a10n-mock-plugins — a fixed path so marketplaces cloned by one test
 //     run are reused by the next instead of being re-cloned every time.
 //
-// a10n:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
+// sr:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
 func pluginCacheDir(explicit string) string {
 	if explicit != "" {
 		return explicit
@@ -55,7 +55,7 @@ func pluginCacheDir(explicit string) string {
 // plugin fields. enabledPlugins maps "<plugin>@<marketplace>" → bool;
 // extraKnownMarketplaces maps an arbitrary key → a marketplace config object.
 //
-// a10n:docs https://code.claude.com/docs/en/settings (extraKnownMarketplaces, enabledPlugins)
+// sr:docs https://code.claude.com/docs/en/settings (extraKnownMarketplaces, enabledPlugins)
 type settingsWithPlugins struct {
 	Settings
 	EnabledPlugins         map[string]bool           `json:"enabledPlugins,omitempty"`
@@ -64,7 +64,7 @@ type settingsWithPlugins struct {
 
 // marketplaceCfg is one entry of extraKnownMarketplaces.
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces (marketplace sources)
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces (marketplace sources)
 type marketplaceCfg struct {
 	Source marketplaceSource `json:"source"`
 }
@@ -72,7 +72,7 @@ type marketplaceCfg struct {
 // marketplaceSource describes where a marketplace lives. The Source field is the
 // discriminator: "git"/"github" use URL/Repo, "directory" uses Path.
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces (source types)
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces (source types)
 type marketplaceSource struct {
 	Source string `json:"source"` // "git" | "github" | "directory"
 	URL    string `json:"url,omitempty"`
@@ -83,7 +83,7 @@ type marketplaceSource struct {
 // pluginHooks is the schema of a plugin's hooks/hooks.json file. Each value is a
 // list of HookEntry objects identical to those in settings.json.
 //
-// a10n:docs https://code.claude.com/docs/en/plugins#hooks
+// sr:docs https://code.claude.com/docs/en/plugins#hooks
 type pluginHooks struct {
 	Hooks map[EventName][]HookEntry `json:"hooks"`
 }
@@ -95,7 +95,7 @@ type pluginHooks struct {
 // cacheDir is where git marketplaces are cloned (and reused). Resolution failures
 // for one plugin are logged and skipped — they never abort the others.
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces
 func loadPluginHooks(dst *Settings, cacheDir string, enabledPlugins map[string]bool, marketplaces map[string]marketplaceCfg) {
 	byMarketplace := groupEnabledByMarketplace(enabledPlugins)
 	if len(byMarketplace) == 0 {
@@ -192,7 +192,7 @@ func splitPluginKey(key string) (pluginName, marketplace string, err error) {
 // cacheDir; directory sources are read in place. Returns ("", zero-value, nil) when no
 // declared marketplace matches.
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces (source types)
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces (source types)
 func resolveMarketplace(marketplaceName string, marketplaces map[string]marketplaceCfg, cacheDir string) (string, marketplaceManifest, error) {
 	// Deterministic scan order over the declared marketplaces.
 	keys := make([]string, 0, len(marketplaces))
@@ -261,7 +261,7 @@ func marketplaceSlug(gitURL string) string {
 // checkout. When the clone already exists it is REUSED as-is (no pull) — the
 // cache is what lets repeated runs avoid network round-trips.
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces (cached clones)
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces (cached clones)
 func ensureCloned(gitURL, targetPath string) error {
 	if _, err := os.Stat(filepath.Join(targetPath, ".git")); err == nil {
 		return nil // already cached — reuse without pulling
@@ -287,7 +287,7 @@ func ensureCloned(gitURL, targetPath string) error {
 // necessarily "plugins/<name>" (e.g. an in-monorepo marketplace whose manifest sits at the
 // repo root but whose plugins live under a subdirectory, such as "./marketplace/plugins/foo").
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces (manifest schema)
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces (manifest schema)
 type marketplaceManifest struct {
 	Name    string                    `json:"name"`
 	Plugins []marketplaceManifestItem `json:"plugins"`
@@ -329,7 +329,7 @@ func readMarketplaceManifest(root string) (marketplaceManifest, error) {
 // ${VAR} placeholder is preserved (in braced form) so the shell resolves it at
 // hook-run time.
 //
-// a10n:docs https://code.claude.com/docs/en/plugins#hooks
+// sr:docs https://code.claude.com/docs/en/plugins#hooks
 func expandPluginRoot(entries []HookEntry, pluginDir string) []HookEntry {
 	out := make([]HookEntry, len(entries))
 	for i, e := range entries {

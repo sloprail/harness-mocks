@@ -15,7 +15,7 @@ import (
 // hooks/hooks.json, expanding ${CLAUDE_PLUGIN_ROOT}, and executing the
 // plugin-provided hook script.
 //
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces
 
 // seedDirectoryMarketplace builds a directory-source marketplace at mpRoot with
 // one plugin whose Stop hook appends to logFile. Returns the plugin install dir

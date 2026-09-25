@@ -68,7 +68,7 @@ func RunWithScript(t *testing.T, scriptContent string, extraArgs ...string) (str
 // on every test invocation.  It mirrors the default used by pluginCacheDir()
 // in the hooks package.
 //
-// a10n:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
+// sr:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
 const SharedPluginCacheDir = "/tmp/a10n-mock-plugins"
 
 // RunInDir invokes the mock binary from dir with optional extra env and args.

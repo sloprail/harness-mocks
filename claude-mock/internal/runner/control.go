@@ -16,9 +16,9 @@ import (
 //   - worktree_create / worktree_remove — fire WorktreeCreate / WorktreeRemove
 //   - subagent_start                    — fire SubagentStart with explicit agent_type
 //
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#worktreecreate
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#worktreeremove
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstart
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#worktreecreate
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#worktreeremove
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstart
 func handleControlRecord(ctx context.Context, rec *cliRecord, cfg Config, inv *hooks.Invoker) (handled bool, err error) {
 	switch rec.Type {
 	case "worktree_create", "worktree_remove":

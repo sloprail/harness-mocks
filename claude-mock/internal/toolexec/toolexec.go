@@ -9,7 +9,7 @@
 // implemented here. Unknown tools return an error result so the script can
 // handle them explicitly.
 //
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/tools-overview
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-overview
 package toolexec
 
 import (
@@ -33,7 +33,7 @@ type Result struct {
 // Execute runs the named tool with the given JSON input and returns its result.
 // cwd is the working directory for tools that operate on the filesystem.
 //
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/tools-overview
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-overview
 func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd string) Result {
 	switch toolName {
 	case "Bash":
@@ -55,7 +55,7 @@ func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd st
 }
 
 // bashInput is the argument shape for the Bash tool.
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
 type bashInput struct {
 	Command string `json:"command"`
 	Timeout int    `json:"timeout,omitempty"`
@@ -78,7 +78,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd string) Result {
 }
 
 // readInput is the argument shape for the Read tool.
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
 type readInput struct {
 	FilePath string `json:"file_path"`
 	Offset   int    `json:"offset,omitempty"`
@@ -113,7 +113,7 @@ func executeRead(raw json.RawMessage, cwd string) Result {
 }
 
 // writeInput is the argument shape for the Write tool.
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
 type writeInput struct {
 	FilePath string `json:"file_path"`
 	Content  string `json:"content"`
@@ -136,7 +136,7 @@ func executeWrite(raw json.RawMessage, cwd string) Result {
 }
 
 // editInput is the argument shape for the Edit tool.
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
 type editInput struct {
 	FilePath  string `json:"file_path"`
 	OldString string `json:"old_string"`

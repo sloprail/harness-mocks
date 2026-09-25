@@ -9,7 +9,7 @@ import (
 // cliRecord is the top-level shape of a Claude Code JSONL stream-json record.
 // We parse only what we need for hook-triggering, control dispatch, and validation.
 //
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 type cliRecord struct {
 	Type    string `json:"type"`
 	Subtype string `json:"subtype,omitempty"`
@@ -19,7 +19,7 @@ type cliRecord struct {
 	// {"type":"user","isCompactSummary":true,…} line to the transcript when it
 	// auto-compacts the context window. A scenario script emits this to drive a
 	// compaction event; the runner reacts by firing SessionStart source="compact".
-	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	IsCompactSummary bool `json:"isCompactSummary,omitempty"`
 
 	// result frame fields
@@ -48,7 +48,7 @@ type cliRecord struct {
 
 // knownTypes lists all valid JSONL record types emitted by Claude Code stream-json
 // plus the mock-only control records.
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 var knownTypes = map[string]bool{
 	"system":    true,
 	"assistant": true,
@@ -93,7 +93,7 @@ func validateRecord(line []byte) (*cliRecord, error) {
 	// `tool_use_id` on a tool_result; a tool_result WITHOUT one is malformed and
 	// is the actual footgun the old blanket rejection was guarding against, so
 	// that narrow case stays an error.
-	// a10n:docs https://code.claude.com/docs/en/sdk#stream-json-output-format
+	// sr:docs https://code.claude.com/docs/en/sdk#stream-json-output-format
 	if strings.EqualFold(rec.Type, "user") && hasIDLessToolResult(line) {
 		return nil, fmt.Errorf("scenario emitted a tool_result block with no tool_use_id — a real Claude Code tool_result always references the tool_use it answers; add a \"tool_use_id\", or (for a tool the mock executes) emit only the tool_use and let the mock synthesise the result")
 	}
@@ -129,7 +129,7 @@ func hasIDLessToolResult(line []byte) bool {
 // extractFirstToolUseWithID finds the first tool_use content block in an assistant line.
 // Returns ("", "", nil) if there is none.
 //
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 func extractFirstToolUseWithID(line []byte) (toolUseID, toolName string, toolInput json.RawMessage) {
 	var rec struct {
 		Message *struct {

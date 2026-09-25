@@ -6,8 +6,8 @@
 // Code CLAUDE_CODE_STOP_HOOK_BLOCK_CAP env var (default 8, 0 = unlimited), and
 // that stop_hook_active is false on the first fire and true on every re-fire.
 //
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
-// a10n:docs https://code.claude.com/docs/en/env-vars
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/env-vars
 package e2e
 
 import (
@@ -24,7 +24,7 @@ import (
 
 // envStopHookBlockCap mirrors the REAL Claude Code env var that caps how many
 // consecutive times a Stop/SubagentStop hook may block before Claude overrides.
-// a10n:docs https://code.claude.com/docs/en/env-vars
+// sr:docs https://code.claude.com/docs/en/env-vars
 const envStopHookBlockCap = "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP"
 
 // writeSettings writes a .claude/settings.json wiring one command hook per event.
@@ -109,7 +109,7 @@ func driveAgentTool(t *testing.T, dir, subScript, stopHook string, env []string)
 // to re-run the SAME subagent turn. The subagent runs twice and the hook fires
 // twice with the SAME agent_id.
 //
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_01_BlockViaExit2RerunsSubagent(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -148,7 +148,7 @@ exit 0`)
 // path the REAL Claude SubagentStop contract uses (exit-0 + decision JSON, NOT a
 // process error) and the one the a10n bridge handoff relies on — it MUST work.
 //
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_02_BlockViaDecisionJSONRerunsSubagent(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -181,7 +181,7 @@ exit 0`)
 // TestT010_03_CleanStopRunsSubagentOnce: a SubagentStop hook that never blocks
 // (always exit 0, no decision) must run the subagent exactly once — no re-run.
 //
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_03_CleanStopRunsSubagentOnce(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -204,8 +204,8 @@ exit 0`)
 // runs 3 times (initial + 2 re-runs) then the mock gives up; with the default
 // (unset = 8) it runs 9 times. The mock writes a "giving up" line to stderr.
 //
-// a10n:docs https://code.claude.com/docs/en/env-vars
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/env-vars
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_04_BlockCapBoundsTheLoop(t *testing.T) {
 	alwaysBlockExit2 := func(dir, fireCounter string) string {
 		return writeHook(t, dir, "stop.sh", `cat >/dev/null
@@ -254,7 +254,7 @@ exit 2`)
 // run the subagent to completion (10 runs) rather than being capped at 9 — proving
 // 0 means unlimited, not "block zero times".
 //
-// a10n:docs https://code.claude.com/docs/en/env-vars
+// sr:docs https://code.claude.com/docs/en/env-vars
 func TestT010_05_BlockCapZeroIsUnlimited(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -287,7 +287,7 @@ exit 0`)
 // Claude flag a hook checks to break its own recursion. The hook captures each
 // fire's stop_hook_active value (one line per fire) for the assertion.
 //
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_06_StopHookActiveFlag(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -342,7 +342,7 @@ exit 0`)
 // decision:block as out.Reason) and a fix could plausibly deliver one and drop
 // the other.
 //
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

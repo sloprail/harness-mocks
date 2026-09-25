@@ -25,7 +25,7 @@ const (
 	// "userPrompt"/"updatedPrompt" field (that is an open upstream feature
 	// request, anthropics/claude-code#27365). If the hook outputs nothing, the
 	// original prompt is forwarded unchanged.
-	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
+	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
 	EventUserPromptSubmit EventName = "UserPromptSubmit"
 )
 
@@ -44,14 +44,14 @@ type Input struct {
 	// "compact". Verified empirically against claude 2.x: the SessionStart hook
 	// stdin carries "source" (NOT "trigger"). Also reused by SessionEnd
 	// ("prompt_input_exit"). The mock sets it to "startup"/"resume"/(override).
-	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	Source string `json:"source,omitempty"`
 	Model  string `json:"model,omitempty"`
 
 	// UserPromptSubmit
 	// Prompt is the raw text of the user message being submitted. The real Claude
 	// Code payload names this field "prompt" (NOT "user_prompt").
-	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
+	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
 	Prompt string `json:"prompt,omitempty"`
 
 	// Stop / SubagentStop / StopFailure
@@ -60,7 +60,7 @@ type Input struct {
 	// a prior block (the hook's own block re-ran the turn, which fires the hook
 	// again). Hooks check it to break their own infinite loop — the real Claude
 	// contract. The mock sets it on every re-fire after the first block.
-	// a10n:docs https://code.claude.com/docs/en/hooks#stop
+	// sr:docs https://code.claude.com/docs/en/hooks#stop
 	StopHookActive bool `json:"stop_hook_active,omitempty"`
 
 	// PreToolUse / PostToolUse
@@ -74,13 +74,13 @@ type Input struct {
 	// when it spawns a subagent via the Agent (alias Task) tool. The real Claude
 	// hook payload carries this so the SubagentStart and matching SubagentStop can
 	// be correlated.
-	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
+	// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 	AgentID string `json:"agent_id,omitempty"`
 	// SubagentStop — path to the subagent's OWN transcript file
 	// (<session>/subagents/agent-<agent_id>.jsonl). The real Claude Code SubagentStop
 	// payload carries this documented field so hooks can read the dispatch prompt
 	// (with --task-id) directly without deriving the path from transcript_path.
-	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+	// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 	AgentTranscriptPath string `json:"agent_transcript_path,omitempty"`
 
 	// WorktreeCreate / WorktreeRemove
@@ -97,7 +97,7 @@ type Output struct {
 	// Decision "block" + Reason keeps the agent working (Stop) or rejects the
 	// prompt (UserPromptSubmit). For PreToolUse these top-level fields are
 	// DEPRECATED — use HookSpecificOutput.PermissionDecision instead.
-	// a10n:docs https://code.claude.com/docs/en/hooks#stop
+	// sr:docs https://code.claude.com/docs/en/hooks#stop
 	Decision string `json:"decision,omitempty"`
 	Reason   string `json:"reason,omitempty"`
 

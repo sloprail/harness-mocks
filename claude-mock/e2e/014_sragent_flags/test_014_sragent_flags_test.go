@@ -4,7 +4,7 @@
 // runs), and the CC-faithful trajectory shapes a sloprail describe/cite test
 // needs must be emittable by a scenario.
 //
-// a10n:docs https://code.claude.com/docs/en/cli-reference
+// sr:docs https://code.claude.com/docs/en/cli-reference
 package e2e
 
 import (
@@ -147,7 +147,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 // a SYNTHESISED result, so an authored answer is a separate record, exactly as
 // real CC records it.
 //
-// a10n:docs https://code.claude.com/docs/en/sdk#stream-json-output-format
+// sr:docs https://code.claude.com/docs/en/sdk#stream-json-output-format
 func TestT014_04_AuthoredToolResultEnvelopeAccepted(t *testing.T) {
 	dir := t.TempDir()
 	// The mock advances turns only via a tool_use. So turn 1 emits a real Bash
@@ -210,7 +210,7 @@ printf '%s\n' '{"type":"user","message":{"role":"user","content":[{"type":"tool_
 // (which parent tool_use spawned the sidechain). The orchestrator emits an Agent
 // tool_use with id "toolu_spawn_1"; that id must land in the sidecar.
 //
-// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions
+// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions
 func TestT014_06_SubagentMetaCarriesSpawningToolUseID(t *testing.T) {
 	dir := t.TempDir()
 	cfgDir := filepath.Join(dir, "cfg")

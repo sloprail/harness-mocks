@@ -30,8 +30,8 @@ import (
 //     to emit next — no single-value env vars are needed.
 //  5. Repeat until the script emits a result frame or exits.
 //
-// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 // maxIdenticalTurns bounds how many times in a row the script may emit the SAME
 // pending tool_use (same name+input). A static scenario that doesn't advance its
 // output based on conversation history would otherwise loop forever (re-run →
@@ -143,7 +143,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 	// fires (the tool never ran). The loop guard signature is the blocked tool_use so
 	// an agent that re-emits the identical blocked call without adapting is still
 	// bounded by maxIdenticalTurns.
-	// a10n:docs https://code.claude.com/docs/en/hooks#pretooluse
+	// sr:docs https://code.claude.com/docs/en/hooks#pretooluse
 	if pending.Blocked {
 		blockRes := toolexec.Result{
 			Output:  "Tool call blocked by a PreToolUse hook: " + pending.BlockReason,
@@ -167,7 +167,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 	//     every tool_use, which IS the "wake-up fired, resume" behaviour. It has no
 	//     compaction side effect (compaction is a separate event the SCRIPT emits as
 	//     an isCompactSummary record; see scanLines).
-	// a10n:docs https://code.claude.com/docs/en/sub-agents
+	// sr:docs https://code.claude.com/docs/en/sub-agents
 	var res toolexec.Result
 	switch {
 	case isAgentTool(pending.ToolName):
@@ -179,13 +179,13 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 	}
 
 	// Synthesise and emit the tool_result user record.
-	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+	// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 	if err := emitToolResult(cfg, pending, res, sw); err != nil {
 		return false, "", err
 	}
 
 	// PostToolUse for the synthesised result.
-	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
+	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
 	rawResult, _ := json.Marshal(res.Output)
 	_, _ = inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
@@ -250,7 +250,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		// hook supplies the re-injected additionalContext; the record carries none. A
 		// compaction record is NOT a tool_use, so it does not break the turn loop or
 		// count toward the loop guard.
-		// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+		// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 		if rec.IsCompactSummary {
 			cfg.Out.Write(line)         //nolint:errcheck
 			cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
@@ -262,7 +262,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		}
 
 		// PreToolUse + turn break on tool_use blocks.
-		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse
+		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
@@ -333,7 +333,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		}
 
 		// PostToolUse for inline tool_result blocks (static scripts).
-		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
+		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
 		if rec.Type == "user" {
 			toolName, toolOutput := extractFirstToolResult(line)
 			if toolName != "" {
@@ -349,7 +349,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 
 		// SubagentStop on end_turn.
 		// Suppressed for nested Agent-tool runs — see Config.SuppressSubagentHooks.
-		// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstop
+		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstop
 		if rec.Type == "assistant" && rec.Message != nil && rec.Message.StopReason == "end_turn" {
 			if cfg.IsResume && !cfg.SuppressSubagentHooks {
 				_, _ = inv.Fire(ctx, hooks.Input{
@@ -379,7 +379,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 // full conversation history with any shell tool.
 // CLAUDE_CONFIG_DIR is set to the same dir so that tooling that reads Claude
 // Code config also finds the mock's session files.
-// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
+// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
 func buildEnv(cfg Config, sessionFile *os.File) []string {
 	sessionPath := ""
 	if sessionFile != nil {
@@ -389,7 +389,7 @@ func buildEnv(cfg Config, sessionFile *os.File) []string {
 		// CLAUDE_CODE_SESSION_ID mirrors the real claude CLI, which exports the active
 		// session id into every Bash-tool subprocess. Tools that resolve "the current
 		// session" (e.g. a10n-task-executor session autopilot) read it.
-		// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
+		// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
 		"CLAUDE_CODE_SESSION_ID="+cfg.SessionID,
 		"A10N_MOCK_SESSION_ID="+cfg.SessionID,
 		"A10N_MOCK_PROMPT="+cfg.Prompt,
@@ -409,7 +409,7 @@ func buildEnv(cfg Config, sessionFile *os.File) []string {
 // copy stays uuid-less, matching the mock's claude stream (the stream frames carry no
 // transcript uuid; the FILE is where the chained identity lives).
 //
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sw *sessionWriter) error {
 	content := res.Output
 	if res.IsError {

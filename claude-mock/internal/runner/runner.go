@@ -2,8 +2,8 @@
 // validates each record, and fires Claude Code lifecycle hooks at the
 // appropriate points.
 //
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks
-// a10n:docs https://docs.anthropic.com/en/docs/claude-code/cli-reference
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks
+// sr:docs https://docs.anthropic.com/en/docs/claude-code/cli-reference
 package runner
 
 import (
@@ -45,12 +45,12 @@ type Config struct {
 	// PluginCacheDir overrides the Claude Code plugin cache root (CLAUDE_CODE_PLUGIN_CACHE_DIR).
 	// Marketplaces are cloned/reused under <PluginCacheDir>/<marketplace-slug>/.
 	// When empty, falls back to the env var, then /tmp/a10n-mock-plugins.
-	// a10n:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
+	// sr:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
 	PluginCacheDir string
 	// ConfigDir overrides the Claude Code global config directory (CLAUDE_CONFIG_DIR).
 	// When empty, a temporary directory is created and cleaned up after the run.
 	// The session JSONL is written under <ConfigDir>/projects/<encoded-cwd>/<session-id>.jsonl.
-	// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
+	// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
 	ConfigDir string
 	// Stderr receives diagnostic output from the mock itself.
 	Stderr io.Writer
@@ -62,7 +62,7 @@ type Config struct {
 	// spawned via the Agent (alias Task) tool: the Agent-tool layer fires
 	// SubagentStart/SubagentStop itself, WITH the generated agent_id, so the nested
 	// run must not double-fire those events with an agent_id-less payload.
-	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
+	// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 	SuppressSubagentHooks bool
 
 	// PrintMode activates --print mode: the script runs in cfg.Cwd as its working
@@ -78,7 +78,7 @@ type Config struct {
 	//  - no session JSONL written
 	//  - SessionStart/UserPromptSubmit/Stop hooks still fire so plugins can intercept
 	//
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--print
 	PrintMode bool
 }
 
@@ -98,8 +98,8 @@ func Run(ctx context.Context, cfg Config) error {
 	// Default is /tmp/a10n/claude-mock; overridable via cfg.ConfigDir or
 	// CLAUDE_CONFIG_DIR env var (same variable the real Claude Code CLI honours).
 	// Session files persist between turns so the script can read history.
-	// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
-	// a10n:docs https://code.claude.com/docs/en/claude-directory
+	// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
+	// sr:docs https://code.claude.com/docs/en/claude-directory
 	cfg.ConfigDir = resolveConfigDir(cfg.ConfigDir)
 
 	sessionFile, err := openSessionFile(cfg.ConfigDir, cfg.Cwd, cfg.SessionID)
@@ -164,7 +164,7 @@ func Run(ctx context.Context, cfg Config) error {
 	// The real Claude Code SessionStart payload uses the "source" field
 	// ("startup" | "resume" | "clear" | "compact") — verified empirically against
 	// claude 2.x (hook stdin carries "source", and compaction uses source="compact").
-	// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	source := "startup"
 	if cfg.IsResume {
 		source = "resume"
@@ -191,7 +191,7 @@ func Run(ctx context.Context, cfg Config) error {
 	// supervisor (which delegates trajectory-slice review to a sub-agent) be exercised
 	// faithfully in e2e. Default-off keeps every existing print-mode scenario (which
 	// writes files / emits raw text) on the original raw path.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--print
 	if cfg.PrintMode {
 		runErr := runPrintMode(ctx, cfg, inv, sessionFile) //nolint:contextcheck
 		stopReason := "end_turn"
@@ -223,7 +223,7 @@ func Run(ctx context.Context, cfg Config) error {
 	// Claude Code contract the hook CANNOT replace the prompt — it may only append
 	// additionalContext (exposed to the script via A10N_MOCK_ADDITIONAL_CONTEXT)
 	// or block the prompt (decision=block / exit 2 → Fire returns an error).
-	// a10n:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
+	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
 	if cfg.Prompt != "" {
 		promptOut, err := inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
@@ -241,7 +241,7 @@ func Run(ctx context.Context, cfg Config) error {
 	// The agent_type defaults to "general-purpose"; scripts can override via a
 	// subagent_start control record to signal a different agent type.
 	// Suppressed for nested Agent-tool runs — see Config.SuppressSubagentHooks.
-	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstart
+	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstart
 	if cfg.IsResume && !cfg.SuppressSubagentHooks {
 		if _, err := inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
@@ -271,7 +271,7 @@ func Run(ctx context.Context, cfg Config) error {
 		emitStopHookAttachment(sessionFile, "Stop", stopOut, stopErr)
 	}
 
-	// a10n:docs https://docs.anthropic.com/en/docs/claude-code/hooks#sessionend
+	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#sessionend
 	_, _ = inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
@@ -324,7 +324,7 @@ func emitStopHookAttachment(sessionFile *os.File, hookEvent string, out hooks.Ou
 // (set to the session dir by the supervisor caller). Raw stdout is written to
 // cfg.Out. This implements `claude --print` semantics for the autopilot supervisor.
 //
-// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+// sr:docs https://code.claude.com/docs/en/cli-reference#--print
 func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
 	// Fire UserPromptSubmit so any hook in the project-dir settings can intercept
 	// even in print mode. The hook cannot replace the prompt (real Claude
@@ -373,7 +373,7 @@ func boolStr(b bool) string {
 // additionalContext. It is called once at startup/resume, and again on every
 // compaction record the scenario emits (source="compact"; see scanLines). A
 // blocking hook (exit 2) is returned as an error.
-// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, source string) (string, error) {
 	ssOut, err := inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,

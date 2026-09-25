@@ -19,7 +19,7 @@ import (
 
 // The Agent tool spawns a nested subagent. Real Claude renamed the Task tool to
 // Agent in v2.1.63 but kept Task as an accepted alias, so the mock honours both.
-// a10n:docs https://code.claude.com/docs/en/sub-agents
+// sr:docs https://code.claude.com/docs/en/sub-agents
 const (
 	toolNameAgent = "Agent"
 	toolNameTask  = "Task"
@@ -37,8 +37,8 @@ const envSubagentScript = "A10N_MOCK_SUBAGENT_SCRIPT"
 // DISTINCT from the task's metadata.max_retries (the executor's verify budget):
 // both exist in parallel — max_retries bounds verify attempts (the hook stops
 // blocking once it's spent), this caps the hook-block loop itself as a backstop.
-// a10n:docs https://code.claude.com/docs/en/env-vars
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/env-vars
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 const envStopHookBlockCap = "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP"
 const defaultStopHookBlockCap = 8
 
@@ -63,7 +63,7 @@ func isAgentTool(toolName string) bool {
 // isolation}; the mock additionally accepts a `script` field naming the subagent's
 // scenario script (real claude lets the LLM decide subagent behaviour — the mock
 // cannot, so the test supplies a script, mirroring the top-level --script).
-// a10n:docs https://code.claude.com/docs/en/sub-agents
+// sr:docs https://code.claude.com/docs/en/sub-agents
 type agentToolInput struct {
 	Description  string `json:"description,omitempty"`
 	Prompt       string `json:"prompt,omitempty"`
@@ -105,8 +105,8 @@ type agentToolInput struct {
 // tool_use in the PARENT transcript spawned this sidechain) reads it. Empty only
 // when the spawning tool_use carried no id.
 //
-// a10n:docs https://code.claude.com/docs/en/sub-agents
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
+// sr:docs https://code.claude.com/docs/en/sub-agents
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID string, rawInput json.RawMessage, sessionFile *os.File) toolexec.Result {
 	var in agentToolInput
 	if err := json.Unmarshal(rawInput, &in); err != nil {
@@ -139,7 +139,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID
 	// ran (caught via an empirical real-claude cwd probe: real claude's subagent process
 	// itself reports a different `pwd`, which this mock did not reproduce). Any other
 	// isolation value shares the parent cwd.
-	// a10n:docs https://code.claude.com/docs/en/sub-agents
+	// sr:docs https://code.claude.com/docs/en/sub-agents
 	subCwd := cfg.Cwd
 	if in.Isolation == "worktree" {
 		subCwd = filepath.Join(cfg.Cwd, ".claude", "worktrees", "agent-"+agentID)
@@ -159,13 +159,13 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID
 	// is resolved through CLAUDE_CONFIG_DIR so tests stay isolated. The transcript's
 	// project dir keys off the PARENT cwd (real claude nests subagents/ under the
 	// parent session's transcript dir); only the recorded `cwd` field is the subagent's.
-	// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR + projects/<encoded-cwd>)
+	// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR + projects/<encoded-cwd>)
 	configDir := resolveConfigDir(cfg.ConfigDir)
 	transcriptPath := seedSubagentTranscript(configDir, cfg.Cwd, subCwd, cfg.SessionID, agentID, agentType, toolUseID, in.Prompt)
 
 	// SubagentStart — cannot block; a blocking error here is treated as a hard
 	// failure of the Agent tool (the real claude never proceeds past a refused start).
-	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstart
+	// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 	if _, err := inv.Fire(ctx, hooks.Input{
 		SessionID:      cfg.SessionID,
 		Cwd:            subCwd,
@@ -189,7 +189,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID
 	// re-fire after the first (the real Claude flag a hook checks to break its own
 	// recursion). maxStopBlocks is the mock runaway guard (default 8) — the
 	// stand-in for Claude's context limit, NOT the task's max_retries budget.
-	// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+	// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 	blockCap := stopHookBlockCap() // 0 = unlimited
 	finalText := runSubagent(ctx, cfg, subCwd, agentID, scriptPath, in.Prompt)
 	for turn := 0; ; turn++ {
@@ -263,7 +263,7 @@ func resolveSubagentScript(fromInput string) string {
 //
 // If no script is configured, the subagent is a graceful no-op (not an error).
 //
-// a10n:docs https://code.claude.com/docs/en/sub-agents
+// sr:docs https://code.claude.com/docs/en/sub-agents
 func runSubagent(ctx context.Context, cfg Config, subCwd, agentID, scriptPath, prompt string) string {
 	if scriptPath == "" {
 		return "no subagent script"
@@ -293,7 +293,7 @@ func runSubagent(ctx context.Context, cfg Config, subCwd, agentID, scriptPath, p
 // fireSubagentStop fires SubagentStop with the agent_id (+ the subagent's
 // transcript_path, as the real hook payload carries) and returns the (possibly
 // blocking) error from the hook so the caller can react to a block.
-// a10n:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 // fireSubagentStop fires the SubagentStop hook and reports whether it BLOCKED.
 // A block is signalled two ways, both meaning "re-run the turn": the hook exits
 // 2 (returned as a non-nil error from Fire), OR it exits 0 with a
@@ -357,7 +357,7 @@ func lastResultText(out []byte) string {
 // buildAgentResultContent renders the Agent tool_result content string. It MUST
 // include the literal `agentId: <id>` — tests and future resume rely on parsing
 // it back out — followed by the subagent's final result text.
-// a10n:docs https://code.claude.com/docs/en/sub-agents
+// sr:docs https://code.claude.com/docs/en/sub-agents
 func buildAgentResultContent(agentID, agentType, finalText string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "agentId: %s\n", agentID)

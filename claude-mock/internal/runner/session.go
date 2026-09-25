@@ -14,7 +14,7 @@ const (
 	// defaultConfigDir is the default CLAUDE_CONFIG_DIR for mock runs.
 	// Using a fixed path (not a temp dir) means session files survive between
 	// invocations and the script can read history from previous turns.
-	// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
+	// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
 	defaultConfigDir = "/tmp/a10n-mock"
 )
 
@@ -48,7 +48,7 @@ func resolveConfigDir(explicit string) string {
 // resolution), which is exactly the divergence that broke transcript resolution for any
 // downstream tool run from an isolated worktree.
 //
-// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions
+// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions
 func sessionFilePath(configDir, cwd, sessionID string) string {
 	encoded := nonAlphanumRe.ReplaceAllString(resolveEncodingCwd(cwd), "-")
 	return filepath.Join(configDir, "projects", encoded, sessionID+".jsonl")
@@ -383,7 +383,7 @@ func appendToSession(f *os.File, line []byte) {
 // ~/.claude/projects/<proj>/<root>/subagents/agent-<hash>.jsonl + .meta.json during the
 // hook PoC), so the mock's transcript_path matches what real subagent hooks receive.
 //
-// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions (projects/<encoded-cwd> prefix + CLAUDE_CONFIG_DIR)
+// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (projects/<encoded-cwd> prefix + CLAUDE_CONFIG_DIR)
 func subagentTranscriptPath(configDir, cwd, parentSessionID, agentID string) string {
 	encoded := nonAlphanumRe.ReplaceAllString(resolveEncodingCwd(cwd), "-")
 	return filepath.Join(configDir, "projects", encoded, parentSessionID, "subagents", "agent-"+agentID+".jsonl")
@@ -412,7 +412,7 @@ func subagentTranscriptPath(configDir, cwd, parentSessionID, agentID string) str
 // than the empty string a prior version hardcoded. Empty only when the spawning
 // tool_use carried no id (e.g. a scenario that omitted one).
 //
-// a10n:docs https://code.claude.com/docs/en/agent-sdk/sessions
+// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions
 func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agentID, agentType, toolUseID, prompt string) string {
 	path := subagentTranscriptPath(configDir, parentCwd, parentSessionID, agentID)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

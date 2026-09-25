@@ -15,7 +15,7 @@ import (
 // returns a success tool_result; the existing turn loop does the rest. It has NO
 // compaction side effect — compaction is a SEPARATE event the scenario emits as an
 // isCompactSummary record (see scanLines), and the two are deliberately decoupled.
-// a10n:docs https://code.claude.com/docs/en/hooks#sessionstart
+// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 const toolNameScheduleWakeup = "ScheduleWakeup"
 
 // isScheduleWakeupTool reports whether toolName is the ScheduleWakeup tool.

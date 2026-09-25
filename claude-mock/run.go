@@ -36,7 +36,7 @@ func addRunFlags(cmd *cobra.Command) {
 	// --print activates non-interactive print mode: the script's raw stdout is
 	// forwarded directly (no JSONL parsing, no session persistence).
 	// This mirrors `claude --print` used by the autopilot supervisor.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--print
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--print
 	cmd.Flags().Bool(flagPrint, false, "Print mode: forward raw script stdout instead of streaming JSONL")
 	// -p is accepted for CLI compatibility with `claude -p` shorthand; it is ignored
 	// (the --print flag above is the real mechanism). Existing tests use -p as a
@@ -62,7 +62,7 @@ func addRunFlags(cmd *cobra.Command) {
 	// In e2e, a10n-claude-mock stands in for `claude`. Cobra rejects any flag it
 	// does not declare (exit 1), so without these declarations the mock dies
 	// before it runs. Each flag below is a REAL `claude -p` flag (confirmed
-	// against the Claude Code CLI reference — see the a10n:docs cite on each);
+	// against the Claude Code CLI reference — see the sr:docs cite on each);
 	// the mock ACCEPTS them for CLI compatibility and, except where noted, they
 	// have no effect on its behaviour. A judge scenario drives the mock with a
 	// --script that WRITES the verdict file (the mock executes Write/Bash tool
@@ -70,43 +70,43 @@ func addRunFlags(cmd *cobra.Command) {
 	// verifier then reads that file. So these flags only need ACCEPTING.
 	//
 	// --model: alias (haiku/sonnet/opus/fable) or full model name. Always passed
-	// by BuildInvocation. a10n:docs https://code.claude.com/docs/en/cli-reference#--model
+	// by BuildInvocation. sr:docs https://code.claude.com/docs/en/cli-reference#--model
 	cmd.Flags().String("model", "", "Accepted for CLI compatibility; has no effect")
 	// --allowed-tools (alias --allowedTools): comma/space-separated tool names
 	// allowed without prompting. The judge passes `--allowed-tools Write`.
 	// Declared as a repeatable string array to mirror claude's variadic
 	// `<tools...>` (also accepts a single comma-joined value). Both the kebab and
 	// the camelCase spelling are real claude aliases; declare both so either is
-	// accepted. a10n:docs https://code.claude.com/docs/en/cli-reference#--allowed-tools
+	// accepted. sr:docs https://code.claude.com/docs/en/cli-reference#--allowed-tools
 	cmd.Flags().StringArray("allowed-tools", nil, "Accepted for CLI compatibility; has no effect")
 	cmd.Flags().StringArray("allowedTools", nil, "Accepted for CLI compatibility; alias of --allowed-tools; has no effect")
 	// --disallowed-tools (alias --disallowedTools): the deny counterpart. Not
 	// passed by the judge today, but reachable via sr-agent's --claude-args
 	// pass-through, so accept it too.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--disallowed-tools
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--disallowed-tools
 	cmd.Flags().StringArray("disallowed-tools", nil, "Accepted for CLI compatibility; has no effect")
 	cmd.Flags().StringArray("disallowedTools", nil, "Accepted for CLI compatibility; alias of --disallowed-tools; has no effect")
 	// --permission-mode: default|acceptEdits|plan|auto|bypassPermissions|dontAsk.
 	// Reachable via --claude-args (e.g. '{"permission-mode":"plan"}').
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--permission-mode
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--permission-mode
 	cmd.Flags().String("permission-mode", "", "Accepted for CLI compatibility; has no effect")
 	// --settings: a settings file path OR an inline JSON string.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--settings
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--settings
 	cmd.Flags().String("settings", "", "Accepted for CLI compatibility; has no effect")
 	// --append-system-prompt: appended to (not replacing) the default system
 	// prompt. Distinct from --system-prompt (declared above), which replaces it.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--append-system-prompt
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--append-system-prompt
 	cmd.Flags().String("append-system-prompt", "", "Accepted for CLI compatibility; has no effect")
 	// --input-format: text|stream-json. Mirror of the existing --output-format.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--input-format
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--input-format
 	cmd.Flags().String("input-format", "", "Accepted for CLI compatibility; has no effect")
 	// --include-partial-messages: streams partial message chunks; real claude
 	// requires --output-format stream-json + --print. Accepted, no effect.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--include-partial-messages
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--include-partial-messages
 	cmd.Flags().Bool("include-partial-messages", false, "Accepted for CLI compatibility; has no effect")
 	// --max-budget-usd: caps API spend. sr-agent's --claude-args carries it in
 	// its own tests ('{"max-budget-usd":5}'), so a judge caller may pass it.
-	// a10n:docs https://code.claude.com/docs/en/cli-reference#--max-budget-usd
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--max-budget-usd
 	cmd.Flags().String("max-budget-usd", "", "Accepted for CLI compatibility; has no effect")
 	// NOTE on --permission-prompt-tool: it does NOT exist in the real Claude Code
 	// CLI (confirmed absent from `claude --help` and the CLI reference), so it is

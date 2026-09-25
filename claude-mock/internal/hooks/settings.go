@@ -36,8 +36,8 @@ type HandlerSpec struct {
 // pluginCacheDirOverride may be empty (falls back to CLAUDE_CODE_PLUGIN_CACHE_DIR
 // env var, then /tmp/a10n-mock-plugins).
 //
-// a10n:docs https://code.claude.com/docs/en/settings
-// a10n:docs https://code.claude.com/docs/en/plugin-marketplaces
+// sr:docs https://code.claude.com/docs/en/settings
+// sr:docs https://code.claude.com/docs/en/plugin-marketplaces
 func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) {
 	merged := &Settings{Hooks: make(map[EventName][]HookEntry)}
 	enabledPlugins := make(map[string]bool)

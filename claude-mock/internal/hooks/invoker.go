@@ -47,7 +47,7 @@ type Invoker struct {
 //     ErrNoHarness when neither is set). The mock STANDS IN FOR Claude Code, so it
 //     must present that env unconditionally — see invokeCommand.
 //
-// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID, CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)
+// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID, CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)
 func NewInvoker(settings *Settings, cwd, sessionID string) *Invoker {
 	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID}
 }
@@ -122,7 +122,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	// pass arguments, or reference env vars resolved at hook-run time. Splitting on
 	// whitespace would break all of those, so we delegate parsing to /bin/sh.
 	//
-	// a10n:docs https://code.claude.com/docs/en/hooks#hook-types (command hooks run in the shell)
+	// sr:docs https://code.claude.com/docs/en/hooks#hook-types (command hooks run in the shell)
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec
 	cmd.Dir = hookCwd
 
@@ -170,7 +170,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	// must present them whether or not a session id is known. CLAUDE_CODE_SESSION_ID
 	// is set only when non-empty (the real CLI carries the active session id in each
 	// hook's env; a tool reads it to resolve "the current session").
-	// a10n:docs https://code.claude.com/docs/en/env-vars (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID)
+	// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID)
 	cmd.Env = append(os.Environ(), "CLAUDECODE=1", "CLAUDE_CODE_ENTRYPOINT=cli")
 	if inv.sessionID != "" {
 		cmd.Env = append(cmd.Env, "CLAUDE_CODE_SESSION_ID="+inv.sessionID)
