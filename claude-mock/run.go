@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -163,13 +165,10 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// If --resume is used for a session that "doesn't exist", the real claude emits
-	// an error result and exits 1. The mock supports this via A10N_MOCK_NO_RESUME:
-	// if set, --resume behaves as a probe failure (exits 1 with an error result).
+	// A10N_MOCK_NO_RESUME=1 makes every --resume behave as one naming a session
+	// that does not exist (see noConversation), whatever is on disk.
 	if isResume && os.Getenv("A10N_MOCK_NO_RESUME") == "1" {
-		fmt.Printf(`{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["No conversation found with session ID: %s"]}`, sessionID)
-		fmt.Println()
-		os.Exit(1)
+		noConversation(cmd, sessionID)
 	}
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
@@ -198,7 +197,8 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		cwd = resolved
 	}
 
-	return runner.Run(cmd.Context(), runner.Config{
+	model, _ := cmd.Flags().GetString("model")
+	err := runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:     scriptPath,
 		SessionID:      sessionID,
 		IsResume:       isResume,
@@ -209,7 +209,30 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		ConfigDir:      configDir,
 		PluginCacheDir: pluginCacheDir,
 		PrintMode:      printMode,
+		Model:          model,
 		Stderr:         os.Stderr,
 		Out:            os.Stdout,
 	})
+	var noConv *runner.ErrNoConversation
+	if errors.As(err, &noConv) {
+		noConversation(cmd, noConv.SessionID)
+	}
+	return err
+}
+
+// noConversation ends the run the way real Claude Code ends `--resume <id>`
+// for a session it has no transcript of (claude 2.1.282): "No conversation
+// found with session ID: <id>" on stderr, an error result frame on stdout when
+// the output format is stream-json, exit status 1.
+func noConversation(cmd *cobra.Command, sessionID string) {
+	msg := "No conversation found with session ID: " + sessionID
+	fmt.Fprintln(os.Stderr, msg)
+	if format, _ := cmd.Flags().GetString(flagOutputFormat); format == "stream-json" {
+		frame, _ := json.Marshal(map[string]any{
+			"type": "result", "subtype": "error_during_execution", "is_error": true,
+			"num_turns": 0, "session_id": sessionID, "errors": []string{msg},
+		})
+		fmt.Println(string(frame))
+	}
+	os.Exit(1)
 }

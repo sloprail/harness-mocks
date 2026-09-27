@@ -33,6 +33,10 @@ type Result struct {
 	// tool has one — a background launch's backgroundTaskId, an async agent's
 	// agentId. Nil for the tools that do not need it here.
 	ToolUseResult any
+	// ContentAsBlocks writes the tool_result content as a list of text blocks
+	// rather than a string — the shape real Claude Code gives some tools'
+	// results (an async Agent receipt).
+	ContentAsBlocks bool
 }
 
 // Execute runs the named tool with the given JSON input and returns its result.
@@ -79,10 +83,17 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 	cmd.Env = bashEnv(sessionID)
 	out, err := cmd.CombinedOutput()
 	text := strings.TrimRight(string(out), "\n")
+	// toolUseResult/tool_response: the structured result real Claude Code
+	// records for a foreground Bash ({stdout, stderr, interrupted, isImage,
+	// noOutputExpected} — a claude 2.1.282 PostToolUse payload). The mock runs
+	// the command with one combined stream, so stdout carries it all.
+	structured := map[string]any{
+		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
+	}
 	if err != nil {
 		return Result{Output: text + "\n" + err.Error(), IsError: true}
 	}
-	return Result{Output: text}
+	return Result{Output: text, ToolUseResult: structured}
 }
 
 // bashEnv is the environment a Bash tool subprocess runs with: the mock's own

@@ -73,12 +73,18 @@ const SharedPluginCacheDir = "/tmp/a10n-mock-plugins"
 
 // RunInDir invokes the mock binary from dir with optional extra env and args.
 // CLAUDE_CODE_PLUGIN_CACHE_DIR is always injected so every test run shares the
-// same plugin cache and avoids re-cloning plugins on each test.
+// same plugin cache and avoids re-cloning plugins on each test. The Claude
+// config dir (where transcripts live) and the temp root (where background task
+// output lives) default to directories under dir, so no two tests share
+// sessions through the mock's global defaults; a test's --config-dir or env
+// still wins.
 func RunInDir(t *testing.T, dir string, env []string, args ...string) (string, int) {
 	t.Helper()
 	cmd := exec.Command(MockBinaryPath, args...)
 	cmd.Dir = dir
-	baseEnv := append(os.Environ(), "CLAUDE_CODE_PLUGIN_CACHE_DIR="+SharedPluginCacheDir)
+	baseEnv := append(os.Environ(), "CLAUDE_CODE_PLUGIN_CACHE_DIR="+SharedPluginCacheDir,
+		"CLAUDE_CONFIG_DIR="+filepath.Join(dir, ".claude-config"),
+		"CLAUDE_CODE_TMPDIR="+filepath.Join(dir, ".claude-tmp"))
 	if len(env) > 0 {
 		cmd.Env = append(baseEnv, env...)
 	} else {

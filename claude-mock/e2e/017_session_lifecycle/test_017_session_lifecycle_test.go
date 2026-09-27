@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,6 +96,10 @@ func TestT017_03_EveryHookCarriesTranscriptPath(t *testing.T) {
 		if ev == "PreToolUse" || ev == "PostToolUse" {
 			assert.True(t, strings.HasPrefix(p["tool_use_id"].(string), "b1"), "%s must carry tool_use_id", ev)
 		}
+		// agent_id / agent_type are a sub-agent's; the main thread's events
+		// carry neither (docs, common input fields).
+		assert.NotContains(t, p, "agent_id", "%s on the main thread", ev)
+		assert.NotContains(t, p, "agent_type", "%s on the main thread", ev)
 	}
 	for _, ev := range []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"} {
 		assert.True(t, seen[ev], "%s never fired", ev)
@@ -228,104 +233,258 @@ func TestT017_06_ResumeFromAnotherDirectory(t *testing.T) {
 	assert.Contains(t, string(raw), `"again"`, "the resumed turn went to the original transcript")
 }
 
-// TestT017_07_CompactionAppendsABoundary: compaction is written into the file
-// the session is writing — a parentless compact_boundary naming the last record
-// as its logical parent, the summary chained to it — and fires SessionStart
-// with source compact.
-func TestT017_07_CompactionAppendsABoundary(t *testing.T) {
+// TestT017_07_Compaction is a compaction the way claude 2.1.282 performs one
+// (a manual /compact run, the 65 real compact_boundary records, the binary):
+// PreCompact, then a parentless compact_boundary APPENDED to the file — its
+// logicalParentUuid the last record, compactMetadata {trigger, preTokens,
+// preservedSegment{headUuid, anchorUuid, tailUuid}, preservedMessages{anchorUuid,
+// uuids, allUuids}} with the summary as anchor — then the summary chained to
+// the boundary, SessionStart:compact (its attachment after the summary), and
+// PostCompact with the summary. The turn goes on after it, and a second
+// compaction works the same way.
+func TestT017_07_Compaction(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
-	settings(t, dir, map[string]string{"SessionStart": payloadLogger(t, dir, "log.sh", log, "")})
+	h := payloadLogger(t, dir, "log.sh", log, `echo "compact-hook-said" 1>&2`)
+	settings(t, dir, map[string]string{"SessionStart": h, "PreCompact": h, "PostCompact": h})
 	sc := script(t, dir, "s",
 		toolUse("b1", "Bash", `{"command":"true"}`),
-		`{"type":"compact","summary":"compacted @MARK@"}`,
+		`{"type":"compact","summary":"first summary @MARK@","preserve":3,"pre_tokens":1234}`,
+		toolUse("b2", "Bash", `{"command":"true"}`),
+		`{"type":"compact","summary":"second summary @MARK@","trigger":"manual"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"after both @MARK@"}]}}`,
 	)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
 
 	recs := readRecs(t, transcriptPath(t, cfg, dir, "cmp-1"))
-	root, _ := firstRoot(recs)
-	assert.Equal(t, "e2e-root-cmp-1", root.UUID, "the origin stays where the session began")
-	var boundary rec
-	bi := -1
+	root, rootAt := firstRoot(recs)
+	assert.Equal(t, "SessionStart:startup", root.Attachment["hookName"], "the origin stays where the session began")
+	var bounds []int
 	for i, r := range recs {
 		if r.Subtype == "compact_boundary" {
-			boundary, bi = r, i
+			bounds = append(bounds, i)
 		}
 	}
-	require.GreaterOrEqual(t, bi, 1, "a compact_boundary is appended part-way down")
-	assert.Nil(t, boundary.ParentUUID)
-	assert.Equal(t, recs[bi-1].UUID, boundary.LogicalParentUUID, "its logical parent is the last record before it")
-	require.NotNil(t, recs[bi+1].ParentUUID)
-	assert.Equal(t, boundary.UUID, *recs[bi+1].ParentUUID, "the summary chains to the boundary")
-	sources := []any{}
-	for _, p := range payloads(t, log) {
-		sources = append(sources, p["source"])
+	require.Len(t, bounds, 2, "both compactions are appended to the one file")
+	assert.Less(t, rootAt, bounds[0])
+	for n, bi := range bounds {
+		b := recs[bi]
+		assert.Nil(t, b.ParentUUID)
+		assert.Equal(t, recs[bi-1].UUID, b.LogicalParentUUID, "its logical parent is the last record before it")
+		var full map[string]any
+		require.NoError(t, json.Unmarshal([]byte(b.Raw), &full))
+		meta := full["compactMetadata"].(map[string]any)
+		pm := meta["preservedMessages"].(map[string]any)
+		seg := meta["preservedSegment"].(map[string]any)
+		uuids := pm["uuids"].([]any)
+		wantKept := 3
+		wantTrigger := "auto"
+		if n == 1 {
+			wantKept, wantTrigger = 2, "manual"
+		}
+		assert.Equal(t, wantTrigger, meta["trigger"])
+		assert.Contains(t, meta, "preTokens")
+		if n == 0 {
+			assert.EqualValues(t, 1234, meta["preTokens"])
+		}
+		require.Len(t, uuids, wantKept, "preserve N keeps the last N records")
+		for k, u := range uuids {
+			assert.Equal(t, recs[bi-wantKept+k].UUID, u, "the kept records are the last ones before the boundary, in order")
+		}
+		assert.Equal(t, pm["uuids"], pm["allUuids"])
+		summary := recs[bi+1]
+		assert.Contains(t, summary.Raw, `"isCompactSummary":true`)
+		require.NotNil(t, summary.ParentUUID)
+		assert.Equal(t, b.UUID, *summary.ParentUUID, "the summary chains to the boundary")
+		assert.Equal(t, summary.UUID, pm["anchorUuid"], "the summary is the anchor")
+		assert.Equal(t, summary.UUID, seg["anchorUuid"])
+		assert.Equal(t, uuids[0], seg["headUuid"])
+		assert.Equal(t, uuids[len(uuids)-1], seg["tailUuid"])
+		ss := recs[bi+2]
+		assert.Equal(t, "attachment", ss.Type, "SessionStart:compact's attachment follows the summary")
+		assert.Equal(t, "SessionStart:compact", ss.Attachment["hookName"])
 	}
-	assert.Equal(t, []any{"startup", "compact"}, sources)
+	after := -1
+	for i, r := range recs {
+		if strings.Contains(r.Raw, "after both") {
+			after = i
+		}
+	}
+	assert.Greater(t, after, bounds[1], "the turn went on after both compactions")
+	var events []string
+	for _, p := range payloads(t, log) {
+		ev := p["hook_event_name"].(string)
+		switch ev {
+		case "SessionStart":
+			events = append(events, ev+":"+p["source"].(string))
+		case "PreCompact":
+			events = append(events, ev+":"+p["trigger"].(string))
+			assert.Contains(t, p, "custom_instructions")
+			assert.Nil(t, p["custom_instructions"])
+		case "PostCompact":
+			events = append(events, ev+":"+p["trigger"].(string))
+			assert.Contains(t, p["compact_summary"], "summary turn-s-")
+		}
+	}
+	assert.Equal(t, []string{"SessionStart:startup",
+		"PreCompact:auto", "SessionStart:compact", "PostCompact:auto",
+		"PreCompact:manual", "SessionStart:compact", "PostCompact:manual"}, events)
+	for _, r := range recs {
+		if r.Type == "attachment" {
+			assert.NotContains(t, r.Attachment["hookEvent"], "Compact", "Pre/PostCompact leave no attachment")
+		}
+	}
 }
 
-// TestT017_08_ForkOfACompactedSessionOpensOnTheBoundary is the fork shape real
-// resumes of a compacted session left: every fork opens on a verbatim copy of
-// the same boundary record, carries the preserved record the boundary names,
-// and its own sessionId.
-func TestT017_08_ForkOfACompactedSessionOpensOnTheBoundary(t *testing.T) {
+// TestT017_07b_PreCompactExit2BlocksTheCompaction: PreCompact can block a
+// compaction (docs, "Exit code 2 behavior per event"): nothing is written.
+func TestT017_07b_PreCompactExit2BlocksTheCompaction(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
+	block := write(t, filepath.Join(dir, "block.sh"), "#!/bin/sh\ncat >/dev/null\necho no 1>&2\nexit 2\n", 0o755)
+	settings(t, dir, map[string]string{"PreCompact": block})
+	sc := script(t, dir, "s", `{"type":"compact","summary":"x @MARK@"}`, toolUse("b1", "Bash", `{"command":"true"}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-b",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	raw, err := os.ReadFile(transcriptPath(t, cfg, dir, "cmp-b"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "compact_boundary")
+	assert.NotContains(t, string(raw), "isCompactSummary")
+}
+
+// forkRecs is a fork's records with the preamble dropped.
+func forkRecs(t *testing.T, path string) []rec {
+	var out []rec
+	for _, r := range readRecs(t, path) {
+		if r.UUID != "" {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// TestT017_08_ForkOfACompactedSession is the shape of all 19 real transcripts
+// that open on a compact_boundary: a verbatim copy of the last boundary, the
+// summary chained to it, then the records the boundary preserved, re-parented
+// into one chain after the summary, then what followed the summary, and the
+// fork's own turn — every record under the fork's sessionId. SessionStart
+// fires with source "fork" (docs; claude 2.1.282). The original is untouched.
+func TestT017_08_ForkOfACompactedSession(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	log := filepath.Join(dir, "payloads.log")
+	settings(t, dir, map[string]string{"SessionStart": payloadLogger(t, dir, "log.sh", log, "")})
 	sc := script(t, dir, "s",
 		toolUse("b1", "Bash", `{"command":"true"}`),
-		`{"type":"compact","summary":"compacted @MARK@"}`,
+		`{"type":"compact","summary":"compacted @MARK@","preserve":3}`,
 	)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "orig",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
+	origPath := transcriptPath(t, cfg, dir, "orig")
+	before, err := os.ReadFile(origPath)
+	require.NoError(t, err)
 	for _, fork := range []string{"fork-a", "fork-b"} {
 		out, code = runInDir(t, dir, nil, "--script", script(t, dir, fork), "--resume", "orig", "--fork-session",
 			"--session-id", fork, "--project-dir", dir, "--config-dir", cfg, "-p", "continue "+fork)
 		require.Equal(t, 0, code, out)
 	}
+	after, err := os.ReadFile(origPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "forking leaves the original untouched")
 
-	var boundaryUUID, lp string
-	for _, r := range readRecs(t, transcriptPath(t, cfg, dir, "orig")) {
+	orig := readRecs(t, origPath)
+	var boundary rec
+	var preserved []string
+	for _, r := range orig {
 		if r.Subtype == "compact_boundary" {
-			boundaryUUID, lp = r.UUID, r.LogicalParentUUID
-		}
-	}
-	require.NotEmpty(t, boundaryUUID)
-	for _, fork := range []string{"fork-a", "fork-b"} {
-		recs := readRecs(t, transcriptPath(t, cfg, dir, fork))
-		root, i := firstRoot(recs)
-		assert.Equal(t, boundaryUUID, root.UUID, "%s opens on the same boundary", fork)
-		assert.Equal(t, lp, root.LogicalParentUUID)
-		assert.Equal(t, fork, root.SessionID, "a fork's records carry its own session id")
-		copied := false
-		for _, r := range recs[i+1:] {
-			if r.UUID == lp {
-				copied = true
+			boundary = r
+			var full map[string]any
+			require.NoError(t, json.Unmarshal([]byte(r.Raw), &full))
+			for _, u := range full["compactMetadata"].(map[string]any)["preservedMessages"].(map[string]any)["uuids"].([]any) {
+				preserved = append(preserved, u.(string))
 			}
 		}
-		assert.True(t, copied, "%s carries a copy of the boundary's logical parent after it", fork)
+	}
+	require.NotEmpty(t, boundary.UUID)
+	require.Len(t, preserved, 3)
+	for _, fork := range []string{"fork-a", "fork-b"} {
+		recs := forkRecs(t, transcriptPath(t, cfg, dir, fork))
+		require.GreaterOrEqual(t, len(recs), 5)
+		assert.Equal(t, boundary.UUID, recs[0].UUID, "%s opens on the same boundary", fork)
+		assert.Nil(t, recs[0].ParentUUID)
+		assert.Equal(t, boundary.LogicalParentUUID, recs[0].LogicalParentUUID)
+		assert.Contains(t, recs[1].Raw, `"isCompactSummary":true`, "then the summary")
+		require.NotNil(t, recs[1].ParentUUID)
+		assert.Equal(t, recs[0].UUID, *recs[1].ParentUUID)
+		for k, u := range preserved {
+			r := recs[2+k]
+			assert.Equal(t, u, r.UUID, "then the preserved records, in order")
+			require.NotNil(t, r.ParentUUID)
+			assert.Equal(t, recs[1+k].UUID, *r.ParentUUID, "re-parented into one chain after the summary")
+		}
+		for i, r := range recs {
+			assert.Equal(t, fork, r.SessionID, "record %d of %s carries the fork's session id", i, fork)
+			if i > 0 {
+				require.NotNil(t, r.ParentUUID, "record %d of %s", i, fork)
+				assert.Equal(t, recs[i-1].UUID, *r.ParentUUID, "record %d of %s chains to the one before", i, fork)
+			}
+		}
 		raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, fork))
 		assert.Contains(t, string(raw), "continue "+fork)
 	}
+	var sources []any
+	for _, p := range payloads(t, log) {
+		sources = append(sources, p["source"])
+	}
+	assert.Equal(t, []any{"startup", "compact", "fork", "fork"}, sources)
 }
 
-// TestT017_09_ForkOfAnUncompactedSessionSharesItsOrigin is the other real fork
-// shape: the whole history, origin included.
-func TestT017_09_ForkOfAnUncompactedSessionSharesItsOrigin(t *testing.T) {
+// TestT017_09_ForkOfAnUncompactedSession: a session never compacted forks
+// whole — origin included, parents unchanged — under the fork's sessionId, as
+// claude 2.1.282 forked one (and every 2.1.280+ fork on the machine). A fork
+// of the fork works the same way.
+func TestT017_09_ForkOfAnUncompactedSession(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
-	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s"), "--session-id", "plain",
+	log := filepath.Join(dir, "payloads.log")
+	settings(t, dir, map[string]string{"SessionStart": payloadLogger(t, dir, "log.sh", log, "")})
+	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s", toolUse("b1", "Bash", `{"command":"true"}`)), "--session-id", "plain",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
+	origPath := transcriptPath(t, cfg, dir, "plain")
+	before, _ := os.ReadFile(origPath)
 	out, code = runInDir(t, dir, nil, "--script", script(t, dir, "f"), "--resume", "plain", "--fork-session",
 		"--session-id", "plain-fork", "--project-dir", dir, "--config-dir", cfg, "-p", "more")
 	require.Equal(t, 0, code, out)
-	a, _ := firstRoot(readRecs(t, transcriptPath(t, cfg, dir, "plain")))
-	b, _ := firstRoot(readRecs(t, transcriptPath(t, cfg, dir, "plain-fork")))
-	assert.Equal(t, a.UUID, b.UUID)
+	out, code = runInDir(t, dir, nil, "--script", script(t, dir, "g"), "--resume", "plain-fork", "--fork-session",
+		"--session-id", "plain-fork-2", "--project-dir", dir, "--config-dir", cfg, "-p", "even more")
+	require.Equal(t, 0, code, out)
+	after, _ := os.ReadFile(origPath)
+	assert.Equal(t, string(before), string(after), "forking leaves the original untouched")
+
+	orig := forkRecs(t, origPath)
+	for _, fork := range []string{"plain-fork", "plain-fork-2"} {
+		recs := forkRecs(t, transcriptPath(t, cfg, dir, fork))
+		require.Greater(t, len(recs), len(orig))
+		for i, o := range orig {
+			assert.Equal(t, o.UUID, recs[i].UUID, "%s copies record %d", fork, i)
+			assert.Equal(t, o.ParentUUID, recs[i].ParentUUID, "%s keeps record %d's parent", fork, i)
+			assert.Equal(t, fork, recs[i].SessionID, "%s's copy carries its own session id", fork)
+		}
+	}
+	raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "plain-fork-2"))
+	assert.Contains(t, string(raw), `"more"`, "the fork of the fork carries the first fork's turn")
+	assert.Contains(t, string(raw), `"even more"`)
+	var sources []any
+	for _, p := range payloads(t, log) {
+		sources = append(sources, p["source"])
+	}
+	assert.Equal(t, []any{"startup", "fork", "fork"}, sources)
 }
 
 // TestT017_10_CompactionCanNameAnUnwrittenLogicalParent: a real
@@ -345,74 +504,4 @@ func TestT017_10_CompactionCanNameAnUnwrittenLogicalParent(t *testing.T) {
 		}
 	}
 	t.Fatal("no boundary written")
-}
-
-// TestT017_11_BackgroundBash: the receipt, the notification, and TaskOutput.
-func TestT017_11_BackgroundBash(t *testing.T) {
-	dir := t.TempDir()
-	cfg := filepath.Join(dir, "config")
-	// TaskOutput needs the task id, which only the receipt says: the scenario
-	// reads it from the transcript.
-	sc := write(t, filepath.Join(dir, "s.sh"), `#!/bin/sh
-F="$A10N_MOCK_SESSION_FILE"
-if ! grep -q 'bg1' "$F"; then
-  echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"bg1","name":"Bash","input":{"command":"echo BG-OUTPUT-4411","description":"make output","run_in_background":true}}]}}'
-  exit 0
-fi
-if ! grep -q 'to1' "$F"; then
-  ID=$(grep -o 'background with ID: [a-z0-9]*' "$F" | head -1 | sed 's/.*: //')
-  echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"to1","name":"TaskOutput","input":{"task_id":"'"$ID"'"}}]}}'
-  exit 0
-fi
-echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"done"}]}}'
-echo '{"type":"result","subtype":"success","result":"done"}'
-`, 0o755)
-	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bg-1",
-		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
-	require.Equal(t, 0, code, out)
-
-	recs := readRecs(t, transcriptPath(t, cfg, dir, "bg-1"))
-	var receipt, output, notification rec
-	for _, r := range recs {
-		switch {
-		case strings.Contains(r.Raw, `"tool_use_id":"bg1"`):
-			receipt = r
-		case strings.Contains(r.Raw, `"tool_use_id":"to1"`):
-			output = r
-		case strings.Contains(r.Raw, "<task-notification>"):
-			notification = r
-		}
-	}
-	require.NotEmpty(t, receipt.UUID)
-	assert.Contains(t, receipt.Raw, "Command running in background with ID: ")
-	id, _ := receipt.ToolUseResult["backgroundTaskId"].(string)
-	require.NotEmpty(t, id, "the receipt's record carries toolUseResult.backgroundTaskId")
-	require.NotEmpty(t, output.UUID)
-	assert.Contains(t, output.Raw, "BG-OUTPUT-4411", "TaskOutput returns the command's output")
-	require.NotEmpty(t, notification.UUID, "a finished task is announced with a <task-notification> turn")
-	assert.Contains(t, notification.Raw, "<task-id>"+id+"</task-id>")
-	assert.Contains(t, notification.Raw, "<tool-use-id>bg1</tool-use-id>")
-	assert.Contains(t, notification.Raw, `"kind":"task-notification"`)
-}
-
-// TestT017_12_BackgroundAgent: the async receipt with its agentId, and the
-// notification carrying the agent's reply.
-func TestT017_12_BackgroundAgent(t *testing.T) {
-	dir := t.TempDir()
-	cfg := filepath.Join(dir, "config")
-	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
-echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"AGENT-REPLY-7702"}]}}'
-echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-7702"}'
-`, 0o755)
-	sc := script(t, dir, "s", toolUse("ag1", "Agent", `{"prompt":"go","description":"bg agent","script":"`+sub+`","run_in_background":true}`))
-	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bga-1",
-		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
-	require.Equal(t, 0, code, out)
-
-	raw, err := os.ReadFile(transcriptPath(t, cfg, dir, "bga-1"))
-	require.NoError(t, err)
-	assert.Contains(t, string(raw), "Async agent launched successfully.")
-	assert.Contains(t, string(raw), `"status":"async_launched"`)
-	assert.Contains(t, string(raw), "<task-notification>")
-	assert.Contains(t, string(raw), "AGENT-REPLY-7702")
 }

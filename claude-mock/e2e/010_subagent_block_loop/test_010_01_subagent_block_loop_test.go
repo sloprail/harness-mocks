@@ -342,17 +342,20 @@ exit 0`)
 // a record — so a guardrail refusing at the end of a delegated cycle had no
 // channel by which its words reached the conversation it was judging.
 //
-// Both blocking forms are covered in one run because they land by different
-// routes inside emitStopHookAttachment (exit 2 arrives as a fire error, exit-0
-// decision:block as out.Reason) and a fix could plausibly deliver one and drop
-// the other.
+// The two blocking forms are recorded differently, as claude 2.1.282 records
+// them (a controlled run, EVIDENCE.md): an exit-0 decision:block leaves the
+// "Stop hook feedback:\n<reason>" turn AND a hook_blocking_error attachment
+// {blockingError: {blockingError: reason, command}}; an exit 2 leaves only the
+// feedback turn, quoting the hook as "[<command>]: <stderr>".
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		hookBody string
-		want     string
+		name       string
+		hookBody   string
+		want       string
+		quoted     bool // exit 2: the feedback quotes "[<command>]: <stderr>"
+		attachment bool
 	}{
 		{
 			name: "exit 2 with text on stderr",
@@ -360,6 +363,7 @@ func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
 			hookBody: `cat >/dev/null
 echo "verify failed: the delegated work is refused" 1>&2
 exit 2`,
+			quoted: true,
 		},
 		{
 			name: "exit 0 with decision block",
@@ -367,6 +371,7 @@ exit 2`,
 			hookBody: `cat >/dev/null
 printf '%s' '{"decision":"block","reason":"a10n://check-runs/xyz needs resolving before this subagent may stop"}'
 exit 0`,
+			attachment: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -392,14 +397,20 @@ exit 0`,
 			assert.NotContains(t, main, `"hookEvent":"SubagentStop"`,
 				"a SubagentStop's attachment belongs to the sub-agent's own file, not the dispatcher's")
 			transcript := readSidechains(t, configDir, dir, "sess-stop-attach")
-			assert.Contains(t, transcript, `Stop hook feedback:\n`+tc.want,
+			feedback := `Stop hook feedback:\n` + tc.want
+			if tc.quoted {
+				feedback = `Stop hook feedback:\n[` + stopHook + `]: ` + tc.want + `\n`
+			}
+			assert.Contains(t, transcript, feedback,
 				"the re-run sub-agent reads the refusal as a Stop hook feedback turn")
-			assert.Contains(t, transcript, "hook_blocking_error",
-				"a blocked SubagentStop must be recorded as a hook_blocking_error attachment, as a blocked Stop already is")
-			assert.Contains(t, transcript, `"hookEvent":"SubagentStop"`,
-				"the attachment must name SubagentStop, so a reader can tell which cycle refused")
-			assert.Contains(t, transcript, tc.want,
-				"the refusal's own text must reach the transcript — a block with no words is not a reportable refusal")
+			if tc.attachment {
+				assert.Contains(t, transcript, `"type":"hook_blocking_error"`)
+				assert.Contains(t, transcript, `"hookEvent":"SubagentStop"`,
+					"the attachment must name SubagentStop, so a reader can tell which cycle refused")
+				assert.Contains(t, transcript, `"blockingError":{"blockingError":"`+tc.want+`","command":"`+stopHook+`"}`)
+			} else {
+				assert.NotContains(t, transcript, "hook_blocking_error", "an exit-2 block leaves no attachment")
+			}
 		})
 	}
 }

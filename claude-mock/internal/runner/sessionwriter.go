@@ -183,11 +183,15 @@ func stampRecord(line []byte, st recordStamp) []byte {
 		set("cwd", st.Cwd)
 	}
 	set("timestamp", nowStamp())
-	if st.IsSidechain {
-		set("isSidechain", true)
-		if st.AgentID != "" {
-			set("agentId", st.AgentID)
-		}
+	set("isSidechain", st.IsSidechain)
+	if st.IsSidechain && st.AgentID != "" {
+		set("agentId", st.AgentID)
+	}
+	set("userType", stampUserType)
+	set("entrypoint", stampEntrypoint)
+	set("version", stampVersion)
+	if st.GitBranch != "" {
+		set("gitBranch", st.GitBranch)
 	}
 	if !changed {
 		return line

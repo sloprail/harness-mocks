@@ -105,29 +105,23 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach",
 	assert.NotEqual(t, 0, code, "blocked worktree hook must cause non-zero exit")
 }
 
-// TestT002_04_SubagentStartHookFiresOnResume verifies that SubagentStart fires
-// automatically when the mock is invoked with --resume (subagent session).
-func TestT002_04_SubagentStartHookFiresOnResume(t *testing.T) {
+// TestT002_04_SubagentStartHookDoesNotFireOnResume: a top-level --resume is
+// not a sub-agent — real Claude Code fires no SubagentStart for it (a
+// controlled claude 2.1.282 resume fired SessionStart:resume,
+// UserPromptSubmit, Stop and SessionEnd only).
+func TestT002_04_SubagentStartHookDoesNotFireOnResume(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "subagent-log.txt")
 
 	hookScript := filepath.Join(dir, "hook.sh")
 	require.NoError(t, os.WriteFile(hookScript, []byte(`#!/bin/sh
-input=$(cat)
-event=$(echo "$input" | grep -o '"hook_event_name":"[^"]*"' | cut -d'"' -f4)
-agent=$(echo "$input" | grep -o '"agent_type":"[^"]*"' | cut -d'"' -f4)
-echo "$event:$agent" >> "`+logFile+`"
+cat >/dev/null
+echo fired >> "`+logFile+`"
 `), 0o755))
 
 	claudeDir := filepath.Join(dir, ".claude")
 	require.NoError(t, os.MkdirAll(claudeDir, 0o755))
-	settings := `{
-  "hooks": {
-    "SubagentStart": [
-      {"matcher":"*","hooks":[{"type":"command","command":"` + hookScript + `"}]}
-    ]
-  }
-}`
+	settings := `{"hooks":{"SubagentStart":[{"matcher":"*","hooks":[{"type":"command","command":"` + hookScript + `"}]}]}}`
 	require.NoError(t, os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte(settings), 0o644))
 
 	scriptPath := filepath.Join(dir, "scenario.sh")
@@ -135,18 +129,13 @@ echo "$event:$agent" >> "`+logFile+`"
 printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
 `), 0o755))
 
-	_, code := runInDir(t, dir, nil,
-		"--resume", "existing-session-id",
-		"--script", scriptPath,
-		"--project-dir", dir,
-		"-p", "do work",
-	)
+	_, code := runInDir(t, dir, nil, "--session-id", "existing-session-id", "--script", scriptPath, "--project-dir", dir, "-p", "start")
+	require.Equal(t, 0, code)
+	_, code = runInDir(t, dir, nil, "--resume", "existing-session-id", "--script", scriptPath, "--project-dir", dir, "-p", "do work")
 	require.Equal(t, 0, code)
 
-	logBytes, err := os.ReadFile(logFile)
-	require.NoError(t, err, "SubagentStart hook log must exist")
-	assert.Contains(t, string(logBytes), "SubagentStart:general-purpose",
-		"SubagentStart must fire with agent_type=general-purpose on --resume")
+	_, err := os.Stat(logFile)
+	assert.True(t, os.IsNotExist(err), "SubagentStart must not fire on a top-level --resume")
 }
 
 // TestT002_05_SubagentStartControlRecordOverridesAgentType verifies that a

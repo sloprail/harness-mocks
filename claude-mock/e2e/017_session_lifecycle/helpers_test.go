@@ -23,7 +23,7 @@ type rec struct {
 	AgentID           string          `json:"agentId"`
 	Attachment        map[string]any  `json:"attachment"`
 	Message           json.RawMessage `json:"message"`
-	ToolUseResult     map[string]any  `json:"toolUseResult"`
+	ToolUseResult     map[string]any  `json:"-"`
 	Raw               string          `json:"-"`
 }
 
@@ -49,6 +49,11 @@ func readRecs(t *testing.T, path string) []rec {
 		}
 		var r rec
 		require.NoError(t, json.Unmarshal([]byte(l), &r), "line: %s", l)
+		var tur struct {
+			ToolUseResult json.RawMessage `json:"toolUseResult"`
+		}
+		_ = json.Unmarshal([]byte(l), &tur)
+		_ = json.Unmarshal(tur.ToolUseResult, &r.ToolUseResult) // an object; a string (an error) leaves it nil
 		r.Raw = l
 		out = append(out, r)
 	}

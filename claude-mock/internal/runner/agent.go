@@ -75,86 +75,87 @@ type agentToolInput struct {
 	// bind a git worktree (its internal machinery stays on the parent cwd); it only
 	// mirrors the OBSERVED identity. Any other isolation value shares the parent cwd.
 	Isolation string `json:"isolation,omitempty"`
+	// Model is the optional model override the real Agent input accepts; the
+	// mock reports it as an async receipt's resolvedModel.
+	Model string `json:"model,omitempty"`
 	// Script is the absolute path to the subagent's scenario script (mock-only).
 	Script string `json:"script,omitempty"`
 }
 
-// runAgentTool spawns a nested subagent run, mirroring how the real claude binary
-// handles an Agent tool_use:
-//  1. Generate a unique per-subagent agent_id.
-//  2. Fire SubagentStart with {agent_type, agent_id}. SubagentStart cannot block.
-//  3. Run the subagent (its own conversation, sharing the parent session_id).
-//  4. Fire SubagentStop with {agent_type, agent_id, stop_reason}. SubagentStop CAN
-//     block (exit 2 / decision:block) — on a block the subagent re-runs once more,
-//     then gives up. A block is never silently ignored: it re-runs the turn AND
-//     lands a hook_blocking_error attachment in the transcript, the same channel
-//     the root's Stop uses, so the refusal's TEXT is readable afterwards.
-//  5. Return a tool_result whose content carries the literal `agentId: <id>` plus
-//     the subagent's final result text.
+// runAgentTool runs a foreground Agent (alias Task) call, the way the real
+// claude binary handles one:
+//  1. Validate the input: description and prompt are required strings (the
+//     2.1.282 Agent input schema); a call without them is refused with an
+//     InputValidationError tool_result and nothing runs.
+//  2. Mint the agent id and seed the sub-agent's own transcript
+//     (<session>/subagents/agent-<id>.jsonl) with the dispatch prompt.
+//  3. Fire SubagentStart. It cannot block: an exit 2 is recorded in the
+//     sub-agent's own transcript as a non-blocking error and the sub-agent
+//     runs anyway (docs, "Exit code 2 behavior per event"; a controlled
+//     2.1.282 run).
+//  4. Run the sub-agent, then fire SubagentStop. A SubagentStop block re-runs
+//     the sub-agent with the feedback, as real Claude Code keeps a sub-agent
+//     running, up to CLAUDE_CODE_STOP_HOOK_BLOCK_CAP. What the hook said is
+//     recorded in the sub-agent's own file.
+//  5. Return a tool_result whose content carries the literal `agentId: <id>`
+//     plus the sub-agent's final result text.
 //
-// sessionFile is the parent conversation's transcript, needed for (4)'s
-// attachment. The subagent's own refusal is recorded in the DISPATCHING
-// session's record because that is the conversation a reader has: the subagent's
-// nested run captures its JSONL to a buffer rather than to a file of its own
-// (see runSubagent), exactly as a real sidechain surfaces only through its
-// parent.
-//
-// toolUseID is the id of the Agent/Task tool_use block that spawned this
-// subagent. Real Claude Code records it as the `toolUseId` in the subagent's
-// .meta.json sidecar; a consumer deriving the subagent's parentPath (which
-// tool_use in the PARENT transcript spawned this sidechain) reads it. Empty only
-// when the spawning tool_use carried no id.
+// toolUseID is the id of the Agent/Task tool_use that spawned the sub-agent;
+// real Claude Code records it as the toolUseId of the sub-agent's .meta.json.
 //
 // sr:docs https://code.claude.com/docs/en/sub-agents
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID string, rawInput json.RawMessage, tr *transcript) toolexec.Result {
-	res, _ := runAgentToolFor(ctx, cfg, inv, toolUseID, rawInput, tr, "")
-	return res
+	sub, _, errRes := prepareSubagent(cfg, toolUseID, rawInput, tr, false)
+	if sub == nil {
+		return errRes
+	}
+	out := sub.execute(ctx, inv, cfg.bg, sub.prompt)
+	return toolexec.Result{Output: buildAgentResultContent(sub.agentID, sub.agentType, out.finalText)}
 }
 
-// runAgentToolFor is runAgentTool with the agent id chosen by the caller (a
-// background launch hands out the id in its receipt before the agent runs) and
-// the id actually used returned beside the result. An empty agentID mints one.
-func runAgentToolFor(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID string, rawInput json.RawMessage, tr *transcript, agentID string) (toolexec.Result, string) {
+// prepareSubagent validates an Agent call and sets its sub-agent up — its id,
+// its isolated worktree when asked for, its seeded sidechain transcript and
+// .meta.json — without running it. A nil run comes with the tool_result the
+// call is refused with.
+func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr *transcript, background bool) (*subagentRun, agentToolInput, toolexec.Result) {
 	var in agentToolInput
-	if err := json.Unmarshal(rawInput, &in); err != nil {
-		return toolexec.Result{Output: fmt.Sprintf("Agent: invalid tool input: %v", err), IsError: true}, ""
+	var probe map[string]any
+	if err := json.Unmarshal(rawInput, &probe); err != nil {
+		return nil, in, toolexec.Result{Output: "<tool_use_error>InputValidationError: Agent was called with input that could not be parsed as JSON.</tool_use_error>", IsError: true}
+	}
+	_ = json.Unmarshal(rawInput, &in)
+	var missing []string
+	for _, field := range []string{"description", "prompt"} {
+		if _, ok := probe[field].(string); !ok {
+			missing = append(missing, field)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, in, inputValidationError("Agent", missing)
 	}
 
 	agentType := in.SubagentType
 	if agentType == "" {
 		agentType = "general-purpose"
 	}
-
-	if agentID == "" {
-		var err error
-		agentID, err = newAgentID()
-		if err != nil {
-			return toolexec.Result{Output: fmt.Sprintf("Agent: generate agent_id: %v", err), IsError: true}, ""
-		}
+	agentID, err := newAgentID()
+	if err != nil {
+		return nil, in, toolexec.Result{Output: fmt.Sprintf("Agent: generate agent_id: %v", err), IsError: true}
 	}
 
 	// isolation="worktree" — the real claude runs the subagent in a fresh git worktree
 	// at <parent-cwd>/.claude/worktrees/agent-<agentID>, so the subagent's cwd (and
 	// hence its os.Getwd()-derived session coordinates) DIFFERS from the parent while
 	// the session_id stays SHARED (verified against real claude). The mock binds a REAL
-	// directory here (not just a reported string) — a `git worktree add` when cfg.Cwd is a
-	// git repo (matching real claude's own mechanism exactly: a genuine worktree, same repo,
-	// isolated files), falling back to a plain mkdir when it is not (or the git command
-	// fails — e.g. no commits yet) so isolation is never silently skipped. This directory is
-	// what BOTH the SubagentStart/Stop hook subprocess's cmd.Dir (invoker.go) AND the
-	// subagent's own Bash tool_use commands (via runSubagent's subCfg.Cwd below) actually
-	// execute in — a prior version only reported subCwd in hook JSON payloads while every
-	// subprocess still silently ran in the PARENT's real directory, so isolation="worktree"
-	// was observable in transcripts/payloads but had NO effect on where anything actually
-	// ran (caught via an empirical real-claude cwd probe: real claude's subagent process
-	// itself reports a different `pwd`, which this mock did not reproduce). Any other
-	// isolation value shares the parent cwd.
+	// directory here — a `git worktree add` when cfg.Cwd is a git repo, a plain mkdir
+	// otherwise — and it is where both the sub-agent's hooks and its tool calls run.
+	// Any other isolation value shares the parent cwd.
 	// sr:docs https://code.claude.com/docs/en/sub-agents
 	subCwd := cfg.Cwd
 	if in.Isolation == "worktree" {
 		subCwd = filepath.Join(cfg.Cwd, ".claude", "worktrees", "agent-"+agentID)
-		if err := bindWorktree(ctx, cfg.Cwd, subCwd); err != nil {
+		if err := bindWorktree(context.Background(), cfg.Cwd, subCwd); err != nil {
 			fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: bind %s: %v (falling back to a plain directory)\n", subCwd, err)
 			if mkErr := os.MkdirAll(subCwd, 0o755); mkErr != nil {
 				fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: mkdir %s: %v — isolation NOT applied, sharing parent cwd\n", subCwd, mkErr)
@@ -163,69 +164,22 @@ func runAgentToolFor(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		}
 	}
 
-	// The subagent gets its OWN sidechain transcript under the parent session's
-	// subagents/ dir — mirroring the real claude layout, whose subagent transcript's
-	// first record IS the dispatch prompt. Seed it before SubagentStart so a hook can
-	// read the prompt (e.g. an embedded `--task-id`) from transcript_path. configDir
-	// is resolved through CLAUDE_CONFIG_DIR so tests stay isolated. The transcript's
-	// project dir keys off the PARENT cwd (real claude nests subagents/ under the
-	// parent session's transcript dir); only the recorded `cwd` field is the subagent's.
-	// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR + projects/<encoded-cwd>)
-	configDir := resolveConfigDir(cfg.ConfigDir)
-	transcriptPath := seedSubagentTranscript(configDir, cfg.Cwd, subCwd, cfg.SessionID, agentID, agentType, toolUseID, in.Prompt)
-
-	// SubagentStart — cannot block; a blocking error here is treated as a hard
-	// failure of the Agent tool (the real claude never proceeds past a refused start).
-	// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
-	// transcript_path is the SESSION's (the invoker's default) — real Claude Code
-	// names the sub-agent by agent_id, and its own file only on SubagentStop.
-	if _, err := inv.Fire(ctx, hooks.Input{
-		SessionID:     cfg.SessionID,
-		Cwd:           subCwd,
-		HookEventName: hooks.EventSubagentStart,
-		AgentType:     agentType,
-		AgentID:       agentID,
-	}); err != nil {
-		return toolexec.Result{Output: fmt.Sprintf("Agent: SubagentStart blocked: %v", err), IsError: true}, agentID
+	// The sub-agent's own transcript sits beside the session's:
+	// <session file without .jsonl>/subagents/agent-<id>.jsonl — for a nested
+	// sub-agent too, since real Claude Code keeps every sub-agent of a session
+	// in the one subagents/ directory.
+	sessionFile := cfg.sessionFile
+	if sessionFile == "" {
+		sessionFile = tr.path
 	}
-	sub := subagentRun{
+	sidechain := filepath.Join(strings.TrimSuffix(sessionFile, ".jsonl"), "subagents", "agent-"+agentID+".jsonl")
+	seedSubagentTranscript(sidechain, cfg.Cwd, subCwd, cfg.SessionID, agentID, agentType, toolUseID, in.Description, in.Prompt)
+
+	return &subagentRun{
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
-		sidechain: transcriptPath, parentReported: tr.reported,
-	}
-
-	scriptPath := resolveSubagentScript(in.Script)
-
-	// Run the subagent, then fire SubagentStop. SubagentStop is the verify/handoff
-	// seam: when it returns {"decision":"block"} (a failed verify with budget
-	// remaining) real Claude RE-RUNS THE SAME TURN with the feedback — it does NOT
-	// hand control back to the orchestrator. We reproduce that contract here: loop
-	// run-subagent → fire-SubagentStop until the hook stops blocking (clean stop =
-	// verify passed, OR the executor parked the task itself e.g. retries_exhausted,
-	// at which point the hook allows the stop). stop_hook_active is set on every
-	// re-fire after the first (the real Claude flag a hook checks to break its own
-	// recursion). maxStopBlocks is the mock runaway guard (default 8) — the
-	// stand-in for Claude's context limit, NOT the task's max_retries budget.
-	// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
-	blockCap := stopHookBlockCap() // 0 = unlimited
-	finalText := sub.run(ctx, scriptPath, in.Prompt)
-	for turn := 0; ; turn++ {
-		// What the hook said is recorded as it fires — into the SUB-AGENT's own
-		// file, where real Claude Code writes a SubagentStop's feedback and
-		// attachment — before deciding whether to loop, so the last refusal
-		// before the cap is on the record too.
-		blocked, reason, _, _ := fireSubagentStop(ctx, cfg, subCwd, sub.invoker(inv), agentType, agentID, transcriptPath, turn > 0)
-		if !blocked {
-			break // clean stop — verify passed or the task was parked by the executor
-		}
-		if blockCap > 0 && turn >= blockCap {
-			fmt.Fprintf(cfg.Stderr, "claude-mock: SubagentStop still blocked after %d turns (cap) — giving up\n", blockCap)
-			break
-		}
-		fmt.Fprintf(cfg.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn+1)
-		finalText = sub.run(ctx, scriptPath, in.Prompt)
-	}
-
-	return toolexec.Result{Output: buildAgentResultContent(agentID, agentType, finalText)}, agentID
+		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile,
+		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background,
+	}, in, toolexec.Result{}
 }
 
 // subagentRun is one dispatched sub-agent: where it runs, what it is, and the
@@ -238,17 +192,74 @@ type subagentRun struct {
 	agentType      string
 	sidechain      string
 	parentReported string
+	sessionFile    string
+	script         string
+	prompt         string
+	background     bool
 }
 
-// run drives one turn of the sub-agent's script as a nested run writing its
-// sidechain file, and returns its final text.
-func (s subagentRun) run(ctx context.Context, scriptPath, prompt string) string {
-	if scriptPath == "" {
-		return "no subagent script"
+// subagentOutcome is how a sub-agent's run ended.
+type subagentOutcome struct {
+	finalText string
+	failure   string
+	toolUses  int
+}
+
+// execute fires SubagentStart, runs the sub-agent (re-running it while
+// SubagentStop blocks) and returns how it ended.
+func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks, prompt string) subagentOutcome {
+	sideInv := s.invoker(inv)
+	// SubagentStart — cannot block. transcript_path is the SESSION's (the
+	// invoker's default); the sub-agent is named by agent_id.
+	_, _ = sideInv.Fire(ctx, hooks.Input{
+		SessionID:     s.parent.SessionID,
+		Cwd:           s.subCwd,
+		HookEventName: hooks.EventSubagentStart,
+		AgentType:     s.agentType,
+		AgentID:       s.agentID,
+	})
+
+	blockCap := stopHookBlockCap() // 0 = unlimited
+	out := s.run(ctx, bg, prompt)
+	for turn := 0; ; turn++ {
+		// What the hook said is recorded as it fires — into the SUB-AGENT's own
+		// file, where real Claude Code writes a SubagentStop's feedback — before
+		// deciding whether to loop, so the last refusal before the cap is on the
+		// record too.
+		blocked, reason := fireSubagentStop(ctx, s, sideInv, bg, out.lastAssistant, turn > 0)
+		if !blocked {
+			break
+		}
+		if blockCap > 0 && turn >= blockCap {
+			fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop still blocked after %d turns (cap) — giving up\n", blockCap)
+			break
+		}
+		fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn+1)
+		next := s.run(ctx, bg, prompt)
+		next.toolUses += out.toolUses
+		out = next
+	}
+	return subagentOutcome{finalText: out.finalText, failure: out.failure, toolUses: out.toolUses}
+}
+
+// runOutcome is one nested run of a sub-agent's script.
+type runOutcome struct {
+	finalText     string
+	lastAssistant string
+	failure       string
+	toolUses      int
+}
+
+// run drives the sub-agent's script as a nested run writing its sidechain
+// file, and reports its final text, its last assistant text, how many tools
+// it called, and why it failed if it did.
+func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt string) runOutcome {
+	if s.script == "" {
+		return runOutcome{finalText: "no subagent script"}
 	}
 	var buf bytes.Buffer
 	subCfg := Config{
-		ScriptPath:            scriptPath,
+		ScriptPath:            s.script,
 		SessionID:             s.parent.SessionID,
 		AgentID:               s.agentID,
 		AgentType:             s.agentType,
@@ -258,30 +269,41 @@ func (s subagentRun) run(ctx context.Context, scriptPath, prompt string) string 
 		ProjectDir:            s.parent.ProjectDir,
 		ConfigDir:             s.parent.ConfigDir,
 		PluginCacheDir:        s.parent.PluginCacheDir,
+		Model:                 s.parent.Model,
 		Stderr:                s.parent.Stderr,
 		Out:                   &buf,
 		SuppressSubagentHooks: true,
+		SyncSubagent:          !s.background,
 		SidechainPath:         s.sidechain,
 		ParentTranscriptPath:  s.parentReported,
+		bg:                    bg,
+		sessionFile:           s.sessionFile,
 	}
+	out := runOutcome{}
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
+		out.failure = err.Error()
 	}
-	return lastResultText(buf.Bytes())
+	out.finalText = lastResultText(buf.Bytes())
+	out.lastAssistant = lastAssistantText(buf.Bytes())
+	out.toolUses = countToolUses(buf.Bytes())
+	return out
 }
 
-// invoker is inv recording into the sub-agent's own file. Opened afresh each
-// time so its chain continues from whatever the nested run last wrote.
-func (s subagentRun) invoker(inv *hooks.Invoker) *hooks.Invoker {
-	side, err := openTranscript(s.sidechain, s.parentReported, recordStamp{
-		SessionID: s.parent.SessionID, Cwd: s.subCwd, IsSidechain: true, AgentID: s.agentID,
-	})
-	if err != nil {
-		return inv
-	}
+// invoker is inv recording into the sub-agent's own file — real Claude Code
+// writes a sub-agent's SubagentStart and SubagentStop attachments there, never
+// into the session's. The file is opened only when a hook actually ran, and
+// closed again right after.
+func (s *subagentRun) invoker(inv *hooks.Invoker) *hooks.Invoker {
+	stamp := newRecordStamp(s.parent.SessionID, s.subCwd)
+	stamp.IsSidechain, stamp.AgentID = true, s.agentID
 	return inv.WithRecorder(func(in hooks.Input, runs []hooks.HandlerRun) {
+		side, err := openTranscript(s.sidechain, s.parentReported, stamp)
+		if err != nil {
+			return
+		}
+		defer side.Close()
 		side.recordHookRuns(in, runs)
-		side.Close()
 	})
 }
 
@@ -324,45 +346,92 @@ func resolveSubagentScript(fromInput string) string {
 	return os.Getenv(envSubagentScript)
 }
 
-// fireSubagentStop fires SubagentStop with the agent_id (+ the subagent's
-// transcript_path, as the real hook payload carries) and returns the (possibly
-// blocking) error from the hook so the caller can react to a block.
+// fireSubagentStop fires SubagentStop and reports whether it BLOCKED — by
+// exiting 2 or by an exit-0 {"decision":"block"} — and why. The payload is the
+// real one: the session's transcript_path, the sub-agent's own
+// agent_transcript_path, agent_id/agent_type, the sub-agent's cwd (its
+// isolated worktree under isolation="worktree"), stop_hook_active on every
+// re-fire after a block, last_assistant_message, and the session's
+// background_tasks and session_crons.
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
-// fireSubagentStop fires the SubagentStop hook and reports whether it BLOCKED.
-// A block is signalled two ways, both meaning "re-run the turn": the hook exits
-// 2 (returned as a non-nil error from Fire), OR it exits 0 with a
-// {"decision":"block"} stdout frame (the SubagentStop contract real Claude
-// honours — exit-0 + decision, not a process error). The caller loops on a block.
-// subCwd is the subagent's OWN cwd (its isolated worktree under isolation="worktree",
-// else == cfg.Cwd) — reported in the SubagentStop payload's `cwd` field so a hook sees
-// the isolated cwd, matching real claude. The mock's internal machinery (session file,
-// block loop, hook invoker) stays on cfg since the mock does not bind a real worktree.
-//
-// The raw hooks.Output and the fire error are returned alongside the verdict
-// because the caller records the refusal as a transcript attachment, and the two
-// blocking forms carry their text differently: exit 2 puts it on the error,
-// exit-0 {"decision":"block"} puts it on out.Reason. emitStopHookAttachment
-// already knows how to read either, so both are handed over intact rather than
-// flattened into the reason string — which would lose the decision field and
-// mis-classify an exit-0 block as a bare message.
-func fireSubagentStop(ctx context.Context, cfg Config, subCwd string, inv *hooks.Invoker, agentType, agentID, transcriptPath string, stopHookActive bool) (blocked bool, reason string, out hooks.Output, fireErr error) {
+func fireSubagentStop(ctx context.Context, s *subagentRun, inv *hooks.Invoker, bg *backgroundTasks, lastAssistant string, stopHookActive bool) (bool, string) {
+	active := stopHookActive
+	tasks := bg.running()
+	crons := []any{}
 	out, err := inv.Fire(ctx, hooks.Input{
-		SessionID:           cfg.SessionID,
-		Cwd:                 subCwd,
-		AgentTranscriptPath: transcriptPath,
-		HookEventName:       hooks.EventSubagentStop,
-		StopReason:          "end_turn",
-		AgentType:           agentType,
-		AgentID:             agentID,
-		StopHookActive:      stopHookActive,
+		SessionID:            s.parent.SessionID,
+		Cwd:                  s.subCwd,
+		AgentTranscriptPath:  s.sidechain,
+		HookEventName:        hooks.EventSubagentStop,
+		AgentType:            s.agentType,
+		AgentID:              s.agentID,
+		StopHookActive:       &active,
+		LastAssistantMessage: &lastAssistant,
+		BackgroundTasks:      &tasks,
+		SessionCrons:         &crons,
 	})
 	if err != nil {
-		return true, err.Error(), out, err
+		return true, err.Error()
 	}
 	if out.Decision == "block" {
-		return true, out.Reason, out, nil
+		return true, out.Reason
 	}
-	return false, "", out, nil
+	return false, ""
+}
+
+// lastAssistantText is the text of the last assistant record in captured
+// JSONL that has any — what real Claude Code sends as last_assistant_message.
+func lastAssistantText(out []byte) string {
+	text := ""
+	for _, line := range bytes.Split(out, []byte{'\n'}) {
+		if t := assistantText(line); t != "" {
+			text = t
+		}
+	}
+	return text
+}
+
+// assistantText joins the text blocks of an assistant record, or "".
+func assistantText(line []byte) string {
+	var rec struct {
+		Type    string `json:"type"`
+		Message *struct {
+			Content json.RawMessage `json:"content"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(line, &rec) != nil || rec.Type != "assistant" || rec.Message == nil {
+		return ""
+	}
+	var blocks []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(rec.Message.Content, &blocks) != nil {
+		var s string
+		if json.Unmarshal(rec.Message.Content, &s) == nil {
+			return s
+		}
+		return ""
+	}
+	var parts []string
+	for _, b := range blocks {
+		if b.Type == "text" && b.Text != "" {
+			parts = append(parts, b.Text)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+// countToolUses counts the tool_use blocks in captured JSONL.
+func countToolUses(out []byte) int {
+	n := 0
+	for _, line := range bytes.Split(out, []byte{'\n'}) {
+		_, name, _ := extractFirstToolUseWithID(line)
+		if name != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // lastResultText scans captured JSONL for the last result frame and returns its
@@ -399,12 +468,13 @@ func buildAgentResultContent(agentID, agentType, finalText string) string {
 	return b.String()
 }
 
-// newAgentID returns a short random hex id (8 bytes). crypto/rand is fine here:
-// this is the mock binary, not a workflow script.
+// newAgentID returns an agent id in the shape real Claude Code mints: "a"
+// followed by 16 hex digits (every agentId in the real transcripts, e.g.
+// a1e3c03d8ae9ab06a).
 func newAgentID() (string, error) {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b[:]), nil
+	return "a" + hex.EncodeToString(b[:]), nil
 }

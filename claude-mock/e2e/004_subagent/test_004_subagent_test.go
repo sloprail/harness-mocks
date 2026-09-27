@@ -26,24 +26,34 @@ func captureHook(t *testing.T, dir, logFile, extract string) string {
 
 // --- SubagentStart ---
 
-// TestT004_01_SubagentStartFiresOnResume: --resume triggers SubagentStart with agent_type=general-purpose.
-func TestT004_01_SubagentStartFiresOnResume(t *testing.T) {
+// TestT004_01_NoSubagentHooksOnResume: a top-level --resume is the session
+// going on, not a sub-agent: real Claude Code fires SessionStart (source
+// resume), UserPromptSubmit, Stop and SessionEnd — no SubagentStart and no
+// SubagentStop (a controlled claude 2.1.282 resume).
+func TestT004_01_NoSubagentHooksOnResume(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
 	hook := captureHook(t, dir, logFile,
 		`evt=$(echo "$input" | grep -o '"hook_event_name":"[^"]*"' | cut -d'"' -f4)
-agent=$(echo "$input" | grep -o '"agent_type":"[^"]*"' | cut -d'"' -f4)
-echo "$evt:$agent" >> "`+logFile+`"`)
-	writeHookSettings(t, dir, "SubagentStart", hook)
+echo "$evt" >> "`+logFile+`"`)
+	claudeDir := filepath.Join(dir, ".claude")
+	require.NoError(t, os.MkdirAll(claudeDir, 0o755))
+	h := `[{"matcher":"*","hooks":[{"type":"command","command":"` + hook + `"}]}]`
+	require.NoError(t, os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte(
+		`{"hooks":{"SessionStart":`+h+`,"UserPromptSubmit":`+h+`,"SubagentStart":`+h+`,"SubagentStop":`+h+`,"Stop":`+h+`,"SessionEnd":`+h+`}}`), 0o644))
 	script := filepath.Join(dir, "s.sh")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
+printf '%s\n' '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"done"}]}}'
 printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
 `), 0o755))
-	_, code := runInDir(t, dir, nil, "--script", script, "--resume", "sess-1", "--project-dir", dir, "-p", "go")
+	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "sess-1", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code)
+	require.NoError(t, os.Remove(logFile))
+	_, code = runInDir(t, dir, nil, "--script", script, "--resume", "sess-1", "--project-dir", dir, "-p", "again")
 	require.Equal(t, 0, code)
 	data, err := os.ReadFile(logFile)
-	require.NoError(t, err, "SubagentStart hook must fire")
-	assert.Contains(t, string(data), "SubagentStart:general-purpose")
+	require.NoError(t, err)
+	assert.Equal(t, "SessionStart\nUserPromptSubmit\nStop\nSessionEnd\n", string(data))
 }
 
 // TestT004_02_SubagentStartNotFiredForNewSession: --session-id must NOT fire SubagentStart.
@@ -83,40 +93,68 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 	assert.Contains(t, string(data), "custom-agent")
 }
 
-// TestT004_04_SubagentStartBlockCausesNonZeroExit: SubagentStart exit 2 must block.
-func TestT004_04_SubagentStartBlockCausesNonZeroExit(t *testing.T) {
+// TestT004_04_SubagentStartExit2DoesNotBlock: SubagentStart cannot block. An
+// exit 2 is a non-blocking error recorded in the SUB-AGENT's own transcript,
+// and the sub-agent runs (docs, "Exit code 2 behavior per event"; a controlled
+// claude 2.1.282 run: hookName "SubagentStart:<agent_type>", stderr
+// "[<command>]: <stderr>").
+func TestT004_04_SubagentStartExit2DoesNotBlock(t *testing.T) {
 	dir := t.TempDir()
 	blockHook := filepath.Join(dir, "block.sh")
-	require.NoError(t, os.WriteFile(blockHook, []byte("#!/bin/sh\nexit 2\n"), 0o755))
+	require.NoError(t, os.WriteFile(blockHook, []byte("#!/bin/sh\necho SAS-REFUSED >&2\nexit 2\n"), 0o755))
 	writeHookSettings(t, dir, "SubagentStart", blockHook)
+	sub := filepath.Join(dir, "sub.sh")
+	require.NoError(t, os.WriteFile(sub, []byte(`#!/bin/sh
+printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"SUB-RAN"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success","result":"SUB-RAN","is_error":false}'
+`), 0o755))
 	script := filepath.Join(dir, "s.sh")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
+if ! grep -q '"tool_use_id":"ag1"' "$A10N_MOCK_SESSION_FILE"; then
+  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"ag1","name":"Agent","input":{"description":"d","prompt":"p","subagent_type":"worker","script":"`+sub+`"}}]}}'
+  exit 0
+fi
 printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
 `), 0o755))
-	_, code := runInDir(t, dir, nil, "--script", script, "--resume", "sess-1", "--project-dir", dir, "-p", "go")
-	assert.NotEqual(t, 0, code, "blocked SubagentStart must exit non-zero")
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "sess-1", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, out)
+	matches, err := filepath.Glob(filepath.Join(dir, ".claude-config", "projects", "*", "sess-1", "subagents", "agent-*.jsonl"))
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	side, err := os.ReadFile(matches[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(side), "SUB-RAN", "the sub-agent ran")
+	assert.Contains(t, string(side), `"type":"hook_non_blocking_error"`)
+	assert.Contains(t, string(side), `"hookName":"SubagentStart:worker"`)
+	assert.Contains(t, string(side), `"stderr":"[`+blockHook+`]: SAS-REFUSED\n"`)
+	mainFile, err := filepath.Glob(filepath.Join(dir, ".claude-config", "projects", "*", "sess-1.jsonl"))
+	require.NoError(t, err)
+	require.Len(t, mainFile, 1)
+	mainData, err := os.ReadFile(mainFile[0])
+	require.NoError(t, err)
+	assert.NotContains(t, string(mainData), `"hookEvent":"SubagentStart"`, "the notice is not in the parent conversation")
 }
 
 // --- SubagentStop ---
 
-// TestT004_05_SubagentStopFiresOnEndTurnForResume: SubagentStop fires when assistant emits end_turn in --resume session.
-func TestT004_05_SubagentStopFiresOnEndTurnForResume(t *testing.T) {
+// TestT004_05_SubagentStopNotFiredOnResume: an end_turn in a resumed
+// top-level session fires Stop, never an agentless SubagentStop.
+func TestT004_05_SubagentStopNotFiredOnResume(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
-	hook := captureHook(t, dir, logFile,
-		`evt=$(echo "$input" | grep -o '"hook_event_name":"[^"]*"' | cut -d'"' -f4)
-echo "$evt" >> "`+logFile+`"`)
+	hook := captureHook(t, dir, logFile, `echo fired >> "`+logFile+`"`)
 	writeHookSettings(t, dir, "SubagentStop", hook)
 	script := filepath.Join(dir, "s.sh")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
 printf '%s\n' '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"done"}]}}'
 printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
 `), 0o755))
-	_, code := runInDir(t, dir, nil, "--script", script, "--resume", "sess-1", "--project-dir", dir, "-p", "go")
+	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "sess-1", "--project-dir", dir, "-p", "go")
 	require.Equal(t, 0, code)
-	data, err := os.ReadFile(logFile)
-	require.NoError(t, err, "SubagentStop hook must fire")
-	assert.Contains(t, string(data), "SubagentStop")
+	_, code = runInDir(t, dir, nil, "--script", script, "--resume", "sess-1", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code)
+	_, err := os.ReadFile(logFile)
+	assert.True(t, os.IsNotExist(err), "SubagentStop must not fire for a top-level session")
 }
 
 // TestT004_06_SubagentStopNotFiredForNewSession: SubagentStop must NOT fire for --session-id.
@@ -177,7 +215,7 @@ S=$(cat "${A10N_MOCK_SESSION_FILE:-/dev/null}" 2>/dev/null || true)
 if ! printf '%s' "$S" | grep -q '"tool_use_id":"tu-root"'; then
   printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu-root","name":"Bash","input":{"command":"true"}}]}}'
 elif ! printf '%s' "$S" | grep -q '"tool_use_id":"tu-agent"'; then
-  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu-agent","name":"Agent","input":{"subagent_type":"general-purpose","prompt":"do work","script":"`+subScript+`"}}]}}'
+  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu-agent","name":"Agent","input":{"subagent_type":"general-purpose","description":"work","prompt":"do work","script":"`+subScript+`"}}]}}'
 else
   printf '%s\n' '{"type":"result","subtype":"success","result":"root done","is_error":false}'
 fi

@@ -104,10 +104,17 @@ func NewInvoker(settings *Settings, cwd, sessionID string) *Invoker {
 	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID}
 }
 
-// Fire invokes all handlers configured for the event and matcher, then returns
-// the merged Output. Command hooks that exit 2 are treated as blocking errors
-// and returned via the error return. Other non-zero exits are non-blocking
-// (logged and ignored).
+// Fire invokes every handler configured for the event and matcher and returns
+// their merged Output. Real Claude Code runs all matching hooks of an event
+// (docs: "All matching hooks run in parallel"), so a handler that blocks does
+// not stop the others from running; the first block is returned, as a
+// *BlockError, once they all have.
+//
+// Exit 2 is a block for every event here; what a block MEANS is the caller's
+// to decide, because real Claude Code differs per event — SessionStart and
+// SubagentStart treat it as a non-blocking error (docs, "Exit code 2
+// behavior per event"), PreToolUse refuses the tool call, Stop re-prompts.
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
 func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	if input.TranscriptPath == "" {
 		input.TranscriptPath = inv.transcriptPath
@@ -133,12 +140,9 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	// The hook subprocess's OWN working directory must be THIS event's cwd, not the
 	// Invoker's fixed construction-time cwd: a SubagentStart/Stop fired for a
 	// isolation="worktree" subagent carries input.Cwd = the subagent's isolated worktree
-	// (see agent.go's subCwd), and a hook command that shells out to an a10n-* binary
-	// (e.g. `a10n-workspace session subagent-stop`) resolves ITS OWN identity from
-	// os.Getwd() — so if the subprocess actually ran in the PARENT's cwd regardless of
-	// what the payload claimed, any such binary would silently see the parent's tree,
-	// not the isolated one, no matter what "cwd" the JSON stdin says. Falls back to
-	// inv.cwd only for the (should-never-happen) case of an empty input.Cwd.
+	// (see agent.go's subCwd), and a hook command that shells out to a binary resolving
+	// its identity from os.Getwd() must see that tree. Falls back to inv.cwd only for
+	// an empty input.Cwd.
 	hookCwd := input.Cwd
 	if hookCwd == "" {
 		hookCwd = inv.cwd
@@ -146,20 +150,52 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 
 	var merged Output
 	var runs []HandlerRun
-	defer func() {
-		if inv.recorder != nil && len(runs) > 0 {
-			inv.recorder(input, runs)
-		}
-	}()
+	var firstBlock error
 	for _, h := range handlers {
 		run, blockErr := inv.invoke(ctx, h, hookCwd, payload)
 		runs = append(runs, run)
 		if blockErr != nil {
-			return merged, blockErr
+			if firstBlock == nil {
+				firstBlock = blockErr
+			}
+			continue
 		}
 		mergeOutput(&merged, run.Output)
 	}
-	return merged, nil
+	if inv.recorder != nil && len(runs) > 0 {
+		inv.recorder(input, runs)
+	}
+	return merged, firstBlock
+}
+
+// BlockError is a handler that exited 2: its command and its stderr exactly as
+// it wrote it, which real Claude Code quotes as "[<command>]: <stderr>".
+type BlockError struct {
+	Command string
+	Stderr  string
+}
+
+func (e *BlockError) Error() string {
+	msg := strings.TrimSpace(e.Stderr)
+	if msg == "" {
+		msg = "hook blocked the action"
+	}
+	return "hooks: command blocked: " + msg
+}
+
+// Quoted is the text real Claude Code shows for an exit-2 block:
+// "[<command>]: <stderr>", or "No stderr output" in place of an empty stderr
+// (claude 2.1.282, the hook runner's exit-2 branch).
+func (e *BlockError) Quoted() string {
+	return QuoteBlock(e.Command, e.Stderr)
+}
+
+// QuoteBlock renders an exit-2 handler the way real Claude Code quotes it.
+func QuoteBlock(command, stderr string) string {
+	if stderr == "" {
+		stderr = "No stderr output"
+	}
+	return "[" + command + "]: " + stderr
 }
 
 func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (HandlerRun, error) {
@@ -266,11 +302,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 
 	if exitCode == 2 {
 		run.Blocked = true
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = "hook blocked the action"
-		}
-		return run, fmt.Errorf("hooks: command blocked: %s", msg)
+		return run, &BlockError{Command: h.Command, Stderr: run.Stderr}
 	}
 	if runErr != nil {
 		slog.Debug("hooks: command non-blocking error", "cmd", h.Command, "err", runErr, "stderr", stderr.String())

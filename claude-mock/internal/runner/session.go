@@ -368,98 +368,48 @@ func appendToSession(f *os.File, line []byte) {
 	f.Write([]byte{'\n'}) //nolint:errcheck
 }
 
-// subagentTranscriptPath returns the path of a subagent's sidechain transcript.
+// seedSubagentTranscript writes prompt as the first user record of the
+// sub-agent's sidechain transcript at path, and the .meta.json sidecar beside
+// it, as the real CLI does.
 //
-// The <configDir>/projects/<encoded-resolved-cwd>/ prefix and the non-alphanumeric→'-'
-// encoding are documented; the symlink resolution before encoding matches
-// sessionFilePath's own (see resolveEncodingCwd's doc — real Claude Code resolves
-// symlinks consistently, and any consumer resolving this SAME path independently — e.g.
-// a10n-workspace's StableSessionID/ResolveWorkDir, driven by the sub-agent's OWN
-// os.Getwd() (already resolved) once it walks back up to the parent project dir — must
-// land on the identical encoded directory, or transcript resolution silently fails for
-// any tool trusting a hook payload's `transcript_path` field literally). The
-// <parentSessionID>/subagents/agent-<id>.jsonl suffix is NOT documented — it is
-// replicated from the REAL claude CLI's on-disk layout (observed at
-// ~/.claude/projects/<proj>/<root>/subagents/agent-<hash>.jsonl + .meta.json during the
-// hook PoC), so the mock's transcript_path matches what real subagent hooks receive.
+// The real sub-agent transcript's first record IS the dispatch prompt — a uuid
+// with a null parentUuid, the origin every later record chains from — and every
+// record carries isSidechain and the file's agentId (a controlled 2.1.282 run
+// and every real subagents/agent-<id>.jsonl). A hook can read the prompt (e.g.
+// an embedded task id) out of it.
 //
-// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (projects/<encoded-cwd> prefix + CLAUDE_CONFIG_DIR)
-func subagentTranscriptPath(configDir, cwd, parentSessionID, agentID string) string {
-	encoded := nonAlphanumRe.ReplaceAllString(resolveEncodingCwd(cwd), "-")
-	return filepath.Join(configDir, "projects", encoded, parentSessionID, "subagents", "agent-"+agentID+".jsonl")
-}
-
-// seedSubagentTranscript writes prompt as the first user record of the subagent's
-// sidechain transcript and writes the .meta.json sidecar (agentType/worktreePath/
-// description/toolUseId, as the real CLI does), returning the transcript path.
-//
-// The real Claude subagent transcript's first record IS the dispatch prompt, and
-// the SubagentStart hook receives this path as transcript_path — so a hook can
-// read the prompt out of it (e.g. to recover an embedded `--task-id`). Returns the
-// path even on a best-effort write failure so the hook still gets a target.
-//
-// parentCwd keys the transcript's PROJECT DIR: real claude nests the subagent's
-// sidechain under the PARENT session's transcript directory (…/projects/<encoded
-// parent cwd>/<session>/subagents/…), regardless of the subagent's own worktree.
-// subCwd is what the subagent's env reports (its isolated worktree under
-// isolation="worktree", else == parentCwd); it is what lands in the record's `cwd`
-// and the meta `worktreePath`, so a hook reading the transcript sees the isolated cwd.
-//
-// toolUseId is the id of the Agent/Task tool_use in the PARENT transcript that
-// spawned this subagent. Real Claude Code records it in the .meta.json sidecar,
-// and a consumer deriving the subagent's parentPath (which parent tool_use this
-// sidechain answers) reads it — so the mock must stamp the REAL id here rather
-// than the empty string a prior version hardcoded. Empty only when the spawning
-// tool_use carried no id (e.g. a scenario that omitted one).
+// parentCwd is the session's cwd; subCwd is the sub-agent's (its isolated
+// worktree under isolation="worktree"), which the record's cwd and the
+// sidecar's worktreePath report. The sidecar carries agentType, description
+// and toolUseId, and worktreePath only for an isolated sub-agent (the
+// 2.1.282 sidecar of a plain sub-agent has none).
 //
 // sr:docs https://code.claude.com/docs/en/agent-sdk/sessions
-func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agentID, agentType, toolUseID, prompt string) string {
-	path := subagentTranscriptPath(configDir, parentCwd, parentSessionID, agentID)
+func seedSubagentTranscript(path, parentCwd, subCwd, sessionID, agentID, agentType, toolUseID, description, prompt string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return path
+		return
 	}
+	stamp := newRecordStamp(sessionID, subCwd)
+	stamp.IsSidechain, stamp.AgentID = true, agentID
 	rec := map[string]any{
-		"type":      "user",
-		"sessionId": parentSessionID,
-		// uuid + an explicit null parentUuid make this record the transcript's
-		// ORIGIN, which is what a consumer keys the sub-agent's identity by.
-		// Verified against a real Claude sub-agent transcript, whose first record
-		// carries a uuid with parentUuid null and every later record chains from
-		// it. The mock omitted the uuid, so every record in the file looked
-		// parentless-but-anonymous and no origin could be found at all — a
-		// consumer resolving a stable session id from this path got "every entry
-		// has a parent" and had to stand down, which read from the outside as a
-		// sub-agent whose cycle could not be judged.
-		"uuid":        newRecordUUID(),
-		"parentUuid":  nil,
-		"isSidechain": true,
-		// agentId mirrors the REAL Claude Code subagent transcript: every record
-		// in subagents/agent-<AGENTID>.jsonl carries a top-level agentId equal to
-		// the file's agent id. The parallel-subagent task-id attribution path
-		// (locate-task-id --agent-id) reads this field, so the mock must seed it
-		// for that deterministic path to be exercised in mock-based harnesses.
-		"agentId": agentID,
-		"cwd":     subCwd,
-		"message": map[string]any{"role": "user", "content": prompt},
+		"type":       "user",
+		"uuid":       newRecordUUID(),
+		"parentUuid": nil,
+		"message":    map[string]any{"role": "user", "content": prompt},
 	}
 	if line, err := marshalRecord(rec); err == nil {
 		if f, ferr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); ferr == nil {
-			appendToSession(f, line)
+			appendToSession(f, stampRecord(line, stamp))
 			f.Close()
 		}
 	}
-	// Best-effort .meta.json sidecar (mirrors the real layout; not all hooks read it).
-	// worktreePath is the subagent's isolated cwd when it differs from the parent
-	// (isolation="worktree"), matching the real CLI's sidecar.
-	worktreePath := ""
+	meta := map[string]any{"agentType": agentType, "description": description, "toolUseId": toolUseID}
 	if subCwd != parentCwd {
-		worktreePath = subCwd
+		meta["worktreePath"] = subCwd
 	}
-	meta := map[string]any{"agentType": agentType, "worktreePath": worktreePath, "description": "", "toolUseId": toolUseID}
 	if mb, err := json.MarshalIndent(meta, "", "  "); err == nil {
 		_ = os.WriteFile(strings.TrimSuffix(path, ".jsonl")+".meta.json", mb, 0o644)
 	}
-	return path
 }
 
 // openRunTranscript decides which file a run writes and which path its hooks
@@ -474,7 +424,7 @@ func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agent
 //     under this run's own directory, as real Claude Code does (see transcript);
 //   - anything else writes, and reports, <projects>/<encoded cwd>/<id>.jsonl.
 func openRunTranscript(cfg Config) (*transcript, error) {
-	stamp := recordStamp{SessionID: cfg.SessionID, Cwd: cfg.Cwd}
+	stamp := newRecordStamp(cfg.SessionID, cfg.Cwd)
 	if cfg.SidechainPath != "" {
 		stamp.IsSidechain = true
 		stamp.AgentID = cfg.AgentID
@@ -487,41 +437,65 @@ func openRunTranscript(cfg Config) (*transcript, error) {
 		}
 		return openTranscript(here, here, stamp)
 	}
-	if cfg.IsResume {
-		if _, err := os.Stat(here); err != nil {
-			if found := findSessionFile(cfg.ConfigDir, cfg.SessionID); found != "" {
-				return openTranscript(found, here, stamp)
-			}
+	if cfg.IsResume && !fileExists(here) {
+		if found := findSessionFile(cfg.ConfigDir, cfg.SessionID); found != "" {
+			return openTranscript(found, here, stamp)
 		}
 	}
 	return openTranscript(here, here, stamp)
 }
 
+// sessionFilePathIfExists is the transcript of sessionID — under cwd's
+// project directory, else any — or "" when there is none.
+func sessionFilePathIfExists(configDir, cwd, sessionID string) string {
+	if p := sessionFilePath(configDir, cwd, sessionID); fileExists(p) {
+		return p
+	}
+	return findSessionFile(configDir, sessionID)
+}
+
+func fileExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.Mode().IsRegular()
+}
+
 // findSessionFile returns the transcript of sessionID in any project directory
 // under configDir, or "" — how `claude --resume <id>` finds a session begun in
-// another directory.
+// another directory. An id that is not a plain file name finds nothing; when
+// more than one project directory holds the id, the most recently written
+// transcript wins.
 func findSessionFile(configDir, sessionID string) string {
+	if sessionID == "" || strings.ContainsAny(sessionID, `/\`) || sessionID == "." || sessionID == ".." {
+		return ""
+	}
 	projects := filepath.Join(configDir, "projects")
 	entries, err := os.ReadDir(projects)
 	if err != nil {
 		return ""
 	}
+	best := ""
+	var bestMod int64
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 		p := filepath.Join(projects, e.Name(), sessionID+".jsonl")
-		if _, err := os.Stat(p); err == nil {
-			return p
+		fi, err := os.Stat(p)
+		if err != nil || !fi.Mode().IsRegular() {
+			continue
+		}
+		if best == "" || fi.ModTime().UnixNano() > bestMod {
+			best, bestMod = p, fi.ModTime().UnixNano()
 		}
 	}
-	return ""
+	return best
 }
 
 // writeRootPrompt writes a FRESH session's prompt as the human turn it is,
 // chained after whatever the session has written so far — which, if a
 // SessionStart hook printed anything, is that hook's attachment. Its uuid is
-// the deterministic `e2e-root-<session>`.
+// the deterministic `e2e-root-<session>`. Like a real `claude -p` prompt it is
+// marked promptSource/turnOrigin "sdk".
 //
 // A caller that pre-seeded the transcript with that same record before the
 // mock ran (the older sloprail harness did) is honoured rather than
@@ -536,10 +510,12 @@ func writeRootPrompt(tr *transcript, sessionID, cwd, prompt string) {
 		return
 	}
 	tr.persistMap(map[string]any{
-		"type":    "user",
-		"uuid":    rootID,
-		"cwd":     cwd,
-		"message": map[string]any{"role": "user", "content": prompt},
+		"type":         "user",
+		"uuid":         rootID,
+		"cwd":          cwd,
+		"message":      map[string]any{"role": "user", "content": prompt},
+		"promptSource": "sdk",
+		"turnOrigin":   "sdk",
 	})
 }
 
@@ -554,9 +530,11 @@ func appendResumePrompt(tr *transcript, sessionID, prompt string) {
 		return
 	}
 	tr.persistMap(map[string]any{
-		"type":    "user",
-		"uuid":    newRecordUUID(),
-		"message": map[string]any{"role": "user", "content": prompt},
+		"type":         "user",
+		"uuid":         newRecordUUID(),
+		"message":      map[string]any{"role": "user", "content": prompt},
+		"promptSource": "sdk",
+		"turnOrigin":   "sdk",
 	})
 }
 
@@ -566,77 +544,51 @@ func fileHasUUID(path, uuid string) bool {
 	if err != nil {
 		return false
 	}
-	return strings.Contains(string(data), `"uuid":"`+uuid+`"`)
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.Contains(line, uuid) {
+			continue
+		}
+		var rec struct {
+			UUID string `json:"uuid"`
+		}
+		if json.Unmarshal([]byte(line), &rec) == nil && rec.UUID == uuid {
+			return true
+		}
+	}
+	return false
 }
 
 // forkTranscript writes dest as a FORK of the session fromID under the new
-// session id newID — the shape real Claude Code leaves when it continues a
-// conversation in a new transcript (`--resume <id> --fork-session`, and the
-// re-fork of a resumed, compacted session).
+// session id newID — what `--resume <id> --fork-session` leaves.
 //
-// Measured on one machine: a conversation compacted once and resumed several
-// times left one file per resume, EVERY one opening on a verbatim copy of the
-// same compact_boundary record (same uuid, same logicalParentUuid), followed by
-// copies of the records the compaction preserved — which is how each fork
-// carries the boundary's logical parent after its own root — and then its own
-// work. A conversation never compacted forks whole: two such real transcripts
-// shared 1501 of 1585 records, origin included. So:
+// Measured on claude 2.1.282 (a controlled fork) and on the real forks on one
+// machine (EVIDENCE.md):
 //
-//   - with a compact_boundary in the source, the fork is the LAST boundary,
-//     the records it lists as preserved, and every record after it;
-//   - without one, the fork is every record of the source;
+//   - A session never compacted forks whole: every record, origin included,
+//     its parentUuid unchanged, with sessionId rewritten to the fork's — as
+//     every 2.1.280+ fork on the machine did.
+//   - A compacted session forks from its LAST compact_boundary: a verbatim copy
+//     of the boundary (same uuid and logicalParentUuid; sessionId rewritten),
+//     then what follows it up to and including the summary, then the records
+//     the boundary lists as preserved — re-parented into one chain after the
+//     summary — then everything after the summary, the first of it re-parented
+//     onto the last preserved record. That is the order of all 19 real
+//     transcripts that open on a compact_boundary.
 //
-// with sessionId rewritten to the new id (real forks carry their own), and the
-// preamble a fresh file opens with.
+// The source file is only read.
 func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
-	if _, err := os.Stat(dest); err == nil {
+	if fileExists(dest) {
 		return fmt.Errorf("fork: %s already exists", dest)
 	}
-	src := sessionFilePath(configDir, cwd, fromID)
-	if _, err := os.Stat(src); err != nil {
-		src = findSessionFile(configDir, fromID)
-	}
+	src := sessionFilePathIfExists(configDir, cwd, fromID)
 	if src == "" {
-		return fmt.Errorf("fork: No conversation found with session ID: %s", fromID)
+		return &ErrNoConversation{SessionID: fromID}
 	}
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return fmt.Errorf("fork: %w", err)
 	}
-	var recs []map[string]any
-	for _, line := range strings.Split(string(data), "\n") {
-		var rec map[string]any
-		if json.Unmarshal([]byte(strings.TrimSpace(line)), &rec) != nil || rec == nil {
-			continue
-		}
-		if u, _ := rec["uuid"].(string); u == "" {
-			continue // bookkeeping, not part of the conversation
-		}
-		recs = append(recs, rec)
-	}
-	start := 0
-	for i, rec := range recs {
-		if rec["type"] == "system" && rec["subtype"] == "compact_boundary" {
-			start = i
-		}
-	}
-	segment := []map[string]any{}
-	if start > 0 || (len(recs) > 0 && recs[0]["subtype"] == "compact_boundary") {
-		boundary := recs[start]
-		segment = append(segment, boundary)
-		byUUID := map[string]map[string]any{}
-		for _, rec := range recs[:start] {
-			byUUID[rec["uuid"].(string)] = rec
-		}
-		for _, u := range preservedUUIDs(boundary) {
-			if rec, ok := byUUID[u]; ok {
-				segment = append(segment, rec)
-			}
-		}
-		segment = append(segment, recs[start+1:]...)
-	} else {
-		segment = recs
-	}
+	segment := forkSegment(data)
 
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
@@ -656,6 +608,71 @@ func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
 	return os.WriteFile(dest, buf, 0o644)
 }
 
+// forkSegment is the records of a transcript a fork carries, in fork order
+// (see forkTranscript). Records without a uuid are bookkeeping and dropped.
+func forkSegment(data []byte) []map[string]any {
+	var recs []map[string]any
+	for _, line := range strings.Split(string(data), "\n") {
+		var rec map[string]any
+		if json.Unmarshal([]byte(strings.TrimSpace(line)), &rec) != nil || rec == nil {
+			continue
+		}
+		if u, _ := rec["uuid"].(string); u == "" {
+			continue
+		}
+		recs = append(recs, rec)
+	}
+	start := -1
+	for i, rec := range recs {
+		if rec["type"] == "system" && rec["subtype"] == "compact_boundary" {
+			start = i
+		}
+	}
+	if start < 0 {
+		return recs
+	}
+	boundary := recs[start]
+	byUUID := map[string]map[string]any{}
+	for _, rec := range recs[:start] {
+		byUUID[rec["uuid"].(string)] = rec
+	}
+	var preserved []map[string]any
+	for _, u := range preservedUUIDs(boundary) {
+		if rec, ok := byUUID[u]; ok {
+			preserved = append(preserved, rec)
+		}
+	}
+	after := recs[start+1:]
+	summaryAt := -1
+	for i, rec := range after {
+		if v, _ := rec["isCompactSummary"].(bool); v {
+			summaryAt = i
+			break
+		}
+	}
+	segment := []map[string]any{boundary}
+	head := boundary
+	if summaryAt >= 0 {
+		segment = append(segment, after[:summaryAt+1]...)
+		head = after[summaryAt]
+		after = after[summaryAt+1:]
+	}
+	prev := head["uuid"]
+	for _, rec := range preserved {
+		rec["parentUuid"] = prev
+		prev = rec["uuid"]
+		segment = append(segment, rec)
+	}
+	if len(preserved) > 0 && len(after) > 0 {
+		after[0]["parentUuid"] = prev
+	}
+	return append(segment, after...)
+}
+
+// NewSessionID returns a fresh session id, the shape real Claude Code uses (a
+// v4 uuid).
+func NewSessionID() string { return newRecordUUID() }
+
 // preservedUUIDs is the list of records a compact_boundary says the
 // compaction kept, in order.
 func preservedUUIDs(boundary map[string]any) []string {
@@ -670,7 +687,3 @@ func preservedUUIDs(boundary map[string]any) []string {
 	}
 	return out
 }
-
-// NewSessionID returns a fresh session id, the shape real Claude Code uses (a
-// v4 uuid).
-func NewSessionID() string { return newRecordUUID() }

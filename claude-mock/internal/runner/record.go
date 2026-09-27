@@ -56,6 +56,13 @@ type cliRecord struct {
 	// writes — so a scenario that marks each turn by an id it can find in the
 	// transcript afterwards (the sloprail harness does) can see this one fired.
 	ID string `json:"id,omitempty"`
+	// Trigger ("auto" | "manual", default auto), Preserve (how many of the
+	// last records the compaction keeps, default defaultPreserved) and
+	// PreTokens (compactMetadata.preTokens; the mock spends no tokens, so 0
+	// unless the scenario says) shape the compaction.
+	Trigger   string `json:"trigger,omitempty"`
+	Preserve  *int   `json:"preserve,omitempty"`
+	PreTokens int    `json:"pre_tokens,omitempty"`
 }
 
 // knownTypes lists all valid JSONL record types emitted by Claude Code stream-json
@@ -172,25 +179,28 @@ func extractFirstToolUse(line []byte) (toolName string, toolInput json.RawMessag
 	return name, input
 }
 
-// extractFirstToolResult finds the first tool_result content block in a user line.
-// Returns ("", nil) if there is none.
-func extractFirstToolResult(line []byte) (toolName string, toolOutput json.RawMessage) {
+// extractFirstToolResult finds the first tool_result content block in a user
+// line: the tool_use_id it answers, the tool name when the scenario put one on
+// the block (a real tool_result names no tool — the caller then looks the id
+// up), and its content. All empty if there is none.
+func extractFirstToolResult(line []byte) (toolUseID, toolName string, toolOutput json.RawMessage) {
 	var rec struct {
 		Message *struct {
 			Content []struct {
-				Type    string          `json:"type"`
-				Name    string          `json:"name"`
-				Content json.RawMessage `json:"content"`
+				Type      string          `json:"type"`
+				ToolUseID string          `json:"tool_use_id"`
+				Name      string          `json:"name"`
+				Content   json.RawMessage `json:"content"`
 			} `json:"content"`
 		} `json:"message"`
 	}
 	if err := json.Unmarshal(line, &rec); err != nil || rec.Message == nil {
-		return "", nil
+		return "", "", nil
 	}
 	for _, block := range rec.Message.Content {
-		if block.Type == "tool_result" && block.Name != "" {
-			return block.Name, block.Content
+		if block.Type == "tool_result" {
+			return block.ToolUseID, block.Name, block.Content
 		}
 	}
-	return "", nil
+	return "", "", nil
 }
