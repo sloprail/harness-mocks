@@ -52,6 +52,10 @@ type cliRecord struct {
 	// scenario reproduces that.
 	LogicalParent string `json:"logical_parent,omitempty"`
 	Summary       string `json:"summary,omitempty"`
+	// ID, on a compact control record, is carried onto the summary record it
+	// writes — so a scenario that marks each turn by an id it can find in the
+	// transcript afterwards (the sloprail harness does) can see this one fired.
+	ID string `json:"id,omitempty"`
 }
 
 // knownTypes lists all valid JSONL record types emitted by Claude Code stream-json

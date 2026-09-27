@@ -32,10 +32,14 @@ func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg C
 		if summary == "" {
 			summary = "This session is being continued from a previous conversation that ran out of context."
 		}
-		sumLine, _ := marshalRecord(map[string]any{
+		sumRec := map[string]any{
 			"type": "user", "isCompactSummary": true,
 			"message": map[string]any{"role": "user", "content": summary},
-		})
+		}
+		if rec.ID != "" {
+			sumRec["id"] = rec.ID
+		}
+		sumLine, _ := marshalRecord(sumRec)
 		cfg.Out.Write(sumLine)      //nolint:errcheck
 		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
 		tr.persist(sumLine)
