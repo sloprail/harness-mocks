@@ -175,7 +175,10 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 	case isScheduleWakeupTool(pending.ToolName):
 		res = runScheduleWakeupTool(pending.ToolInput)
 	default:
-		res = toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd)
+		// cfg.SessionID is the session the Bash tool exports as CLAUDE_CODE_SESSION_ID.
+		// A subagent's nested run carries the PARENT's session id (runSubagent), the
+		// same id its hooks get — real claude shares one session_id across subagents.
+		res = toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd, cfg.SessionID)
 	}
 
 	// Synthesise and emit the tool_result user record.

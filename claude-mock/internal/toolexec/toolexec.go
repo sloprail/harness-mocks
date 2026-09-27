@@ -32,12 +32,14 @@ type Result struct {
 
 // Execute runs the named tool with the given JSON input and returns its result.
 // cwd is the working directory for tools that operate on the filesystem.
+// sessionID is the active session id; the Bash tool exports it to its subprocess
+// as CLAUDE_CODE_SESSION_ID, as real Claude Code does (see executeBash).
 //
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-overview
-func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd string) Result {
+func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd, sessionID string) Result {
 	switch toolName {
 	case "Bash":
-		return executeBash(ctx, input, cwd)
+		return executeBash(ctx, input, cwd, sessionID)
 	case "Read":
 		return executeRead(input, cwd)
 	case "Write":
@@ -61,7 +63,7 @@ type bashInput struct {
 	Timeout int    `json:"timeout,omitempty"`
 }
 
-func executeBash(ctx context.Context, raw json.RawMessage, cwd string) Result {
+func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string) Result {
 	var inp bashInput
 	if err := json.Unmarshal(raw, &inp); err != nil || inp.Command == "" {
 		return Result{Output: "Bash: missing or invalid 'command' field", IsError: true}
@@ -69,12 +71,29 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd string) Result {
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", inp.Command) //nolint:gosec
 	cmd.Dir = cwd
+	cmd.Env = bashEnv(sessionID)
 	out, err := cmd.CombinedOutput()
 	text := strings.TrimRight(string(out), "\n")
 	if err != nil {
 		return Result{Output: text + "\n" + err.Error(), IsError: true}
 	}
 	return Result{Output: text}
+}
+
+// bashEnv is the environment a Bash tool subprocess runs with: the mock's own
+// environment plus CLAUDE_CODE_SESSION_ID, which real Claude Code exports into
+// every Bash tool subprocess so a command can resolve "the current session"
+// (e.g. `sr-session trajectory cite`). The override is appended LAST so it wins
+// over any inherited value — without it, a mock run nested inside a live Claude
+// Code session would hand its tool calls the OPERATOR's outer session id. Set
+// only when non-empty, matching the hook invoker (hooks/invoker.go).
+func bashEnv(sessionID string) []string {
+	env := os.Environ()
+	if sessionID != "" {
+		// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
+		env = append(env, "CLAUDE_CODE_SESSION_ID="+sessionID)
+	}
+	return env
 }
 
 // readInput is the argument shape for the Read tool.
