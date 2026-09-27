@@ -21,6 +21,7 @@ const (
 	flagConfigDir      = "config-dir"
 	flagPluginCacheDir = "plugin-cache-dir"
 	flagPrint          = "print"
+	flagForkSession    = "fork-session"
 )
 
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
@@ -29,6 +30,12 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagScript, "", "Shell script to run as the mock agent (env: A10N_MOCK_SCRIPT)")
 	cmd.Flags().String(flagSessionID, "", "Session ID (--session-id, as used by claude CLI)")
 	cmd.Flags().String(flagResume, "", "Session ID to resume (--resume, as used by claude CLI)")
+	// --fork-session: when resuming, continue under a NEW session id in a new
+	// transcript instead of appending to the original. The new id is
+	// --session-id when given, else generated. See runner.forkTranscript for the
+	// transcript shape a fork leaves.
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--fork-session
+	cmd.Flags().Bool(flagForkSession, false, "With --resume: continue in a new session id and transcript")
 	cmd.Flags().String(flagOutputFormat, "stream-json", "Output format (must be stream-json)")
 	cmd.Flags().String(flagProjectDir, "", "Project root for settings.json resolution (default: cwd)")
 	cmd.Flags().String(flagConfigDir, "", "Claude config dir for session JSONL storage (env: CLAUDE_CONFIG_DIR, default: /tmp/a10n/claude-mock)")
@@ -125,10 +132,21 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 
 	sessionID, _ := cmd.Flags().GetString(flagSessionID)
 	resumeID, _ := cmd.Flags().GetString(flagResume)
+	forkSession, _ := cmd.Flags().GetBool(flagForkSession)
 	isResume := false
+	forkFrom := ""
 
-	// Normalise: --resume takes precedence and sets isResume.
-	if resumeID != "" {
+	// Normalise: --resume takes precedence and sets isResume — except with
+	// --fork-session, where the resumed id is what is continued FROM and the
+	// session runs under --session-id (or a fresh id).
+	switch {
+	case resumeID != "" && forkSession:
+		forkFrom = resumeID
+		isResume = true
+		if sessionID == "" {
+			sessionID = runner.NewSessionID()
+		}
+	case resumeID != "":
 		sessionID = resumeID
 		isResume = true
 	}
@@ -184,6 +202,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		ScriptPath:     scriptPath,
 		SessionID:      sessionID,
 		IsResume:       isResume,
+		ForkFrom:       forkFrom,
 		Prompt:         prompt,
 		Cwd:            cwd,
 		ProjectDir:     projectDir,

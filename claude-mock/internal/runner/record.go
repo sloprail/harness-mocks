@@ -44,6 +44,14 @@ type cliRecord struct {
 	//   {"type":"subagent_start","agent_type":"claude"}
 	WorktreeName string `json:"worktree_name,omitempty"`
 	AgentType    string `json:"agent_type,omitempty"`
+
+	//   {"type":"compact"[,"logical_parent":"<uuid>"][,"summary":"…"]}
+	// LogicalParent overrides the boundary's logicalParentUuid — by default the
+	// last record written. Real preserved-segment compactions have named a
+	// logical parent that was never written to any transcript; this is how a
+	// scenario reproduces that.
+	LogicalParent string `json:"logical_parent,omitempty"`
+	Summary       string `json:"summary,omitempty"`
 }
 
 // knownTypes lists all valid JSONL record types emitted by Claude Code stream-json
@@ -58,6 +66,7 @@ var knownTypes = map[string]bool{
 	"worktree_create": true,
 	"worktree_remove": true,
 	"subagent_start":  true,
+	"compact":         true,
 }
 
 // validateRecord ensures the JSONL line is parseable JSON with a non-empty "type"

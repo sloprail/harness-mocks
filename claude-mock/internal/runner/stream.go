@@ -39,19 +39,20 @@ import (
 // error instead of a hang.
 const maxIdenticalTurns = 5
 
-func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
-	// One chained writer for the whole run: every FILE record persisted below chains
-	// from the one before it (real-CC shape — see sessionWriter). The chain seeds from
-	// the last uuid already on disk, so a resume or a nested sub-agent run re-opening
-	// the parent transcript continues the existing chain. The STDOUT stream is written
-	// directly with cfg.Out and is NOT chained (it must stay the mock's claude stream).
-	sw := newSessionWriter(sessionFile)
+func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
+	// Every FILE record persisted below goes through tr, which chains it from the
+	// one before it (real-CC shape — see sessionWriter). The chain seeds from the
+	// last uuid already on disk, so a resume continues the existing chain. The
+	// STDOUT stream is written directly with cfg.Out and is NOT chained (it must
+	// stay the mock's claude stream).
+	bg := newBackgroundTasks(cfg, tr)
+	defer bg.wait()
 	var lastSig string
 	var repeats int
 	var stopBlocks int
 	blockCap := stopHookBlockCap()
 	for {
-		done, sig, err := runOneTurnSig(ctx, cfg, inv, sessionFile, sw)
+		done, sig, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
 		if err != nil {
 			return err
 		}
@@ -70,16 +71,25 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 			// attachment (so the next turn can read the reason/links), and if it blocked, LOOP again
 			// instead of returning — bounded by the Stop-hook block cap. runner.go fires Stop only
 			// on the error path (this owns the success path).
+			// A background task that finished while the agent worked is delivered
+			// before the turn is judged over: real Claude Code wakes the agent
+			// with a <task-notification> turn, so the agent is not done yet.
+			if bg.deliverFinished(true) {
+				lastSig = ""
+				repeats = 0
+				continue
+			}
 			stopOut, stopErr := inv.Fire(ctx, hooks.Input{
 				SessionID:      cfg.SessionID,
 				Cwd:            cfg.Cwd,
-				TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
 				HookEventName:  hooks.EventStop,
 				StopReason:     "end_turn",
+				StopHookActive: stopBlocks > 0,
 			})
 			blocked := stopErr != nil || stopOut.Decision == "block"
 			if blocked {
-				emitStopHookAttachment(sessionFile, "Stop", stopOut, stopErr)
+				// Its feedback and attachment are written as it fires
+				// (transcript.recordHookRuns).
 				stopBlocks++
 				if blockCap > 0 && stopBlocks >= blockCap {
 					// Stop kept blocking — give up (matches the real block-cap backstop).
@@ -110,10 +120,15 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 //   - (false, sig, nil)  when a tool_use was executed; script should be re-run.
 //     sig is the pending tool_use signature (name+input) for the loop guard.
 //   - (false, "",  err)  on any error
-func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File, sw *sessionWriter) (done bool, sig string, err error) {
+func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, bg *backgroundTasks) (done bool, sig string, err error) {
+	// Deliver what finished in the background since the last turn, so this turn's
+	// script reads the notification in the transcript — the way real Claude Code
+	// hands a completed task back to the agent.
+	bg.deliverFinished(false)
+
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
 	cmd.Dir = cfg.Cwd
-	cmd.Env = buildEnv(cfg, sessionFile)
+	cmd.Env = buildEnv(cfg, tr)
 	cmd.Stderr = cfg.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -124,7 +139,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 		return false, "", fmt.Errorf("claude-mock: start script: %w", err)
 	}
 
-	pending, done, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, sessionFile, sw)
+	pending, done, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, tr)
 	waitErr := cmd.Wait()
 
 	if scanErr != nil {
@@ -149,7 +164,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 			Output:  "Tool call blocked by a PreToolUse hook: " + pending.BlockReason,
 			IsError: true,
 		}
-		if err := emitToolResult(cfg, pending, blockRes, sw); err != nil {
+		if err := emitToolResult(cfg, pending, blockRes, tr); err != nil {
 			return false, "", err
 		}
 		return false, "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), nil
@@ -170,10 +185,16 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 	// sr:docs https://code.claude.com/docs/en/sub-agents
 	var res toolexec.Result
 	switch {
+	case isAgentTool(pending.ToolName) && runsInBackground(pending.ToolInput):
+		res = bg.launchAgent(ctx, inv, pending.ToolUseID, pending.ToolInput)
 	case isAgentTool(pending.ToolName):
-		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, sessionFile)
+		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isScheduleWakeupTool(pending.ToolName):
 		res = runScheduleWakeupTool(pending.ToolInput)
+	case pending.ToolName == "Bash" && runsInBackground(pending.ToolInput):
+		res = bg.launchBash(ctx, pending.ToolUseID, pending.ToolInput)
+	case pending.ToolName == "TaskOutput":
+		res = bg.output(ctx, pending.ToolInput)
 	default:
 		// cfg.SessionID is the session the Bash tool exports as CLAUDE_CODE_SESSION_ID.
 		// A subagent's nested run carries the PARENT's session id (runSubagent), the
@@ -183,18 +204,19 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 
 	// Synthesise and emit the tool_result user record.
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
-	if err := emitToolResult(cfg, pending, res, sw); err != nil {
+	if err := emitToolResult(cfg, pending, res, tr); err != nil {
 		return false, "", err
 	}
 
 	// PostToolUse for the synthesised result.
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
-	rawResult, _ := json.Marshal(res.Output)
+	rawResult, _ := marshalRecord(res.Output)
 	_, _ = inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventPostToolUse,
 		ToolName:      pending.ToolName,
+		ToolUseID:     pending.ToolUseID,
 		ToolInput:     pending.ToolInput,
 		ToolOutput:    rawResult,
 	})
@@ -223,7 +245,7 @@ type pendingToolUse struct {
 // Returns (pending, done, err):
 //   - done=true when a result frame is seen
 //   - pending set when a tool_use was encountered (caller should execute + re-run)
-func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, sessionFile *os.File, sw *sessionWriter) (pending pendingToolUse, done bool, err error) {
+func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, tr *transcript) (pending pendingToolUse, done bool, err error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 
@@ -240,7 +262,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		}
 
 		// Control records: fire hooks, do NOT forward to stdout or session.
-		if handled, err := handleControlRecord(ctx, rec, cfg, inv); err != nil {
+		if handled, err := handleControlRecord(ctx, rec, line, cfg, inv, tr); err != nil {
 			return pendingToolUse{}, false, err
 		} else if handled {
 			continue
@@ -257,7 +279,11 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.IsCompactSummary {
 			cfg.Out.Write(line)         //nolint:errcheck
 			cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-			sw.persist(line)
+			// Real Claude Code opens a compaction with a compact_boundary record —
+			// parentless, naming the last record before it as its logical parent —
+			// and chains the summary to it. See writeCompactBoundary.
+			writeCompactBoundary(tr, "", 1)
+			tr.persist(line)
 			if _, err := fireSessionStart(ctx, cfg, inv, "compact"); err != nil {
 				return pendingToolUse{}, false, fmt.Errorf("claude-mock: SessionStart (compact) hook blocked: %w", err)
 			}
@@ -269,12 +295,21 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
+				// Forward the assistant record + append to session BEFORE the hook
+				// fires — real Claude Code writes the tool_use first and the
+				// PreToolUse hook's attachment after it, and the tool_use is part
+				// of the trajectory whatever the hook decides.
+				cfg.Out.Write(line)         //nolint:errcheck
+				cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+				tr.persist(line)
+
 				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
 					AgentID:       cfg.AgentID,
 					Cwd:           cfg.Cwd,
 					HookEventName: hooks.EventPreToolUse,
 					ToolName:      toolName,
+					ToolUseID:     toolUseID,
 					ToolInput:     toolInput,
 				})
 				if hookErr != nil {
@@ -283,12 +318,6 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				}
 				denied := hookOut.Decision == "block" ||
 					(hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecision == "deny")
-
-				// Forward the assistant record + append to session BEFORE deciding the
-				// tool's fate — the tool_use is part of the trajectory either way.
-				cfg.Out.Write(line)         //nolint:errcheck
-				cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-				sw.persist(line)
 
 				if denied {
 					// Real Claude Code contract (empirically verified, STEP 0): a
@@ -332,7 +361,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		// the transcript ends at the last assistant/tool_result record. So stream it
 		// (above) but do NOT persist it. Every other record is chained into the file.
 		if rec.Type != "result" {
-			sw.persist(line)
+			tr.persist(line)
 		}
 
 		// PostToolUse for inline tool_result blocks (static scripts).
@@ -383,10 +412,14 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 // CLAUDE_CONFIG_DIR is set to the same dir so that tooling that reads Claude
 // Code config also finds the mock's session files.
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
-func buildEnv(cfg Config, sessionFile *os.File) []string {
+func buildEnv(cfg Config, tr *transcript) []string {
 	sessionPath := ""
-	if sessionFile != nil {
-		sessionPath = sessionFile.Name()
+	if tr != nil {
+		// Opened (and created) here if nothing has been written yet: the script
+		// reads history from it, and a script run always follows the prompt.
+		if f := tr.file(); f != nil {
+			sessionPath = f.Name()
+		}
 	}
 	return append(os.Environ(),
 		// CLAUDE_CODE_SESSION_ID mirrors the real claude CLI, which exports the active
@@ -413,10 +446,10 @@ func buildEnv(cfg Config, sessionFile *os.File) []string {
 // transcript uuid; the FILE is where the chained identity lives).
 //
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
-func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sw *sessionWriter) error {
+func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *transcript) error {
 	content := res.Output
 	if res.IsError {
-		blocks, _ := json.Marshal([]map[string]string{
+		blocks, _ := marshalRecord([]map[string]string{
 			{"type": "text", "text": res.Output},
 		})
 		content = string(blocks)
@@ -437,12 +470,22 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sw *se
 		},
 	}
 
-	line, err := json.Marshal(record)
+	line, err := marshalRecord(record)
 	if err != nil {
 		return fmt.Errorf("claude-mock: marshal tool_result: %w", err)
 	}
 	cfg.Out.Write(line)         //nolint:errcheck
 	cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-	sw.persist(line)
+
+	// The FILE copy carries what real Claude Code puts beside a tool_result:
+	// toolUseResult, the tool's structured result (a background launch's
+	// backgroundTaskId, an async agent's agentId), where the tool gives one.
+	if res.ToolUseResult != nil {
+		record["toolUseResult"] = res.ToolUseResult
+		if withResult, err := marshalRecord(record); err == nil {
+			line = withResult
+		}
+	}
+	tr.persist(line)
 	return nil
 }

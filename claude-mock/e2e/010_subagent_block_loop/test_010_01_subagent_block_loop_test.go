@@ -325,8 +325,13 @@ exit 0`)
 }
 
 // TestT010_07_BlockedSubagentStopSurfacesAsAttachment: a SubagentStop hook's
-// refusal must reach the session transcript as a hook_blocking_error attachment
-// carrying its TEXT — the same channel the root's Stop already uses.
+// refusal must reach the SUB-AGENT's transcript as a hook_blocking_error
+// attachment carrying its TEXT, preceded by the "Stop hook feedback" turn — the
+// same channel the root's Stop uses in the session's own file. Real Claude Code
+// writes a SubagentStop's feedback and attachment into the sub-agent's
+// subagents/agent-<id>.jsonl: every SubagentStop attachment in the real
+// transcripts on one machine (40 files) is in a sidechain file, none in a main
+// one.
 //
 // The re-run loop alone is not an observable consequence for anything outside
 // the mock. It changes how many times the subagent script runs, which only the
@@ -383,7 +388,12 @@ exit 0`,
 			require.GreaterOrEqual(t, runCount(t, counter), 2,
 				"the hook blocked, so the subagent turn must have been re-run")
 
-			transcript := readTranscript(t, configDir, dir, "sess-stop-attach")
+			main := readTranscript(t, configDir, dir, "sess-stop-attach")
+			assert.NotContains(t, main, `"hookEvent":"SubagentStop"`,
+				"a SubagentStop's attachment belongs to the sub-agent's own file, not the dispatcher's")
+			transcript := readSidechains(t, configDir, dir, "sess-stop-attach")
+			assert.Contains(t, transcript, `Stop hook feedback:\n`+tc.want,
+				"the re-run sub-agent reads the refusal as a Stop hook feedback turn")
 			assert.Contains(t, transcript, "hook_blocking_error",
 				"a blocked SubagentStop must be recorded as a hook_blocking_error attachment, as a blocked Stop already is")
 			assert.Contains(t, transcript, `"hookEvent":"SubagentStop"`,
@@ -444,6 +454,21 @@ func readTranscript(t *testing.T, configDir, projDir, sessionID string) string {
 	path := filepath.Join(configDir, "projects", encoded, sessionID+".jsonl")
 	require.FileExists(t, path, "the dispatching session's transcript must exist")
 	return readFile(t, path)
+}
+
+// readSidechains concatenates every sub-agent transcript of a session.
+func readSidechains(t *testing.T, configDir, projDir, sessionID string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(projDir)
+	require.NoError(t, err, "resolve project dir")
+	encoded := regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(resolved, "-")
+	paths, _ := filepath.Glob(filepath.Join(configDir, "projects", encoded, sessionID, "subagents", "agent-*.jsonl"))
+	require.NotEmpty(t, paths, "the sub-agent's own transcript must exist")
+	var all string
+	for _, p := range paths {
+		all += readFile(t, p)
+	}
+	return all
 }
 
 // --- shared helpers ---

@@ -110,7 +110,7 @@ func seedRootPromptTranscript(f *os.File, sessionID, cwd, prompt string) {
 		"cwd":        cwd,
 		"message":    map[string]any{"role": "user", "content": prompt},
 	}
-	if line, err := json.Marshal(rec); err == nil {
+	if line, err := marshalRecord(rec); err == nil {
 		appendToSession(f, line)
 	}
 }
@@ -155,7 +155,7 @@ func mockPreambleRecords(sessionID string) [][]byte {
 	}
 	var out [][]byte
 	for _, r := range recs {
-		if line, err := json.Marshal(r); err == nil {
+		if line, err := marshalRecord(r); err == nil {
 			out = append(out, line)
 		}
 	}
@@ -290,7 +290,7 @@ func appendResumePromptTranscript(f *os.File, sessionID, cwd, prompt string) {
 		"cwd":        cwd,
 		"message":    map[string]any{"role": "user", "content": prompt},
 	}
-	if line, err := json.Marshal(rec); err == nil {
+	if line, err := marshalRecord(rec); err == nil {
 		appendToSession(f, line)
 	}
 }
@@ -442,7 +442,7 @@ func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agent
 		"cwd":     subCwd,
 		"message": map[string]any{"role": "user", "content": prompt},
 	}
-	if line, err := json.Marshal(rec); err == nil {
+	if line, err := marshalRecord(rec); err == nil {
 		if f, ferr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); ferr == nil {
 			appendToSession(f, line)
 			f.Close()
@@ -461,3 +461,216 @@ func seedSubagentTranscript(configDir, parentCwd, subCwd, parentSessionID, agent
 	}
 	return path
 }
+
+// openRunTranscript decides which file a run writes and which path its hooks
+// are told about:
+//
+//   - a nested SUB-AGENT run writes the sub-agent's own sidechain file and
+//     reports the PARENT's transcript_path (the sub-agent is named by agent_id);
+//   - a FORK (--resume <old> --fork-session) writes a new file under this run's
+//     own session id, seeded by forkTranscript;
+//   - a RESUME writes the session's existing file — found in whichever project
+//     directory holds it, when that is not this run's — and reports the path
+//     under this run's own directory, as real Claude Code does (see transcript);
+//   - anything else writes, and reports, <projects>/<encoded cwd>/<id>.jsonl.
+func openRunTranscript(cfg Config) (*transcript, error) {
+	stamp := recordStamp{SessionID: cfg.SessionID, Cwd: cfg.Cwd}
+	if cfg.SidechainPath != "" {
+		stamp.IsSidechain = true
+		stamp.AgentID = cfg.AgentID
+		return openTranscript(cfg.SidechainPath, cfg.ParentTranscriptPath, stamp)
+	}
+	here := sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID)
+	if cfg.ForkFrom != "" {
+		if err := forkTranscript(cfg.ConfigDir, cfg.Cwd, cfg.ForkFrom, here, cfg.SessionID); err != nil {
+			return nil, err
+		}
+		return openTranscript(here, here, stamp)
+	}
+	if cfg.IsResume {
+		if _, err := os.Stat(here); err != nil {
+			if found := findSessionFile(cfg.ConfigDir, cfg.SessionID); found != "" {
+				return openTranscript(found, here, stamp)
+			}
+		}
+	}
+	return openTranscript(here, here, stamp)
+}
+
+// findSessionFile returns the transcript of sessionID in any project directory
+// under configDir, or "" — how `claude --resume <id>` finds a session begun in
+// another directory.
+func findSessionFile(configDir, sessionID string) string {
+	projects := filepath.Join(configDir, "projects")
+	entries, err := os.ReadDir(projects)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		p := filepath.Join(projects, e.Name(), sessionID+".jsonl")
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+// writeRootPrompt writes a FRESH session's prompt as the human turn it is,
+// chained after whatever the session has written so far — which, if a
+// SessionStart hook printed anything, is that hook's attachment. Its uuid is
+// the deterministic `e2e-root-<session>`.
+//
+// A caller that pre-seeded the transcript with that same record before the
+// mock ran (the older sloprail harness did) is honoured rather than
+// duplicated: the record is left where it is and the preamble put ahead of it.
+func writeRootPrompt(tr *transcript, sessionID, cwd, prompt string) {
+	if prompt == "" {
+		return
+	}
+	rootID := "e2e-root-" + sessionID
+	if tr.exists() && fileHasUUID(tr.path, rootID) {
+		seedPreamble(tr.file(), sessionID)
+		return
+	}
+	tr.persistMap(map[string]any{
+		"type":    "user",
+		"uuid":    rootID,
+		"cwd":     cwd,
+		"message": map[string]any{"role": "user", "content": prompt},
+	})
+}
+
+// appendResumePrompt writes a RESUME's prompt as the next human turn, chained
+// to the last record on disk. A re-entry that already wrote this prompt as the
+// last human turn is not written twice.
+func appendResumePrompt(tr *transcript, sessionID, prompt string) {
+	if prompt == "" {
+		return
+	}
+	if _, last := scanTranscriptTail(tr.path); last == prompt {
+		return
+	}
+	tr.persistMap(map[string]any{
+		"type":    "user",
+		"uuid":    newRecordUUID(),
+		"message": map[string]any{"role": "user", "content": prompt},
+	})
+}
+
+// fileHasUUID reports whether any record in path has uuid as its own.
+func fileHasUUID(path, uuid string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(data), `"uuid":"`+uuid+`"`)
+}
+
+// forkTranscript writes dest as a FORK of the session fromID under the new
+// session id newID — the shape real Claude Code leaves when it continues a
+// conversation in a new transcript (`--resume <id> --fork-session`, and the
+// re-fork of a resumed, compacted session).
+//
+// Measured on one machine: a conversation compacted once and resumed several
+// times left one file per resume, EVERY one opening on a verbatim copy of the
+// same compact_boundary record (same uuid, same logicalParentUuid), followed by
+// copies of the records the compaction preserved — which is how each fork
+// carries the boundary's logical parent after its own root — and then its own
+// work. A conversation never compacted forks whole: two such real transcripts
+// shared 1501 of 1585 records, origin included. So:
+//
+//   - with a compact_boundary in the source, the fork is the LAST boundary,
+//     the records it lists as preserved, and every record after it;
+//   - without one, the fork is every record of the source;
+//
+// with sessionId rewritten to the new id (real forks carry their own), and the
+// preamble a fresh file opens with.
+func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
+	if _, err := os.Stat(dest); err == nil {
+		return fmt.Errorf("fork: %s already exists", dest)
+	}
+	src := sessionFilePath(configDir, cwd, fromID)
+	if _, err := os.Stat(src); err != nil {
+		src = findSessionFile(configDir, fromID)
+	}
+	if src == "" {
+		return fmt.Errorf("fork: No conversation found with session ID: %s", fromID)
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("fork: %w", err)
+	}
+	var recs []map[string]any
+	for _, line := range strings.Split(string(data), "\n") {
+		var rec map[string]any
+		if json.Unmarshal([]byte(strings.TrimSpace(line)), &rec) != nil || rec == nil {
+			continue
+		}
+		if u, _ := rec["uuid"].(string); u == "" {
+			continue // bookkeeping, not part of the conversation
+		}
+		recs = append(recs, rec)
+	}
+	start := 0
+	for i, rec := range recs {
+		if rec["type"] == "system" && rec["subtype"] == "compact_boundary" {
+			start = i
+		}
+	}
+	segment := []map[string]any{}
+	if start > 0 || (len(recs) > 0 && recs[0]["subtype"] == "compact_boundary") {
+		boundary := recs[start]
+		segment = append(segment, boundary)
+		byUUID := map[string]map[string]any{}
+		for _, rec := range recs[:start] {
+			byUUID[rec["uuid"].(string)] = rec
+		}
+		for _, u := range preservedUUIDs(boundary) {
+			if rec, ok := byUUID[u]; ok {
+				segment = append(segment, rec)
+			}
+		}
+		segment = append(segment, recs[start+1:]...)
+	} else {
+		segment = recs
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	var buf []byte
+	for _, line := range mockPreambleRecords(newID) {
+		buf = append(append(buf, line...), '\n')
+	}
+	for _, rec := range segment {
+		rec["sessionId"] = newID
+		b, err := marshalRecord(rec)
+		if err != nil {
+			continue
+		}
+		buf = append(append(buf, b...), '\n')
+	}
+	return os.WriteFile(dest, buf, 0o644)
+}
+
+// preservedUUIDs is the list of records a compact_boundary says the
+// compaction kept, in order.
+func preservedUUIDs(boundary map[string]any) []string {
+	meta, _ := boundary["compactMetadata"].(map[string]any)
+	pm, _ := meta["preservedMessages"].(map[string]any)
+	raw, _ := pm["uuids"].([]any)
+	var out []string
+	for _, v := range raw {
+		if s, ok := v.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// NewSessionID returns a fresh session id, the shape real Claude Code uses (a
+// v4 uuid).
+func NewSessionID() string { return newRecordUUID() }

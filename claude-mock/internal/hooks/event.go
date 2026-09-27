@@ -64,7 +64,12 @@ type Input struct {
 	StopHookActive bool `json:"stop_hook_active,omitempty"`
 
 	// PreToolUse / PostToolUse
-	ToolName   string          `json:"tool_name,omitempty"`
+	ToolName string `json:"tool_name,omitempty"`
+	// ToolUseID is the id of the tool_use block the event is about. Real Claude
+	// Code sends it on PreToolUse and PostToolUse, and records it as the
+	// toolUseID of the hook's attachment.
+	// sr:docs https://code.claude.com/docs/en/hooks#pretooluse-input
+	ToolUseID  string          `json:"tool_use_id,omitempty"`
 	ToolInput  json.RawMessage `json:"tool_input,omitempty"`
 	ToolOutput json.RawMessage `json:"tool_output,omitempty"`
 

@@ -29,6 +29,58 @@ type Invoker struct {
 	settings  *Settings
 	cwd       string
 	sessionID string
+
+	// transcriptPath is put on every payload that does not name its own. Real
+	// Claude Code sends transcript_path on EVERY hook event (it is one of the
+	// documented common input fields), including a sub-agent's tool calls, where
+	// it is the SESSION's transcript and the sub-agent is named by agent_id.
+	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+	transcriptPath string
+
+	// recorder, when set, is handed every handler's run — what the harness then
+	// writes into the transcript as a hook attachment record.
+	recorder func(Input, []HandlerRun)
+
+	agentID, agentType string
+}
+
+// SetTranscriptPath sets the transcript_path every payload carries unless the
+// caller names one.
+func (inv *Invoker) SetTranscriptPath(path string) { inv.transcriptPath = path }
+
+// TranscriptPath is the transcript_path payloads carry by default.
+func (inv *Invoker) TranscriptPath() string { return inv.transcriptPath }
+
+// SetAgent makes every payload fired through this invoker carry agent_id and
+// agent_type, as real Claude Code does for every hook event fired inside a
+// sub-agent. Events that already name an agent keep theirs.
+// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+func (inv *Invoker) SetAgent(agentID, agentType string) {
+	inv.agentID, inv.agentType = agentID, agentType
+}
+
+// WithRecorder returns a copy of inv that hands its handler runs to fn instead.
+func (inv *Invoker) WithRecorder(fn func(Input, []HandlerRun)) *Invoker {
+	c := *inv
+	c.recorder = fn
+	return &c
+}
+
+// SetRecorder installs the function every fired event's handler runs are handed
+// to, after the handlers have run. See HandlerRun.
+func (inv *Invoker) SetRecorder(fn func(Input, []HandlerRun)) { inv.recorder = fn }
+
+// HandlerRun is what one hook handler did, in the terms real Claude Code
+// records it in a transcript's hook attachment: its command, its streams, its
+// exit code and how long it took. Blocked is an exit 2.
+type HandlerRun struct {
+	Command    string
+	Stdout     string
+	Stderr     string
+	ExitCode   int
+	DurationMs int64
+	Blocked    bool
+	Output     Output
 }
 
 // NewInvoker creates an Invoker backed by the given settings. Every command hook
@@ -57,6 +109,17 @@ func NewInvoker(settings *Settings, cwd, sessionID string) *Invoker {
 // and returned via the error return. Other non-zero exits are non-blocking
 // (logged and ignored).
 func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
+	if input.TranscriptPath == "" {
+		input.TranscriptPath = inv.transcriptPath
+	}
+	if inv.agentID != "" {
+		if input.AgentID == "" {
+			input.AgentID = inv.agentID
+		}
+		if input.AgentID == inv.agentID && input.AgentType == "" {
+			input.AgentType = inv.agentType
+		}
+	}
 	handlers := inv.settings.EntriesFor(input.HookEventName, input.ToolName)
 	if len(handlers) == 0 {
 		return Output{}, nil
@@ -82,17 +145,24 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	}
 
 	var merged Output
+	var runs []HandlerRun
+	defer func() {
+		if inv.recorder != nil && len(runs) > 0 {
+			inv.recorder(input, runs)
+		}
+	}()
 	for _, h := range handlers {
-		out, blockErr := inv.invoke(ctx, h, hookCwd, payload)
+		run, blockErr := inv.invoke(ctx, h, hookCwd, payload)
+		runs = append(runs, run)
 		if blockErr != nil {
 			return merged, blockErr
 		}
-		mergeOutput(&merged, out)
+		mergeOutput(&merged, run.Output)
 	}
 	return merged, nil
 }
 
-func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (Output, error) {
+func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (HandlerRun, error) {
 	timeout := defaultHookTimeout
 	if h.Timeout > 0 {
 		timeout = time.Duration(h.Timeout) * time.Second
@@ -104,18 +174,20 @@ func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, p
 	case "command":
 		return inv.invokeCommand(ctx, h, hookCwd, payload)
 	case "http":
-		return inv.invokeHTTP(ctx, h, payload)
+		out, err := inv.invokeHTTP(ctx, h, payload)
+		return HandlerRun{Command: h.URL, Output: out}, err
 	default:
 		slog.Debug("hooks: unsupported handler type", "type", h.Type)
-		return Output{}, nil
+		return HandlerRun{}, nil
 	}
 }
 
-func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (Output, error) {
+func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (HandlerRun, error) {
 	command := strings.TrimSpace(h.Command)
 	if command == "" {
-		return Output{}, nil
+		return HandlerRun{}, nil
 	}
+	started := time.Now()
 	// Run command hooks through the shell, exactly as real Claude Code does. The
 	// command string is an arbitrary shell line — plugins wrap the script path in
 	// double quotes to survive spaces (e.g. "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"),
@@ -184,26 +256,33 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	if cmd.ProcessState != nil {
 		exitCode = cmd.ProcessState.ExitCode()
 	}
+	run := HandlerRun{
+		Command:    h.Command,
+		Stdout:     stdout.String(),
+		Stderr:     stderr.String(),
+		ExitCode:   exitCode,
+		DurationMs: time.Since(started).Milliseconds(),
+	}
 
 	if exitCode == 2 {
+		run.Blocked = true
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
 			msg = "hook blocked the action"
 		}
-		return Output{}, fmt.Errorf("hooks: command blocked: %s", msg)
+		return run, fmt.Errorf("hooks: command blocked: %s", msg)
 	}
 	if runErr != nil {
 		slog.Debug("hooks: command non-blocking error", "cmd", h.Command, "err", runErr, "stderr", stderr.String())
-		return Output{}, nil
+		return run, nil
 	}
 
-	var out Output
 	if stdout.Len() > 0 {
-		if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
+		if err := json.Unmarshal(stdout.Bytes(), &run.Output); err != nil {
 			slog.Debug("hooks: command output not valid JSON", "cmd", h.Command, "err", err)
 		}
 	}
-	return out, nil
+	return run, nil
 }
 
 func (inv *Invoker) invokeHTTP(ctx context.Context, h HandlerSpec, payload []byte) (Output, error) {

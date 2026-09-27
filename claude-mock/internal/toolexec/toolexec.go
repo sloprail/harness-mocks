@@ -28,6 +28,11 @@ type Result struct {
 	Output string
 	// IsError is true when the tool execution failed and the output is an error message.
 	IsError bool
+	// ToolUseResult is the structured result real Claude Code records beside a
+	// tool_result in the transcript (the record's toolUseResult field), where the
+	// tool has one — a background launch's backgroundTaskId, an async agent's
+	// agentId. Nil for the tools that do not need it here.
+	ToolUseResult any
 }
 
 // Execute runs the named tool with the given JSON input and returns its result.
