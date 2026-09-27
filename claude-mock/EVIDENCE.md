@@ -28,6 +28,8 @@ is listed under [Not modelled](#not-modelled), not guessed.
   - R7: `/compact` on the R6 session, with PreCompact and PostCompact hooks.
   - R8: `--resume <unknown>`, `--fork-session` without `--resume`, a fork of R1,
     and a plain resume of R3.
+  - R9: Stop and SubagentStop hooks that always return `decision:block`,
+    around a foreground Agent.
 - **[B] The claude 2.1.282 binary.** `strings` of
   `~/.local/share/claude/versions/2.1.282`. Rows quote the minified function or
   template.
@@ -67,6 +69,8 @@ is listed under [Not modelled](#not-modelled), not guessed.
 | A Stop or SubagentStop exit 2 leaves only the feedback turn, `"Stop hook feedback:\n[<command>]: <stderr>"`. No attachment is written. | R6: the main file (Stop) and the sub-agent file (SubagentStop). |
 | A PreToolUse refusal is the tool_result `"PreToolUse:<Tool> hook error: <reason>"` with `is_error:true` and `toolUseResult:"Error: …"`. For exit 2 the reason is the quoted form. For a JSON deny it is `permissionDecisionReason`, then `reason`, then `"Blocked by hook"`. No attachment is written, no PostToolUse fires, and the turn goes on. | T: 67 such tool_results, all `is_error`. R5 (exit 2), R6 (deny). B: `permissionDecisionReason\|\|e.reason\|\|"Blocked by hook"`. |
 | PostToolUse exit 2 leaves a `hook_blocking_error` named `PostToolUse:<Tool>`. | B: the PostToolUse hook loop yields `hook_blocking_error` for `blockingError`. |
+| A Stop or SubagentStop block continues the turn at most `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` times in a row (default 8; `0` means no cap). The next block is overridden and the turn ends. For Stop this writes `system/informational {level:"warning", content:"A hook blocked the turn from ending <N> consecutive times — overriding and ending turn. For Stop/SubagentStop hooks, check stop_hook_active in the input and return success while it's true. Set CLAUDE_CODE_STOP_HOOK_BLOCK_CAP to raise this limit."}`. No such record is written for SubagentStop. | D:2536. B: `a.CLAUDE_CODE_STOP_HOOK_BLOCK_CAP??8; if(xe>0&&ve>xe)`, with the message verbatim. R9: Stop fired 9 times (1 without and 8 with `stop_hook_active`), and SubagentStop also fired 9 times. The only warning record is in the main file. |
+| A turn that Stop re-prompts streams a single `result` frame, at its real end. Each re-run's own result is dropped. | R6 and R9: 1 result frame each, across 2 and 8 continuations |
 | Every Stop fire that ran a hook ends with `system/stop_hook_summary {hookCount, hookInfos[{command, durationMs}], hookErrors, hookAdditionalContext, preventedContinuation, stopReason, hasOutput, level:"suggestion", toolUseID}`. A blocking hook is listed without `durationMs`. SubagentStop writes no summary. | T: 8,272 records, all in main files. B: `stop_hook_summary` is written when `hookCount>0`. R4, R6. |
 | Only SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, SubagentStart and SubagentStop leave records. SessionEnd output leaves none. Pre/PostCompact output is display text only. WorktreeCreate and WorktreeRemove have no evidence, so they leave none. | R4 (SessionEnd), R7 (Pre/PostCompact), B (the PreCompact/PostCompact hooks return `userDisplayMessage`). T: no WorktreeCreate or WorktreeRemove attachment. |
 | A PreToolUse or PostToolUse attachment's `toolUseID` is the call's id. For an inline (scenario-written) tool_result it is the `tool_use_id`. | T: 3,560/3,560 PreToolUse and 1,651/1,651 PostToolUse `toolu_…` ids. |
@@ -79,6 +83,7 @@ is listed under [Not modelled](#not-modelled), not guessed.
 | A `-p` prompt is marked `promptSource:"sdk"` and `turnOrigin:"sdk"`. | R2, R3 |
 | A tool result with empty or whitespace-only content is recorded, and streamed, as `"(<Tool> completed with no output)"`. The structured `toolUseResult` keeps the empty `stdout`. | T: 3,479 of 63,308 Bash results are exactly `(Bash completed with no output)` (1,460 of them carry `toolUseResult.stdout:""`), and 0 are empty. B: `Eyr` checks for empty content and `V` substitutes `` `(${toolName} completed with no output)` ``. |
 | A sub-agent's records go to `<session>/subagents/agent-<id>.jsonl` with `isSidechain:true` and `agentId`. The first record is the dispatch prompt, parentless. A nested sub-agent's file sits in the same `subagents/` directory. | T: 0 of 4,135 main files hold a sidechain record. R3, R4, R5. |
+| A finished foreground Agent returns one text block: the `[Subagent hand-back] …The report follows:` frame, then the report with every line indented two spaces (line breaks normalised). An empty report reads `(Subagent completed but returned no output.)`. Next comes the trailer `agentId: <id> (use SendMessage with to: '<id>', summary: '<5-10 word recap>' to continue this agent)[\nworktreePath: <p>]\n<usage>subagent_tokens: N\ntool_uses: N\nduration_ms: N</usage>`. The built-in Explore and Plan agents without a worktree get no trailer. `toolUseResult`, which is also PostToolUse's `tool_response`, is `{status:"completed", prompt, agentId, agentType, harnessNoteCount, harnessTailCount, harnessSectionHash, content, resolvedModel, totalDurationMs, totalTokens, totalToolUseCount}`. | B: the Agent result mapper (`status==="completed"`), `Nnn`/`L$n`/`ODe` (frame and indent), `Lit=new Set(["Explore","Plan"])`, and `DDe` (the hash). R4, R5, R6, R9 show exactly this body. T: 14 framed results with the trailer and 12 framed Explore/Plan results without it. The older 2.1.2xx unframed results (20 with a trailer block) predate the frame. |
 | An agent id is `a` followed by 16 hex digits. | T: 618/618 `subagents/agent-*.jsonl` names |
 | `.meta.json` holds `{agentType, description, toolUseId}`, plus `worktreePath` only for an isolated sub-agent. | R3: `{"agentType","description","toolUseId",…}` with no `worktreePath` |
 
@@ -124,4 +129,4 @@ These are documented as gaps, not faked:
 - The real `rendered` fields on `queued_command`.
 - Separate stdout and stderr for Bash (the mock runs one combined stream).
 - Token counts, which are 0.
-- The foreground Agent tool_result body: the mock keeps `agentId: <id>\nagentType: <type>\n<result>`, while the real one is a `[Subagent hand-back]` frame with `<usage>`.
+- A foreground Agent's `usage` and `toolStats` in `toolUseResult`: the mock has no API usage or per-category tool counts. Token counts are 0.

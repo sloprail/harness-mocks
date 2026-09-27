@@ -80,6 +80,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		}
 		if turn.done {
 			if nested {
+				writeStreamLine(cfg, turn.resultLine)
 				bg.stopOwned(cfg)
 				return nil
 			}
@@ -100,18 +101,24 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			// fires (transcript.recordHookRuns).
 			if stopErr != nil || stopOut.Decision == "block" {
 				stopBlocks++
-				if blockCap > 0 && stopBlocks >= blockCap {
-					// Stop kept blocking — give up (the real block-cap backstop).
-					// blockCap == 0 means unlimited (same convention as agent.go's
-					// SubagentStop loop).
-					bg.stopOwned(cfg)
-					return nil
+				if blockCap == 0 || stopBlocks <= blockCap {
+					// Re-prompt: the turn goes on, so the script runs again and
+					// reacts to the block. Its result frame is dropped — a
+					// continued turn ends with one result, at its real end
+					// (claude 2.1.282 streamed a single result across 8
+					// continuations).
+					lastSig, repeats = "", 0
+					continue
 				}
-				// Re-prompt: continue the loop so the next script turn reacts to the block.
-				lastSig, repeats = "", 0
-				continue
+				// The block cap: real Claude Code lets a Stop block the turn
+				// CLAUDE_CODE_STOP_HOOK_BLOCK_CAP (default 8) times in a row;
+				// the next block is overridden and the turn ends, with a
+				// warning record (the 2.1.282 binary: `ve>xe`; a controlled run
+				// fired Stop 9 times). 0 disables the cap.
+				writeCapOverride(tr, stopBlocks)
 			}
 			stopBlocks = 0
+			writeStreamLine(cfg, turn.resultLine)
 			// The turn is over. Hand over what finished in the background, one
 			// new turn per task, waiting while a background agent still runs.
 			if t := bg.awaitAfterTurn(ctx, cfg.AgentID); t != nil {
@@ -137,6 +144,17 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	}
 }
 
+// writeCapOverride writes the warning real Claude Code records when it
+// overrides a Stop block at the cap and ends the turn (claude 2.1.282, verbatim).
+func writeCapOverride(tr *transcript, blocks int) {
+	tr.persistMap(map[string]any{
+		"type": "system", "subtype": "informational",
+		"content": fmt.Sprintf("A hook blocked the turn from ending %d consecutive times — overriding and ending turn. ", blocks) +
+			"For Stop/SubagentStop hooks, check stop_hook_active in the input and return success while it's true. Set CLAUDE_CODE_STOP_HOOK_BLOCK_CAP to raise this limit.",
+		"isMeta": false, "level": "warning",
+	})
+}
+
 // turnResult is one script invocation's outcome.
 type turnResult struct {
 	// done: the script ended its turn (result frame, or it exited having
@@ -147,6 +165,9 @@ type turnResult struct {
 	sig string
 	// lastText is the text of the last assistant record it emitted.
 	lastText string
+	// resultLine is the result frame that ended the turn, held back until Stop
+	// has let the turn end.
+	resultLine []byte
 }
 
 // runOneTurnSig executes the script once, processes its JSONL output, and
@@ -177,7 +198,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	pending := sc.pending
 	if pending.ToolName == "" {
 		if sc.done || sc.compactSig == "" {
-			return turnResult{done: true, lastText: sc.lastText}, nil
+			return turnResult{done: true, lastText: sc.lastText, resultLine: sc.resultLine}, nil
 		}
 		// The invocation compacted the context and stopped: the turn goes on
 		// after a compaction, so the script runs again.
@@ -296,6 +317,7 @@ type scanResult struct {
 	done       bool   // a result frame was seen
 	compactSig string // a compaction happened (and what it was)
 	lastText   string // text of the last assistant record
+	resultLine []byte // the result frame, not yet streamed
 }
 
 // scanLines reads one script invocation's JSONL output line by line, until a
@@ -377,9 +399,14 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			}
 		}
 
-		// Forward line to the STDOUT stream always — it is the mock's claude-compatible
-		// output and every record (result included) belongs on it.
-		writeStreamLine(cfg, line)
+		// Forward line to the STDOUT stream — it is the mock's claude-compatible
+		// output. The result frame is held back: it ends the turn only if Stop
+		// lets the turn end (see streamAndHook).
+		if rec.Type == "result" {
+			out.resultLine = append([]byte(nil), line...)
+		} else {
+			writeStreamLine(cfg, line)
+		}
 
 		// The FILE is different from the stream. Real Claude Code NEVER persists the
 		// `result` frame to the transcript file — verified: 0 type:"result" records in a

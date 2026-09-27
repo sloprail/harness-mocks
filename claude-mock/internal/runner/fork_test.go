@@ -139,3 +139,26 @@ func TestFileHasUUID(t *testing.T) {
 }
 
 func timeAgo(hours int) time.Time { return time.Now().Add(-time.Duration(hours) * time.Hour) }
+
+func TestBuildAgentResult(t *testing.T) {
+	sub := &subagentRun{agentID: "a0123456789abcdef", agentType: "general-purpose"}
+	res := buildAgentResult(sub, agentToolInput{Prompt: "p", Model: "haiku"}, "", subagentOutcome{finalText: "line one\r\nline two", toolUses: 2}, 17, "")
+	assert.True(t, res.ContentAsBlocks)
+	assert.Equal(t, handbackFrame+"\n  line one\n  line two\nagentId: a0123456789abcdef (use SendMessage with to: 'a0123456789abcdef', summary: '<5-10 word recap>' to continue this agent)\n<usage>subagent_tokens: 0\ntool_uses: 2\nduration_ms: 17</usage>", res.Output)
+	tur := res.ToolUseResult.(map[string]any)
+	assert.Equal(t, "completed", tur["status"])
+	assert.Equal(t, "haiku", tur["resolvedModel"])
+	assert.Equal(t, []map[string]any{{"type": "text", "text": "line one\r\nline two"}}, tur["content"])
+
+	wt := buildAgentResult(sub, agentToolInput{}, "", subagentOutcome{finalText: "x"}, 1, "/w/.claude/worktrees/agent-a")
+	assert.Contains(t, wt.Output, "to continue this agent)\nworktreePath: /w/.claude/worktrees/agent-a\n<usage>")
+
+	explore := buildAgentResult(&subagentRun{agentID: "a1", agentType: "Explore"}, agentToolInput{}, "", subagentOutcome{}, 1, "")
+	assert.Equal(t, handbackFrame+"\n  (Subagent completed but returned no output.)", explore.Output, "Explore/Plan without a worktree: no trailer")
+}
+
+func TestSectionHashMatchesTheBinary(t *testing.T) {
+	// claude 2.1.282 recorded harnessSectionHash db84e7ea1e7eb856 for a
+	// sub-agent that replied HELPED.
+	assert.Equal(t, "db84e7ea1e7eb856", sectionHash([]map[string]any{{"type": "text", "text": "HELPED"}}))
+}
