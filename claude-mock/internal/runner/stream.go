@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
@@ -470,6 +471,13 @@ func buildEnv(cfg Config, tr *transcript) []string {
 //
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
 func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *transcript) error {
+	// A result with no text is given to the model as "(<Tool> completed with
+	// no output)" — claude 2.1.282 replaces any empty or whitespace-only tool
+	// result content with it (3,479 "(Bash completed with no output)" results
+	// in the real transcripts, 0 empty ones).
+	if strings.TrimSpace(res.Output) == "" {
+		res.Output = "(" + call.ToolName + " completed with no output)"
+	}
 	var content any = res.Output
 	if res.ContentAsBlocks {
 		content = []map[string]any{{"type": "text", "text": res.Output}}

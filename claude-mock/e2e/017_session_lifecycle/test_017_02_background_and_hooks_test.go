@@ -673,3 +673,20 @@ func TestT017_23_MainRecordsCarryRealBookkeeping(t *testing.T) {
 		assert.NotEmpty(t, m["timestamp"])
 	}
 }
+
+// TestT017_24_EmptyToolResult: a tool that returns nothing is recorded as
+// "(<Tool> completed with no output)" — claude 2.1.282 replaces empty result
+// content with it; the real transcripts hold 3,479 such Bash results and no
+// empty one. The structured result keeps the empty stdout.
+func TestT017_24_EmptyToolResult(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s", toolUse("b1", "Bash", `{"command":"true"}`)), "--session-id", "em-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	block, r := toolResultOf(t, readRecs(t, transcriptPath(t, cfg, dir, "em-1")), "b1turn-s-a")
+	assert.Equal(t, "(Bash completed with no output)", block["content"])
+	assert.Equal(t, false, block["is_error"])
+	assert.Equal(t, "", r.ToolUseResult["stdout"])
+	assert.Contains(t, out, `"content":"(Bash completed with no output)"`, "the stream carries it too")
+}
