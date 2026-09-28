@@ -236,7 +236,8 @@ func TestT017_06_ResumeFromAnotherDirectory(t *testing.T) {
 // TestT017_07_Compaction is a compaction the way claude 2.1.282 performs one
 // (a manual /compact run, the 65 real compact_boundary records, the binary):
 // PreCompact, then a parentless compact_boundary APPENDED to the file — its
-// logicalParentUuid the last record, compactMetadata {trigger, preTokens,
+// logicalParentUuid the last record by default, or an unwritten one on
+// request, compactMetadata {trigger, preTokens,
 // preservedSegment{headUuid, anchorUuid, tailUuid}, preservedMessages{anchorUuid,
 // uuids, allUuids}} with the summary as anchor — then the summary chained to
 // the boundary, SessionStart:compact, and PostCompact with the summary. A
