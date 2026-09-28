@@ -428,7 +428,11 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		// after it.
 		// sr:docs https://code.claude.com/docs/en/hooks#precompact
 		if rec.Type == "compact" || rec.IsCompactSummary {
-			if compact(ctx, cfg, inv, tr, rec, line) {
+			done, err := compact(ctx, cfg, inv, tr, rec, line)
+			if err != nil {
+				return scanResult{}, err
+			}
+			if done {
 				out.compactSig += "compact:" + string(line)
 			}
 			continue

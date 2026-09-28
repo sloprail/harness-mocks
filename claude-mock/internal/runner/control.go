@@ -87,14 +87,29 @@ const defaultPreserved = 2
 //     its output "Compacted <what the Pre/PostCompact hooks reported>" — and
 //     SessionStart:compact's attachments come after them.
 //
-// It returns whether the compaction happened. The scenario drives it with
+// It returns whether the compaction happened, or an error for a control
+// record that asks for something impossible. The scenario drives it with
 // {"type":"compact"[,"summary":…][,"trigger":"auto"|"manual"][,"preserve":N]
 // [,"pre_tokens":N][,"post_tokens":N][,"preserved_segment":false][,"tail_offset":K]
 // [,"logical_parent":…][,"id":…]}, or with its own
 // isCompactSummary record, which is used as the summary.
 // sr:docs https://code.claude.com/docs/en/hooks#precompact
 // sr:docs https://code.claude.com/docs/en/hooks#postcompact
-func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, rec *cliRecord, line []byte) bool {
+func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, rec *cliRecord, line []byte) (bool, error) {
+	// A tail_offset has to leave at least one written record for the segment
+	// to end on; a scenario asking for more is a scenario bug, not something
+	// to fall back from silently.
+	if rec.TailOffset < 0 {
+		return false, fmt.Errorf("claude-mock: compact: tail_offset must not be negative, got %d", rec.TailOffset)
+	}
+	if rec.TailOffset > 0 {
+		if rec.PreservedSegment != nil && !*rec.PreservedSegment {
+			return false, fmt.Errorf("claude-mock: compact: tail_offset needs a preserved segment, but preserved_segment is false")
+		}
+		if have := len(tr.lastUUIDs(rec.TailOffset + 1)); have <= rec.TailOffset {
+			return false, fmt.Errorf("claude-mock: compact: tail_offset %d leaves no record for the preserved segment to end on: only %d records are written", rec.TailOffset, have)
+		}
+	}
 	trigger := rec.Trigger
 	if trigger == "" {
 		trigger = "auto"
@@ -108,7 +123,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	})
 	if preErr != nil || preOut.Decision == "block" {
 		fmt.Fprintf(cfg.Stderr, "claude-mock: PreCompact blocked the compaction\n")
-		return false
+		return false, nil
 	}
 
 	// The summary: the scenario's own record, or one built from the control
@@ -116,7 +131,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	var sum map[string]any
 	if rec.IsCompactSummary {
 		if json.Unmarshal(line, &sum) != nil {
-			return false
+			return false, nil
 		}
 	} else {
 		text := rec.Summary
@@ -198,7 +213,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 			"content": "<local-command-stdout>Compacted " + strings.Join(lines, "\n") + "</local-command-stdout>"}})
 		tr.flushHookRuns()
 	}
-	return true
+	return true, nil
 }
 
 // compactHookLines is what a compaction reports of its Pre/PostCompact

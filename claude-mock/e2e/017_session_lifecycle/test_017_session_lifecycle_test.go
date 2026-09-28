@@ -450,6 +450,26 @@ func TestT017_07d_TailEarlierThanTheLastRecord(t *testing.T) {
 	t.Fatal("no boundary")
 }
 
+// TestT017_07e_TailOffsetBeyondTheRecordIsAnError: a tail_offset that leaves
+// no written record for the segment to end on fails the run — it is a
+// scenario bug, not a request to fall back silently.
+func TestT017_07e_TailOffsetBeyondTheRecordIsAnError(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	sc := script(t, dir, "s", `{"type":"compact","summary":"s @MARK@","tail_offset":50}`)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-e",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	assert.NotEqual(t, 0, code, out)
+	assert.Contains(t, out, "tail_offset 50 leaves no record for the preserved segment to end on")
+	raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "cmp-e"))
+	assert.NotContains(t, string(raw), "compact_boundary", "nothing is compacted")
+	sc2 := script(t, dir, "s2", `{"type":"compact","summary":"s @MARK@","tail_offset":1,"preserved_segment":false}`)
+	out, code = runInDir(t, dir, nil, "--script", sc2, "--session-id", "cmp-e2",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	assert.NotEqual(t, 0, code, out)
+	assert.Contains(t, out, "tail_offset needs a preserved segment")
+}
+
 // TestT017_07b_PreCompactExit2BlocksTheCompaction: PreCompact can block a
 // compaction (docs, "Exit code 2 behavior per event"): nothing is written.
 func TestT017_07b_PreCompactExit2BlocksTheCompaction(t *testing.T) {

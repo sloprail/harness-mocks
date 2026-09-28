@@ -1000,20 +1000,31 @@ func TestT017_30_SubagentMetaSidecars(t *testing.T) {
 	assert.Contains(t, string(branches), "worktree-agent-"+ids["iso"], "the branch really exists")
 }
 
-// TestT017_31_StreamStaysParseableUnderLoad: a busy background sub-agent (40
-// Bash calls, each streaming owned task frames) runs while the main turn
-// streams 50,000 lines. Every stdout line must parse as JSON — a frame written
-// between another line and its newline would break both.
+// TestT017_31_StreamStaysParseableUnderLoad: a background sub-agent streams
+// task frames for its own Bash calls while the main turn streams a flood of
+// lines. The overlap is forced, not left to timing: the flood touches a
+// marker before its first line and another after its last, and the
+// sub-agent starts calling Bash only once the first exists and keeps calling
+// it until the second does — hundreds of frames written concurrently with the
+// flood. Every stdout line must still parse as JSON: a frame written between
+// another line and its newline breaks both (it did with the old two-Write
+// writeStreamLine).
 func TestT017_31_StreamStaysParseableUnderLoad(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
-	var calls []string
-	for i := 0; i < 40; i++ {
-		calls = append(calls, toolUse("sb"+strconv.Itoa(i)+"x", "Bash", `{"command":"true","description":"step `+strconv.Itoa(i)+`"}`))
-	}
-	sub := script(t, dir, "sub", calls...)
+	started, done, calls := filepath.Join(dir, "flood-started"), filepath.Join(dir, "flood-done"), filepath.Join(dir, "calls")
+	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
+while [ ! -f `+started+` ]; do sleep 0.01; done
+if [ -f `+done+` ]; then
+  printf '%s\n' '{"type":"result","subtype":"success","result":"sub done"}'
+  exit 0
+fi
+N=$(cat `+calls+` 2>/dev/null || echo 0); N=$((N+1)); echo $N > `+calls+`
+printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"sb'$N'","name":"Bash","input":{"command":"true","description":"step '$N'"}}]}}'
+`, 0o755)
 	flood := write(t, filepath.Join(dir, "flood.sh"), `#!/bin/sh
-awk 'BEGIN { for (i = 1; i <= 50000; i++) printf "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"line-%d xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]}}\n", i }'
+touch `+started+`
+awk 'BEGIN { for (i = 1; i <= 100000; i++) printf "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"line-%d xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]}}\n", i }'
 `, 0o755)
 	sc := write(t, filepath.Join(dir, "s.sh"), `#!/bin/sh
 F="$A10N_MOCK_SESSION_FILE"
@@ -1021,17 +1032,18 @@ if ! grep -q '"tool_use_id":"ag1"' "$F"; then
   printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"ag1","name":"Agent","input":{"prompt":"go","description":"busy","script":"`+sub+`","run_in_background":true}}]}}'
   exit 0
 fi
-if ! grep -q 'line-50000' "$F"; then
+if [ ! -f `+done+` ]; then
   sh `+flood+`
+  touch `+done+`
 fi
 printf '%s\n' '{"type":"result","subtype":"success","result":"done"}'
 `, 0o755)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "load-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, "exit code")
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	var owned, bad int
-	for i, l := range lines {
+	var owned, bad, during int
+	floodSeen, floodOver := false, false
+	for i, l := range strings.Split(strings.TrimSpace(out), "\n") {
 		if !strings.HasPrefix(l, "{") {
 			continue // the mock's own stderr diagnostics share this capture
 		}
@@ -1043,10 +1055,20 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done"}'
 			}
 			continue
 		}
+		if strings.Contains(l, "line-1 x") {
+			floodSeen = true
+		}
+		if strings.Contains(l, "line-100000 x") {
+			floodOver = true
+		}
 		if m["owned_by_subagent"] == true {
 			owned++
+			if floodSeen && !floodOver {
+				during++
+			}
 		}
 	}
+	t.Logf("%d owned-Bash frames, %d of them streamed during the flood", owned, during)
 	assert.Zero(t, bad, "unparseable stream lines")
-	assert.Equal(t, 40, owned, "every owned Bash streamed its task_started frame")
+	assert.Greater(t, during, 20, "the sub-agent's frames overlapped the flood (%d of %d)", during, owned)
 }
