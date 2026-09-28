@@ -1002,19 +1002,27 @@ func TestT017_30_SubagentMetaSidecars(t *testing.T) {
 
 // TestT017_31_StreamStaysParseableUnderLoad: a background sub-agent streams
 // task frames for its own Bash calls while the main turn streams a flood of
-// lines. The overlap is forced, not left to timing: the flood touches a
-// marker before its first line and another after its last, and the
-// sub-agent starts calling Bash only once the first exists and keeps calling
-// it until the second does — hundreds of frames written concurrently with the
-// flood. Every stdout line must still parse as JSON: a frame written between
+// lines, and every stdout line must parse as JSON — a frame written between
 // another line and its newline breaks both (it did with the old two-Write
 // writeStreamLine).
+//
+// The overlap between the flood and the sub-agent's frames is a RENDEZVOUS,
+// not a race to finish before the other side does: the flood writes its
+// output in small chunks, and after each chunk it BLOCKS until the
+// sub-agent's own call counter has advanced past where it started — i.e.
+// until at least one more Bash tool_use (and so at least one more pair of
+// owned_by_subagent frames) has been processed by the mock. This makes the
+// interleaving depend only on the sub-agent script's counter file being
+// updated, not on relative process speed, so a slow host runs more, smaller
+// rounds of "chunk, then wait" instead of one round that might race to
+// completion before any frame lands.
 func TestT017_31_StreamStaysParseableUnderLoad(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
-	started, done, calls := filepath.Join(dir, "flood-started"), filepath.Join(dir, "flood-done"), filepath.Join(dir, "calls")
+	done, calls := filepath.Join(dir, "flood-done"), filepath.Join(dir, "calls")
+	// The sub-agent counts its own turns in $calls (one Bash tool_use per
+	// turn) and stops once $done exists.
 	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
-while [ ! -f `+started+` ]; do sleep 0.01; done
 if [ -f `+done+` ]; then
   printf '%s\n' '{"type":"result","subtype":"success","result":"sub done"}'
   exit 0
@@ -1022,9 +1030,30 @@ fi
 N=$(cat `+calls+` 2>/dev/null || echo 0); N=$((N+1)); echo $N > `+calls+`
 printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"sb'$N'","name":"Bash","input":{"command":"true","description":"step '$N'"}}]}}'
 `, 0o755)
+	// The flood writes ROUNDS lines chunk (a "line-<round>-<i>" burst), then
+	// waits — with no upper bound but the test's own timeout — for $calls to
+	// read a value strictly greater than it was before this chunk. So every
+	// chunk boundary is a real rendezvous with a completed sub-agent turn,
+	// not a fixed sleep a fast or slow host could race past.
 	flood := write(t, filepath.Join(dir, "flood.sh"), `#!/bin/sh
-touch `+started+`
-awk 'BEGIN { for (i = 1; i <= 100000; i++) printf "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"line-%d xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]}}\n", i }'
+CHUNK=200
+ROUNDS=400
+r=0
+while [ $r -lt $ROUNDS ]; do
+  i=0
+  while [ $i -lt $CHUNK ]; do
+    printf '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"line-%d-%d xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}]}}
+' "$r" "$i"
+    i=$((i+1))
+  done
+  before=$(cat `+calls+` 2>/dev/null || echo 0)
+  after=$before
+  while [ "$after" = "$before" ]; do
+    sleep 0.005
+    after=$(cat `+calls+` 2>/dev/null || echo 0)
+  done
+  r=$((r+1))
+done
 `, 0o755)
 	sc := write(t, filepath.Join(dir, "s.sh"), `#!/bin/sh
 F="$A10N_MOCK_SESSION_FILE"
@@ -1055,10 +1084,10 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done"}'
 			}
 			continue
 		}
-		if strings.Contains(l, "line-1 x") {
+		if strings.Contains(l, "line-0-0 x") {
 			floodSeen = true
 		}
-		if strings.Contains(l, "line-100000 x") {
+		if strings.Contains(l, "line-399-199 x") {
 			floodOver = true
 		}
 		if m["owned_by_subagent"] == true {
@@ -1070,5 +1099,9 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done"}'
 	}
 	t.Logf("%d owned-Bash frames, %d of them streamed during the flood", owned, during)
 	assert.Zero(t, bad, "unparseable stream lines")
-	assert.Greater(t, during, 20, "the sub-agent's frames overlapped the flood (%d of %d)", during, owned)
+	// Every completed rendezvous round (bar the very first and very last,
+	// which can fall outside the flood's own start/end markers) forces one
+	// interleaving point, so this floor is met deterministically rather than
+	// by how fast the host happens to run.
+	assert.Greater(t, during, 50, "the sub-agent's frames overlapped the flood (%d of %d)", during, owned)
 }
