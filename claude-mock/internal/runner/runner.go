@@ -439,8 +439,7 @@ func emitSystemContext(cfg Config, source, additionalContext string) {
 		"additionalContext": additionalContext,
 	}
 	if b, err := json.Marshal(rec); err == nil {
-		cfg.Out.Write(b)            //nolint:errcheck
-		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+		writeStreamLine(cfg, b)
 	}
 }
 

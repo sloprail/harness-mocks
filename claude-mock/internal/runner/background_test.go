@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -182,4 +183,38 @@ func TestRunning_ListsTheSessionsTasks(t *testing.T) {
 	assert.JSONEq(t, `[{"id":"b1","type":"shell","status":"running","description":"d","command":"c"},{"id":"a1","type":"subagent","status":"running","description":"d","agent_type":"t"}]`, string(got))
 	var nilB *backgroundTasks
 	assert.Equal(t, 0, len(nilB.running()))
+}
+
+// TestStreamLinesStayWholeUnderConcurrentFrames: the session stream is written
+// by the turn loop and, concurrently, by background sub-agents' task frames.
+// Every line must reach the stream whole — a line and its newline in one
+// Write — or a frame lands between them and both lines become unparseable.
+func TestStreamLinesStayWholeUnderConcurrentFrames(t *testing.T) {
+	var buf bytes.Buffer
+	lw := &lockedWriter{w: &buf}
+	cfg := Config{SessionID: "s", Out: lw, stream: lw}
+	payload := strings.Repeat("x", 512)
+	var wg sync.WaitGroup
+	for g := 0; g < 8; g++ {
+		wg.Add(2)
+		go func(g int) {
+			defer wg.Done()
+			for i := 0; i < 2000; i++ {
+				writeStreamLine(cfg, []byte(`{"type":"assistant","n":`+strconv.Itoa(i)+`,"pad":"`+payload+`"}`))
+			}
+		}(g)
+		go func(g int) {
+			defer wg.Done()
+			for i := 0; i < 2000; i++ {
+				writeFrame(cfg, map[string]any{"type": "system", "subtype": "task_progress", "task_id": strconv.Itoa(g)})
+			}
+		}(g)
+	}
+	wg.Wait()
+	lines := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
+	require.Len(t, lines, 8*2000*2)
+	for i, l := range lines {
+		var m map[string]any
+		require.NoError(t, json.Unmarshal([]byte(l), &m), "line %d is not whole: %.120s", i, l)
+	}
 }

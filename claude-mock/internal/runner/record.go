@@ -69,6 +69,10 @@ type cliRecord struct {
 	// no preservedSegment/preservedMessages, and the last written record as
 	// logical parent (F:compact-nohooks; 1 of 65 real boundaries).
 	PreservedSegment *bool `json:"preserved_segment,omitempty"`
+	// TailOffset ends the preserved segment that many records before the
+	// boundary, so the logical parent (the segment's tail) is an earlier
+	// written record: 7 real mid-file boundaries, 2 to 253 records back.
+	TailOffset int `json:"tail_offset,omitempty"`
 }
 
 // knownTypes lists all valid JSONL record types emitted by Claude Code stream-json

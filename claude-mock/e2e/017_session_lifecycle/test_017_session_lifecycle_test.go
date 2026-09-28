@@ -278,7 +278,7 @@ func TestT017_07_Compaction(t *testing.T) {
 		b := recs[bi]
 		assert.Nil(t, b.ParentUUID)
 		if n == 0 {
-			assert.Equal(t, recs[bi-1].UUID, b.LogicalParentUUID, "by default the logical parent is the last record before it (55 of 66 real)")
+			assert.Equal(t, recs[bi-1].UUID, b.LogicalParentUUID, "by default the logical parent is the segment's tail, the record right before the boundary (34 of 66 real)")
 		} else {
 			// "logical_parent":"unwritten": a record never written, which is
 			// also allUuids' extra id (F:compact; 10 real automatic boundaries).
@@ -293,6 +293,9 @@ func TestT017_07_Compaction(t *testing.T) {
 		pm := meta["preservedMessages"].(map[string]any)
 		seg := meta["preservedSegment"].(map[string]any)
 		uuids := pm["uuids"].([]any)
+		if n == 0 {
+			assert.Equal(t, uuids[len(uuids)-1], b.LogicalParentUUID, "the logical parent is the preserved segment's tail")
+		}
 		wantKept := 3
 		wantTrigger := "auto"
 		if n == 1 {
@@ -409,6 +412,42 @@ func TestT017_07c_CompactionWithoutAPreservedSegment(t *testing.T) {
 		dropped = append(dropped, meta["cumulativeDroppedTokens"])
 	}
 	assert.Equal(t, []any{float64(20598), float64(24598)}, dropped)
+}
+
+// TestT017_07d_TailEarlierThanTheLastRecord: the logical parent is the
+// preserved segment's tail. In 7 real mid-file boundaries that tail is an
+// EARLIER written record, 2 to 253 records before the boundary; "tail_offset"
+// reproduces it.
+func TestT017_07d_TailEarlierThanTheLastRecord(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	sc := script(t, dir, "s",
+		toolUse("b1", "Bash", `{"command":"true"}`),
+		toolUse("b2", "Bash", `{"command":"true"}`),
+		`{"type":"compact","summary":"s @MARK@","preserve":2,"tail_offset":2}`,
+	)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-d",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	recs := readRecs(t, transcriptPath(t, cfg, dir, "cmp-d"))
+	var written []string
+	for i, r := range recs {
+		if r.Subtype != "compact_boundary" {
+			if r.UUID != "" {
+				written = append(written, r.UUID)
+			}
+			continue
+		}
+		var full map[string]any
+		require.NoError(t, json.Unmarshal([]byte(r.Raw), &full))
+		uuids := full["compactMetadata"].(map[string]any)["preservedMessages"].(map[string]any)["uuids"].([]any)
+		n := len(written)
+		assert.Equal(t, []any{written[n-4], written[n-3]}, uuids, "the segment ends 2 records before the boundary")
+		assert.Equal(t, written[n-3], r.LogicalParentUUID, "the logical parent is the segment's tail")
+		assert.NotEqual(t, recs[i-1].UUID, r.LogicalParentUUID, "not the record right before the boundary")
+		return
+	}
+	t.Fatal("no boundary")
 }
 
 // TestT017_07b_PreCompactExit2BlocksTheCompaction: PreCompact can block a

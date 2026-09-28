@@ -501,7 +501,7 @@ func writeFrame(cfg Config, frame map[string]any) {
 	if w == nil {
 		w = cfg.Out
 	}
-	w.Write(append(line, '\n')) //nolint:errcheck
+	w.Write(append(line, '\n')) //nolint:errcheck // one Write per line; see writeStreamLine
 }
 
 // deliverMidTurn hands owner's finished tasks over inside the running turn:
@@ -615,12 +615,16 @@ func killGroup(cmd *exec.Cmd) {
 	}
 }
 
+// writeStreamLine writes one line to the output stream in a single Write, so
+// a frame another goroutine writes (a background sub-agent's) can never land
+// between a line and its newline.
 func writeStreamLine(cfg Config, line []byte) {
 	if len(line) == 0 {
 		return
 	}
-	cfg.Out.Write(line)         //nolint:errcheck
-	cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+	buf := make([]byte, 0, len(line)+1)
+	buf = append(append(buf, line...), '\n')
+	cfg.Out.Write(buf) //nolint:errcheck
 }
 
 // inputValidationError is the tool_result real Claude Code returns for a call

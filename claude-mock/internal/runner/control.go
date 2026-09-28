@@ -89,7 +89,7 @@ const defaultPreserved = 2
 //
 // It returns whether the compaction happened. The scenario drives it with
 // {"type":"compact"[,"summary":…][,"trigger":"auto"|"manual"][,"preserve":N]
-// [,"pre_tokens":N][,"post_tokens":N][,"preserved_segment":false]
+// [,"pre_tokens":N][,"post_tokens":N][,"preserved_segment":false][,"tail_offset":K]
 // [,"logical_parent":…][,"id":…]}, or with its own
 // isCompactSummary record, which is used as the summary.
 // sr:docs https://code.claude.com/docs/en/hooks#precompact
@@ -171,7 +171,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	writeCompactBoundary(tr, compactionSpec{
 		logicalParent: rec.LogicalParent, preserve: preserve, anchor: anchor, trigger: trigger,
 		preTokens: rec.PreTokens, postTokens: rec.PostTokens, durationMs: time.Since(started).Milliseconds(),
-		withSegment: rec.PreservedSegment == nil || *rec.PreservedSegment,
+		withSegment: rec.PreservedSegment == nil || *rec.PreservedSegment, tailOffset: rec.TailOffset,
 	})
 	sumLine, _ := marshalRecord(sum)
 	writeStreamLine(cfg, sumLine)
@@ -231,6 +231,7 @@ type compactionSpec struct {
 	postTokens    int
 	durationMs    int64
 	withSegment   bool
+	tailOffset    int
 }
 
 func contains(xs []string, x string) bool {
@@ -253,30 +254,47 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 	//   - with a preserved segment (F:compact; 64 of 65 real boundaries):
 	//     compactMetadata names the kept records — preservedMessages {anchorUuid,
 	//     uuids, allUuids} and preservedSegment {headUuid, anchorUuid, tailUuid},
-	//     uuids being the last N records written. allUuids is uuids plus records
+	//     uuids being N consecutive written records (see the tail below). allUuids is uuids plus records
 	//     never written to the file: a strict superset in 44 of 65 real
 	//     boundaries, every extra id unwritten.
 	//   - without one (F:compact-nohooks; 1 of 65): neither field.
 	//
-	// The logical parent takes one of two forms in the real record:
+	// The logical parent is the preserved segment's TAIL — uuids' last id —
+	// wherever it is written: all 55 real boundaries whose logical parent is a
+	// written record. The tail sits in three places (66 real boundaries):
 	//
-	//   - the last written record, which is uuids' tail: 55 of 66 real
-	//     boundaries (54 automatic, 1 manual), and F:compact-nohooks. This is the
-	//     default.
-	//   - a record never written to the file, which then closes allUuids: 10
-	//     automatic boundaries, and the manual F:compact. The scenario asks for
-	//     it with "logical_parent":"unwritten".
+	//   - the record written immediately before the boundary: 34 (33
+	//     automatic, 1 manual), and F:compact-nohooks. This is the default.
+	//   - an EARLIER written record, the segment ending 2 to 253 records
+	//     before the boundary: 7 mid-file boundaries. "tail_offset": K ends the
+	//     segment K records back.
+	//   - a record copied in AFTER the boundary: the 13 fork files, and one
+	//     mid-file boundary. forkTranscript writes this form.
 	//
-	// Any other logical_parent is used as given.
+	// The remaining 11 real boundaries (all automatic) and the manual
+	// F:compact name a record never written, which then closes allUuids:
+	// "logical_parent":"unwritten". Any other logical_parent is used as given.
 	withSegment := spec.withSegment
 	kept := []string{}
 	if withSegment {
-		kept = tr.lastUUIDs(spec.preserve)
+		window := tr.lastUUIDs(spec.preserve + spec.tailOffset)
+		if spec.tailOffset > 0 {
+			if len(window) > spec.tailOffset {
+				window = window[:len(window)-spec.tailOffset]
+			} else {
+				window = []string{}
+			}
+		}
+		kept = window
 	}
 	logicalParent := spec.logicalParent
 	switch logicalParent {
 	case "":
-		logicalParent = tr.lastUUID()
+		if len(kept) > 0 {
+			logicalParent = kept[len(kept)-1]
+		} else {
+			logicalParent = tr.lastUUID()
+		}
 	case "unwritten":
 		logicalParent = newRecordUUID()
 	}
@@ -300,7 +318,8 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 	meta["postTokens"] = spec.postTokens
 	// cumulativeDroppedTokens: what the session's compactions have dropped so
 	// far, this one's preTokens - postTokens included (both manual fixtures:
-	// 23138-2308 = 20830, 22932-2334 = 20598).
+	// 23138-2308 = 20830, 22932-2334 = 20598). 2.1.282 always writes it; 13
+	// of the 66 real boundaries, from older versions, lack it.
 	meta["cumulativeDroppedTokens"] = lastCumulativeDropped(tr.path) + spec.preTokens - spec.postTokens
 	tr.persistMap(map[string]any{
 		"parentUuid":        nil,
