@@ -75,8 +75,9 @@ func TestT017_11_BackgroundBashFinishedMidTurn(t *testing.T) {
 	h := payloadLogger(t, dir, "log.sh", log, "")
 	settings(t, dir, map[string]string{"UserPromptSubmit": h, "Stop": h})
 	sc := script(t, dir, "s",
-		toolUse("bg1", "Bash", `{"command":"echo BG-OUTPUT-4411","description":"make output","run_in_background":true}`),
-		toolUse("fg1", "Bash", `{"command":"sleep 1"}`),
+		toolUse("bg1", "Bash", `{"command":"echo BG-OUTPUT-4411; touch bgdone","description":"make output","run_in_background":true}`),
+		// The foreground call outlasts the background one, whatever the machine's speed.
+		toolUse("fg1", "Bash", `{"command":"while [ ! -f bgdone ]; do sleep 0.05; done; sleep 1"}`),
 	)
 	out, code := runInDir(t, dir, []string{"CLAUDE_CODE_TMPDIR=" + tmp}, "--script", sc, "--session-id", "bg-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
@@ -131,8 +132,8 @@ func TestT017_11b_BackgroundBashFailure(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	sc := script(t, dir, "s",
-		toolUse("bg1", "Bash", `{"command":"echo x; exit 3","description":"fail","run_in_background":true}`),
-		toolUse("fg1", "Bash", `{"command":"sleep 1"}`),
+		toolUse("bg1", "Bash", `{"command":"echo x; touch bgdone; exit 3","description":"fail","run_in_background":true}`),
+		toolUse("fg1", "Bash", `{"command":"while [ ! -f bgdone ]; do sleep 0.05; done; sleep 1"}`),
 	)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bg-2",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
@@ -203,10 +204,12 @@ func TestT017_12_BackgroundAgent(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
-	h := payloadLogger(t, dir, "log.sh", log, "")
+	// The sub-agent finishes only after the first Stop has fired, so that Stop
+	// sees it running whatever the machine's speed.
+	h := payloadLogger(t, dir, "log.sh", log, `case "$IN" in *'"hook_event_name":"Stop"'*) touch `+dir+`/stopped;; esac`)
 	settings(t, dir, map[string]string{"UserPromptSubmit": h, "Stop": h})
 	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
-sleep 1
+while [ ! -f `+dir+`/stopped ]; do sleep 0.05; done
 echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"AGENT-REPLY-7702"}]}}'
 echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-7702"}'
 `, 0o755)
