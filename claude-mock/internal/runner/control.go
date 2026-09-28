@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
@@ -61,24 +63,28 @@ func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg C
 // claude 2.1.282 run kept 2.
 const defaultPreserved = 2
 
-// compact is a compaction, the way real Claude Code performs one (a manual
-// /compact run through claude 2.1.282, the 65 compact_boundary records in the
-// real transcripts, and the binary's compaction path):
+// compact is a compaction, the way real Claude Code performs one. Evidence
+// (EVIDENCE.md): two manual /compact runs through claude 2.1.282 (fixtures
+// evidence/compact*), the 65 compact_boundary records in the real transcripts,
+// and the binary's compaction path.
 //
-//  1. PreCompact fires {trigger, custom_instructions}; an exit 2 or a
+//  1. PreCompact fires {trigger, custom_instructions: null}; an exit 2 or a
 //     decision:block stops the compaction — nothing is written.
-//  2. A compact_boundary is APPENDED to the file the session is writing:
-//     parentless, its logicalParentUuid the last record before it (or the
-//     scenario's logical_parent), its compactMetadata naming the records the
-//     compaction kept — preservedMessages {anchorUuid, uuids, allUuids} and
-//     preservedSegment {headUuid, anchorUuid, tailUuid}, the anchor being the
-//     summary — plus trigger and token counts. The kept records stay where
-//     they are; a fork copies them in after the summary (forkTranscript).
-//  3. The summary (isCompactSummary) chains to the boundary.
-//  4. SessionStart fires with source "compact"; its attachments follow the
-//     summary.
-//  5. PostCompact fires {trigger, compact_summary}. Neither Pre- nor
-//     PostCompact leaves an attachment: their output is display text only.
+//  2. For a MANUAL compaction, SubagentStop fires for the summarizer that
+//     wrote the summary: agent_type "", a fresh agent_id, an
+//     agent_transcript_path no file is ever written to, and the summary as
+//     last_assistant_message. (Not measured for an automatic compaction, so
+//     not fired for one.)
+//  3. A compact_boundary is APPENDED to the file the session is writing (see
+//     writeCompactBoundary), and the summary (isCompactSummary,
+//     isVisibleInTranscriptOnly) chains to it.
+//  4. SessionStart fires with source "compact", then PostCompact
+//     {trigger, compact_summary}. Neither Pre- nor PostCompact leaves an
+//     attachment; their outcome is display text.
+//  5. A manual compaction is the /compact command, so the three records a
+//     local command leaves follow the summary — the caveat, the command, and
+//     its output "Compacted <what the Pre/PostCompact hooks reported>" — and
+//     SessionStart:compact's attachments come after them.
 //
 // It returns whether the compaction happened. The scenario drives it with
 // {"type":"compact"[,"summary":…][,"trigger":"auto"|"manual"][,"preserve":N]
@@ -91,8 +97,10 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	if trigger == "" {
 		trigger = "auto"
 	}
+	manual := trigger == "manual"
 	started := time.Now()
-	preOut, preErr := inv.Fire(ctx, hooks.Input{
+	var preRuns, postRuns []hooks.HandlerRun
+	preOut, preErr := inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { preRuns = runs }).Fire(ctx, hooks.Input{
 		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPreCompact,
 		Trigger: trigger, CustomInstructions: json.RawMessage("null"),
 	})
@@ -121,12 +129,38 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 			sum["id"] = rec.ID
 		}
 	}
+	if _, ok := sum["isVisibleInTranscriptOnly"]; !ok {
+		sum["isVisibleInTranscriptOnly"] = true // every one of the 66 real summaries
+	}
 	anchor, _ := sum["uuid"].(string)
 	if anchor == "" {
 		anchor = newRecordUUID()
 		sum["uuid"] = anchor
 	}
 	delete(sum, "parentUuid") // chains to the boundary
+	summaryText := ""
+	if m, ok := sum["message"].(map[string]any); ok {
+		summaryText, _ = m["content"].(string)
+	}
+
+	if manual {
+		summarizer, err := newAgentID()
+		if err == nil {
+			active := false
+			tasks := cfg.bg.running()
+			crons := []any{}
+			sessionFile := cfg.sessionFile
+			if sessionFile == "" {
+				sessionFile = tr.path
+			}
+			_, _ = inv.WithRecorder(nil).Fire(ctx, hooks.Input{
+				SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventSubagentStop,
+				AgentID: summarizer, AgentType: "", StopHookActive: &active,
+				AgentTranscriptPath:  filepath.Join(strings.TrimSuffix(sessionFile, ".jsonl"), "subagents", "agent-"+summarizer+".jsonl"),
+				LastAssistantMessage: &summaryText, BackgroundTasks: &tasks, SessionCrons: &crons,
+			})
+		}
+	}
 
 	preserve := defaultPreserved
 	if rec.Preserve != nil {
@@ -140,17 +174,48 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	writeStreamLine(cfg, sumLine)
 	tr.persist(sumLine)
 
-	fireSessionStart(ctx, cfg, inv, "compact")
-
-	summaryText := ""
-	if m, ok := sum["message"].(map[string]any); ok {
-		summaryText, _ = m["content"].(string)
+	ssInv := inv
+	if manual {
+		ssInv = inv.WithRecorder(tr.holdHookRuns)
 	}
-	_, _ = inv.Fire(ctx, hooks.Input{
+	fireSessionStart(ctx, cfg, ssInv, "compact")
+
+	_, _ = inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { postRuns = runs }).Fire(ctx, hooks.Input{
 		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPostCompact,
 		Trigger: trigger, CompactSummary: &summaryText,
 	})
+
+	if manual {
+		lines := append(compactHookLines("PreCompact", preRuns), compactHookLines("PostCompact", postRuns)...)
+		tr.persistMap(map[string]any{"type": "user", "isMeta": true, "message": map[string]any{"role": "user",
+			"content": "<local-command-caveat>Caveat: The messages below were generated by the user while running local commands. DO NOT respond to these messages or otherwise consider them in your response unless the user explicitly asks you to.</local-command-caveat>"}})
+		tr.persistMap(map[string]any{"type": "user", "message": map[string]any{"role": "user",
+			"content": "<command-name>/compact</command-name>\n            <command-message>compact</command-message>\n            <command-args></command-args>"}})
+		tr.persistMap(map[string]any{"type": "user", "message": map[string]any{"role": "user",
+			"content": "<local-command-stdout>Compacted " + strings.Join(lines, "\n") + "</local-command-stdout>"}})
+		tr.flushHookRuns()
+	}
 	return true
+}
+
+// compactHookLines is what a compaction reports of its Pre/PostCompact
+// hooks, one line per hook, in the 2.1.282 binary's wording:
+// "<Event> [<command>] completed successfully[: <output>]" or
+// "<Event> [<command>] failed[: <output>]".
+func compactHookLines(event string, runs []hooks.HandlerRun) []string {
+	var out []string
+	for _, r := range runs {
+		verdict, text := "completed successfully", strings.TrimSpace(r.Stdout)
+		if r.ExitCode != 0 {
+			verdict, text = "failed", strings.TrimSpace(r.Stderr)
+		}
+		l := event + " [" + r.Command + "] " + verdict
+		if text != "" {
+			l += ": " + text
+		}
+		out = append(out, l)
+	}
+	return out
 }
 
 // compactionSpec is what one compaction's boundary records.
@@ -161,6 +226,15 @@ type compactionSpec struct {
 	trigger       string
 	preTokens     int
 	durationMs    int64
+}
+
+func contains(xs []string, x string) bool {
+	for _, v := range xs {
+		if v == x {
+			return true
+		}
+	}
+	return false
 }
 
 // writeCompactBoundary appends the compact_boundary a compaction opens with.
@@ -174,6 +248,16 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 	if logicalParent == "" {
 		logicalParent = tr.lastUUID()
 	}
+	// allUuids is uuids plus the records the kept segment spans that were
+	// never written to the file: in 44 of the 65 real boundaries it is a strict
+	// superset of uuids, every extra id unwritten; in a controlled manual
+	// compaction the one extra was the unwritten record the boundary named as
+	// its logical parent. A logical_parent the scenario names that no record
+	// carries is therefore in allUuids too.
+	all := append([]string(nil), kept...)
+	if logicalParent != "" && !contains(kept, logicalParent) && !fileHasUUID(tr.path, logicalParent) {
+		all = append(all, logicalParent)
+	}
 	meta := map[string]any{
 		"trigger":    spec.trigger,
 		"preTokens":  spec.preTokens,
@@ -184,7 +268,7 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 			"headUuid": kept[0], "anchorUuid": spec.anchor, "tailUuid": kept[len(kept)-1],
 		}
 		meta["preservedMessages"] = map[string]any{
-			"anchorUuid": spec.anchor, "uuids": kept, "allUuids": kept,
+			"anchorUuid": spec.anchor, "uuids": kept, "allUuids": all,
 		}
 	}
 	meta["postTokens"] = 0

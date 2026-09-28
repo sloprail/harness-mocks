@@ -164,9 +164,12 @@ func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr 
 	// Any other isolation value shares the parent cwd.
 	// sr:docs https://code.claude.com/docs/en/sub-agents
 	subCwd := cfg.Cwd
+	branch := ""
 	if in.Isolation == "worktree" {
 		subCwd = filepath.Join(cfg.Cwd, ".claude", "worktrees", "agent-"+agentID)
-		if err := bindWorktree(context.Background(), cfg.Cwd, subCwd); err != nil {
+		branch = "worktree-agent-" + agentID
+		if err := bindWorktree(context.Background(), cfg.Cwd, subCwd, branch); err != nil {
+			branch = ""
 			fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: bind %s: %v (falling back to a plain directory)\n", subCwd, err)
 			if mkErr := os.MkdirAll(subCwd, 0o755); mkErr != nil {
 				fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: mkdir %s: %v — isolation NOT applied, sharing parent cwd\n", subCwd, mkErr)
@@ -184,11 +187,24 @@ func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr 
 		sessionFile = tr.path
 	}
 	sidechain := filepath.Join(strings.TrimSuffix(sessionFile, ".jsonl"), "subagents", "agent-"+agentID+".jsonl")
-	seedSubagentTranscript(sidechain, cfg.Cwd, subCwd, cfg.SessionID, agentID, agentType, toolUseID, in.Description, in.Prompt)
+	shape := "foreground"
+	if background {
+		shape = "background"
+	}
+	meta := subagentMeta{
+		AgentType: agentType, Description: in.Description, ToolUseID: toolUseID,
+		ParentAgentID: cfg.AgentID, SpawnDepth: cfg.spawnDepth + 1,
+		RequestShape: shape, RequestNonInteractive: true, Model: in.Model,
+	}
+	if subCwd != cfg.Cwd {
+		meta.WorktreePath, meta.WorktreeBranch = subCwd, branch
+		meta.SpawnedWithWorktree = branch != ""
+	}
+	seedSubagentTranscript(sidechain, subCwd, cfg.SessionID, agentID, in.Prompt, meta)
 
 	return &subagentRun{
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
-		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile,
+		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
 		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background,
 	}, in, toolexec.Result{}
 }
@@ -207,6 +223,7 @@ type subagentRun struct {
 	script         string
 	prompt         string
 	background     bool
+	spawnDepth     int
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -293,6 +310,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		ParentTranscriptPath:  s.parentReported,
 		bg:                    bg,
 		sessionFile:           s.sessionFile,
+		spawnDepth:            s.spawnDepth,
 	}
 	out := runOutcome{}
 	if err := Run(ctx, subCfg); err != nil {
@@ -328,7 +346,7 @@ func (s *subagentRun) invoker(inv *hooks.Invoker) *hooks.Invoker {
 // or a plain empty directory otherwise (parentCwd isn't a git repo, or has no commits yet — a
 // worktree needs a HEAD to branch from). The caller (runAgentTool) already falls back to a plain
 // mkdir on any error this returns, so this only needs to try the real thing and report failure.
-func bindWorktree(ctx context.Context, parentCwd, worktreeDir string) error {
+func bindWorktree(ctx context.Context, parentCwd, worktreeDir, branch string) error {
 	if err := os.MkdirAll(filepath.Dir(worktreeDir), 0o755); err != nil {
 		return fmt.Errorf("mkdir parent: %w", err)
 	}
@@ -340,10 +358,9 @@ func bindWorktree(ctx context.Context, parentCwd, worktreeDir string) error {
 	if err := checkHead.Run(); err != nil {
 		return fmt.Errorf("no HEAD (no commits yet): %w", err)
 	}
-	// A detached worktree (no new branch) at the current HEAD — the subagent's own commits
-	// inside it are exactly what a real isolation="worktree" dispatch is FOR (e.g. a spec-applier
-	// authoring impl+spec that a10n-checks later drains from this directory).
-	add := exec.CommandContext(ctx, "git", "-C", parentCwd, "worktree", "add", "--detach", worktreeDir, "HEAD")
+	// A worktree on a new branch worktree-agent-<id> at the current HEAD — the branch real
+	// Claude Code creates (every real isolated sub-agent's .meta.json names it).
+	add := exec.CommandContext(ctx, "git", "-C", parentCwd, "worktree", "add", "-b", branch, worktreeDir, "HEAD")
 	var stderr bytes.Buffer
 	add.Stderr = &stderr
 	if err := add.Run(); err != nil {

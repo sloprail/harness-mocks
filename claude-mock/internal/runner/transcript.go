@@ -45,6 +45,9 @@ type transcript struct {
 	sw       *sessionWriter
 	stamp    recordStamp
 
+	// held is hook runs recorded but not written yet (holdHookRuns).
+	held []heldRun
+
 	// fresh marks a transcript this run is opening for the first time, so the
 	// preamble real Claude Code opens a file with is written ahead of the first
 	// record.
@@ -191,6 +194,28 @@ func (t *transcript) lastUUID() string {
 	}
 	return t.sw.lastUUID
 }
+
+type heldRun struct {
+	in   hooks.Input
+	runs []hooks.HandlerRun
+}
+
+// holdHookRuns is a recorder that keeps a fire's runs to be written later,
+// for records that real Claude Code writes after something the hook decided
+// on (flushHookRuns writes them, dropHeldHookRuns forgets them).
+func (t *transcript) holdHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
+	t.held = append(t.held, heldRun{in: in, runs: runs})
+}
+
+func (t *transcript) flushHookRuns() {
+	held := t.held
+	t.held = nil
+	for _, h := range held {
+		t.recordHookRuns(h.in, h.runs)
+	}
+}
+
+func (t *transcript) dropHeldHookRuns() { t.held = nil }
 
 // lastUUIDs is the uuids of the last n records written that carry one, oldest
 // first.

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
@@ -116,16 +117,25 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				// warning record (the 2.1.282 binary: `ve>xe`; a controlled run
 				// fired Stop 9 times). 0 disables the cap.
 				writeCapOverride(tr, stopBlocks)
+				// The overridden turn's result carries no text: claude
+				// 2.1.282 streamed "result":"" after the override.
+				turn.resultLine = withEmptyResult(turn.resultLine)
 			}
 			stopBlocks = 0
 			writeStreamLine(cfg, turn.resultLine)
 			// The turn is over. Hand over what finished in the background, one
 			// new turn per task, waiting while a background agent still runs.
-			if t := bg.awaitAfterTurn(ctx, cfg.AgentID); t != nil {
+			delivered := false
+			for t := bg.awaitAfterTurn(ctx, cfg.AgentID); t != nil; t = bg.awaitAfterTurn(ctx, cfg.AgentID) {
+				// A notification UserPromptSubmit refuses starts no turn;
+				// the next finished task is handed over instead.
 				if bg.deliverAsTurn(ctx, cfg, inv, tr, t) {
-					lastSig, repeats = "", 0
-					continue
+					delivered = true
+					break
 				}
+			}
+			if delivered {
+				lastSig, repeats = "", 0
 				continue
 			}
 			bg.stopOwned(cfg)
@@ -142,6 +152,19 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		}
 		lastSig = sig
 	}
+}
+
+// withEmptyResult is a result frame with its result text emptied.
+func withEmptyResult(line []byte) []byte {
+	var m map[string]any
+	if json.Unmarshal(line, &m) != nil || m == nil {
+		return line
+	}
+	m["result"] = ""
+	if b, err := marshalRecord(m); err == nil {
+		return b
+	}
+	return line
 }
 
 // writeCapOverride writes the warning real Claude Code records when it
@@ -238,6 +261,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// sr:docs https://code.claude.com/docs/en/sub-agents
 	var res toolexec.Result
 	var startAgent func()
+	toolStarted := time.Now()
 	switch {
 	case isAgentTool(pending.ToolName) && runsInBackground(pending.ToolInput):
 		res, startAgent = bg.launchAgent(cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
@@ -260,12 +284,28 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{}, err
 	}
 
-	// PostToolUse for the synthesised result — not for a call the tool refused
-	// (real Claude Code fires PostToolUseFailure for those, which the mock does
-	// not model). tool_response is the tool's structured result where it has
-	// one, else the text the model got.
+	// PostToolUse for the synthesised result; PostToolUseFailure instead when
+	// the tool failed, with the text the model got as error — as claude
+	// 2.1.282 fires them (a controlled run: a failing Bash fired
+	// PostToolUseFailure {error, is_interrupt, duration_ms}). tool_response is
+	// the tool's structured result where it has one, else the text the model
+	// got. Neither leaves a record here (no evidence for PostToolUseFailure's).
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
-	if !res.IsError {
+	took := time.Since(toolStarted).Milliseconds()
+	if res.IsError {
+		notInterrupted := false
+		_, _ = inv.Fire(ctx, hooks.Input{
+			SessionID:     cfg.SessionID,
+			Cwd:           cfg.Cwd,
+			HookEventName: hooks.EventPostToolUseFailure,
+			ToolName:      pending.ToolName,
+			ToolUseID:     pending.ToolUseID,
+			ToolInput:     pending.ToolInput,
+			Error:         res.Output,
+			IsInterrupt:   &notInterrupted,
+			DurationMs:    &took,
+		})
+	} else {
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
@@ -274,6 +314,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			ToolUseID:     pending.ToolUseID,
 			ToolInput:     pending.ToolInput,
 			ToolResponse:  toolResponse(res),
+			DurationMs:    &took,
 		})
 	}
 	if startAgent != nil {

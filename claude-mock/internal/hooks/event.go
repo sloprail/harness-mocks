@@ -8,16 +8,20 @@ import "encoding/json"
 type EventName string
 
 const (
-	EventSessionStart   EventName = "SessionStart"
-	EventSessionEnd     EventName = "SessionEnd"
-	EventStop           EventName = "Stop"
-	EventSubagentStart  EventName = "SubagentStart"
-	EventSubagentStop   EventName = "SubagentStop"
-	EventStopFailure    EventName = "StopFailure"
-	EventPreToolUse     EventName = "PreToolUse"
-	EventPostToolUse    EventName = "PostToolUse"
-	EventWorktreeCreate EventName = "WorktreeCreate"
-	EventWorktreeRemove EventName = "WorktreeRemove"
+	EventSessionStart  EventName = "SessionStart"
+	EventSessionEnd    EventName = "SessionEnd"
+	EventStop          EventName = "Stop"
+	EventSubagentStart EventName = "SubagentStart"
+	EventSubagentStop  EventName = "SubagentStop"
+	EventStopFailure   EventName = "StopFailure"
+	EventPreToolUse    EventName = "PreToolUse"
+	EventPostToolUse   EventName = "PostToolUse"
+	// EventPostToolUseFailure fires instead of PostToolUse when a tool that ran
+	// failed (claude 2.1.282: a failing foreground Bash fired it, with error).
+	// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
+	EventPostToolUseFailure EventName = "PostToolUseFailure"
+	EventWorktreeCreate     EventName = "WorktreeCreate"
+	EventWorktreeRemove     EventName = "WorktreeRemove"
 	// EventPreCompact / EventPostCompact bracket a compaction. PreCompact can
 	// block it (exit 2 or decision:block); PostCompact receives the summary.
 	// sr:docs https://code.claude.com/docs/en/hooks#precompact
@@ -84,6 +88,12 @@ type Input struct {
 	// the text the model got.
 	// sr:docs https://code.claude.com/docs/en/hooks#posttooluse-input
 	ToolResponse json.RawMessage `json:"tool_response,omitempty"`
+	// PostToolUseFailure: error is the text the model got, is_interrupt
+	// whether the user interrupted it. Both carry duration_ms, the tool's run
+	// time, as PostToolUse does (claude 2.1.282 payloads).
+	Error       string `json:"error,omitempty"`
+	IsInterrupt *bool  `json:"is_interrupt,omitempty"`
+	DurationMs  *int64 `json:"duration_ms,omitempty"`
 
 	// SubagentStart / SubagentStop — agent type name (matcher for these events)
 	AgentType string `json:"agent_type,omitempty"`
@@ -151,4 +161,17 @@ type HookSpecificOutput struct {
 	UpdatedInput             json.RawMessage `json:"updatedInput,omitempty"`
 	UpdatedToolOutput        string          `json:"updatedToolOutput,omitempty"`
 	WorktreePath             string          `json:"worktreePath,omitempty"`
+}
+
+// MarshalJSON writes the payload, with agent_type present (possibly "")
+// whenever agent_id is: real Claude Code sends both together — a manual
+// compaction's summarizer fires SubagentStop with agent_type "" (claude
+// 2.1.282).
+func (in Input) MarshalJSON() ([]byte, error) {
+	type plain Input
+	b, err := json.Marshal(plain(in))
+	if err != nil || in.AgentID == "" || in.AgentType != "" {
+		return b, err
+	}
+	return append(b[:len(b)-1], []byte(`,"agent_type":""}`)...), nil
 }

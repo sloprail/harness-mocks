@@ -486,24 +486,30 @@ func (t *backgroundTask) streamFrame(sessionID string) []byte {
 // a queued_command attachment per task (commandMode "task-notification"),
 // written after the tool result it arrived during, and UserPromptSubmit fired
 // with the notification as its prompt — as claude 2.1.282 did in a controlled
-// `claude -p` run.
+// `claude -p` run. A notification the hook refuses is not handed over.
 func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) {
 	for _, t := range b.takeFinished(cfg.AgentID) {
 		note := t.notification()
+		if !submitNotification(ctx, cfg, inv, tr, note) {
+			continue
+		}
 		writeStreamLine(cfg, t.streamFrame(cfg.SessionID))
 		tr.persistMap(map[string]any{"type": "attachment", "attachment": map[string]any{
 			"type": "queued_command", "prompt": note, "source_uuid": newRecordUUID(),
 			"commandMode": "task-notification", "timestamp": nowStamp(),
 		}})
-		_, _ = inv.Fire(ctx, hooks.Input{SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note})
+		tr.flushHookRuns()
 	}
 }
 
 // deliverAsTurn writes a finished task's notification as the user turn that
-// starts a new turn, and fires UserPromptSubmit for it. It reports false when
-// the hook refused the prompt, in which case no turn runs for it.
+// starts a new turn, once UserPromptSubmit has let it through. It reports
+// false — writing nothing, so no turn runs for it — when the hook refused it.
 func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, t *backgroundTask) bool {
 	note := t.notification()
+	if !submitNotification(ctx, cfg, inv, tr, note) {
+		return false
+	}
 	writeStreamLine(cfg, t.streamFrame(cfg.SessionID))
 	tr.persistMap(map[string]any{
 		"type":                 "user",
@@ -513,8 +519,23 @@ func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *ho
 		"turnOrigin":           "task_notification",
 		"queueSkipAttachments": true,
 	})
-	_, err := inv.Fire(ctx, hooks.Input{SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note})
-	return err == nil
+	tr.flushHookRuns()
+	return true
+}
+
+// submitNotification fires UserPromptSubmit for a notification, holding what
+// its hooks leave until the notification itself is written (they follow it),
+// and reports whether they let it through. A refused notification leaves
+// nothing.
+func submitNotification(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, note string) bool {
+	out, err := inv.WithRecorder(tr.holdHookRuns).Fire(ctx, hooks.Input{
+		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note,
+	})
+	if err != nil || out.Decision == "block" {
+		tr.dropHeldHookRuns()
+		return false
+	}
+	return true
 }
 
 // stopOwned ends what owner still has running when its run gives its final

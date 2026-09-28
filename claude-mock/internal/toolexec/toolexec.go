@@ -15,6 +15,7 @@ package toolexec
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -91,6 +92,18 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
 	}
 	if err != nil {
+		// A command that exits non-zero is answered the way claude 2.1.28x
+		// answers it: "Exit code N" then the output, as an error, with
+		// toolUseResult "Error: <that text>" (1,316 real results; a controlled
+		// 2.1.282 run).
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
+			msg := fmt.Sprintf("Exit code %d", exitErr.ExitCode())
+			if text != "" {
+				msg += "\n" + text
+			}
+			return Result{Output: msg, IsError: true, ToolUseResult: "Error: " + msg}
+		}
 		return Result{Output: text + "\n" + err.Error(), IsError: true}
 	}
 	return Result{Output: text, ToolUseResult: structured}

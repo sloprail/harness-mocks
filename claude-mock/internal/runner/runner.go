@@ -122,6 +122,10 @@ type Config struct {
 	// session's tasks). Nil for the root run, which creates it.
 	bg *backgroundTasks
 
+	// spawnDepth is how deep in sub-agents this run is: 0 for the root, 1 for
+	// a sub-agent it dispatched, 2 for one that sub-agent dispatched.
+	spawnDepth int
+
 	// sessionFile is the session's actual transcript, next to which every
 	// sub-agent's subagents/agent-<id>.jsonl lives. Set by the root run.
 	sessionFile string

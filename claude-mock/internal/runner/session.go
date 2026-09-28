@@ -368,24 +368,40 @@ func appendToSession(f *os.File, line []byte) {
 	f.Write([]byte{'\n'}) //nolint:errcheck
 }
 
+// subagentMeta is a sub-agent's .meta.json sidecar, in the shape claude
+// 2.1.282 writes it (a controlled run of a foreground, a nested and an
+// isolated sub-agent; 626 real sidecars): agentType, description, toolUseId,
+// parentAgentId for a nested sub-agent, spawnDepth, requestShape
+// ("foreground" | "background"), requestNonInteractive (a `-p` session), model
+// when the call named one, and, for an isolated sub-agent, worktreePath,
+// spawnedWithWorktree and worktreeBranch.
+type subagentMeta struct {
+	AgentType             string `json:"agentType"`
+	WorktreePath          string `json:"worktreePath,omitempty"`
+	SpawnedWithWorktree   bool   `json:"spawnedWithWorktree,omitempty"`
+	WorktreeBranch        string `json:"worktreeBranch,omitempty"`
+	Description           string `json:"description"`
+	ToolUseID             string `json:"toolUseId"`
+	ParentAgentID         string `json:"parentAgentId,omitempty"`
+	SpawnDepth            int    `json:"spawnDepth"`
+	RequestShape          string `json:"requestShape"`
+	RequestNonInteractive bool   `json:"requestNonInteractive"`
+	Model                 string `json:"model,omitempty"`
+}
+
 // seedSubagentTranscript writes prompt as the first user record of the
-// sub-agent's sidechain transcript at path, and the .meta.json sidecar beside
-// it, as the real CLI does.
+// sub-agent's sidechain transcript at path, and meta as the .meta.json
+// sidecar beside it.
 //
 // The real sub-agent transcript's first record IS the dispatch prompt — a uuid
 // with a null parentUuid, the origin every later record chains from — and every
-// record carries isSidechain and the file's agentId (a controlled 2.1.282 run
+// record carries isSidechain and the file's agentId (controlled 2.1.282 runs
 // and every real subagents/agent-<id>.jsonl). A hook can read the prompt (e.g.
-// an embedded task id) out of it.
-//
-// parentCwd is the session's cwd; subCwd is the sub-agent's (its isolated
-// worktree under isolation="worktree"), which the record's cwd and the
-// sidecar's worktreePath report. The sidecar carries agentType, description
-// and toolUseId, and worktreePath only for an isolated sub-agent (the
-// 2.1.282 sidecar of a plain sub-agent has none).
+// an embedded task id) out of it. subCwd is the sub-agent's cwd (its isolated
+// worktree under isolation="worktree"), which the record reports.
 //
 // sr:docs https://code.claude.com/docs/en/agent-sdk/sessions
-func seedSubagentTranscript(path, parentCwd, subCwd, sessionID, agentID, agentType, toolUseID, description, prompt string) {
+func seedSubagentTranscript(path, subCwd, sessionID, agentID, prompt string, meta subagentMeta) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return
 	}
@@ -403,11 +419,7 @@ func seedSubagentTranscript(path, parentCwd, subCwd, sessionID, agentID, agentTy
 			f.Close()
 		}
 	}
-	meta := map[string]any{"agentType": agentType, "description": description, "toolUseId": toolUseID}
-	if subCwd != parentCwd {
-		meta["worktreePath"] = subCwd
-	}
-	if mb, err := json.MarshalIndent(meta, "", "  "); err == nil {
+	if mb, err := json.Marshal(meta); err == nil {
 		_ = os.WriteFile(strings.TrimSuffix(path, ".jsonl")+".meta.json", mb, 0o644)
 	}
 }

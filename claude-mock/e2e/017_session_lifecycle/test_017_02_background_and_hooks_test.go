@@ -765,6 +765,7 @@ echo '{"type":"result","subtype":"success","result":"DONE"}'
 				assert.Equal(t, i > 0, p["stop_hook_active"], "fire %d", i)
 			}
 			assert.Equal(t, 1, strings.Count(out, `"type":"result"`), "one result for the whole continued turn")
+			assert.Contains(t, out, `"result":""`, "after the override the result carries no text, as claude 2.1.282 streamed it")
 			recs := readRecs(t, transcriptPath(t, cfg, dir, "cap-1"))
 			last := recs[len(recs)-1]
 			assert.Equal(t, "informational", last.Subtype)
@@ -795,4 +796,120 @@ echo '{"type":"result","subtype":"success","result":"HELPED"}'
 	assert.Len(t, payloads(t, log), 9)
 	raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "scap-1"))
 	assert.NotContains(t, string(raw), "informational")
+}
+
+// TestT017_28_RefusedNotificationStartsNoTurn: when UserPromptSubmit refuses a
+// task notification, the notification is not written and no turn runs for it;
+// the session ends.
+func TestT017_28_RefusedNotificationStartsNoTurn(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	log := filepath.Join(dir, "payloads.log")
+	h := payloadLogger(t, dir, "log.sh", log, `if printf '%s' "$IN" | grep -q 'task-notification'; then echo refused 1>&2; exit 2; fi`)
+	settings(t, dir, map[string]string{"UserPromptSubmit": h, "Stop": h})
+	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
+sleep 1
+printf '%s\n' '{"type":"result","subtype":"success","result":"R"}'
+`, 0o755)
+	sc := script(t, dir, "s",
+		toolUse("ag1", "Agent", `{"prompt":"go","description":"bg","script":"`+sub+`","run_in_background":true}`),
+	)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "rn-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	raw, err := os.ReadFile(transcriptPath(t, cfg, dir, "rn-1"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "<task-notification>", "a refused notification is not written")
+	var stops int
+	for _, p := range payloads(t, log) {
+		if p["hook_event_name"] == "Stop" {
+			stops++
+		}
+	}
+	assert.Equal(t, 1, stops, "no turn ran for it")
+}
+
+// TestT017_29_FailingBash: a foreground Bash that exits non-zero is answered
+// "Exit code N\n<output>" (is_error) with toolUseResult "Error: <that>", and
+// fires PostToolUseFailure {error, is_interrupt, duration_ms} instead of
+// PostToolUse — claude 2.1.282 in a controlled run (fixture
+// evidence/bashfail).
+func TestT017_29_FailingBash(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	log := filepath.Join(dir, "payloads.log")
+	h := payloadLogger(t, dir, "log.sh", log, "")
+	settings(t, dir, map[string]string{"PostToolUse": h, "PostToolUseFailure": h})
+	sc := script(t, dir, "s", toolUse("b1", "Bash", `{"command":"echo OUT-LINE; exit 3"}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bf-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	block, _ := toolResultOf(t, readRecs(t, transcriptPath(t, cfg, dir, "bf-1")), "b1turn-s-a")
+	assert.Equal(t, "Exit code 3\nOUT-LINE", block["content"])
+	assert.Equal(t, true, block["is_error"])
+	raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "bf-1"))
+	assert.Contains(t, string(raw), `"toolUseResult":"Error: Exit code 3\nOUT-LINE"`)
+	ps := payloads(t, log)
+	require.Len(t, ps, 1)
+	assert.Equal(t, "PostToolUseFailure", ps[0]["hook_event_name"])
+	assert.Equal(t, "Exit code 3\nOUT-LINE", ps[0]["error"])
+	assert.Equal(t, false, ps[0]["is_interrupt"])
+	assert.Contains(t, ps[0], "duration_ms")
+	assert.NotContains(t, ps[0], "tool_response")
+}
+
+// TestT017_30_SubagentMetaSidecars: every sub-agent's .meta.json has the
+// fields claude 2.1.282 writes — spawnDepth, requestShape, requestNonInteractive;
+// parentAgentId for a nested one; model when the call names one; and for an
+// isolated one worktreePath, spawnedWithWorktree and the worktree-agent-<id>
+// branch it really creates (fixture evidence/meta, 626 real sidecars).
+func TestT017_30_SubagentMetaSidecars(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	require.NoError(t, exec.Command("git", "init", "-q", dir).Run())
+	require.NoError(t, exec.Command("git", "-C", dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "i").Run())
+	leaf := script(t, dir, "leaf")
+	outer := script(t, dir, "outer", toolUse("in1", "Agent", `{"prompt":"p","description":"inner","script":"`+leaf+`"}`))
+	sc := script(t, dir, "s",
+		toolUse("o1", "Agent", `{"prompt":"p","description":"outer","script":"`+outer+`","model":"haiku"}`),
+		toolUse("i1", "Agent", `{"prompt":"p","description":"iso","isolation":"worktree","script":"`+leaf+`"}`),
+		toolUse("g1", "Agent", `{"prompt":"p","description":"bg","run_in_background":true,"script":"`+leaf+`"}`),
+	)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "mt-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	files, err := filepath.Glob(filepath.Join(strings.TrimSuffix(transcriptPath(t, cfg, dir, "mt-1"), ".jsonl"), "subagents", "*.meta.json"))
+	require.NoError(t, err)
+	byDesc := map[string]map[string]any{}
+	ids := map[string]string{}
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		require.NoError(t, err)
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(data, &m))
+		byDesc[m["description"].(string)] = m
+		ids[m["description"].(string)] = strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), "agent-"), ".meta.json")
+	}
+	require.Len(t, byDesc, 4)
+	base := func(desc, shape string, depth int) map[string]any {
+		return map[string]any{"agentType": "general-purpose", "description": desc, "spawnDepth": float64(depth),
+			"requestShape": shape, "requestNonInteractive": true}
+	}
+	o := base("outer", "foreground", 1)
+	o["model"], o["toolUseId"] = "haiku", byDesc["outer"]["toolUseId"]
+	assert.Equal(t, o, byDesc["outer"])
+	in := base("inner", "foreground", 2)
+	in["parentAgentId"], in["toolUseId"] = ids["outer"], byDesc["inner"]["toolUseId"]
+	assert.Equal(t, in, byDesc["inner"])
+	g := base("bg", "background", 1)
+	g["toolUseId"] = byDesc["bg"]["toolUseId"]
+	assert.Equal(t, g, byDesc["bg"])
+	iso := byDesc["iso"]
+	resolved, _ := filepath.EvalSymlinks(dir)
+	assert.Equal(t, filepath.Join(resolved, ".claude", "worktrees", "agent-"+ids["iso"]), iso["worktreePath"])
+	assert.Equal(t, true, iso["spawnedWithWorktree"])
+	assert.Equal(t, "worktree-agent-"+ids["iso"], iso["worktreeBranch"])
+	branches, err := exec.Command("git", "-C", dir, "branch", "--list", "worktree-agent-*").Output()
+	require.NoError(t, err)
+	assert.Contains(t, string(branches), "worktree-agent-"+ids["iso"], "the branch really exists")
 }
