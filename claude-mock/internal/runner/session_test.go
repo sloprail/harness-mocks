@@ -29,9 +29,8 @@ func TestSeedSubagentTranscriptCarriesAgentId(t *testing.T) {
 	)
 
 	// Non-worktree subagent: subCwd == parentCwd (both = cwd).
-	path := seedSubagentTranscript(configDir, cwd, cwd, parentSessionID, agentID, agentType, toolUseID, prompt)
-	require.NotEmpty(t, path)
-	require.Equal(t, path, subagentTranscriptPath(configDir, cwd, parentSessionID, agentID))
+	path := filepath.Join(configDir, parentSessionID, "subagents", "agent-"+agentID+".jsonl")
+	seedSubagentTranscript(path, cwd, parentSessionID, agentID, prompt, subagentMeta{AgentType: agentType, ToolUseID: toolUseID, Description: "the thing", SpawnDepth: 1, RequestShape: "foreground", RequestNonInteractive: true})
 
 	f, err := os.Open(path)
 	require.NoError(t, err)
@@ -77,7 +76,8 @@ func TestSeedSubagentTranscript_SeedsAnOriginRecord(t *testing.T) {
 	configDir := t.TempDir()
 	const cwd = "/some/work/dir"
 
-	path := seedSubagentTranscript(configDir, cwd, cwd, "parent-session", "agent-1", "general-purpose", "toolu_parent_task_1", "do it")
+	path := filepath.Join(configDir, "parent-session", "subagents", "agent-agent-1.jsonl")
+	seedSubagentTranscript(path, cwd, "parent-session", "agent-1", "do it", subagentMeta{AgentType: "general-purpose", ToolUseID: "toolu_parent_task_1"})
 
 	f, err := os.Open(path)
 	require.NoError(t, err)

@@ -304,3 +304,28 @@ func TestExecCommandContext_LeaksGrandchildWithoutProcessGroup(t *testing.T) {
 	assert.Greater(t, elapsed, 3*time.Second,
 		"plain CommandContext no longer blocks on the grandchild's pipes — the workaround may be removable")
 }
+
+// TestFire_RunsEveryHandlerAndReturnsTheFirstBlock: real Claude Code runs all
+// of an event's matching hooks, so one that exits 2 does not stop the others;
+// the block comes back as a *BlockError quoting "[<command>]: <stderr>".
+func TestFire_RunsEveryHandlerAndReturnsTheFirstBlock(t *testing.T) {
+	dir := t.TempDir()
+	ran := filepath.Join(dir, "ran")
+	block := writeExecScript(t, dir, "block.sh", "#!/bin/sh\necho refused >&2\nexit 2\n")
+	after := writeExecScript(t, dir, "after.sh", "#!/bin/sh\ntouch "+ran+"\n")
+	s := &Settings{Hooks: map[EventName][]HookEntry{EventStop: {{Hooks: []HandlerSpec{
+		{Type: "command", Command: block}, {Type: "command", Command: after},
+	}}}}}
+	var recorded []HandlerRun
+	inv := NewInvoker(s, dir, "sid")
+	inv.SetRecorder(func(_ Input, runs []HandlerRun) { recorded = runs })
+	_, err := inv.Fire(context.Background(), Input{HookEventName: EventStop, Cwd: dir})
+	var be *BlockError
+	require.ErrorAs(t, err, &be)
+	assert.Equal(t, "["+block+"]: refused\n", be.Quoted())
+	_, statErr := os.Stat(ran)
+	assert.NoError(t, statErr, "the second handler ran too")
+	require.Len(t, recorded, 2)
+	assert.True(t, recorded[0].Blocked)
+	assert.Equal(t, "[h]: No stderr output", QuoteBlock("h", ""))
+}

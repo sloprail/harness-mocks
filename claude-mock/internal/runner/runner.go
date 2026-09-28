@@ -7,6 +7,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
@@ -57,13 +59,37 @@ type Config struct {
 	// Out receives the passthrough JSONL (defaults to os.Stdout).
 	Out io.Writer
 
-	// SuppressSubagentHooks disables this run's own SubagentStart (on resume) and
-	// SubagentStop (on end_turn) firing. It is set ONLY for nested subagent runs
-	// spawned via the Agent (alias Task) tool: the Agent-tool layer fires
-	// SubagentStart/SubagentStop itself, WITH the generated agent_id, so the nested
-	// run must not double-fire those events with an agent_id-less payload.
+	// SuppressSubagentHooks marks a NESTED sub-agent run (set only by the Agent
+	// tool, agent.go): no SessionStart, UserPromptSubmit, Stop or SessionEnd of
+	// its own — the Agent-tool layer fires SubagentStart/SubagentStop with the
+	// sub-agent's agent_id around it, as real Claude Code does.
 	// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 	SuppressSubagentHooks bool
+
+	// AgentType is the sub-agent's type when this Config drives a nested SUB-AGENT
+	// run. Real Claude Code sends agent_type beside agent_id on every hook event
+	// fired inside a sub-agent.
+	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+	AgentType string
+
+	// SidechainPath is the sub-agent's own transcript
+	// (<session>/subagents/agent-<id>.jsonl) for a nested SUB-AGENT run. Real
+	// Claude Code writes a sub-agent's records there, never into the parent's
+	// file: of 8,119 main transcripts on one machine, zero carry a sidechain
+	// record. Empty for the ROOT run.
+	SidechainPath string
+
+	// ParentTranscriptPath is the transcript_path the PARENT session reports,
+	// carried on every hook payload fired inside a nested sub-agent run — real
+	// Claude Code's transcript_path is the session's, with the sub-agent named by
+	// agent_id (and its own file by agent_transcript_path, on SubagentStop only).
+	ParentTranscriptPath string
+
+	// ForkFrom is the session id --resume named when --fork-session was given:
+	// the run continues that conversation under SessionID, in a NEW transcript.
+	// See forkTranscript for the shape it writes.
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--fork-session
+	ForkFrom string
 
 	// PrintMode activates --print mode: the script runs in cfg.Cwd as its working
 	// directory, its raw stdout is captured (no JSONL parsing, no session
@@ -80,6 +106,45 @@ type Config struct {
 	//
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--print
 	PrintMode bool
+
+	// Model is the --model the session was started with. The mock runs no
+	// model; it only reports the name where real Claude Code reports one (an
+	// async Agent receipt's resolvedModel).
+	Model string
+
+	// SyncSubagent marks the nested run of a FOREGROUND sub-agent. Real Claude
+	// Code kills such a sub-agent's background commands when it gives its final
+	// response, and its receipts say so (the 2.1.282 Bash tool's
+	// backgroundEndsWithFinalResponse).
+	SyncSubagent bool
+
+	// bg is the session's background-task registry, shared by the root run
+	// and every nested sub-agent run (Stop and SubagentStop list the whole
+	// session's tasks). Nil for the root run, which creates it.
+	bg *backgroundTasks
+
+	// stream is the session's output stream, shared with every nested run: a
+	// sub-agent's task frames go to it, not to the sub-agent's own captured
+	// output. It is safe for concurrent writers (a background sub-agent writes
+	// while the root does).
+	stream io.Writer
+
+	// spawnDepth is how deep in sub-agents this run is: 0 for the root, 1 for
+	// a sub-agent it dispatched, 2 for one that sub-agent dispatched.
+	spawnDepth int
+
+	// sessionFile is the session's actual transcript, next to which every
+	// sub-agent's subagents/agent-<id>.jsonl lives. Set by the root run.
+	sessionFile string
+}
+
+// ErrNoConversation is --resume naming a session that has no transcript. Real
+// Claude Code prints "No conversation found with session ID: <id>" and exits 1
+// (claude 2.1.282; a stream-json run also writes an error result frame).
+type ErrNoConversation struct{ SessionID string }
+
+func (e *ErrNoConversation) Error() string {
+	return "No conversation found with session ID: " + e.SessionID
 }
 
 // Run executes the mock: runs the script, validates + streams JSONL, fires hooks.
@@ -94,94 +159,107 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("claude-mock: --script is required")
 	}
 
-	// Resolve the config dir and open the session JSONL.
-	// Default is /tmp/a10n/claude-mock; overridable via cfg.ConfigDir or
-	// CLAUDE_CONFIG_DIR env var (same variable the real Claude Code CLI honours).
-	// Session files persist between turns so the script can read history.
+	// Resolve the config dir. Default is /tmp/a10n/claude-mock; overridable via
+	// cfg.ConfigDir or CLAUDE_CONFIG_DIR env var (same variable the real Claude
+	// Code CLI honours). Session files persist between turns so the script can
+	// read history.
 	// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
 	// sr:docs https://code.claude.com/docs/en/claude-directory
 	cfg.ConfigDir = resolveConfigDir(cfg.ConfigDir)
-
-	sessionFile, err := openSessionFile(cfg.ConfigDir, cfg.Cwd, cfg.SessionID)
-	if err != nil {
-		return fmt.Errorf("claude-mock: open session file: %w", err)
+	if cfg.stream == nil {
+		lw := &lockedWriter{w: cfg.Out}
+		cfg.Out, cfg.stream = lw, lw
 	}
-	defer sessionFile.Close()
 
-	// Persist the `-p` prompt into the transcript as a HUMAN turn — the shape real Claude
-	// opens (fresh) or continues (resume) a conversation with. The two paths differ:
-	//
-	//   - FRESH (!IsResume): the prompt is the transcript's FIRST user record, a parentless
-	//     ROOT — the conversation's origin a reader scans for. seedRootPromptTranscript only
-	//     writes into a still-EMPTY file, so a re-entry that re-opens a seeded file is a no-op.
-	//
-	//   - RESUME (IsResume): the prompt is the NEXT human turn — a user record with its own
-	//     uuid and a NON-null parentUuid chaining into the transcript already on disk, so a
-	//     reader treats it as a mid-conversation human message, not a second root. This is
-	//     what lets two same-session runs build a genuine multi-human-turn transcript (run 1
-	//     seeds the root prompt; run 2, a --resume, appends its prompt as a continuation).
-	//     appendResumePromptTranscript carries its own re-entry guard (it skips when the last
-	//     human turn already IS this prompt), so it fires exactly once per resume invocation.
-	//
-	// The resume-append is NOT for a nested sub-agent run. A sub-agent (spawned via the
-	// Agent tool) runs with IsResume=true AND SuppressSubagentHooks=true, and its nested
-	// runner.Run opens the PARENT's root session file (same cwd + session id) — its
-	// dispatch prompt is the parent's Agent tool_use input, NOT a human turn in the
-	// parent's conversation. Appending it would forge a human message the user never sent.
-	// The sub-agent's OWN human-origin record is the dispatch prompt seeded by
-	// seedSubagentTranscript into the sidechain file, so the sub-agent path needs nothing
-	// here. SuppressSubagentHooks is set ONLY for those nested runs, so it is the exact
-	// gate: append only on a top-level resume.
-	//
-	// A plugin Stop hook reads the transcript's first user message to harvest a10n:// links
-	// into check contexts; both the fresh and top-level-resume paths keep a user record present.
-	switch {
-	case cfg.IsResume && !cfg.SuppressSubagentHooks:
-		appendResumePromptTranscript(sessionFile, cfg.SessionID, cfg.Cwd, cfg.Prompt)
-	case !cfg.IsResume:
-		seedRootPromptTranscript(sessionFile, cfg.SessionID, cfg.Cwd, cfg.Prompt)
-		// Real Claude Code opens a FRESH transcript with no-uuid preamble records
-		// (custom-title / mode / last-prompt / …) AHEAD of the root prompt. The mock
-		// mirrors that so its transcript file has the same head shape — a fidelity fix,
-		// not a test hook. seedPreamble prepends the block ahead of the root just seeded
-		// (or ahead of a root the sloprail harness pre-seeded before the mock ran), so
-		// the head lands as [preamble…, root, conversation…]. Skipped for resume (the
-		// transcript already opened) and for nested sub-agent runs (SuppressSubagentHooks:
-		// a sub-agent continues the parent's file, it does not open a session).
-		if !cfg.SuppressSubagentHooks {
-			seedPreamble(sessionFile, cfg.SessionID)
-		}
-	}
+	nested := cfg.SuppressSubagentHooks
 
 	settings, err := hooks.LoadSettings(cfg.ProjectDir, cfg.PluginCacheDir)
 	if err != nil {
 		fmt.Fprintf(cfg.Stderr, "claude-mock: warn: loading settings: %v\n", err)
 		settings = &hooks.Settings{Hooks: make(map[hooks.EventName][]hooks.HookEntry)}
 	}
-	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
 
-	// SessionStart hook — fires for every invocation (new or resumed session).
-	// The real Claude Code SessionStart payload uses the "source" field
-	// ("startup" | "resume" | "clear" | "compact") — verified empirically against
-	// claude 2.x (hook stdin carries "source", and compaction uses source="compact").
-	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
-	source := "startup"
-	if cfg.IsResume {
-		source = "resume"
+	// --resume (with or without --fork-session) of a session no transcript
+	// holds: real Claude Code fires no SessionStart, fires SessionEnd, prints
+	// "No conversation found with session ID: <id>" and exits 1.
+	if !nested && cfg.IsResume {
+		from := cfg.SessionID
+		if cfg.ForkFrom != "" {
+			from = cfg.ForkFrom
+		}
+		if sessionFilePathIfExists(cfg.ConfigDir, cfg.Cwd, from) == "" {
+			inv := hooks.NewInvoker(settings, cfg.Cwd, from)
+			inv.SetTranscriptPath(sessionFilePath(cfg.ConfigDir, cfg.Cwd, from))
+			fireSessionEnd(ctx, cfg, inv)
+			return &ErrNoConversation{SessionID: from}
+		}
 	}
-	ac, err := fireSessionStart(ctx, cfg, inv, source)
+
+	// Which file this run writes, and which path its hooks are told about. See
+	// transcript for why those differ and why a fresh session's file does not
+	// exist yet when SessionStart fires.
+	tr, err := openRunTranscript(cfg)
 	if err != nil {
-		return fmt.Errorf("claude-mock: SessionStart hook blocked: %w", err)
+		return fmt.Errorf("claude-mock: open session file: %w", err)
 	}
-	// Real Claude Code injects a SessionStart hook's additionalContext into the
-	// session context (notably on source="compact", to re-seed a compacted window).
-	// Surface it so the script also sees it via env on this run.
-	if ac != "" {
-		cfg.AdditionalContext = ac
+	defer tr.Close()
+	if cfg.sessionFile == "" {
+		cfg.sessionFile = tr.path
 	}
 
-	// In print mode: skip SubagentStart/SubagentStop/session-streaming; run the
-	// script once with raw stdout capture, fire UserPromptSubmit + Stop, and return.
+	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
+	inv.SetTranscriptPath(tr.reported)
+	inv.SetRecorder(tr.recordHookRuns)
+	if cfg.AgentID != "" {
+		inv.SetAgent(cfg.AgentID, cfg.AgentType)
+	}
+
+	// SessionStart — once per top-level invocation. Not for a nested sub-agent
+	// run: real Claude Code fires no SessionStart for a sub-agent, which starts
+	// with SubagentStart instead. source is "startup", "resume", or "fork" for
+	// `--resume <id> --fork-session` (claude 2.1.282; docs). An exit 2 does not
+	// stop the session: real Claude Code records it as a non-blocking error
+	// and carries on (docs, "Exit code 2 behavior per event").
+	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
+	if !nested {
+		source := "startup"
+		switch {
+		case cfg.ForkFrom != "":
+			source = "fork"
+		case cfg.IsResume:
+			source = "resume"
+		}
+		// Real Claude Code injects a SessionStart hook's additionalContext into
+		// the session context. Surface it so the script also sees it via env.
+		if ac := fireSessionStart(ctx, cfg, inv, source); ac != "" {
+			cfg.AdditionalContext = ac
+		}
+	}
+
+	// The prompt, as the HUMAN turn it is — AFTER SessionStart, as real Claude
+	// Code writes it:
+	//
+	//   - FRESH: the file may not exist yet. If SessionStart printed anything its
+	//     attachment is already the file's origin and the prompt chains after it;
+	//     if not, the prompt is the first record and so the origin itself. Its
+	//     uuid is the deterministic `e2e-root-<session>` either way, so a caller
+	//     can reference the human message up front.
+	//   - RESUME / FORK: the NEXT human turn, chained into the transcript on
+	//     disk — never a second parentless root.
+	//   - NESTED sub-agent run: nothing here. The sub-agent's human-origin record
+	//     is its dispatch prompt, seeded into its sidechain file by
+	//     prepareSubagent; writing it again would forge a human message the user
+	//     never sent.
+	switch {
+	case nested:
+	case cfg.IsResume:
+		appendResumePrompt(tr, cfg.SessionID, cfg.Prompt)
+	default:
+		writeRootPrompt(tr, cfg.SessionID, cfg.Cwd, cfg.Prompt)
+	}
+
+	// In print mode: run the script once with raw stdout capture, fire
+	// UserPromptSubmit + Stop, and return.
 	//
 	// EXCEPTION (A10N_MOCK_PRINT_STREAM=1): process the script's stdout through the
 	// normal streaming turn loop instead of raw passthrough, so a print-mode agent can
@@ -193,38 +271,19 @@ func Run(ctx context.Context, cfg Config) error {
 	// writes files / emits raw text) on the original raw path.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--print
 	if cfg.PrintMode {
-		runErr := runPrintMode(ctx, cfg, inv, sessionFile) //nolint:contextcheck
-		stopReason := "end_turn"
-		if runErr != nil {
-			stopReason = "error"
-		}
-		// In print mode the Stop hook validates response.json (exit 2 = validation
-		// failure). Propagate this as an error so RunSupervisor knows the run failed.
-		_, stopErr := inv.Fire(ctx, hooks.Input{
-			SessionID:      cfg.SessionID,
-			Cwd:            cfg.Cwd,
-			TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
-			HookEventName:  hooks.EventStop,
-			StopReason:     stopReason,
-		})
-		_, _ = inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventSessionEnd,
-			Source:        "prompt_input_exit",
-		})
-		if runErr != nil {
-			return runErr
-		}
-		return stopErr
+		err := runPrintMode(ctx, cfg, inv, tr) //nolint:contextcheck
+		fireSessionEnd(ctx, cfg, inv)
+		return err
 	}
 
 	// UserPromptSubmit fires before the prompt reaches the model. Per the real
 	// Claude Code contract the hook CANNOT replace the prompt — it may only append
 	// additionalContext (exposed to the script via A10N_MOCK_ADDITIONAL_CONTEXT)
-	// or block the prompt (decision=block / exit 2 → Fire returns an error).
+	// or block the prompt (decision=block / exit 2 → Fire returns an error). Not
+	// for a nested sub-agent run: the sub-agent's prompt is its dispatcher's
+	// tool input, not something a user submitted.
 	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
-	if cfg.Prompt != "" {
+	if cfg.Prompt != "" && !nested {
 		promptOut, err := inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
@@ -237,95 +296,43 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg.AdditionalContext = additionalContextFrom(promptOut)
 	}
 
-	// SubagentStart fires for resumed sessions (subagents always use --resume).
-	// The agent_type defaults to "general-purpose"; scripts can override via a
-	// subagent_start control record to signal a different agent type.
-	// Suppressed for nested Agent-tool runs — see Config.SuppressSubagentHooks.
-	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstart
-	if cfg.IsResume && !cfg.SuppressSubagentHooks {
-		if _, err := inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventSubagentStart,
-			AgentType:     "general-purpose",
-		}); err != nil {
-			return fmt.Errorf("claude-mock: SubagentStart hook blocked: %w", err)
-		}
-	}
+	// streamAndHook owns the turn lifecycle: Stop at every end of turn, the
+	// re-prompt on a block, and the turns background work starts after it. A
+	// script that fails ends the run without a Stop: real Claude Code fires
+	// Stop only when the agent finishes responding (API errors fire
+	// StopFailure, which the mock does not model).
+	// sr:docs https://code.claude.com/docs/en/hooks#stop
+	runErr := streamAndHook(ctx, cfg, inv, tr)
 
-	// streamAndHook owns the SUCCESS Stop lifecycle: on a clean end-of-turn it fires Stop,
-	// surfaces a blocking Stop's output as an attachment, and re-prompts (loops) on a block —
-	// mirroring real Claude Code's Stop→re-prompt→continue — until Stop is non-blocking or the
-	// block cap is hit. So on success we do NOT fire Stop again here (that would double-fire).
-	// On a script ERROR streamAndHook returns early WITHOUT firing Stop, so we fire the
-	// error-Stop here (stop_reason="error") — real Claude fires Stop regardless of turn outcome.
-	runErr := streamAndHook(ctx, cfg, inv, sessionFile)
-	if runErr != nil {
-		stopOut, stopErr := inv.Fire(ctx, hooks.Input{
-			SessionID:      cfg.SessionID,
-			Cwd:            cfg.Cwd,
-			TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
-			HookEventName:  hooks.EventStop,
-			StopReason:     "error",
-		})
-		emitStopHookAttachment(sessionFile, "Stop", stopOut, stopErr)
+	if !nested {
+		fireSessionEnd(ctx, cfg, inv)
 	}
-
-	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#sessionend
-	_, _ = inv.Fire(ctx, hooks.Input{
-		SessionID:     cfg.SessionID,
-		Cwd:           cfg.Cwd,
-		HookEventName: hooks.EventSessionEnd,
-		Source:        "prompt_input_exit",
-	})
 
 	return runErr
 }
 
-// emitStopHookAttachment appends a hook attachment record to the session transcript matching
-// real Claude Code's shapes (verified from real ~/.claude/projects JSONL):
-//   - a decision:block or non-empty reason → "hook_blocking_error" with
-//     attachment.blockingError.blockingError = the reason (this is how exit-2 blocks AND an
-//     exit-0 {"decision":"block","reason":…} surface the actionable text);
-//   - otherwise, if the hook returned additionalContext / systemMessage text →
-//     "hook_additional_context" with attachment.content = [text];
-//   - otherwise nothing (a silent hook produces no attachment).
-//
-// The block reason re-enters the conversation here so the next scenario turn can read it.
-func emitStopHookAttachment(sessionFile *os.File, hookEvent string, out hooks.Output, fireErr error) {
-	reason := out.Reason
-	if reason == "" && fireErr != nil {
-		// exit-2 path: Fire returns the blocking reason via the error.
-		reason = strings.TrimPrefix(fireErr.Error(), "hooks: command blocked: ")
-	}
-	var att map[string]any
-	switch {
-	case out.Decision == "block" || reason != "":
-		att = map[string]any{
-			"type": "hook_blocking_error", "hookName": hookEvent, "hookEvent": hookEvent,
-			"blockingError": map[string]any{"blockingError": reason},
-		}
-	case additionalContextFrom(out) != "":
-		att = map[string]any{
-			"type": "hook_additional_context", "hookName": hookEvent, "hookEvent": hookEvent,
-			"content": []string{additionalContextFrom(out)},
-		}
-	default:
-		return
-	}
-	rec := map[string]any{"type": "attachment", "attachment": att}
-	if line, err := json.Marshal(rec); err == nil {
-		appendToSession(sessionFile, line)
-	}
+// fireSessionEnd fires SessionEnd the way a `claude -p` session ends: reason
+// "other" (claude 2.1.282). Its output is not recorded — a SessionEnd hook
+// that printed left nothing in the real transcript.
+// sr:docs https://code.claude.com/docs/en/hooks#sessionend
+func fireSessionEnd(ctx context.Context, cfg Config, inv *hooks.Invoker) {
+	_, _ = inv.Fire(ctx, hooks.Input{
+		SessionID:     cfg.SessionID,
+		Cwd:           cfg.Cwd,
+		HookEventName: hooks.EventSessionEnd,
+		Reason:        "other",
+	})
 }
 
 // runPrintMode runs the supervisor script once with raw stdout capture (no JSONL
 // parsing, no session persistence). The script's working directory is cfg.Cwd
 // (set to the session dir by the supervisor caller). Raw stdout is written to
-// cfg.Out. This implements `claude --print` semantics for the autopilot supervisor.
+// cfg.Out. UserPromptSubmit fires before it and Stop after it, with the output
+// as last_assistant_message; a Stop block is returned as the run's error, so
+// the caller sees the validation failure.
 //
 // sr:docs https://code.claude.com/docs/en/cli-reference#--print
-func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
+func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
 	// Fire UserPromptSubmit so any hook in the project-dir settings can intercept
 	// even in print mode. The hook cannot replace the prompt (real Claude
 	// contract); it may only append additionalContext or block (→ Fire errors).
@@ -344,18 +351,41 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFi
 
 	// Opt-in: drive the script through the streaming turn loop so it can emit
 	// tool_use records (e.g. an Agent/Task tool_use → nested sub-agent). The
-	// supervisor still writes response.json as a side effect inside cfg.Cwd; the
-	// streamed JSONL goes to cfg.Out as usual.
+	// turn loop fires Stop itself.
 	if os.Getenv("A10N_MOCK_PRINT_STREAM") == "1" {
-		return streamAndHook(ctx, cfg, inv, sessionFile)
+		return streamAndHook(ctx, cfg, inv, tr)
 	}
 
+	var captured bytes.Buffer
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
 	cmd.Dir = cfg.Cwd                                          // supervisor writes memory files here
-	cmd.Env = buildEnv(cfg, sessionFile)
+	cmd.Env = buildEnv(cfg, tr)
 	cmd.Stderr = cfg.Stderr
-	cmd.Stdout = cfg.Out // raw text passthrough — no JSONL parsing
-	return cmd.Run()
+	cmd.Stdout = io.MultiWriter(cfg.Out, &captured) // raw text passthrough — no JSONL parsing
+	runErr := cmd.Run()
+
+	// In print mode the Stop hook validates response.json (exit 2 = validation
+	// failure). Propagate a block as an error so RunSupervisor knows the run failed.
+	active := false
+	last := strings.TrimSpace(captured.String())
+	tasks := []hooks.BackgroundTask{}
+	crons := []any{}
+	stopOut, stopErr := inv.Fire(ctx, hooks.Input{
+		SessionID:            cfg.SessionID,
+		Cwd:                  cfg.Cwd,
+		HookEventName:        hooks.EventStop,
+		StopHookActive:       &active,
+		LastAssistantMessage: &last,
+		BackgroundTasks:      &tasks,
+		SessionCrons:         &crons,
+	})
+	if runErr != nil {
+		return runErr
+	}
+	if stopErr == nil && stopOut.Decision == "block" {
+		stopErr = fmt.Errorf("claude-mock: Stop hook blocked: %s", stopOut.Reason)
+	}
+	return stopErr
 }
 
 func boolStr(b bool) string {
@@ -365,30 +395,27 @@ func boolStr(b bool) string {
 	return "false"
 }
 
-// fireSessionStart fires the SessionStart hook with the given source field
-// ("startup" | "resume" | "compact" | …), surfaces any additionalContext the hook
-// returned (emitting a system record on the output stream, as real Claude Code
-// injects a SessionStart hook's additionalContext into the session context — most
-// notably on source="compact", to re-seed a compacted window), and returns that
-// additionalContext. It is called once at startup/resume, and again on every
-// compaction record the scenario emits (source="compact"; see scanLines). A
-// blocking hook (exit 2) is returned as an error.
+// fireSessionStart fires the SessionStart hook with the given source
+// ("startup" | "resume" | "fork" | "compact"), surfaces any additionalContext
+// the hooks returned (emitting a system record on the output stream, as real
+// Claude Code injects a SessionStart hook's additionalContext into the
+// session context — most notably on source="compact", to re-seed a compacted
+// window), and returns it. An exit 2 does not stop anything: SessionStart
+// cannot block (docs), and the handler's attachment records it as a
+// non-blocking error.
 // sr:docs https://code.claude.com/docs/en/hooks#sessionstart
-func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, source string) (string, error) {
-	ssOut, err := inv.Fire(ctx, hooks.Input{
+func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, source string) string {
+	ssOut, _ := inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventSessionStart,
 		Source:        source,
 	})
-	if err != nil {
-		return "", err
-	}
 	ac := additionalContextFrom(ssOut)
 	if ac != "" {
 		emitSystemContext(cfg, "session_start", ac)
 	}
-	return ac, nil
+	return ac
 }
 
 // additionalContextFrom extracts the additionalContext a hook returned, if any.
@@ -412,7 +439,18 @@ func emitSystemContext(cfg Config, source, additionalContext string) {
 		"additionalContext": additionalContext,
 	}
 	if b, err := json.Marshal(rec); err == nil {
-		cfg.Out.Write(b)            //nolint:errcheck
-		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+		writeStreamLine(cfg, b)
 	}
+}
+
+// lockedWriter serialises writes to the session's output stream.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
 }

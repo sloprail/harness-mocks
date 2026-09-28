@@ -46,6 +46,11 @@ import (
 type sessionWriter struct {
 	f        *os.File
 	lastUUID string
+
+	// stamp is filled onto every persisted record that lacks the field — the
+	// bookkeeping every real record carries (sessionId, cwd, timestamp, and for
+	// a sub-agent's sidechain file isSidechain + agentId).
+	stamp recordStamp
 }
 
 // newSessionWriter builds a writer over the session file, seeding the chain from the
@@ -72,6 +77,7 @@ func (w *sessionWriter) persist(line []byte) {
 		return
 	}
 	chained, uuid := chainRecord(line, w.lastUUID)
+	chained = stampRecord(chained, w.stamp)
 	appendToSession(w.f, chained)
 	if uuid != "" {
 		w.lastUUID = uuid
@@ -108,16 +114,21 @@ func chainRecord(line []byte, parent string) (out []byte, uuid string) {
 
 	// parentUuid: fill only when ABSENT. An explicit null (the root) is left as the
 	// origin marker; an existing non-null parent (a scenario that authored its own
-	// chain) is honoured.
-	if _, present := rec["parentUuid"]; !present && parent != "" {
-		rec["parentUuid"] = parent
+	// chain) is honoured. The FIRST record of a file, with nothing to chain from,
+	// gets an explicit null — the way real Claude Code writes an origin.
+	if _, present := rec["parentUuid"]; !present {
+		if parent != "" {
+			rec["parentUuid"] = parent
+		} else {
+			rec["parentUuid"] = nil
+		}
 		changed = true
 	}
 
 	if !changed {
 		return line, uuid
 	}
-	if b, err := json.Marshal(rec); err == nil {
+	if b, err := marshalRecord(rec); err == nil {
 		return b, uuid
 	}
 	return line, uuid
@@ -148,4 +159,45 @@ func lastRecordUUID(path string) string {
 		}
 	}
 	return last
+}
+
+// stampRecord fills the bookkeeping fields a real record carries, where line
+// does not carry them already. A line that is not a JSON object is returned as
+// it is.
+func stampRecord(line []byte, st recordStamp) []byte {
+	var rec map[string]any
+	if err := json.Unmarshal(line, &rec); err != nil || rec == nil {
+		return line
+	}
+	changed := false
+	set := func(k string, v any) {
+		if _, ok := rec[k]; !ok {
+			rec[k] = v
+			changed = true
+		}
+	}
+	if st.SessionID != "" {
+		set("sessionId", st.SessionID)
+	}
+	if st.Cwd != "" {
+		set("cwd", st.Cwd)
+	}
+	set("timestamp", nowStamp())
+	set("isSidechain", st.IsSidechain)
+	if st.IsSidechain && st.AgentID != "" {
+		set("agentId", st.AgentID)
+	}
+	set("userType", stampUserType)
+	set("entrypoint", stampEntrypoint)
+	set("version", stampVersion)
+	if st.GitBranch != "" {
+		set("gitBranch", st.GitBranch)
+	}
+	if !changed {
+		return line
+	}
+	if b, err := marshalRecord(rec); err == nil {
+		return b
+	}
+	return line
 }

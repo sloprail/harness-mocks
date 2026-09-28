@@ -325,8 +325,13 @@ exit 0`)
 }
 
 // TestT010_07_BlockedSubagentStopSurfacesAsAttachment: a SubagentStop hook's
-// refusal must reach the session transcript as a hook_blocking_error attachment
-// carrying its TEXT — the same channel the root's Stop already uses.
+// refusal must reach the SUB-AGENT's transcript as a hook_blocking_error
+// attachment carrying its TEXT, preceded by the "Stop hook feedback" turn — the
+// same channel the root's Stop uses in the session's own file. Real Claude Code
+// writes a SubagentStop's feedback and attachment into the sub-agent's
+// subagents/agent-<id>.jsonl: every SubagentStop attachment in the real
+// transcripts on one machine (40 files) is in a sidechain file, none in a main
+// one.
 //
 // The re-run loop alone is not an observable consequence for anything outside
 // the mock. It changes how many times the subagent script runs, which only the
@@ -337,17 +342,20 @@ exit 0`)
 // a record — so a guardrail refusing at the end of a delegated cycle had no
 // channel by which its words reached the conversation it was judging.
 //
-// Both blocking forms are covered in one run because they land by different
-// routes inside emitStopHookAttachment (exit 2 arrives as a fire error, exit-0
-// decision:block as out.Reason) and a fix could plausibly deliver one and drop
-// the other.
+// The two blocking forms are recorded differently, as claude 2.1.282 records
+// them (a controlled run, EVIDENCE.md): an exit-0 decision:block leaves the
+// "Stop hook feedback:\n<reason>" turn AND a hook_blocking_error attachment
+// {blockingError: {blockingError: reason, command}}; an exit 2 leaves only the
+// feedback turn, quoting the hook as "[<command>]: <stderr>".
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		hookBody string
-		want     string
+		name       string
+		hookBody   string
+		want       string
+		quoted     bool // exit 2: the feedback quotes "[<command>]: <stderr>"
+		attachment bool
 	}{
 		{
 			name: "exit 2 with text on stderr",
@@ -355,6 +363,7 @@ func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
 			hookBody: `cat >/dev/null
 echo "verify failed: the delegated work is refused" 1>&2
 exit 2`,
+			quoted: true,
 		},
 		{
 			name: "exit 0 with decision block",
@@ -362,6 +371,7 @@ exit 2`,
 			hookBody: `cat >/dev/null
 printf '%s' '{"decision":"block","reason":"a10n://check-runs/xyz needs resolving before this subagent may stop"}'
 exit 0`,
+			attachment: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -383,13 +393,24 @@ exit 0`,
 			require.GreaterOrEqual(t, runCount(t, counter), 2,
 				"the hook blocked, so the subagent turn must have been re-run")
 
-			transcript := readTranscript(t, configDir, dir, "sess-stop-attach")
-			assert.Contains(t, transcript, "hook_blocking_error",
-				"a blocked SubagentStop must be recorded as a hook_blocking_error attachment, as a blocked Stop already is")
-			assert.Contains(t, transcript, `"hookEvent":"SubagentStop"`,
-				"the attachment must name SubagentStop, so a reader can tell which cycle refused")
-			assert.Contains(t, transcript, tc.want,
-				"the refusal's own text must reach the transcript — a block with no words is not a reportable refusal")
+			main := readTranscript(t, configDir, dir, "sess-stop-attach")
+			assert.NotContains(t, main, `"hookEvent":"SubagentStop"`,
+				"a SubagentStop's attachment belongs to the sub-agent's own file, not the dispatcher's")
+			transcript := readSidechains(t, configDir, dir, "sess-stop-attach")
+			feedback := `Stop hook feedback:\n` + tc.want
+			if tc.quoted {
+				feedback = `Stop hook feedback:\n[` + stopHook + `]: ` + tc.want + `\n`
+			}
+			assert.Contains(t, transcript, feedback,
+				"the re-run sub-agent reads the refusal as a Stop hook feedback turn")
+			if tc.attachment {
+				assert.Contains(t, transcript, `"type":"hook_blocking_error"`)
+				assert.Contains(t, transcript, `"hookEvent":"SubagentStop"`,
+					"the attachment must name SubagentStop, so a reader can tell which cycle refused")
+				assert.Contains(t, transcript, `"blockingError":{"blockingError":"`+tc.want+`","command":"`+stopHook+`"}`)
+			} else {
+				assert.NotContains(t, transcript, "hook_blocking_error", "an exit-2 block leaves no attachment")
+			}
 		})
 	}
 }
@@ -444,6 +465,21 @@ func readTranscript(t *testing.T, configDir, projDir, sessionID string) string {
 	path := filepath.Join(configDir, "projects", encoded, sessionID+".jsonl")
 	require.FileExists(t, path, "the dispatching session's transcript must exist")
 	return readFile(t, path)
+}
+
+// readSidechains concatenates every sub-agent transcript of a session.
+func readSidechains(t *testing.T, configDir, projDir, sessionID string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(projDir)
+	require.NoError(t, err, "resolve project dir")
+	encoded := regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(resolved, "-")
+	paths, _ := filepath.Glob(filepath.Join(configDir, "projects", encoded, sessionID, "subagents", "agent-*.jsonl"))
+	require.NotEmpty(t, paths, "the sub-agent's own transcript must exist")
+	var all string
+	for _, p := range paths {
+		all += readFile(t, p)
+	}
+	return all
 }
 
 // --- shared helpers ---

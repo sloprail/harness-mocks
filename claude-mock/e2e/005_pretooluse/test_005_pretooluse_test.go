@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,21 +57,50 @@ printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
 	assert.Contains(t, string(data), "Bash")
 }
 
-// TestT005_02_PreToolUseBlockExitsNonZero: hook exit 2 must block tool execution and exit non-zero.
-func TestT005_02_PreToolUseBlockExitsNonZero(t *testing.T) {
+// TestT005_02_PreToolUseExit2RefusesTheCallAndTheTurnGoesOn: a PreToolUse
+// exit 2 refuses the tool call — it does not run, no PostToolUse fires — and
+// the refusal is the tool_result "PreToolUse:<Tool> hook error:
+// [<command>]: <stderr>" (is_error), after which the turn continues. Claude
+// 2.1.282 did exactly this in a controlled run; no attachment is written.
+func TestT005_02_PreToolUseExit2RefusesTheCallAndTheTurnGoesOn(t *testing.T) {
 	dir := t.TempDir()
+	cfg := filepath.Join(dir, "cfg")
+	marker := filepath.Join(dir, "ran")
 	blockHook := filepath.Join(dir, "block.sh")
 	require.NoError(t, os.WriteFile(blockHook, []byte("#!/bin/sh\necho 'blocked' >&2\nexit 2\n"), 0o755))
-	writeHookSettings(t, dir, "PreToolUse", "*", blockHook)
+	postLog := filepath.Join(dir, "post.log")
+	postHook := filepath.Join(dir, "post.sh")
+	require.NoError(t, os.WriteFile(postHook, []byte("#!/bin/sh\ncat >> "+postLog+"\n"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"), []byte(
+		`{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+blockHook+`"}]}],"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+postHook+`"}]}]}}`), 0o644))
 
 	script := filepath.Join(dir, "s.sh")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
-printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
-printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach","is_error":false}'
+if ! grep -q '"tool_use_id":"tu_1"' "$A10N_MOCK_SESSION_FILE"; then
+  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_1","name":"Bash","input":{"command":"touch `+marker+`"}}]}}'
+  exit 0
+fi
+printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"went on"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success","result":"went on","is_error":false}'
 `), 0o755))
 
-	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "--config-dir", filepath.Join(dir, "cfg"), "-p", "go")
-	assert.NotEqual(t, 0, code, "blocked PreToolUse must cause non-zero exit; output:\n%s", out)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
+	require.Equal(t, 0, code, "the turn goes on after the refusal; output:\n%s", out)
+	_, err := os.Stat(marker)
+	assert.True(t, os.IsNotExist(err), "the refused command must not run")
+	_, err = os.Stat(postLog)
+	assert.True(t, os.IsNotExist(err), "no PostToolUse for a refused call")
+	want := "PreToolUse:Bash hook error: [" + blockHook + "]: blocked\n"
+	wantJSON, _ := json.Marshal(want)
+	assert.Contains(t, out, `"content":`+string(wantJSON)+`,"is_error":true`, "the refusal is the tool_result")
+	assert.Contains(t, out, "went on")
+	files, _ := filepath.Glob(filepath.Join(cfg, "projects", "*", "s1.jsonl"))
+	require.Len(t, files, 1)
+	data, err := os.ReadFile(files[0])
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), `"type":"attachment"`, "no attachment records the exit 2")
+	assert.Contains(t, string(data), `"toolUseResult":"Error: `, "the record carries the error as its toolUseResult")
 }
 
 // TestT005_03_PreToolUseMatcherFiltersToolName: hook with specific matcher only fires for that tool.
@@ -154,7 +184,7 @@ printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
 
 	// The blocked tool_result (with the deny reason) was fed back to the agent.
 	assert.Contains(t, out, "DENY_THEN_RETRY", "the deny reason must be surfaced to the agent as a tool_result")
-	assert.Contains(t, out, "blocked by a PreToolUse hook", "the blocked tool_result must mark the block")
+	assert.Contains(t, out, `"content":"PreToolUse:Bash hook error: DENY_THEN_RETRY`, "the refusal is quoted the way claude 2.1.282 quotes a deny: PreToolUse:<Tool> hook error: <reason>")
 }
 
 // readFileOr returns the file contents or "" when unreadable.

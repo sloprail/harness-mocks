@@ -5,11 +5,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
@@ -39,60 +42,106 @@ import (
 // error instead of a hang.
 const maxIdenticalTurns = 5
 
-func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File) error {
-	// One chained writer for the whole run: every FILE record persisted below chains
-	// from the one before it (real-CC shape — see sessionWriter). The chain seeds from
-	// the last uuid already on disk, so a resume or a nested sub-agent run re-opening
-	// the parent transcript continues the existing chain. The STDOUT stream is written
-	// directly with cfg.Out and is NOT chained (it must stay the mock's claude stream).
-	sw := newSessionWriter(sessionFile)
+// streamAndHook owns a run's turns. At every end of turn (the script's result
+// frame) the ROOT run fires Stop — with last_assistant_message and the
+// session's still-running background_tasks — whatever background work is
+// pending, as real Claude Code does. A Stop block re-prompts the same turn. When
+// Stop lets the turn end, a `claude -p` session waits for its background
+// AGENTS, and each finished task starts a new turn with its notification (and
+// Stop fires again at that turn's end); a background command still running
+// when nothing else is left is killed. See background.go.
+//
+// A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
+// the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
+// own background commands end with its final response.
+func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
+	// Every FILE record persisted below goes through tr, which chains it from the
+	// one before it (real-CC shape — see sessionWriter). The chain seeds from the
+	// last uuid already on disk, so a resume continues the existing chain. The
+	// STDOUT stream is written directly with cfg.Out and is NOT chained (it must
+	// stay the mock's claude stream).
+	if cfg.bg == nil {
+		cfg.bg = newBackgroundTasks()
+		defer cfg.bg.shutdown()
+	}
+	bg := cfg.bg
+	nested := cfg.SuppressSubagentHooks
 	var lastSig string
 	var repeats int
 	var stopBlocks int
+	var lastText string
 	blockCap := stopHookBlockCap()
 	for {
-		done, sig, err := runOneTurnSig(ctx, cfg, inv, sessionFile, sw)
+		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
 		if err != nil {
 			return err
 		}
-		if done {
-			// A SUB-AGENT run (SuppressSubagentHooks) must NOT fire Stop here — the Agent-tool
-			// layer (agent.go) owns the sub-agent's terminal hook: it fires SubagentStop and runs
-			// the block→re-run loop. Firing the ROOT Stop here would (a) wrongly run the root drain
-			// inside a sub-agent and (b) consume the block-retry that agent.go expects to drive.
-			if cfg.SuppressSubagentHooks {
+		if turn.lastText != "" {
+			lastText = turn.lastText
+		}
+		if turn.done {
+			if nested {
+				writeStreamLine(cfg, turn.resultLine)
+				bg.stopOwned(cfg)
 				return nil
 			}
-			// ROOT agent: the script ended its turn (result frame). Real Claude Code fires the Stop
-			// hook HERE; if the hook BLOCKS (exit 2 / exit-0 decision:block — e.g. an a10n drain's
-			// "spawn one sub-agent per parked check" block), the turn is RE-PROMPTED and the agent
-			// CONTINUES. We mirror that: fire Stop, surface its output into the transcript as an
-			// attachment (so the next turn can read the reason/links), and if it blocked, LOOP again
-			// instead of returning — bounded by the Stop-hook block cap. runner.go fires Stop only
-			// on the error path (this owns the success path).
+			active := stopBlocks > 0
+			tasks := bg.running()
+			crons := []any{}
+			last := lastText
 			stopOut, stopErr := inv.Fire(ctx, hooks.Input{
-				SessionID:      cfg.SessionID,
-				Cwd:            cfg.Cwd,
-				TranscriptPath: sessionFilePath(cfg.ConfigDir, cfg.Cwd, cfg.SessionID),
-				HookEventName:  hooks.EventStop,
-				StopReason:     "end_turn",
+				SessionID:            cfg.SessionID,
+				Cwd:                  cfg.Cwd,
+				HookEventName:        hooks.EventStop,
+				StopHookActive:       &active,
+				LastAssistantMessage: &last,
+				BackgroundTasks:      &tasks,
+				SessionCrons:         &crons,
 			})
-			blocked := stopErr != nil || stopOut.Decision == "block"
-			if blocked {
-				emitStopHookAttachment(sessionFile, "Stop", stopOut, stopErr)
+			// Its feedback, attachment and stop_hook_summary are written as it
+			// fires (transcript.recordHookRuns).
+			if stopErr != nil || stopOut.Decision == "block" {
 				stopBlocks++
-				if blockCap > 0 && stopBlocks >= blockCap {
-					// Stop kept blocking — give up (matches the real block-cap backstop).
-					// blockCap == 0 means unlimited (same convention as agent.go's SubagentStop loop).
-					return nil
+				if blockCap == 0 || stopBlocks <= blockCap {
+					// Re-prompt: the turn goes on, so the script runs again and
+					// reacts to the block. Its result frame is dropped — a
+					// continued turn ends with one result, at its real end
+					// (claude 2.1.282 streamed a single result across 8
+					// continuations).
+					lastSig, repeats = "", 0
+					continue
 				}
-				// Re-prompt: continue the loop so the next script turn reacts to the block.
-				lastSig = ""
-				repeats = 0
+				// The block cap: real Claude Code lets a Stop block the turn
+				// CLAUDE_CODE_STOP_HOOK_BLOCK_CAP (default 8) times in a row;
+				// the next block is overridden and the turn ends, with a
+				// warning record (the 2.1.282 binary: `ve>xe`; a controlled run
+				// fired Stop 9 times). 0 disables the cap.
+				writeCapOverride(tr, stopBlocks)
+				// The overridden turn's result carries no text: claude
+				// 2.1.282 streamed "result":"" after the override.
+				turn.resultLine = withEmptyResult(turn.resultLine)
+			}
+			stopBlocks = 0
+			writeStreamLine(cfg, turn.resultLine)
+			// The turn is over. Hand over what finished in the background, one
+			// new turn per task, waiting while a background agent still runs.
+			delivered := false
+			for t := bg.awaitAfterTurn(ctx, cfg.AgentID); t != nil; t = bg.awaitAfterTurn(ctx, cfg.AgentID) {
+				// A notification UserPromptSubmit refuses starts no turn;
+				// the next finished task is handed over instead.
+				if bg.deliverAsTurn(ctx, cfg, inv, tr, t) {
+					delivered = true
+					break
+				}
+			}
+			if delivered {
+				lastSig, repeats = "", 0
 				continue
 			}
+			bg.stopOwned(cfg)
 			return nil
 		}
+		sig := turn.sig
 		if sig != "" && sig == lastSig {
 			repeats++
 			if repeats >= maxIdenticalTurns {
@@ -105,101 +154,231 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionF
 	}
 }
 
-// runOneTurnSig executes the script once, processes its JSONL output, and returns:
-//   - (true,  "",  nil)  when a result frame is seen (conversation complete)
-//   - (false, sig, nil)  when a tool_use was executed; script should be re-run.
-//     sig is the pending tool_use signature (name+input) for the loop guard.
-//   - (false, "",  err)  on any error
-func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, sessionFile *os.File, sw *sessionWriter) (done bool, sig string, err error) {
+// withEmptyResult is a result frame with its result text emptied.
+func withEmptyResult(line []byte) []byte {
+	var m map[string]any
+	if json.Unmarshal(line, &m) != nil || m == nil {
+		return line
+	}
+	m["result"] = ""
+	if b, err := marshalRecord(m); err == nil {
+		return b
+	}
+	return line
+}
+
+// writeCapOverride writes the warning real Claude Code records when it
+// overrides a Stop block at the cap and ends the turn (claude 2.1.282, verbatim).
+func writeCapOverride(tr *transcript, blocks int) {
+	tr.persistMap(map[string]any{
+		"type": "system", "subtype": "informational",
+		"content": fmt.Sprintf("A hook blocked the turn from ending %d consecutive times — overriding and ending turn. ", blocks) +
+			"For Stop/SubagentStop hooks, check stop_hook_active in the input and return success while it's true. Set CLAUDE_CODE_STOP_HOOK_BLOCK_CAP to raise this limit.",
+		"isMeta": false, "level": "warning",
+	})
+}
+
+// turnResult is one script invocation's outcome.
+type turnResult struct {
+	// done: the script ended its turn (result frame, or it exited having
+	// emitted neither a tool_use nor a compaction).
+	done bool
+	// sig identifies what the invocation did when it did not end the turn (the
+	// pending tool_use, or a compaction), for the loop guard.
+	sig string
+	// lastText is the text of the last assistant record it emitted.
+	lastText string
+	// resultLine is the result frame that ended the turn, held back until Stop
+	// has let the turn end.
+	resultLine []byte
+}
+
+// runOneTurnSig executes the script once, processes its JSONL output, and
+// executes the tool call it ended on, if any.
+func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, bg *backgroundTasks) (turnResult, error) {
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
 	cmd.Dir = cfg.Cwd
-	cmd.Env = buildEnv(cfg, sessionFile)
+	cmd.Env = buildEnv(cfg, tr)
 	cmd.Stderr = cfg.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return false, "", fmt.Errorf("claude-mock: stdout pipe: %w", err)
+		return turnResult{}, fmt.Errorf("claude-mock: stdout pipe: %w", err)
 	}
 	if err := cmd.Start(); err != nil {
-		return false, "", fmt.Errorf("claude-mock: start script: %w", err)
+		return turnResult{}, fmt.Errorf("claude-mock: start script: %w", err)
 	}
 
-	pending, done, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, sessionFile, sw)
+	sc, scanErr := scanLines(ctx, stdoutPipe, cfg, inv, tr)
 	waitErr := cmd.Wait()
 
 	if scanErr != nil {
-		return false, "", scanErr
+		return turnResult{}, scanErr
 	}
 	if waitErr != nil {
-		return false, "", waitErr
+		return turnResult{}, waitErr
 	}
-	if done {
-		return true, "", nil
+	pending := sc.pending
+	if pending.ToolName == "" {
+		if sc.done || sc.compactSig == "" {
+			return turnResult{done: true, lastText: sc.lastText, resultLine: sc.resultLine}, nil
+		}
+		// The invocation compacted the context and stopped: the turn goes on
+		// after a compaction, so the script runs again.
+		return turnResult{sig: sc.compactSig, lastText: sc.lastText}, nil
 	}
 
-	// PreToolUse DENIED this tool call (exit-0 deny). Do NOT execute it; feed the
-	// reason back as an (error) tool_result so the agent's next turn sees the block
-	// and can self-correct + retry — the real Claude Code contract. No PostToolUse
-	// fires (the tool never ran). The loop guard signature is the blocked tool_use so
-	// an agent that re-emits the identical blocked call without adapting is still
-	// bounded by maxIdenticalTurns.
+	// PreToolUse REFUSED this tool call — an exit-0 permissionDecision deny, or
+	// an exit 2. The tool does not run and no PostToolUse fires; the refusal is
+	// the tool_result, "PreToolUse:<Tool> hook error: <reason>" (for an exit 2,
+	// "[<command>]: <stderr>" as the reason), and the turn goes on: the script
+	// runs again and reads it. Claude 2.1.282 did exactly this for both forms in
+	// a controlled run. The loop guard signature is the blocked tool_use, so an
+	// agent that re-emits the identical blocked call is still bounded.
 	// sr:docs https://code.claude.com/docs/en/hooks#pretooluse
 	if pending.Blocked {
-		blockRes := toolexec.Result{
-			Output:  "Tool call blocked by a PreToolUse hook: " + pending.BlockReason,
-			IsError: true,
+		text := "PreToolUse:" + pending.ToolName + " hook error: " + pending.BlockReason
+		blockRes := toolexec.Result{Output: text, IsError: true, ToolUseResult: "Error: " + text}
+		if err := emitToolResult(cfg, pending, blockRes, tr); err != nil {
+			return turnResult{}, err
 		}
-		if err := emitToolResult(cfg, pending, blockRes, sw); err != nil {
-			return false, "", err
-		}
-		return false, "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), nil
+		bg.deliverMidTurn(ctx, cfg, inv, tr)
+		return turnResult{sig: "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
 	}
 
 	// tool_use was seen — execute it.
 	//
-	// Two tools are special-cased here at the stream layer:
+	// Some tools are special-cased here at the stream layer:
 	//   - Agent (alias Task; real Claude renamed Task→Agent in v2.1.63) spawns a
 	//     NESTED subagent run rather than a pure FS/Bash op, so it needs ctx, cfg,
 	//     inv and the session file (none of which toolexec.Execute has access to).
+	//     With run_in_background it runs concurrently (background.go).
+	//   - Bash with run_in_background starts a background command.
 	//   - ScheduleWakeup is routed to runScheduleWakeupTool purely for arg
 	//     validation; on success it just returns a success tool_result. There is no
 	//     real delay in the mock — the turn loop ALREADY re-runs the script after
-	//     every tool_use, which IS the "wake-up fired, resume" behaviour. It has no
-	//     compaction side effect (compaction is a separate event the SCRIPT emits as
-	//     an isCompactSummary record; see scanLines).
+	//     every tool_use, which IS the "wake-up fired, resume" behaviour.
 	// sr:docs https://code.claude.com/docs/en/sub-agents
 	var res toolexec.Result
+	var startAgent func()
+	toolStarted := time.Now()
 	switch {
+	case isAgentTool(pending.ToolName) && runsInBackground(pending.ToolInput):
+		res, startAgent = bg.launchAgent(cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isAgentTool(pending.ToolName):
-		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, sessionFile)
+		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isScheduleWakeupTool(pending.ToolName):
 		res = runScheduleWakeupTool(pending.ToolInput)
+	case pending.ToolName == "Bash" && runsInBackground(pending.ToolInput):
+		res = bg.launchBash(cfg, pending.ToolUseID, pending.ToolInput)
 	default:
 		// cfg.SessionID is the session the Bash tool exports as CLAUDE_CODE_SESSION_ID.
-		// A subagent's nested run carries the PARENT's session id (runSubagent), the
+		// A subagent's nested run carries the PARENT's session id (subagentRun.run), the
 		// same id its hooks get — real claude shares one session_id across subagents.
+		owned := ownedBashFrames(cfg, pending)
 		res = toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd, cfg.SessionID)
+		owned(res)
 	}
 
 	// Synthesise and emit the tool_result user record.
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
-	if err := emitToolResult(cfg, pending, res, sw); err != nil {
-		return false, "", err
+	if err := emitToolResult(cfg, pending, res, tr); err != nil {
+		return turnResult{}, err
 	}
 
-	// PostToolUse for the synthesised result.
+	// PostToolUse for the synthesised result; PostToolUseFailure instead when
+	// the tool failed, with the text the model got as error — as claude
+	// 2.1.282 fires them (a controlled run: a failing Bash fired
+	// PostToolUseFailure {error, is_interrupt, duration_ms}). tool_response is
+	// the tool's structured result where it has one, else the text the model
+	// got. PostToolUseFailure fires only for a tool that ran and failed — a
+	// Bash that exited non-zero, the one failure measured (F:bashfail); for
+	// other errors (invalid input, a failing Read or Edit, the mock's own
+	// failures) neither hook fires, as that is not measured. Neither leaves a
+	// record here (no evidence for PostToolUseFailure's).
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
-	rawResult, _ := json.Marshal(res.Output)
-	_, _ = inv.Fire(ctx, hooks.Input{
-		SessionID:     cfg.SessionID,
-		Cwd:           cfg.Cwd,
-		HookEventName: hooks.EventPostToolUse,
-		ToolName:      pending.ToolName,
-		ToolInput:     pending.ToolInput,
-		ToolOutput:    rawResult,
-	})
+	took := time.Since(toolStarted).Milliseconds()
+	if res.Failed {
+		notInterrupted := false
+		_, _ = inv.Fire(ctx, hooks.Input{
+			SessionID:     cfg.SessionID,
+			Cwd:           cfg.Cwd,
+			HookEventName: hooks.EventPostToolUseFailure,
+			ToolName:      pending.ToolName,
+			ToolUseID:     pending.ToolUseID,
+			ToolInput:     pending.ToolInput,
+			Error:         res.Output,
+			IsInterrupt:   &notInterrupted,
+			DurationMs:    &took,
+		})
+	} else if !res.IsError {
+		_, _ = inv.Fire(ctx, hooks.Input{
+			SessionID:     cfg.SessionID,
+			Cwd:           cfg.Cwd,
+			HookEventName: hooks.EventPostToolUse,
+			ToolName:      pending.ToolName,
+			ToolUseID:     pending.ToolUseID,
+			ToolInput:     pending.ToolInput,
+			ToolResponse:  toolResponse(res),
+			DurationMs:    &took,
+		})
+	}
+	if startAgent != nil {
+		startAgent()
+	}
 
-	return false, pending.ToolName + ":" + string(pending.ToolInput), nil
+	// A background task that finished while this tool ran is handed over now,
+	// inside the turn.
+	bg.deliverMidTurn(ctx, cfg, inv, tr)
+
+	return turnResult{sig: pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
+}
+
+// ownedBashFrames streams the frames real Claude Code streams for a
+// foreground Bash run by a BACKGROUND sub-agent: task_started {owned_by_subagent,
+// is_backgrounded:false, task_type:"local_bash"} before it runs and
+// task_notification {status, output_file:"", summary:<description>} after
+// (F:bgagent). It returns the function that writes the second; for any other
+// call both are no-ops. A failed command's frame reads "failed": that status is
+// not measured.
+func ownedBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
+	if call.ToolName != "Bash" || !cfg.SuppressSubagentHooks || cfg.SyncSubagent {
+		return func(toolexec.Result) {}
+	}
+	var in struct {
+		Command     string `json:"command"`
+		Description string `json:"description"`
+	}
+	_ = json.Unmarshal(call.ToolInput, &in)
+	desc := in.Description
+	if desc == "" {
+		desc = in.Command
+	}
+	id := "b" + randomID(8)
+	writeFrame(cfg, map[string]any{
+		"type": "system", "subtype": "task_started", "task_id": id, "owned_by_subagent": true,
+		"tool_use_id": call.ToolUseID, "description": desc, "is_backgrounded": false, "task_type": "local_bash",
+	})
+	return func(res toolexec.Result) {
+		status := "completed"
+		if res.IsError {
+			status = "failed"
+		}
+		writeFrame(cfg, map[string]any{
+			"type": "system", "subtype": "task_notification", "task_id": id, "tool_use_id": call.ToolUseID,
+			"status": status, "output_file": "", "summary": desc,
+		})
+	}
+}
+
+// toolResponse is PostToolUse's tool_response for a result.
+func toolResponse(res toolexec.Result) json.RawMessage {
+	var v any = res.Output
+	if res.ToolUseResult != nil {
+		v = res.ToolUseResult
+	}
+	b, _ := marshalRecord(v)
+	return b
 }
 
 // pendingToolUse carries the fields needed to execute a tool and synthesise the
@@ -209,23 +388,28 @@ type pendingToolUse struct {
 	ToolName  string
 	ToolInput json.RawMessage
 
-	// Blocked is set when a PreToolUse hook DENIED this tool call with
-	// permissionDecision=deny (and EXIT 0 — the real Claude Code contract). The tool
-	// is NOT executed; instead a tool_result carrying BlockReason is fed back to the
-	// agent (the script's next turn), which may then self-correct and retry — exactly
-	// as real Claude surfaces the deny reason and continues the turn rather than
-	// aborting. (An exit-2 hook is a different, fatal path handled via Fire's error.)
+	// Blocked is set when a PreToolUse hook REFUSED this tool call — an exit-0
+	// permissionDecision deny (or deprecated decision:block), or an exit 2. The
+	// tool is NOT executed; BlockReason is what the refusal tool_result quotes.
 	Blocked     bool
 	BlockReason string
 }
 
-// scanLines reads one script invocation's JSONL output line by line.
-// Returns (pending, done, err):
-//   - done=true when a result frame is seen
-//   - pending set when a tool_use was encountered (caller should execute + re-run)
-func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, sessionFile *os.File, sw *sessionWriter) (pending pendingToolUse, done bool, err error) {
+// scanResult is what one script invocation's output amounted to.
+type scanResult struct {
+	pending    pendingToolUse
+	done       bool   // a result frame was seen
+	compactSig string // a compaction happened (and what it was)
+	lastText   string // text of the last assistant record
+	resultLine []byte // the result frame, not yet streamed
+}
+
+// scanLines reads one script invocation's JSONL output line by line, until a
+// tool_use (returned as pending), a result frame (done), or the end of output.
+func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, tr *transcript) (scanResult, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+	var out scanResult
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -236,32 +420,35 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		rec, err := validateRecord(line)
 		if err != nil {
 			fmt.Fprintf(cfg.Stderr, "claude-mock: invalid JSONL line: %v\nline: %s\n", err, line)
-			return pendingToolUse{}, false, fmt.Errorf("claude-mock: script emitted invalid JSONL: %w", err)
+			return scanResult{}, fmt.Errorf("claude-mock: script emitted invalid JSONL: %w", err)
+		}
+
+		// A compaction: the {"type":"compact",…} control record, or a scenario's
+		// own isCompactSummary record. See compact (control.go). The turn goes on
+		// after it.
+		// sr:docs https://code.claude.com/docs/en/hooks#precompact
+		if rec.Type == "compact" || rec.IsCompactSummary {
+			done, err := compact(ctx, cfg, inv, tr, rec, line)
+			if err != nil {
+				return scanResult{}, err
+			}
+			if done {
+				out.compactSig += "compact:" + string(line)
+			}
+			continue
 		}
 
 		// Control records: fire hooks, do NOT forward to stdout or session.
-		if handled, err := handleControlRecord(ctx, rec, cfg, inv); err != nil {
-			return pendingToolUse{}, false, err
+		if handled, err := handleControlRecord(ctx, rec, line, cfg, inv, tr); err != nil {
+			return scanResult{}, err
 		} else if handled {
 			continue
 		}
 
-		// Compaction record: real Claude Code writes a
-		// {"type":"user","isCompactSummary":true,…} line when it auto-compacts the
-		// context window. When the scenario emits one, forward it (it is part of the
-		// trajectory/history) and react by firing SessionStart source="compact" — the
-		// hook supplies the re-injected additionalContext; the record carries none. A
-		// compaction record is NOT a tool_use, so it does not break the turn loop or
-		// count toward the loop guard.
-		// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
-		if rec.IsCompactSummary {
-			cfg.Out.Write(line)         //nolint:errcheck
-			cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-			sw.persist(line)
-			if _, err := fireSessionStart(ctx, cfg, inv, "compact"); err != nil {
-				return pendingToolUse{}, false, fmt.Errorf("claude-mock: SessionStart (compact) hook blocked: %w", err)
+		if rec.Type == "assistant" {
+			if t := assistantText(line); t != "" {
+				out.lastText = t
 			}
-			continue
 		}
 
 		// PreToolUse + turn break on tool_use blocks.
@@ -269,61 +456,45 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
+				// Forward the assistant record + append to session BEFORE the hook
+				// fires — real Claude Code writes the tool_use first and the
+				// PreToolUse hook's attachment after it, and the tool_use is part
+				// of the trajectory whatever the hook decides.
+				writeStreamLine(cfg, line)
+				tr.persist(line)
+
 				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
 					AgentID:       cfg.AgentID,
 					Cwd:           cfg.Cwd,
 					HookEventName: hooks.EventPreToolUse,
 					ToolName:      toolName,
+					ToolUseID:     toolUseID,
 					ToolInput:     toolInput,
 				})
-				if hookErr != nil {
+				out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput}
+				var blockErr *hooks.BlockError
+				switch {
+				case errors.As(hookErr, &blockErr):
 					fmt.Fprintf(cfg.Stderr, "claude-mock: PreToolUse hook blocked: %v\n", hookErr)
-					return pendingToolUse{}, false, hookErr
+					out.pending.Blocked, out.pending.BlockReason = true, blockErr.Quoted()
+				case hookErr != nil:
+					return scanResult{}, hookErr
+				case isDeny(hookOut):
+					out.pending.Blocked, out.pending.BlockReason = true, denyReason(hookOut)
 				}
-				denied := hookOut.Decision == "block" ||
-					(hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecision == "deny")
-
-				// Forward the assistant record + append to session BEFORE deciding the
-				// tool's fate — the tool_use is part of the trajectory either way.
-				cfg.Out.Write(line)         //nolint:errcheck
-				cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-				sw.persist(line)
-
-				if denied {
-					// Real Claude Code contract (empirically verified, STEP 0): a
-					// PreToolUse deny with EXIT 0 BLOCKS this tool call and feeds the
-					// reason back to the agent, which can then self-correct and retry —
-					// the turn CONTINUES, it is not aborted. Model that by returning a
-					// Blocked pending: the caller emits a tool_result carrying the reason
-					// and re-runs the script (the agent's next turn) instead of erroring.
-					reason := hookOut.Reason
-					if hookOut.HookSpecificOutput != nil && hookOut.HookSpecificOutput.PermissionDecisionReason != "" {
-						reason = hookOut.HookSpecificOutput.PermissionDecisionReason
-					}
-					return pendingToolUse{
-						ToolUseID:   toolUseID,
-						ToolName:    toolName,
-						ToolInput:   toolInput,
-						Blocked:     true,
-						BlockReason: reason,
-					}, false, nil
-				}
-
-				// Allowed → return for tool execution; the script is re-run with the
-				// updated session file (now carrying this tool_use + its result).
-				return pendingToolUse{
-					ToolUseID: toolUseID,
-					ToolName:  toolName,
-					ToolInput: toolInput,
-				}, false, nil
+				return out, nil
 			}
 		}
 
-		// Forward line to the STDOUT stream always — it is the mock's claude-compatible
-		// output and every record (result included) belongs on it.
-		cfg.Out.Write(line)         //nolint:errcheck
-		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
+		// Forward line to the STDOUT stream — it is the mock's claude-compatible
+		// output. The result frame is held back: it ends the turn only if Stop
+		// lets the turn end (see streamAndHook).
+		if rec.Type == "result" {
+			out.resultLine = append([]byte(nil), line...)
+		} else {
+			writeStreamLine(cfg, line)
+		}
 
 		// The FILE is different from the stream. Real Claude Code NEVER persists the
 		// `result` frame to the transcript file — verified: 0 type:"result" records in a
@@ -332,49 +503,42 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		// the transcript ends at the last assistant/tool_result record. So stream it
 		// (above) but do NOT persist it. Every other record is chained into the file.
 		if rec.Type != "result" {
-			sw.persist(line)
+			tr.persist(line)
 		}
 
-		// PostToolUse for inline tool_result blocks (static scripts).
+		// PostToolUse for a tool_result the scenario wrote itself (a tool the
+		// mock does not run, e.g. an AskUserQuestion answer). Real PostToolUse
+		// names the call by its tool_use_id — also its attachment's toolUseID —
+		// and the tool by the tool_use it answers.
 		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
 		if rec.Type == "user" {
-			toolName, toolOutput := extractFirstToolResult(line)
+			toolUseID, toolName, toolOutput := extractFirstToolResult(line)
+			if toolName == "" && toolUseID != "" {
+				toolName = toolNameInTranscript(tr, toolUseID)
+			}
 			if toolName != "" {
 				_, _ = inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
 					Cwd:           cfg.Cwd,
 					HookEventName: hooks.EventPostToolUse,
 					ToolName:      toolName,
-					ToolOutput:    toolOutput,
-				})
-			}
-		}
-
-		// SubagentStop on end_turn.
-		// Suppressed for nested Agent-tool runs — see Config.SuppressSubagentHooks.
-		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstop
-		if rec.Type == "assistant" && rec.Message != nil && rec.Message.StopReason == "end_turn" {
-			if cfg.IsResume && !cfg.SuppressSubagentHooks {
-				_, _ = inv.Fire(ctx, hooks.Input{
-					SessionID:     cfg.SessionID,
-					Cwd:           cfg.Cwd,
-					HookEventName: hooks.EventSubagentStop,
-					StopReason:    "end_turn",
-					AgentType:     "general-purpose",
+					ToolUseID:     toolUseID,
+					ToolResponse:  toolOutput,
 				})
 			}
 		}
 
 		if rec.Type == "result" {
-			return pendingToolUse{}, true, nil
+			out.done = true
+			return out, nil
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		slog.Debug("claude-mock: scanner error", "err", err)
-		return pendingToolUse{}, false, err
+		return scanResult{}, err
 	}
-	return pendingToolUse{}, true, nil
+	return out, nil
 }
 
 // buildEnv constructs the environment for a script invocation.
@@ -383,10 +547,14 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 // CLAUDE_CONFIG_DIR is set to the same dir so that tooling that reads Claude
 // Code config also finds the mock's session files.
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CONFIG_DIR)
-func buildEnv(cfg Config, sessionFile *os.File) []string {
+func buildEnv(cfg Config, tr *transcript) []string {
 	sessionPath := ""
-	if sessionFile != nil {
-		sessionPath = sessionFile.Name()
+	if tr != nil {
+		// Opened (and created) here if nothing has been written yet: the script
+		// reads history from it, and a script run always follows the prompt.
+		if f := tr.file(); f != nil {
+			sessionPath = f.Name()
+		}
 	}
 	return append(os.Environ(),
 		// CLAUDE_CODE_SESSION_ID mirrors the real claude CLI, which exports the active
@@ -412,14 +580,22 @@ func buildEnv(cfg Config, sessionFile *os.File) []string {
 // copy stays uuid-less, matching the mock's claude stream (the stream frames carry no
 // transcript uuid; the FILE is where the chained identity lives).
 //
+// The content is a string — what real Claude Code writes for a tool's text
+// result, a refusal and an error alike — or, where the real tool answers with
+// one (an async Agent receipt), a list of text blocks.
+//
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
-func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sw *sessionWriter) error {
-	content := res.Output
-	if res.IsError {
-		blocks, _ := json.Marshal([]map[string]string{
-			{"type": "text", "text": res.Output},
-		})
-		content = string(blocks)
+func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *transcript) error {
+	// A result with no text is given to the model as "(<Tool> completed with
+	// no output)" — claude 2.1.282 replaces any empty or whitespace-only tool
+	// result content with it (3,479 "(Bash completed with no output)" results
+	// in the real transcripts, 0 empty ones).
+	if strings.TrimSpace(res.Output) == "" {
+		res.Output = "(" + call.ToolName + " completed with no output)"
+	}
+	var content any = res.Output
+	if res.ContentAsBlocks {
+		content = []map[string]any{{"type": "text", "text": res.Output}}
 	}
 
 	record := map[string]any{
@@ -437,12 +613,39 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, sw *se
 		},
 	}
 
-	line, err := json.Marshal(record)
+	line, err := marshalRecord(record)
 	if err != nil {
 		return fmt.Errorf("claude-mock: marshal tool_result: %w", err)
 	}
-	cfg.Out.Write(line)         //nolint:errcheck
-	cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
-	sw.persist(line)
+	writeStreamLine(cfg, line)
+
+	// The FILE copy carries what real Claude Code puts beside a tool_result:
+	// toolUseResult, the tool's structured result (a background launch's
+	// backgroundTaskId, an async agent's agentId), where the tool gives one.
+	if res.ToolUseResult != nil {
+		record["toolUseResult"] = res.ToolUseResult
+		if withResult, err := marshalRecord(record); err == nil {
+			line = withResult
+		}
+	}
+	tr.persist(line)
 	return nil
+}
+
+// toolNameInTranscript is the name of the tool_use with id toolUseID in the
+// transcript, or "".
+func toolNameInTranscript(tr *transcript, toolUseID string) string {
+	data, err := os.ReadFile(tr.path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range bytes.Split(data, []byte{'\n'}) {
+		if !bytes.Contains(line, []byte(toolUseID)) {
+			continue
+		}
+		if id, name, _ := extractFirstToolUseWithID(line); id == toolUseID {
+			return name
+		}
+	}
+	return ""
 }

@@ -15,6 +15,7 @@ package toolexec
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,6 +29,18 @@ type Result struct {
 	Output string
 	// IsError is true when the tool execution failed and the output is an error message.
 	IsError bool
+	// ToolUseResult is the structured result real Claude Code records beside a
+	// tool_result in the transcript (the record's toolUseResult field), where the
+	// tool has one — a background launch's backgroundTaskId, an async agent's
+	// agentId. Nil for the tools that do not need it here.
+	ToolUseResult any
+	// Failed marks a tool that ran and failed (a Bash that exited non-zero),
+	// for which real Claude Code fires PostToolUseFailure.
+	Failed bool
+	// ContentAsBlocks writes the tool_result content as a list of text blocks
+	// rather than a string — the shape real Claude Code gives some tools'
+	// results (an async Agent receipt).
+	ContentAsBlocks bool
 }
 
 // Execute runs the named tool with the given JSON input and returns its result.
@@ -74,10 +87,29 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 	cmd.Env = bashEnv(sessionID)
 	out, err := cmd.CombinedOutput()
 	text := strings.TrimRight(string(out), "\n")
+	// toolUseResult/tool_response: the structured result real Claude Code
+	// records for a foreground Bash ({stdout, stderr, interrupted, isImage,
+	// noOutputExpected} — a claude 2.1.282 PostToolUse payload). The mock runs
+	// the command with one combined stream, so stdout carries it all.
+	structured := map[string]any{
+		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
+	}
 	if err != nil {
+		// A command that exits non-zero is answered the way claude 2.1.28x
+		// answers it: "Exit code N" then the output, as an error, with
+		// toolUseResult "Error: <that text>" (1,316 real results; a controlled
+		// 2.1.282 run).
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
+			msg := fmt.Sprintf("Exit code %d", exitErr.ExitCode())
+			if text != "" {
+				msg += "\n" + text
+			}
+			return Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}
+		}
 		return Result{Output: text + "\n" + err.Error(), IsError: true}
 	}
-	return Result{Output: text}
+	return Result{Output: text, ToolUseResult: structured}
 }
 
 // bashEnv is the environment a Bash tool subprocess runs with: the mock's own

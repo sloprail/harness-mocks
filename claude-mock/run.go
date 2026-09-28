@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +23,7 @@ const (
 	flagConfigDir      = "config-dir"
 	flagPluginCacheDir = "plugin-cache-dir"
 	flagPrint          = "print"
+	flagForkSession    = "fork-session"
 )
 
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
@@ -29,6 +32,12 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagScript, "", "Shell script to run as the mock agent (env: A10N_MOCK_SCRIPT)")
 	cmd.Flags().String(flagSessionID, "", "Session ID (--session-id, as used by claude CLI)")
 	cmd.Flags().String(flagResume, "", "Session ID to resume (--resume, as used by claude CLI)")
+	// --fork-session: when resuming, continue under a NEW session id in a new
+	// transcript instead of appending to the original. The new id is
+	// --session-id when given, else generated. See runner.forkTranscript for the
+	// transcript shape a fork leaves.
+	// sr:docs https://code.claude.com/docs/en/cli-reference#--fork-session
+	cmd.Flags().Bool(flagForkSession, false, "With --resume: continue in a new session id and transcript")
 	cmd.Flags().String(flagOutputFormat, "stream-json", "Output format (must be stream-json)")
 	cmd.Flags().String(flagProjectDir, "", "Project root for settings.json resolution (default: cwd)")
 	cmd.Flags().String(flagConfigDir, "", "Claude config dir for session JSONL storage (env: CLAUDE_CONFIG_DIR, default: /tmp/a10n/claude-mock)")
@@ -125,10 +134,21 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 
 	sessionID, _ := cmd.Flags().GetString(flagSessionID)
 	resumeID, _ := cmd.Flags().GetString(flagResume)
+	forkSession, _ := cmd.Flags().GetBool(flagForkSession)
 	isResume := false
+	forkFrom := ""
 
-	// Normalise: --resume takes precedence and sets isResume.
-	if resumeID != "" {
+	// Normalise: --resume takes precedence and sets isResume — except with
+	// --fork-session, where the resumed id is what is continued FROM and the
+	// session runs under --session-id (or a fresh id).
+	switch {
+	case resumeID != "" && forkSession:
+		forkFrom = resumeID
+		isResume = true
+		if sessionID == "" {
+			sessionID = runner.NewSessionID()
+		}
+	case resumeID != "":
 		sessionID = resumeID
 		isResume = true
 	}
@@ -145,13 +165,10 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// If --resume is used for a session that "doesn't exist", the real claude emits
-	// an error result and exits 1. The mock supports this via A10N_MOCK_NO_RESUME:
-	// if set, --resume behaves as a probe failure (exits 1 with an error result).
+	// A10N_MOCK_NO_RESUME=1 makes every --resume behave as one naming a session
+	// that does not exist (see noConversation), whatever is on disk.
 	if isResume && os.Getenv("A10N_MOCK_NO_RESUME") == "1" {
-		fmt.Printf(`{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["No conversation found with session ID: %s"]}`, sessionID)
-		fmt.Println()
-		os.Exit(1)
+		noConversation(cmd, sessionID)
 	}
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
@@ -180,17 +197,42 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		cwd = resolved
 	}
 
-	return runner.Run(cmd.Context(), runner.Config{
+	model, _ := cmd.Flags().GetString("model")
+	err := runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:     scriptPath,
 		SessionID:      sessionID,
 		IsResume:       isResume,
+		ForkFrom:       forkFrom,
 		Prompt:         prompt,
 		Cwd:            cwd,
 		ProjectDir:     projectDir,
 		ConfigDir:      configDir,
 		PluginCacheDir: pluginCacheDir,
 		PrintMode:      printMode,
+		Model:          model,
 		Stderr:         os.Stderr,
 		Out:            os.Stdout,
 	})
+	var noConv *runner.ErrNoConversation
+	if errors.As(err, &noConv) {
+		noConversation(cmd, noConv.SessionID)
+	}
+	return err
+}
+
+// noConversation ends the run the way real Claude Code ends `--resume <id>`
+// for a session it has no transcript of (claude 2.1.282): "No conversation
+// found with session ID: <id>" on stderr, an error result frame on stdout when
+// the output format is stream-json, exit status 1.
+func noConversation(cmd *cobra.Command, sessionID string) {
+	msg := "No conversation found with session ID: " + sessionID
+	fmt.Fprintln(os.Stderr, msg)
+	if format, _ := cmd.Flags().GetString(flagOutputFormat); format == "stream-json" {
+		frame, _ := json.Marshal(map[string]any{
+			"type": "result", "subtype": "error_during_execution", "is_error": true,
+			"num_turns": 0, "session_id": sessionID, "errors": []string{msg},
+		})
+		fmt.Println(string(frame))
+	}
+	os.Exit(1)
 }

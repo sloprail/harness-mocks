@@ -44,6 +44,35 @@ type cliRecord struct {
 	//   {"type":"subagent_start","agent_type":"claude"}
 	WorktreeName string `json:"worktree_name,omitempty"`
 	AgentType    string `json:"agent_type,omitempty"`
+
+	//   {"type":"compact"[,"logical_parent":"<uuid>"|"unwritten"][,"summary":"…"]}
+	// LogicalParent overrides the boundary's logicalParentUuid — by default the
+	// last record written. Real preserved-segment compactions have named a
+	// logical parent that was never written to any transcript; this is how a
+	// scenario reproduces that.
+	LogicalParent string `json:"logical_parent,omitempty"`
+	Summary       string `json:"summary,omitempty"`
+	// ID, on a compact control record, is carried onto the summary record it
+	// writes — so a scenario that marks each turn by an id it can find in the
+	// transcript afterwards (the sloprail harness does) can see this one fired.
+	ID string `json:"id,omitempty"`
+	// Trigger ("auto" | "manual", default auto), Preserve (how many of the
+	// last records the compaction keeps, default defaultPreserved) and
+	// PreTokens (compactMetadata.preTokens; the mock spends no tokens, so 0
+	// unless the scenario says) shape the compaction.
+	Trigger   string `json:"trigger,omitempty"`
+	Preserve  *int   `json:"preserve,omitempty"`
+	PreTokens int    `json:"pre_tokens,omitempty"`
+	// PostTokens is compactMetadata.postTokens (0 unless the scenario says).
+	PostTokens int `json:"post_tokens,omitempty"`
+	// PreservedSegment false writes the second shape real compactions left:
+	// no preservedSegment/preservedMessages, and the last written record as
+	// logical parent (F:compact-nohooks; 1 of 65 real boundaries).
+	PreservedSegment *bool `json:"preserved_segment,omitempty"`
+	// TailOffset ends the preserved segment that many records before the
+	// boundary, so the logical parent (the segment's tail) is an earlier
+	// written record: 7 real mid-file boundaries, 2 to 253 records back.
+	TailOffset int `json:"tail_offset,omitempty"`
 }
 
 // knownTypes lists all valid JSONL record types emitted by Claude Code stream-json
@@ -58,6 +87,7 @@ var knownTypes = map[string]bool{
 	"worktree_create": true,
 	"worktree_remove": true,
 	"subagent_start":  true,
+	"compact":         true,
 }
 
 // validateRecord ensures the JSONL line is parseable JSON with a non-empty "type"
@@ -159,25 +189,28 @@ func extractFirstToolUse(line []byte) (toolName string, toolInput json.RawMessag
 	return name, input
 }
 
-// extractFirstToolResult finds the first tool_result content block in a user line.
-// Returns ("", nil) if there is none.
-func extractFirstToolResult(line []byte) (toolName string, toolOutput json.RawMessage) {
+// extractFirstToolResult finds the first tool_result content block in a user
+// line: the tool_use_id it answers, the tool name when the scenario put one on
+// the block (a real tool_result names no tool — the caller then looks the id
+// up), and its content. All empty if there is none.
+func extractFirstToolResult(line []byte) (toolUseID, toolName string, toolOutput json.RawMessage) {
 	var rec struct {
 		Message *struct {
 			Content []struct {
-				Type    string          `json:"type"`
-				Name    string          `json:"name"`
-				Content json.RawMessage `json:"content"`
+				Type      string          `json:"type"`
+				ToolUseID string          `json:"tool_use_id"`
+				Name      string          `json:"name"`
+				Content   json.RawMessage `json:"content"`
 			} `json:"content"`
 		} `json:"message"`
 	}
 	if err := json.Unmarshal(line, &rec); err != nil || rec.Message == nil {
-		return "", nil
+		return "", "", nil
 	}
 	for _, block := range rec.Message.Content {
-		if block.Type == "tool_result" && block.Name != "" {
-			return block.Name, block.Content
+		if block.Type == "tool_result" {
+			return block.ToolUseID, block.Name, block.Content
 		}
 	}
-	return "", nil
+	return "", "", nil
 }
