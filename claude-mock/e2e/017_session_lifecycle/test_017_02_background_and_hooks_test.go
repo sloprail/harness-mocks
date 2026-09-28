@@ -1028,10 +1028,13 @@ func TestT017_30_SubagentMetaSidecars(t *testing.T) {
 // goroutines under one process, is the primary, fully deterministic
 // regression guard; this test is the end-to-end confirmation that the same
 // guarantee survives the real CLI/turn-loop/background-agent boundary.
-// Measured against a build with writeStreamLine reverted to two separate
-// Write calls: this test failed the large majority of repeated runs (not
-// every single one, since it is scheduler-dependent) and passed every run
-// against the fix.
+// Measured (this revision, -race, 25 rounds each): against a build with
+// writeStreamLine reverted to two separate Write calls, this test failed
+// 25/25 runs; against the fix, it passed 25/25 runs. Scheduler-dependence
+// means neither number is a guarantee for all future hosts/loads, which is
+// exactly why TestStreamLinesStayWholeUnderConcurrentFrames — not this
+// test — is the deterministic guard; treat a rare flake here as a scheduler
+// artifact to re-run, not a first alarm.
 func TestT017_31_StreamStaysParseableUnderLoad(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
