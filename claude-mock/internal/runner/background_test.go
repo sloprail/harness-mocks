@@ -30,11 +30,19 @@ func TestNotification_Bash(t *testing.T) {
 	stopped := finishedTask(&backgroundTask{id: "b3", description: "long", outputFile: "/o"})
 	stopped.killed.Store(true)
 	assert.Equal(t, "stopped", stopped.status())
-	var frame map[string]any
-	require.NoError(t, json.Unmarshal(stopped.streamFrame("s"), &frame))
+	var buf bytes.Buffer
+	writeTaskEndFrames(Config{SessionID: "s", Out: &buf}, stopped)
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	require.Len(t, lines, 2)
+	var updated, frame map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[0]), &updated))
+	require.NoError(t, json.Unmarshal([]byte(lines[1]), &frame))
+	assert.Equal(t, "task_updated", updated["subtype"])
+	assert.Equal(t, "killed", updated["patch"].(map[string]any)["status"])
 	assert.Equal(t, "task_notification", frame["subtype"])
 	assert.Equal(t, "stopped", frame["status"])
 	assert.Equal(t, "long", frame["summary"])
+	assert.Equal(t, "s", frame["session_id"])
 }
 
 func TestNotification_Agent(t *testing.T) {

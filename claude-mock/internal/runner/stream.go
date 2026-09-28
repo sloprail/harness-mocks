@@ -275,7 +275,9 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		// cfg.SessionID is the session the Bash tool exports as CLAUDE_CODE_SESSION_ID.
 		// A subagent's nested run carries the PARENT's session id (subagentRun.run), the
 		// same id its hooks get — real claude shares one session_id across subagents.
+		owned := ownedBashFrames(cfg, pending)
 		res = toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd, cfg.SessionID)
+		owned(res)
 	}
 
 	// Synthesise and emit the tool_result user record.
@@ -289,10 +291,14 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// 2.1.282 fires them (a controlled run: a failing Bash fired
 	// PostToolUseFailure {error, is_interrupt, duration_ms}). tool_response is
 	// the tool's structured result where it has one, else the text the model
-	// got. Neither leaves a record here (no evidence for PostToolUseFailure's).
+	// got. PostToolUseFailure fires only for a tool that ran and failed — a
+	// Bash that exited non-zero, the one failure measured (F:bashfail); for
+	// other errors (invalid input, a failing Read or Edit, the mock's own
+	// failures) neither hook fires, as that is not measured. Neither leaves a
+	// record here (no evidence for PostToolUseFailure's).
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
 	took := time.Since(toolStarted).Milliseconds()
-	if res.IsError {
+	if res.Failed {
 		notInterrupted := false
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
@@ -305,7 +311,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			IsInterrupt:   &notInterrupted,
 			DurationMs:    &took,
 		})
-	} else {
+	} else if !res.IsError {
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
@@ -326,6 +332,43 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	bg.deliverMidTurn(ctx, cfg, inv, tr)
 
 	return turnResult{sig: pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
+}
+
+// ownedBashFrames streams the frames real Claude Code streams for a
+// foreground Bash run by a BACKGROUND sub-agent: task_started {owned_by_subagent,
+// is_backgrounded:false, task_type:"local_bash"} before it runs and
+// task_notification {status, output_file:"", summary:<description>} after
+// (F:bgagent). It returns the function that writes the second; for any other
+// call both are no-ops. A failed command's frame reads "failed": that status is
+// not measured.
+func ownedBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
+	if call.ToolName != "Bash" || !cfg.SuppressSubagentHooks || cfg.SyncSubagent {
+		return func(toolexec.Result) {}
+	}
+	var in struct {
+		Command     string `json:"command"`
+		Description string `json:"description"`
+	}
+	_ = json.Unmarshal(call.ToolInput, &in)
+	desc := in.Description
+	if desc == "" {
+		desc = in.Command
+	}
+	id := "b" + randomID(8)
+	writeFrame(cfg, map[string]any{
+		"type": "system", "subtype": "task_started", "task_id": id, "owned_by_subagent": true,
+		"tool_use_id": call.ToolUseID, "description": desc, "is_backgrounded": false, "task_type": "local_bash",
+	})
+	return func(res toolexec.Result) {
+		status := "completed"
+		if res.IsError {
+			status = "failed"
+		}
+		writeFrame(cfg, map[string]any{
+			"type": "system", "subtype": "task_notification", "task_id": id, "tool_use_id": call.ToolUseID,
+			"status": status, "output_file": "", "summary": desc,
+		})
+	}
 }
 
 // toolResponse is PostToolUse's tool_response for a result.

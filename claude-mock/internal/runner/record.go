@@ -45,7 +45,7 @@ type cliRecord struct {
 	WorktreeName string `json:"worktree_name,omitempty"`
 	AgentType    string `json:"agent_type,omitempty"`
 
-	//   {"type":"compact"[,"logical_parent":"<uuid>"][,"summary":"…"]}
+	//   {"type":"compact"[,"logical_parent":"<uuid>"|"unwritten"][,"summary":"…"]}
 	// LogicalParent overrides the boundary's logicalParentUuid — by default the
 	// last record written. Real preserved-segment compactions have named a
 	// logical parent that was never written to any transcript; this is how a
@@ -63,6 +63,12 @@ type cliRecord struct {
 	Trigger   string `json:"trigger,omitempty"`
 	Preserve  *int   `json:"preserve,omitempty"`
 	PreTokens int    `json:"pre_tokens,omitempty"`
+	// PostTokens is compactMetadata.postTokens (0 unless the scenario says).
+	PostTokens int `json:"post_tokens,omitempty"`
+	// PreservedSegment false writes the second shape real compactions left:
+	// no preservedSegment/preservedMessages, and the last written record as
+	// logical parent (F:compact-nohooks; 1 of 65 real boundaries).
+	PreservedSegment *bool `json:"preserved_segment,omitempty"`
 }
 
 // knownTypes lists all valid JSONL record types emitted by Claude Code stream-json

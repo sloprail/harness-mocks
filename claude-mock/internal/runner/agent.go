@@ -202,9 +202,19 @@ func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr 
 	}
 	seedSubagentTranscript(sidechain, subCwd, cfg.SessionID, agentID, in.Prompt, meta)
 
+	// Every sub-agent, foreground or background, has tasks/<agentId>.output,
+	// a symlink to its transcript (the stream's task frames name it for
+	// foreground sub-agents too: F:meta, F:hookerrors).
+	taskDir := tasksDir(cfg.Cwd, cfg.SessionID)
+	_ = os.MkdirAll(taskDir, 0o755)
+	outFile := filepath.Join(taskDir, agentID+".output")
+	_ = os.Remove(outFile)
+	_ = os.Symlink(sidechain, outFile)
+
 	return &subagentRun{
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
+		toolUseID: toolUseID, description: in.Description, outputFile: outFile,
 		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background,
 	}, in, toolexec.Result{}
 }
@@ -224,6 +234,9 @@ type subagentRun struct {
 	prompt         string
 	background     bool
 	spawnDepth     int
+	toolUseID      string
+	description    string
+	outputFile     string
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -236,6 +249,12 @@ type subagentOutcome struct {
 // execute fires SubagentStart, runs the sub-agent (re-running it while
 // SubagentStop blocks) and returns how it ended.
 func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks, prompt string) subagentOutcome {
+	started := time.Now()
+	writeFrame(s.parent, map[string]any{
+		"type": "system", "subtype": "task_started", "task_id": s.agentID, "tool_use_id": s.toolUseID,
+		"description": s.description, "subagent_type": s.agentType, "is_backgrounded": s.background,
+		"spawn_depth": s.spawnDepth, "task_type": "local_agent", "prompt": prompt,
+	})
 	sideInv := s.invoker(inv)
 	// SubagentStart — cannot block. transcript_path is the SESSION's (the
 	// invoker's default); the sub-agent is named by agent_id.
@@ -271,6 +290,19 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 	if final == "" {
 		final = out.lastAssistant
 	}
+	status, summary := "completed", final
+	if out.failure != "" {
+		status, summary = "failed", out.failure
+	}
+	writeFrame(s.parent, map[string]any{
+		"type": "system", "subtype": "task_updated", "task_id": s.agentID,
+		"patch": map[string]any{"status": status, "end_time": time.Now().UnixMilli()},
+	})
+	writeFrame(s.parent, map[string]any{
+		"type": "system", "subtype": "task_notification", "task_id": s.agentID, "tool_use_id": s.toolUseID,
+		"status": status, "output_file": s.outputFile, "summary": summary,
+		"usage": map[string]any{"total_tokens": 0, "tool_uses": out.toolUses, "duration_ms": time.Since(started).Milliseconds()},
+	})
 	return subagentOutcome{finalText: final, failure: out.failure, toolUses: out.toolUses}
 }
 
@@ -309,6 +341,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SidechainPath:         s.sidechain,
 		ParentTranscriptPath:  s.parentReported,
 		bg:                    bg,
+		stream:                s.parent.stream,
 		sessionFile:           s.sessionFile,
 		spawnDepth:            s.spawnDepth,
 	}

@@ -255,7 +255,7 @@ func TestT017_07_Compaction(t *testing.T) {
 		toolUse("b1", "Bash", `{"command":"true"}`),
 		`{"type":"compact","summary":"first summary @MARK@","preserve":3,"pre_tokens":1234}`,
 		toolUse("b2", "Bash", `{"command":"true"}`),
-		`{"type":"compact","summary":"second summary @MARK@","trigger":"manual"}`,
+		`{"type":"compact","summary":"second summary @MARK@","trigger":"manual","logical_parent":"unwritten"}`,
 		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"after both @MARK@"}]}}`,
 	)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-1",
@@ -276,7 +276,16 @@ func TestT017_07_Compaction(t *testing.T) {
 	for n, bi := range bounds {
 		b := recs[bi]
 		assert.Nil(t, b.ParentUUID)
-		assert.Equal(t, recs[bi-1].UUID, b.LogicalParentUUID, "its logical parent is the last record before it")
+		if n == 0 {
+			assert.Equal(t, recs[bi-1].UUID, b.LogicalParentUUID, "by default the logical parent is the last record before it (55 of 66 real)")
+		} else {
+			// "logical_parent":"unwritten": a record never written, which is
+			// also allUuids' extra id (F:compact; 10 real automatic boundaries).
+			assert.NotEmpty(t, b.LogicalParentUUID)
+			for _, r := range recs {
+				assert.NotEqual(t, b.LogicalParentUUID, r.UUID, "the manual boundary's logical parent is never written")
+			}
+		}
 		var full map[string]any
 		require.NoError(t, json.Unmarshal([]byte(b.Raw), &full))
 		meta := full["compactMetadata"].(map[string]any)
@@ -297,7 +306,13 @@ func TestT017_07_Compaction(t *testing.T) {
 		for k, u := range uuids {
 			assert.Equal(t, recs[bi-wantKept+k].UUID, u, "the kept records are the last ones before the boundary, in order")
 		}
-		assert.Equal(t, pm["uuids"], pm["allUuids"], "nothing unwritten in the kept segment")
+		if n == 0 {
+			assert.Equal(t, pm["uuids"], pm["allUuids"], "nothing unwritten in the kept segment")
+		} else {
+			assert.Equal(t, append(append([]any{}, uuids...), b.LogicalParentUUID), pm["allUuids"],
+				"allUuids is uuids plus the unwritten logical parent")
+		}
+		assert.Contains(t, meta, "cumulativeDroppedTokens")
 		summary := recs[bi+1]
 		assert.Contains(t, summary.Raw, `"isVisibleInTranscriptOnly":true`)
 		assert.Contains(t, summary.Raw, `"isCompactSummary":true`)
@@ -360,6 +375,39 @@ func TestT017_07_Compaction(t *testing.T) {
 			assert.NotContains(t, r.Attachment["hookEvent"], "Compact", "Pre/PostCompact leave no attachment")
 		}
 	}
+}
+
+// TestT017_07c_CompactionWithoutAPreservedSegment is the second manual shape
+// claude 2.1.282 left (F:compact-nohooks): no preservedSegment or
+// preservedMessages, the last written record as logical parent, and token
+// counts with cumulativeDroppedTokens = preTokens - postTokens, summed over the
+// session's compactions.
+func TestT017_07c_CompactionWithoutAPreservedSegment(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	sc := script(t, dir, "s",
+		`{"type":"compact","summary":"one @MARK@","trigger":"manual","preserved_segment":false,"pre_tokens":22932,"post_tokens":2334}`,
+		`{"type":"compact","summary":"two @MARK@","trigger":"manual","preserved_segment":false,"pre_tokens":5000,"post_tokens":1000}`,
+	)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-c",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	recs := readRecs(t, transcriptPath(t, cfg, dir, "cmp-c"))
+	var dropped []any
+	for i, r := range recs {
+		if r.Subtype != "compact_boundary" {
+			continue
+		}
+		assert.Equal(t, recs[i-1].UUID, r.LogicalParentUUID, "its logical parent is the last written record")
+		var full map[string]any
+		require.NoError(t, json.Unmarshal([]byte(r.Raw), &full))
+		meta := full["compactMetadata"].(map[string]any)
+		assert.NotContains(t, meta, "preservedSegment")
+		assert.NotContains(t, meta, "preservedMessages")
+		assert.Equal(t, "manual", meta["trigger"])
+		dropped = append(dropped, meta["cumulativeDroppedTokens"])
+	}
+	assert.Equal(t, []any{float64(20598), float64(24598)}, dropped)
 }
 
 // TestT017_07b_PreCompactExit2BlocksTheCompaction: PreCompact can block a

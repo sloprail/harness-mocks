@@ -19,8 +19,9 @@ EVIDENCE.md cites these runs as `F:<dir>`.
 | File | Contents |
 |---|---|
 | `payloads.jsonl` | Every hook payload, in firing order. |
-| `stream.jsonl` | The stdout stream. `system/init`, `hook_started`/`hook_response`/`status` and `rate_limit_event` frames are dropped. |
-| `transcript/` | The session's transcript files and `.meta.json` sidecars. Bookkeeping records (`queue-operation`, `last-prompt`, `mode`, …) and context attachments (`environment`, `skill_listing`, `deferred_tools_*`, `date`, …) are dropped. Every other record is kept verbatim. |
+| `stream.jsonl` | The stdout stream. Dropped: the account-specific `system/init` and `system/commands_changed` frames, the `hook_started`/`hook_response`/`status` frames and `rate_limit_event`. |
+| `transcript/` | The session's transcript files and `.meta.json` sidecars. **Every record is kept**, so every uuid chain and every "never written" claim can be checked. Context attachments that are machine- or account-specific (`environment`, `session_context`, `credential_org`, `skill_listing`, `deferred_tools_*`, `agent_listing_delta`, `mcp_instructions_delta`, `prompt_snapshot`, `remote_session_change`, …) keep their record, `type` and uuid chain, but their payload and `rendered` text are replaced with a `redacted` note. |
+| `settings.json` | The run's project `.claude/settings.json`: which events had a hook. |
 | `stderr.txt`, `exit.txt` | Where the run has them. |
 
 ## Sanitising

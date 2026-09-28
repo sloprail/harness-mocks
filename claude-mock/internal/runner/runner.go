@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
@@ -122,6 +123,12 @@ type Config struct {
 	// session's tasks). Nil for the root run, which creates it.
 	bg *backgroundTasks
 
+	// stream is the session's output stream, shared with every nested run: a
+	// sub-agent's task frames go to it, not to the sub-agent's own captured
+	// output. It is safe for concurrent writers (a background sub-agent writes
+	// while the root does).
+	stream io.Writer
+
 	// spawnDepth is how deep in sub-agents this run is: 0 for the root, 1 for
 	// a sub-agent it dispatched, 2 for one that sub-agent dispatched.
 	spawnDepth int
@@ -159,6 +166,10 @@ func Run(ctx context.Context, cfg Config) error {
 	// sr:docs https://code.claude.com/docs/en/agent-sdk/sessions (CLAUDE_CONFIG_DIR)
 	// sr:docs https://code.claude.com/docs/en/claude-directory
 	cfg.ConfigDir = resolveConfigDir(cfg.ConfigDir)
+	if cfg.stream == nil {
+		lw := &lockedWriter{w: cfg.Out}
+		cfg.Out, cfg.stream = lw, lw
+	}
 
 	nested := cfg.SuppressSubagentHooks
 
@@ -431,4 +442,16 @@ func emitSystemContext(cfg Config, source, additionalContext string) {
 		cfg.Out.Write(b)            //nolint:errcheck
 		cfg.Out.Write([]byte{'\n'}) //nolint:errcheck
 	}
+}
+
+// lockedWriter serialises writes to the session's output stream.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
 }

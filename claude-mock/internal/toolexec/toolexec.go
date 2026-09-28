@@ -34,6 +34,9 @@ type Result struct {
 	// tool has one — a background launch's backgroundTaskId, an async agent's
 	// agentId. Nil for the tools that do not need it here.
 	ToolUseResult any
+	// Failed marks a tool that ran and failed (a Bash that exited non-zero),
+	// for which real Claude Code fires PostToolUseFailure.
+	Failed bool
 	// ContentAsBlocks writes the tool_result content as a list of text blocks
 	// rather than a string — the shape real Claude Code gives some tools'
 	// results (an async Agent receipt).
@@ -102,7 +105,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 			if text != "" {
 				msg += "\n" + text
 			}
-			return Result{Output: msg, IsError: true, ToolUseResult: "Error: " + msg}
+			return Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}
 		}
 		return Result{Output: text + "\n" + err.Error(), IsError: true}
 	}

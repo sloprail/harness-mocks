@@ -218,6 +218,10 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	}
 	task.cmd = cmd
 	b.add(task)
+	writeFrame(cfg, map[string]any{
+		"type": "system", "subtype": "task_started", "task_id": id, "tool_use_id": toolUseID,
+		"description": desc, "is_backgrounded": true, "task_type": "local_bash",
+	})
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
@@ -237,6 +241,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 			fmt.Fprintf(out, "\n[exited with code %d]\n", code)
 		}
 		out.Close()
+		writeTaskEndFrames(cfg, task)
 		b.finish(task)
 	}()
 
@@ -274,11 +279,7 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 	if sub == nil {
 		return errRes, nil
 	}
-	dir := tasksDir(cfg.Cwd, cfg.SessionID)
-	_ = os.MkdirAll(dir, 0o755)
-	outFile := filepath.Join(dir, sub.agentID+".output")
-	_ = os.Remove(outFile)
-	_ = os.Symlink(sub.sidechain, outFile)
+	outFile := sub.outputFile
 
 	task := &backgroundTask{
 		id: sub.agentID, toolUseID: toolUseID, owner: cfg.AgentID, agent: true,
@@ -465,21 +466,42 @@ func (t *backgroundTask) summary() string {
 	return fmt.Sprintf("Background command %q completed (exit code %d)", t.description, t.exitCode)
 }
 
-// streamFrame is the system task_notification frame a real `claude -p
-// --output-format stream-json` run writes to its stream for a finished (or
-// stopped) task.
-func (t *backgroundTask) streamFrame(sessionID string) []byte {
+// writeTaskEndFrames writes what a real `claude -p --output-format
+// stream-json` run streams when a background command ends: task_updated
+// {patch:{status, end_time}}, then task_notification {status, output_file,
+// summary}. A command killed at the end of a session is "killed", then
+// "stopped" with its description as summary (F:bgbash); one that finished is
+// "completed"/"failed" with the notification's summary (F:midturn).
+func writeTaskEndFrames(cfg Config, t *backgroundTask) {
+	updated := t.status()
 	summary := t.summary()
 	if t.killed.Load() {
-		summary = t.description
+		updated, summary = "killed", t.description
 	}
-	frame := map[string]any{
+	writeFrame(cfg, map[string]any{
+		"type": "system", "subtype": "task_updated", "task_id": t.id,
+		"patch": map[string]any{"status": updated, "end_time": time.Now().UnixMilli()},
+	})
+	writeFrame(cfg, map[string]any{
 		"type": "system", "subtype": "task_notification", "task_id": t.id, "tool_use_id": t.toolUseID,
 		"status": t.status(), "output_file": t.outputFile, "summary": summary,
-		"uuid": newRecordUUID(), "session_id": sessionID,
+	})
+}
+
+// writeFrame writes a system frame to the session's output stream, stamped
+// with a uuid and the session id as real frames are.
+func writeFrame(cfg Config, frame map[string]any) {
+	frame["uuid"] = newRecordUUID()
+	frame["session_id"] = cfg.SessionID
+	line, err := marshalRecord(frame)
+	if err != nil {
+		return
 	}
-	line, _ := marshalRecord(frame)
-	return line
+	w := cfg.stream
+	if w == nil {
+		w = cfg.Out
+	}
+	w.Write(append(line, '\n')) //nolint:errcheck
 }
 
 // deliverMidTurn hands owner's finished tasks over inside the running turn:
@@ -493,7 +515,6 @@ func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *h
 		if !submitNotification(ctx, cfg, inv, tr, note) {
 			continue
 		}
-		writeStreamLine(cfg, t.streamFrame(cfg.SessionID))
 		tr.persistMap(map[string]any{"type": "attachment", "attachment": map[string]any{
 			"type": "queued_command", "prompt": note, "source_uuid": newRecordUUID(),
 			"commandMode": "task-notification", "timestamp": nowStamp(),
@@ -510,7 +531,6 @@ func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *ho
 	if !submitNotification(ctx, cfg, inv, tr, note) {
 		return false
 	}
-	writeStreamLine(cfg, t.streamFrame(cfg.SessionID))
 	tr.persistMap(map[string]any{
 		"type":                 "user",
 		"message":              map[string]any{"role": "user", "content": note},
@@ -559,7 +579,6 @@ func (b *backgroundTasks) stopOwned(cfg Config) {
 	for _, t := range victims {
 		killGroup(t.cmd)
 		<-t.done
-		writeStreamLine(cfg, t.streamFrame(cfg.SessionID))
 	}
 }
 

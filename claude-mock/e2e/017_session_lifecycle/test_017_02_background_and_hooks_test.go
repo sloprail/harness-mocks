@@ -281,6 +281,78 @@ echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-7702"}'
 	assert.Contains(t, stops[0]["last_assistant_message"], "LAUNCHED")
 	assert.Equal(t, []any{}, stops[1]["background_tasks"])
 	assert.Equal(t, []any{"hello", note}, prompts)
+
+	frames := framesOf(t, out, agentID)
+	require.Len(t, frames, 3, "task_started, task_updated, task_notification")
+	assert.Equal(t, "task_started", frames[0]["subtype"])
+	assert.Equal(t, true, frames[0]["is_backgrounded"])
+	assert.Equal(t, "local_agent", frames[0]["task_type"])
+	assert.EqualValues(t, 1, frames[0]["spawn_depth"])
+	assert.Equal(t, "go", frames[0]["prompt"])
+	assert.Equal(t, "completed", frames[1]["patch"].(map[string]any)["status"])
+	assert.Equal(t, "task_notification", frames[2]["subtype"])
+	assert.Equal(t, "AGENT-REPLY-7702", frames[2]["summary"], "an Agent's frame summarises with its result (F:bgagent)")
+	assert.Equal(t, outFile, frames[2]["output_file"])
+	usage := frames[2]["usage"].(map[string]any)
+	assert.Contains(t, usage, "total_tokens")
+	assert.Contains(t, usage, "tool_uses")
+	assert.Contains(t, usage, "duration_ms")
+}
+
+// framesOf is the stream's task_* system frames for taskID, in order.
+func framesOf(t *testing.T, out, taskID string) []map[string]any {
+	t.Helper()
+	var frames []map[string]any
+	for _, l := range strings.Split(out, "\n") {
+		if !strings.Contains(l, `"subtype":"task_`) {
+			continue
+		}
+		var m map[string]any
+		if json.Unmarshal([]byte(l), &m) == nil && m["task_id"] == taskID {
+			frames = append(frames, m)
+		}
+	}
+	return frames
+}
+
+// TestT017_12d_BackgroundSubAgentsOwnBash: a foreground Bash run by a
+// background sub-agent streams task_started {owned_by_subagent, is_backgrounded
+// false, task_type local_bash} and task_notification {status completed,
+// output_file "", summary: its description} (F:bgagent). The root's own
+// foreground Bash streams no task frame.
+func TestT017_12d_BackgroundSubAgentsOwnBash(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	sub := script(t, dir, "sub", toolUse("sb1", "Bash", `{"command":"echo SUB","description":"sub step"}`))
+	sc := script(t, dir, "s",
+		toolUse("r1", "Bash", `{"command":"echo ROOT","description":"root step"}`),
+		toolUse("ag1", "Agent", `{"prompt":"go","description":"bg","script":"`+sub+`","run_in_background":true}`),
+	)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "ob-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	var owned []map[string]any
+	for _, l := range strings.Split(out, "\n") {
+		var m map[string]any
+		if json.Unmarshal([]byte(l), &m) != nil || m["type"] != "system" {
+			continue
+		}
+		tid, _ := m["tool_use_id"].(string)
+		if strings.HasPrefix(tid, "sb1") {
+			owned = append(owned, m)
+		}
+		assert.False(t, strings.HasPrefix(tid, "r1"), "no frame for the root's own foreground Bash")
+	}
+	require.Len(t, owned, 2)
+	assert.Equal(t, "task_started", owned[0]["subtype"])
+	assert.Equal(t, true, owned[0]["owned_by_subagent"])
+	assert.Equal(t, false, owned[0]["is_backgrounded"])
+	assert.Equal(t, "local_bash", owned[0]["task_type"])
+	assert.Equal(t, "task_notification", owned[1]["subtype"])
+	assert.Equal(t, "completed", owned[1]["status"])
+	assert.Equal(t, "", owned[1]["output_file"])
+	assert.Equal(t, "sub step", owned[1]["summary"])
+	assert.Equal(t, owned[0]["task_id"], owned[1]["task_id"])
 }
 
 // TestT017_12b_BackgroundAgentFailure: a background Agent whose run fails is
@@ -314,7 +386,8 @@ func TestT017_12c_AgentWithoutRequiredInputIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
-	settings(t, dir, map[string]string{"SubagentStart": payloadLogger(t, dir, "log.sh", log, "")})
+	h := payloadLogger(t, dir, "log.sh", log, "")
+	settings(t, dir, map[string]string{"SubagentStart": h, "PostToolUseFailure": h, "PostToolUse": h})
 	sc := script(t, dir, "s", toolUse("ag1", "Agent", `{"prompt":"go","run_in_background":true}`))
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bga-3",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
@@ -324,7 +397,7 @@ func TestT017_12c_AgentWithoutRequiredInputIsRefused(t *testing.T) {
 	assert.Equal(t, true, block["is_error"])
 	assert.NotContains(t, r.Raw, "async_launched")
 	_, err := os.Stat(log)
-	assert.True(t, os.IsNotExist(err), "no sub-agent started")
+	assert.True(t, os.IsNotExist(err), "no sub-agent started, and no PostToolUse(Failure): the tool never ran")
 }
 
 // TestT017_13_NestedSubAgents: a sub-agent that dispatches its own sub-agent.
@@ -734,6 +807,16 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"REPORT one\ntwo"}'
 	}
 	require.NotNil(t, agentPost)
 	assert.Equal(t, "completed", agentPost["tool_response"].(map[string]any)["status"])
+
+	// A foreground sub-agent streams task frames too (F:meta, F:hookerrors),
+	// and has its own tasks/<id>.output symlink.
+	frames := framesOf(t, out, agentID)
+	require.Len(t, frames, 3)
+	assert.Equal(t, false, frames[0]["is_backgrounded"])
+	assert.Equal(t, "REPORT one\ntwo", frames[2]["summary"])
+	target, err := os.Readlink(frames[2]["output_file"].(string))
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(target, "/subagents/agent-"+agentID+".jsonl"), target)
 }
 
 // TestT017_26_StopBlockCap: a Stop hook that always blocks continues the turn

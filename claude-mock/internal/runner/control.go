@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -88,7 +89,8 @@ const defaultPreserved = 2
 //
 // It returns whether the compaction happened. The scenario drives it with
 // {"type":"compact"[,"summary":…][,"trigger":"auto"|"manual"][,"preserve":N]
-// [,"pre_tokens":N][,"logical_parent":…][,"id":…]}, or with its own
+// [,"pre_tokens":N][,"post_tokens":N][,"preserved_segment":false]
+// [,"logical_parent":…][,"id":…]}, or with its own
 // isCompactSummary record, which is used as the summary.
 // sr:docs https://code.claude.com/docs/en/hooks#precompact
 // sr:docs https://code.claude.com/docs/en/hooks#postcompact
@@ -168,7 +170,8 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	}
 	writeCompactBoundary(tr, compactionSpec{
 		logicalParent: rec.LogicalParent, preserve: preserve, anchor: anchor, trigger: trigger,
-		preTokens: rec.PreTokens, durationMs: time.Since(started).Milliseconds(),
+		preTokens: rec.PreTokens, postTokens: rec.PostTokens, durationMs: time.Since(started).Milliseconds(),
+		withSegment: rec.PreservedSegment == nil || *rec.PreservedSegment,
 	})
 	sumLine, _ := marshalRecord(sum)
 	writeStreamLine(cfg, sumLine)
@@ -225,7 +228,9 @@ type compactionSpec struct {
 	anchor        string
 	trigger       string
 	preTokens     int
+	postTokens    int
 	durationMs    int64
+	withSegment   bool
 }
 
 func contains(xs []string, x string) bool {
@@ -243,17 +248,38 @@ func contains(xs []string, x string) bool {
 // real boundaries), and only a later resume moves the conversation to a new
 // file.
 func writeCompactBoundary(tr *transcript, spec compactionSpec) {
-	kept := tr.lastUUIDs(spec.preserve)
-	logicalParent := spec.logicalParent
-	if logicalParent == "" {
-		logicalParent = tr.lastUUID()
+	// Two shapes, both observed in manual compactions of claude 2.1.282:
+	//
+	//   - with a preserved segment (F:compact; 64 of 65 real boundaries):
+	//     compactMetadata names the kept records — preservedMessages {anchorUuid,
+	//     uuids, allUuids} and preservedSegment {headUuid, anchorUuid, tailUuid},
+	//     uuids being the last N records written. allUuids is uuids plus records
+	//     never written to the file: a strict superset in 44 of 65 real
+	//     boundaries, every extra id unwritten.
+	//   - without one (F:compact-nohooks; 1 of 65): neither field.
+	//
+	// The logical parent takes one of two forms in the real record:
+	//
+	//   - the last written record, which is uuids' tail: 55 of 66 real
+	//     boundaries (54 automatic, 1 manual), and F:compact-nohooks. This is the
+	//     default.
+	//   - a record never written to the file, which then closes allUuids: 10
+	//     automatic boundaries, and the manual F:compact. The scenario asks for
+	//     it with "logical_parent":"unwritten".
+	//
+	// Any other logical_parent is used as given.
+	withSegment := spec.withSegment
+	kept := []string{}
+	if withSegment {
+		kept = tr.lastUUIDs(spec.preserve)
 	}
-	// allUuids is uuids plus the records the kept segment spans that were
-	// never written to the file: in 44 of the 65 real boundaries it is a strict
-	// superset of uuids, every extra id unwritten; in a controlled manual
-	// compaction the one extra was the unwritten record the boundary named as
-	// its logical parent. A logical_parent the scenario names that no record
-	// carries is therefore in allUuids too.
+	logicalParent := spec.logicalParent
+	switch logicalParent {
+	case "":
+		logicalParent = tr.lastUUID()
+	case "unwritten":
+		logicalParent = newRecordUUID()
+	}
 	all := append([]string(nil), kept...)
 	if logicalParent != "" && !contains(kept, logicalParent) && !fileHasUUID(tr.path, logicalParent) {
 		all = append(all, logicalParent)
@@ -263,7 +289,7 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 		"preTokens":  spec.preTokens,
 		"durationMs": spec.durationMs,
 	}
-	if len(kept) > 0 {
+	if withSegment && len(kept) > 0 {
 		meta["preservedSegment"] = map[string]any{
 			"headUuid": kept[0], "anchorUuid": spec.anchor, "tailUuid": kept[len(kept)-1],
 		}
@@ -271,7 +297,11 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 			"anchorUuid": spec.anchor, "uuids": kept, "allUuids": all,
 		}
 	}
-	meta["postTokens"] = 0
+	meta["postTokens"] = spec.postTokens
+	// cumulativeDroppedTokens: what the session's compactions have dropped so
+	// far, this one's preTokens - postTokens included (both manual fixtures:
+	// 23138-2308 = 20830, 22932-2334 = 20598).
+	meta["cumulativeDroppedTokens"] = lastCumulativeDropped(tr.path) + spec.preTokens - spec.postTokens
 	tr.persistMap(map[string]any{
 		"parentUuid":        nil,
 		"logicalParentUuid": logicalParent,
@@ -282,4 +312,29 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 		"level":             "info",
 		"compactMetadata":   meta,
 	})
+}
+
+// lastCumulativeDropped is the cumulativeDroppedTokens of the last compact
+// boundary in path, or 0.
+func lastCumulativeDropped(path string) int {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	last := 0
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.Contains(line, "compact_boundary") {
+			continue
+		}
+		var rec struct {
+			Subtype string `json:"subtype"`
+			Meta    struct {
+				Dropped int `json:"cumulativeDroppedTokens"`
+			} `json:"compactMetadata"`
+		}
+		if json.Unmarshal([]byte(line), &rec) == nil && rec.Subtype == "compact_boundary" {
+			last = rec.Meta.Dropped
+		}
+	}
+	return last
 }
