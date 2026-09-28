@@ -1015,7 +1015,23 @@ func TestT017_30_SubagentMetaSidecars(t *testing.T) {
 // interleaving depend only on the sub-agent script's counter file being
 // updated, not on relative process speed, so a slow host runs more, smaller
 // rounds of "chunk, then wait" instead of one round that might race to
-// completion before any frame lands.
+// completion before any frame lands. Each wait is itself bounded (flood.sh's
+// STALL_LIMIT): a sub-agent that never advances fails the test fast with a
+// clear message instead of hanging the whole package for Go's default
+// 10-minute test timeout.
+//
+// This test's own detection of the regression is necessarily probabilistic —
+// it depends on the OS scheduler actually interleaving two real processes'
+// writes to the shared pipe within a chunk's write window, not on a
+// deterministic code path. TestStreamLinesStayWholeUnderConcurrentFrames (in
+// background_test.go), which exercises writeStreamLine directly from many
+// goroutines under one process, is the primary, fully deterministic
+// regression guard; this test is the end-to-end confirmation that the same
+// guarantee survives the real CLI/turn-loop/background-agent boundary.
+// Measured against a build with writeStreamLine reverted to two separate
+// Write calls: this test failed the large majority of repeated runs (not
+// every single one, since it is scheduler-dependent) and passed every run
+// against the fix.
 func TestT017_31_StreamStaysParseableUnderLoad(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -1031,13 +1047,18 @@ N=$(cat `+calls+` 2>/dev/null || echo 0); N=$((N+1)); echo $N > `+calls+`
 printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"sb'$N'","name":"Bash","input":{"command":"true","description":"step '$N'"}}]}}'
 `, 0o755)
 	// The flood writes ROUNDS lines chunk (a "line-<round>-<i>" burst), then
-	// waits — with no upper bound but the test's own timeout — for $calls to
-	// read a value strictly greater than it was before this chunk. So every
-	// chunk boundary is a real rendezvous with a completed sub-agent turn,
-	// not a fixed sleep a fast or slow host could race past.
+	// waits for $calls to read a value strictly greater than it was before
+	// this chunk. So every chunk boundary is a real rendezvous with a
+	// completed sub-agent turn, not a fixed sleep a fast or slow host could
+	// race past. The wait is bounded (STALL_LIMIT * 0.005s ≈ 15s): if the
+	// sub-agent ever stalls, the flood exits 1 with a clear message rather
+	// than hanging the whole test binary for its default 10-minute timeout —
+	// a stall here is itself a test failure worth seeing fast, not a reason
+	// to block indefinitely.
 	flood := write(t, filepath.Join(dir, "flood.sh"), `#!/bin/sh
 CHUNK=200
-ROUNDS=400
+ROUNDS=600
+STALL_LIMIT=3000
 r=0
 while [ $r -lt $ROUNDS ]; do
   i=0
@@ -1048,7 +1069,13 @@ while [ $r -lt $ROUNDS ]; do
   done
   before=$(cat `+calls+` 2>/dev/null || echo 0)
   after=$before
+  stalled=0
   while [ "$after" = "$before" ]; do
+    stalled=$((stalled+1))
+    if [ $stalled -ge $STALL_LIMIT ]; then
+      echo "flood.sh: the sub-agent's call counter did not advance past $before after $STALL_LIMIT polls — stalled, giving up" 1>&2
+      exit 1
+    fi
     sleep 0.005
     after=$(cat `+calls+` 2>/dev/null || echo 0)
   done
@@ -1069,7 +1096,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done"}'
 `, 0o755)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "load-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
-	require.Equal(t, 0, code, "exit code")
+	require.Equal(t, 0, code, "exit code (a non-zero code including a flood stall is reported in the output below):\n%.2000s", out)
 	var owned, bad, during int
 	floodSeen, floodOver := false, false
 	for i, l := range strings.Split(strings.TrimSpace(out), "\n") {
@@ -1087,7 +1114,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done"}'
 		if strings.Contains(l, "line-0-0 x") {
 			floodSeen = true
 		}
-		if strings.Contains(l, "line-399-199 x") {
+		if strings.Contains(l, "line-599-199 x") {
 			floodOver = true
 		}
 		if m["owned_by_subagent"] == true {
@@ -1103,5 +1130,5 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done"}'
 	// which can fall outside the flood's own start/end markers) forces one
 	// interleaving point, so this floor is met deterministically rather than
 	// by how fast the host happens to run.
-	assert.Greater(t, during, 50, "the sub-agent's frames overlapped the flood (%d of %d)", during, owned)
+	assert.Greater(t, during, 100, "the sub-agent's frames overlapped the flood (%d of %d)", during, owned)
 }
