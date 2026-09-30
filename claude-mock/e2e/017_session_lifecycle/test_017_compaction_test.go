@@ -24,6 +24,9 @@ import (
 // between PreCompact and SessionStart, and writes the /compact command's three
 // records after the summary, ahead of SessionStart:compact's attachment. The
 // turn goes on after each compaction.
+// sr:proves compaction-transcript-continuity/claude
+// sr:proves manual-compaction/claude
+// sr:proves session-start-hook/claude
 func TestT017_07_Compaction(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -196,6 +199,7 @@ func TestT017_07c_CompactionWithoutAPreservedSegment(t *testing.T) {
 // preserved segment's tail. In 7 real mid-file boundaries that tail is an
 // EARLIER written record, 2 to 253 records before the boundary; "tail_offset"
 // reproduces it.
+// sr:proves compaction-transcript-continuity/claude
 func TestT017_07d_TailEarlierThanTheLastRecord(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -250,6 +254,7 @@ func TestT017_07e_TailOffsetBeyondTheRecordIsAnError(t *testing.T) {
 
 // TestT017_07b_PreCompactExit2BlocksTheCompaction: PreCompact can block a
 // compaction (docs, "Exit code 2 behavior per event"): nothing is written.
+// sr:proves manual-compaction/claude
 func TestT017_07b_PreCompactExit2BlocksTheCompaction(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

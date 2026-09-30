@@ -19,6 +19,7 @@ import (
 // REFUSES with ErrNoHarness when neither CLAUDECODE nor CLAUDE_CODE_ENTRYPOINT is set)
 // must find that env whether the hook fired at the root or inside a dispatched
 // sub-agent. Both paths run through the same invoker, so both must see all three.
+// sr:proves subprocess-session-env/claude
 func TestT009_06_HookEnvCarriesClaudeCodeVars(t *testing.T) {
 	dir := t.TempDir()
 	rootEnv := filepath.Join(dir, "root-env.txt")

@@ -14,6 +14,7 @@ import (
 // session, when tests run inside a live session). Real Claude Code exports the
 // active session id into every Bash tool subprocess.
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
+// sr:proves subprocess-session-env/claude
 func TestBashExportsSessionIDOverInheritedValue(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "decoy-outer-session")
 

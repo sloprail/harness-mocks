@@ -27,6 +27,8 @@ func forkRecs(t *testing.T, path string) []rec {
 // into one chain after the summary, then what followed the summary, and the
 // fork's own turn — every record under the fork's sessionId. SessionStart
 // fires with source "fork" (docs; claude 2.1.282). The original is untouched.
+// sr:proves session-fork/claude
+// sr:proves session-start-hook/claude
 func TestT017_08_ForkOfACompactedSession(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -102,6 +104,8 @@ func TestT017_08_ForkOfACompactedSession(t *testing.T) {
 // whole — origin included, parents unchanged — under the fork's sessionId, as
 // claude 2.1.282 forked one (and every 2.1.280+ fork on the machine). A fork
 // of the fork works the same way.
+// sr:proves session-fork/claude
+// sr:proves session-start-hook/claude
 func TestT017_09_ForkOfAnUncompactedSession(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

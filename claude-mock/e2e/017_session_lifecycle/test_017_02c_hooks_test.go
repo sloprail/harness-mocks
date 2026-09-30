@@ -19,6 +19,10 @@ import (
 // toolUseID, hookErrors [reason], hasOutput true). An exit 2 leaves the
 // feedback quoting "[<command>]: <stderr>" and the summary, no attachment.
 // stop_hook_active is set on every Stop after a block.
+// sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-output-transcript-records/claude
+// sr:proves stop-block-continuation/claude
+// sr:proves stop-hook-payload/claude
 func TestT017_14_StopFeedbackInTheMainFile(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -77,6 +81,7 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 // leaves a hook_success (content "") and then a hook_additional_context — for
 // PostToolUse under the tool call's name and id, for SessionStart named
 // "SessionStart" with "SessionStart" as its toolUseID (claude 2.1.282).
+// sr:proves hook-additional-context/claude
 func TestT017_15_AdditionalContext(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -127,6 +132,8 @@ echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":
 // TestT017_19_PromptAndSessionEndAttachments: a UserPromptSubmit hook that
 // prints plain text leaves a hook_success whose content is that text; a
 // SessionEnd hook's output leaves nothing (claude 2.1.282).
+// sr:proves hook-output-transcript-records/claude
+// sr:proves session-end-hook/claude
 func TestT017_19_PromptAndSessionEndAttachments(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -152,6 +159,8 @@ func TestT017_19_PromptAndSessionEndAttachments(t *testing.T) {
 // tool's structured result, a Bash's {stdout, stderr, interrupted, isImage,
 // noOutputExpected} — never tool_output (docs, PostToolUse input; a claude
 // 2.1.282 payload).
+// sr:proves bash-tool-result/claude
+// sr:proves posttooluse-payload/claude
 func TestT017_20_PostToolUsePayload(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -194,6 +203,8 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 // overridden, a warning is recorded, and the turn ends — claude 2.1.282 fired
 // Stop 9 times and wrote exactly this warning. The stream carries one result,
 // at the real end of the continued turn.
+// sr:proves stop-block-cap/claude
+// sr:proves stop-block-continuation/claude
 func TestT017_26_StopBlockCap(t *testing.T) {
 	for _, tc := range []struct {
 		cap   string
@@ -236,6 +247,7 @@ echo '{"type":"result","subtype":"success","result":"DONE"}'
 // TestT017_27_SubagentStopBlockCap: SubagentStop shares the cap — 9 fires by
 // default, the sub-agent re-run 8 times — and, as in the controlled 2.1.282
 // run, leaves no warning record in either file.
+// sr:proves stop-block-cap/claude
 func TestT017_27_SubagentStopBlockCap(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

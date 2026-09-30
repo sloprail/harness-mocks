@@ -19,6 +19,7 @@ func writeClaudeSettings(t *testing.T, repoDir, name, body string) {
 
 // LoadSettings resolves plugin hooks from enabledPlugins + a directory-source
 // marketplace declared in extraKnownMarketplaces, expanding ${CLAUDE_PLUGIN_ROOT}.
+// sr:proves plugin-hooks/claude
 func TestLoadSettings_PluginHooksFromDirectoryMarketplace(t *testing.T) {
 	repo := t.TempDir()
 	mpRoot := t.TempDir()
@@ -47,6 +48,7 @@ func TestLoadSettings_PluginHooksFromDirectoryMarketplace(t *testing.T) {
 }
 
 // Inline settings.json hooks and plugin-provided hooks coexist for the same event.
+// sr:proves plugin-hooks/claude
 func TestLoadSettings_InlineAndPluginHooksMerge(t *testing.T) {
 	repo := t.TempDir()
 	mpRoot := t.TempDir()
@@ -86,6 +88,7 @@ func TestLoadSettings_NoPluginsIsInlineOnly(t *testing.T) {
 
 // An enabled plugin whose marketplace is NOT declared in extraKnownMarketplaces
 // resolves to nothing — there is no fallback to "name-after-@ as a path".
+// sr:proves plugin-hooks/claude
 func TestLoadSettings_UndeclaredMarketplaceNoFallback(t *testing.T) {
 	repo := t.TempDir()
 	writeClaudeSettings(t, repo, "settings.local.json",
@@ -98,6 +101,7 @@ func TestLoadSettings_UndeclaredMarketplaceNoFallback(t *testing.T) {
 
 // extraKnownMarketplaces declared in settings.json is honoured for plugins
 // enabled in settings.local.json (fields merge across both files).
+// sr:proves plugin-hooks/claude
 func TestLoadSettings_MarketplaceAndEnableAcrossFiles(t *testing.T) {
 	repo := t.TempDir()
 	mpRoot := t.TempDir()

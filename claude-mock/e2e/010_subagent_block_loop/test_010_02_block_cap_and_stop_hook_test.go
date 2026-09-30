@@ -15,6 +15,8 @@ import (
 //
 // sr:docs https://code.claude.com/docs/en/env-vars
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:proves stop-block-cap/claude
+// sr:proves subagent-stop-block-loop/claude
 func TestT010_04_BlockCapBoundsTheLoop(t *testing.T) {
 	alwaysBlockExit2 := func(dir, fireCounter string) string {
 		return writeHook(t, dir, "stop.sh", `cat >/dev/null
@@ -64,6 +66,7 @@ exit 2`)
 // 0 means unlimited, not "block zero times".
 //
 // sr:docs https://code.claude.com/docs/en/env-vars
+// sr:proves stop-block-cap/claude
 func TestT010_05_BlockCapZeroIsUnlimited(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -97,6 +100,7 @@ exit 0`)
 // fire's stop_hook_active value (one line per fire) for the assertion.
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:proves subagent-stop-block-loop/claude
 func TestT010_06_StopHookActiveFlag(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -158,6 +162,8 @@ exit 0`)
 // feedback turn, quoting the hook as "[<command>]: <stderr>".
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
+// sr:proves hook-output-transcript-records/claude
+// sr:proves subagent-stop-block-loop/claude
 func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
