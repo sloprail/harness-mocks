@@ -10,16 +10,17 @@ with the wrong semantics, so they live here. To activate, move `rules/` to
 ```
 spec/
   invariants/<id>.yaml           statement                                   features: the user's words
-  capabilities/<id>.yaml         statement · providers.<harness>: {docs, runs} | false    doc-based mocks
+  capabilities/<id>.yaml         statement · providers.<harness>: {docs: [full URL#anchor], runs: [repo path]} | false
 <harness>-mock/snapshots/        the real harness, frozen at one version
-  MANIFEST.yaml                  version · docs: {<page>.md: {url, version}}
+  MANIFEST.yaml                  version · docs: {<page>.md: {url (canonical page URL), version}}
   docs/<page>.md                 doc pages, copied at that version
-  runs/<name>/                   run.yaml (version, command) · setup/ · samples/<YYYYMMDD-HHMMSS>/events.jsonl
+  runs/<name>/                   a scenario: run.yaml (version, command) · setup/ ·
+                                 samples/<YYYYMMDD-HHMMSS>/events.jsonl (each capture, timestamped)
 core/<module>/
   module.yaml                    home · api
-  signatures.sh                  prints regexes that mean "this module's logic"
-adr/<kebab-name>/ADR.md          concern · sloprails · modules · exceptions · limits; ## Concern ## Decision
-rules/                           → .sloprail/  (18 file-guards, 1 gate)
+  candidates.sh                  owns the search for its logic: prints path:line:snippet
+adr/<kebab-name>/ADR.md          concern · sloprails · modules · exceptions · settings (limits, space); ## Concern ## Decision
+rules/                           → .sloprail/  (19 file-guards, 1 gate)
 tests/judge-cases/               judge inputs with their expected verdicts
 ```
 
@@ -53,14 +54,16 @@ the commit (`Sloprail-Cites-User:`).
 | | `adr-matches-sloprails` | P | the ADR and its linked rules say the same thing |
 | | `adr-grounded` | G+P | an ADR, or a `module.yaml`, changes only with the user's words (shrinking `exceptions` is waived) |
 | | `concern-undeclared` | P | once per changeset, from an ADR index (id + concern): changed code implements a concern no ADR covers |
-| **modules** | `module-boundaries` | D | nothing imports past a module's `api` |
+| **modules** | `module-coverage` | D | every non-test Go file in the `space` (from `adr/modules-cover-code`) lies in exactly one module's home; homes don't overlap; legacy code is covered by `exceptions` globs, which only shrink |
+| | `module-boundaries` | D | nothing imports past a module's `api` |
 | | `module-leaks` | D→P | see below |
 | **ADR-specific** | `file-size` (+ gate), `layering`, `subprocess-env` | D | limits and exceptions are read from the linked ADR |
 
 **`module-leaks`:**
-1. It greps each module's signatures on the lines this range adds. It greps
-   the whole tree only when that module's `module.yaml` or `signatures.sh`
-   changed.
+1. Each module's `candidates.sh` owns the whole search for its logic, and
+   prints every `path:line:snippet` that looks like it. The rule keeps only
+   candidates on lines this range adds, or all of them when that module's
+   `module.yaml` or `candidates.sh` changed.
 2. It drops matches inside the module's home, in tests, and in paths the
    module's ADRs list as exceptions.
 3. It judges only what's left: a leak, or just a use? With nothing left, it
@@ -74,10 +77,10 @@ the commit (`Sloprail-Cites-User:`).
   the runs recorded today in `claude-mock/evidence/`.
 - **Invariants:** `scenario-prompt-env` and `prompt-context-appended`: the
   mock's own features.
-- **Module:** `core/hooks` (sample).
+- **Module:** `core/hooks` (sample). Its `candidates.sh` finds 24 candidates in today's code, all of them in tests, which the rule drops.
 - **Snapshots:** `MANIFEST.yaml` and `runs/cap/run.yaml`.
 - **ADRs:** `file-size`, `layering`, `subprocess-env`, `capability-once` and
-  `hooks-module`. They're for your approval.
+  `hooks-module` and `modules-cover-code`. They're for your approval.
 
 ## What the engine must provide
 
