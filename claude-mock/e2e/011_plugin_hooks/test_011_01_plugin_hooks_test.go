@@ -66,6 +66,7 @@ func stopScenario(t *testing.T, dir string) string {
 // enabled in settings, its marketplace declared (directory source) in
 // extraKnownMarketplaces, has its Stop hook fired with ${CLAUDE_PLUGIN_ROOT}
 // expanded to the plugin install dir.
+// sr:proves plugin-hooks/claude
 func TestT011_01_PluginHookFiresViaMarketplace(t *testing.T) {
 	dir := t.TempDir()
 	mpRoot := t.TempDir()
@@ -102,6 +103,7 @@ func TestT011_01_PluginHookFiresViaMarketplace(t *testing.T) {
 // TestT011_02_UndeclaredMarketplaceDoesNotFire is the no-fallback control: the
 // plugin is enabled but its marketplace is NOT in extraKnownMarketplaces, so no
 // hook resolves.
+// sr:proves plugin-hooks/claude
 func TestT011_02_UndeclaredMarketplaceDoesNotFire(t *testing.T) {
 	dir := t.TempDir()
 	mpRoot := t.TempDir()
@@ -132,6 +134,7 @@ func TestT011_02_UndeclaredMarketplaceDoesNotFire(t *testing.T) {
 
 // TestT011_03_DisabledPluginDoesNotFire: marketplace declared, plugin present,
 // but enabledPlugins = false → no hook.
+// sr:proves plugin-hooks/claude
 func TestT011_03_DisabledPluginDoesNotFire(t *testing.T) {
 	dir := t.TempDir()
 	mpRoot := t.TempDir()

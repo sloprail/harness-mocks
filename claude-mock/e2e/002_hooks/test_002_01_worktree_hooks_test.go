@@ -13,6 +13,7 @@ import (
 // worktree_create control record causes the configured WorktreeCreate command
 // hook to fire. The hook writes the worktree name to a temp file; we assert
 // the file contains the expected name.
+// sr:proves worktree-hooks/claude
 func TestT002_01_WorktreeCreateHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "hook-log.txt")
@@ -70,6 +71,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 
 // TestT002_02_WorktreeCreateHookBlockExitsNonZero verifies that a WorktreeCreate
 // hook that exits 2 causes the mock to exit non-zero.
+// sr:proves worktree-hooks/claude
 func TestT002_02_WorktreeCreateHookBlockExitsNonZero(t *testing.T) {
 	dir := t.TempDir()
 
@@ -141,6 +143,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // TestT002_05_SubagentStartControlRecordOverridesAgentType verifies that a
 // subagent_start control record in the script fires SubagentStart with the
 // agent_type from the record, overriding the default.
+// sr:proves subagent-lifecycle-hooks/claude
 func TestT002_05_SubagentStartControlRecordOverridesAgentType(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "subagent-log.txt")
@@ -231,6 +234,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // carrying the reason — so a reactive agent can read the a10n://check-runs link and act on it.
 // Before this, the mock discarded the Stop hook's output and the reason never reached the
 // conversation, making reactive flows impossible to test.
+// sr:proves hook-output-transcript-records/claude
 func TestT002_06_StopHookBlockReasonSurfacesAsAttachment(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
@@ -289,6 +293,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // loop: a Stop hook that blocks ONCE re-prompts the agent, and the scenario's NEXT turn fires in
 // the SAME run (reacting to the surfaced block) — rather than the run ending at the first result.
 // This is what lets a reactive scenario spawn a resolver after the Stop drain parks a check.
+// sr:proves stop-block-continuation/claude
 func TestT002_07_StopBlockRePromptsTurnSameRun(t *testing.T) {
 	dir := t.TempDir()
 

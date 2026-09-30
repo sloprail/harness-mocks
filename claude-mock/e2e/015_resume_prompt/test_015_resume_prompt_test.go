@@ -117,6 +117,7 @@ func TestT015_01_FreshRunSeedsParentlessRoot(t *testing.T) {
 // TestT015_02_ResumeAppendsContinuationHumanRecord: a RESUME run against an existing
 // transcript APPENDS its prompt as a user record with a NON-null parentUuid, AFTER the
 // prior cycle's records — a mid-conversation human turn, not a second root.
+// sr:proves session-resume/claude
 func TestT015_02_ResumeAppendsContinuationHumanRecord(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
@@ -165,6 +166,7 @@ func TestT015_02_ResumeAppendsContinuationHumanRecord(t *testing.T) {
 // TestT015_03_TwoResumesTwoDistinctHumanRecords: two resume runs on one session id
 // produce TWO distinct continuation human records, each with its own uuid — the
 // multi-human-turn transcript two same-session runs are meant to build.
+// sr:proves session-resume/claude
 func TestT015_03_TwoResumesTwoDistinctHumanRecords(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
@@ -199,6 +201,7 @@ func TestT015_03_TwoResumesTwoDistinctHumanRecords(t *testing.T) {
 
 // TestT015_04_ResumeDoesNotRewriteRoot: a resume must not duplicate or rewrite the
 // root — the seeded first prompt appears EXACTLY once after a resume cycle.
+// sr:proves session-resume/claude
 func TestT015_04_ResumeDoesNotRewriteRoot(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")

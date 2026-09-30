@@ -211,6 +211,7 @@ printf '%s\n' '{"type":"user","message":{"role":"user","content":[{"type":"tool_
 // tool_use with id "toolu_spawn_1"; that id must land in the sidecar.
 //
 // sr:docs https://code.claude.com/docs/en/agent-sdk/sessions
+// sr:proves subagent-transcripts/claude
 func TestT014_06_SubagentMetaCarriesSpawningToolUseID(t *testing.T) {
 	dir := t.TempDir()
 	cfgDir := filepath.Join(dir, "cfg")
@@ -250,6 +251,7 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"ty
 // uses (read the thing under review, decide, write {"pass":…}). It confirms the
 // mock is a sufficient trajectory source for the judge e2e without any hand-
 // crafted jsonl: everything here comes from the mock executing the scenario.
+// sr:proves file-tools/claude
 func TestT014_07_JudgeReadsThenWritesVerdict(t *testing.T) {
 	dir := t.TempDir()
 	underReview := writeExec(t, dir, "under_review.txt", "the code does X and Y\n")

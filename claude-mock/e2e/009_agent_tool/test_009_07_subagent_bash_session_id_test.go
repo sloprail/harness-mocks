@@ -15,6 +15,7 @@ import (
 // NOT a value inherited from the mock's own environment (planted here as a decoy).
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
 // sr:docs https://code.claude.com/docs/en/sub-agents
+// sr:proves subprocess-session-env/claude
 func TestT009_07_SubagentBashSeesParentSessionID(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "decoy-outer-session")
