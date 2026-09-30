@@ -4,7 +4,7 @@
 # each spec/capabilities/<id>.yaml:
 #   - a cell for EVERY harness mock (<h>-mock/ dirs); none for a harness that
 #     does not exist
-#   - exactly one `// sr:capability <id>`, under core/
+#   - exactly one `// sr:capability <id>`, under internal/
 #   - each harness set to a cell: ≥1 `// sr:provides <id>/<h>` under <h>-mock/,
 #     and ≥1 `// sr:proves <id>/<h>` in a *_test.go
 # And back: every sr:capability / sr:provides / sr:proves <x>/<h> names a
@@ -33,7 +33,7 @@ while IFS= read -r c; do
     printf '%s\n' "$hs" | grep -Fxq -- "$h" || add "capability '$id' has a cell for '$h', but there is no $h-mock/"
   done
   n="$(printf '%s\n' "$impl" | awk -F'\t' -v id="$id" '$2 == id' | grep -c .)"
-  [ "$n" -eq 1 ] || add "capability '$id' needs exactly one // sr:capability $id, in core/ (found $n)"
+  [ "$n" -eq 1 ] || add "capability '$id' needs exactly one // sr:capability $id, in internal/ (found $n)"
   for h in $hs; do
     v="$(cell "$id" "$h")"
     case "$v" in
@@ -52,7 +52,7 @@ done < <(jq -c '.[]' <<<"$caps")
 while IFS=$'\t' read -r path id; do
   [ -n "$path" ] || continue
   jq -e --arg id "$id" 'any(.[]; .id == $id)' <<<"$caps" >/dev/null || add "$path: sr:capability '$id' names no spec/capabilities/$id.yaml"
-  case "$path" in core/*) ;; *) add "$path: capability '$id' is implemented outside core/" ;; esac
+  case "$path" in internal/*) ;; *) add "$path: capability '$id' is implemented outside internal/" ;; esac
 done <<<"$impl"
 check_ref() {   # KIND PATH FQN WHERE-GLOB
   local kind="$1" path="$2" fqn="$3" id="${3%%/*}" h="${3#*/}" v

@@ -19,7 +19,7 @@ spec/
   runs/<name>/setup/             the scenario, hand-authored: prompt.txt · settings.json · hook.sh · args
   runs/<name>/run.yaml           version, command (written by capture.sh)
   runs/<name>/samples/<ts>/      each capture, timestamped: events.jsonl (normalized) · raw payloads/stream/transcript · SEAL
-core/<module>/
+internal/<module>/
   module.yaml                    home · api
   candidates.sh                  owns the search for its logic: prints path:line:snippet
 adr/<kebab-name>/ADR.md          concern · sloprails · modules · exceptions · settings (limits, space); ## Concern ## Decision
@@ -29,12 +29,19 @@ CAPABILITY-MAP.md                what claude-mock models today: 47 capabilities 
 tests/judge-cases/               judge inputs with their expected verdicts
 ```
 
+**Go layout:** one module (`github.com/sloprail/harness-mocks`) with one binary per harness.
+Each `<harness>-mock/` is a `package main` plus its adapter. The shared code lives in the
+repo-root `internal/<module>/`: every mock in the repo imports it directly, and Go keeps anyone
+outside the repo from importing it. Moving today's `claude-mock/internal/*` there is a
+relocation that `tools/moveonly --rename` can check. Separating the Claude-specific parts into
+the adapter is design work, done one module at a time.
+
 Markers each take one token, per the engine's marker grammar:
 
 ```go
 // sr:invariant <id>              code upholding an invariant
 // sr:proves <id>                 a test proving an invariant
-// sr:capability <id>             a capability's one implementation, in core/
+// sr:capability <id>             a capability's one implementation, in internal/
 // sr:provides <id>/<harness>     that harness's adapter for it
 // sr:proves <id>/<harness>       a test proving it for that harness
 ```
@@ -47,7 +54,7 @@ the commit (`Sloprail-Cites-User:`).
 | | rule | kind | holds |
 |---|---|---|---|
 | **shapes** | `shapes` (file-guard) + `shapes` (gate) | D | each structured file matches its CUE schema (`rules/schemas/`) through `sr-file validate`: before the write (pending bytes) and on the committed bytes. Closed definitions, so an unknown key (`status`, a typo) is refused; a capability's runs must sit under its own harness. The other rules keep only what spans files. |
-| **layout** | `structure.yaml` | gate | files land only in declared places: specs, ADRs, `core/<module>/`, a mock's entrypoint, `internal/`, `e2e/NNN_suite/` and `e2etest/`, snapshot `setup/` and `capture.sh`, `tools/`, repo files. `claude-mock/evidence/` is frozen. Verified with today's engine (`sr-session pre-tool`), so it can be switched on before the rest. |
+| **layout** | `structure.yaml` | gate | files land only in declared places: specs, ADRs, `internal/<module>/`, a mock's entrypoint, `internal/`, `e2e/NNN_suite/` and `e2etest/`, snapshot `setup/` and `capture.sh`, `tools/`, repo files. `claude-mock/evidence/` is frozen. Verified with today's engine (`sr-session pre-tool`), so it can be switched on before the rest. |
 | **invariants** | `invariant-grounded` | G+P | the statement is what the user's words ask |
 | | `invariant-covered` | D | ≥1 `sr:invariant` site and ≥1 `sr:proves` test; no unknown ids |
 | | `invariant-rigor` | P | per invariant touched: its statement and ALL its tests. Each test proves it, and together they cover every condition, edge and failure path |
@@ -99,7 +106,7 @@ capturing a run with `capture.sh` or finding the doc, or else dropping the capab
   the runs recorded today in `claude-mock/evidence/`.
 - **Invariants:** `scenario-prompt-env` and `prompt-context-appended`: the
   mock's own features.
-- **Module:** `core/hooks` (sample). Its `candidates.sh` finds 24 candidates in today's code, all of them in tests, which the rule drops.
+- **Module:** `internal/hooks` (sample). Its `candidates.sh` finds 24 candidates in today's code, all of them in tests, which the rule drops.
 - **Snapshots:** `MANIFEST.yaml`, the `capture.sh` for Claude Code, and one authored scenario, `runs/cap/setup/` (a Stop hook that always blocks). `capture.sh` was run against a stub `claude` and the live hooks page, and its output passes `snapshots-current`, while a hand edit to a sample or the doc fails it.
 - **ADRs:** `file-size`, `layering`, `subprocess-env`, `capability-once` and
   `hooks-module` and `modules-cover-code`. They're for your approval.

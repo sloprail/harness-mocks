@@ -8,7 +8,7 @@
 # called from anywhere (derived from the code, so it stays in sync).
 set -uo pipefail
 patterns='\.ExitCode\(\)|"additionalContext"|"permissionDecision"|"stop_hook_active"'
-funcs="$(go list -f '{{$d := .Dir}}{{range .GoFiles}}{{$d}}/{{.}} {{end}}' ./core/hooks/internal/... 2>/dev/null |
+funcs="$(go list -f '{{$d := .Dir}}{{range .GoFiles}}{{$d}}/{{.}} {{end}}' ./internal/hooks/internal/... 2>/dev/null |
   xargs grep -hoE '^func [A-Z][A-Za-z0-9]*' 2>/dev/null | sed -E 's/^func //' | paste -sd'|' -)"
 [ -z "$funcs" ] || patterns="$patterns|\\b($funcs)\\("
 git grep -n -I -E "$patterns" -- '*.go' ':!proposals/**'

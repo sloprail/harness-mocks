@@ -9,7 +9,7 @@
 # Markers (one token after the kind, per the engine's marker grammar):
 #   // sr:invariant <id>              code that upholds an invariant
 #   // sr:proves <id>                 a test proving an invariant
-#   // sr:capability <id>             a capability's one implementation, in core/
+#   // sr:capability <id>             a capability's one implementation, in internal/
 #   // sr:provides <id>/<harness>     that harness's adapter for it
 #   // sr:proves <id>/<harness>       a test proving it for that harness
 

@@ -21,9 +21,9 @@ session facts to all of them (for Claude Code: `CLAUDE_CODE_SESSION_ID`,
 
 ## Decision
 
-- A child process's environment is built only by `core/procenv`, from the
+- A child process's environment is built only by `internal/procenv`, from the
   kind of process and the session.
 - The facts a harness exports come from that harness's adapter, which passes
-  them to `core/procenv`.
+  them to `internal/procenv`.
 - No other code assigns `cmd.Env`, and no child process gets `os.Environ()`
   directly.

@@ -1,10 +1,10 @@
 # The mock reproduces what the real harness recorded [deterministic]: every
 # run a capability cites is replayed against the mock at the committed tree,
 # and the mock's normalized events must equal one of the run's samples.
-# Replays a harness's cited runs when its mock, core/, its snapshots or a
+# Replays a harness's cited runs when its mock, internal/, its snapshots or a
 # capability change.
 match: >-
-  (path endsWith ".go" and (path startsWith "core/" or path matches "^[a-z0-9]+-mock/"))
+  (path endsWith ".go" and (path startsWith "internal/" or path matches "^[a-z0-9]+-mock/"))
   or path matches "^[a-z0-9]+-mock/snapshots/" or path startsWith "spec/capabilities/"
 checks:
   - script: ./replay.sh

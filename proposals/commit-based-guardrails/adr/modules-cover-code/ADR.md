@@ -2,7 +2,7 @@
 concern: which module every piece of code belongs to
 sloprails: [file-guard/module-coverage]
 # The code that must be mapped to modules.
-space: ["core/**", "*-mock/**"]
+space: ["internal/**", "*-mock/**"]
 # Globs of code not yet in any module. Each only shrinks.
 exceptions: ["claude-mock/**"]
 ---

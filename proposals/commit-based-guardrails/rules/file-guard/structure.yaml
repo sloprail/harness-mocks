@@ -11,8 +11,8 @@ allow:
   - regex: '^spec/(invariants|capabilities)/[a-z][a-z0-9]*(-[a-z0-9]+)*\.yaml$'
 
   # the shared core: modules, each with its boundary
-  - regex: '^core/[a-z0-9]+(/[a-z0-9]+)*/[a-z0-9_]+\.go$'
-  - regex: '^core/[a-z0-9]+(/[a-z0-9]+)*/(module\.yaml|candidates\.sh)$'
+  - regex: '^internal/[a-z0-9]+(/[a-z0-9]+)*/[a-z0-9_]+\.go$'
+  - regex: '^internal/[a-z0-9]+(/[a-z0-9]+)*/(module\.yaml|candidates\.sh)$'
 
   # a harness mock: entrypoint, adapter packages, e2e suites
   - regex: '^[a-z0-9]+-mock/[a-z0-9_]+\.go$'

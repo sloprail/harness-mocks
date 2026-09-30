@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# adr/subprocess-env's deterministic half: outside core/procenv, no changed file may assign
+# adr/subprocess-env's deterministic half: outside internal/procenv, no changed file may assign
 # cmd.Env. A file on the exception list may not add assignments.
 set -uo pipefail
 payload="$(cat)"
@@ -12,7 +12,7 @@ problems=""
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   path="$(jq -r '.path' <<<"$f")"
-  case "$path" in core/procenv/*) continue ;; esac
+  case "$path" in internal/procenv/*) continue ;; esac
   n="$(count "$(jq -r '.newContent // ""' <<<"$f")")"
   [ "$n" -gt 0 ] || continue
   if printf '%s\n' "$exceptions" | grep -Fxq -- "$path"; then
@@ -23,5 +23,5 @@ while IFS= read -r f; do
   fi
 done < <(cs_json '.changeset.files[] | select(.status != "D")' | jq -c '.')
 [ -z "$problems" ] && exit 0
-refuse "adr/subprocess-env (only core/procenv builds a child process's environment):
-${problems}Build the environment with core/procenv and pass the harness's facts through its adapter."
+refuse "adr/subprocess-env (only internal/procenv builds a child process's environment):
+${problems}Build the environment with internal/procenv and pass the harness's facts through its adapter."

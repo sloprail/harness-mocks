@@ -16,5 +16,5 @@ them drifting.
 
 ## Decision
 
-- A child process's environment is built only by `core/procenv`.
+- A child process's environment is built only by `internal/procenv`.
 - We will migrate the remaining call sites later.

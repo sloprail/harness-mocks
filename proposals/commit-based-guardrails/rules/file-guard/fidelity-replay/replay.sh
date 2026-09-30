@@ -12,7 +12,7 @@ load_spec capabilities; caps="$SPEC"
 touched="$(cs '.changeset.files[].path')"
 problems=""
 for h in $(harnesses); do
-  printf '%s\n' "$touched" | grep -Eq "^(core/|$h-mock/|spec/capabilities/)" || continue
+  printf '%s\n' "$touched" | grep -Eq "^(internal/|$h-mock/|spec/capabilities/)" || continue
   runs="$(jq -r --arg h "$h" '[.[] | .doc.providers[$h] // false | select(type == "object") | .runs[]] | unique | .[]' <<<"$caps")"
   [ -n "$runs" ] || continue
   [ -d "$SR_TREE/tools/replay" ] || refuse "capabilities cite $h runs, but tools/replay does not exist, so they cannot be replayed"

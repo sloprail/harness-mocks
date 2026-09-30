@@ -11,7 +11,7 @@ out="$(cd "$root" && go list -f '{{.ImportPath}}{{range .Imports}} {{.}}{{end}}'
   refuse "go list failed in the committed tree, so imports cannot be checked: $out"
 problems="$(printf '%s\n' "$out" | awk -v mod="$mod/" '
   function area(p,  r) { if (index(p, mod) != 1) return ""; r = substr(p, length(mod) + 1)
-                         if (r ~ /^core(\/|$)/) return "core"
+                         if (r ~ /^internal(\/|$)/) return "core"
                          if (match(r, /^[a-z0-9]+-mock/)) return substr(r, 1, RLENGTH); return "" }
   { from = area($1); if (from == "") next
     for (i = 2; i <= NF; i++) { to = area($i); if (to == "" || to == from || to == "core") continue
@@ -20,4 +20,4 @@ problems="$(printf '%s\n' "$out" | awk -v mod="$mod/" '
 [ -z "$problems" ] && exit 0
 refuse "adr/layering (mocks depend on core, never on each other):
 ${problems}
-Move what both sides need into core/."
+Move what both sides need into the shared internal/."

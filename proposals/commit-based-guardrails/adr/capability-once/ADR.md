@@ -16,7 +16,7 @@ provide the same capability with different wire formats.
 - `spec/capabilities/<id>.yaml` holds each capability the mocks model: a
   harness-neutral statement, and for every harness mock either `false` or the
   doc sections and recorded runs of that harness that show it.
-- A capability's behaviour lives once, in `core/`, on code marked
+- A capability's behaviour lives once, in `internal/`, on code marked
   `// sr:capability <id>`.
 - A harness mock holds only its adapter: that harness's event names, payload
   encoding and flags for the capability. Adapter code is marked
