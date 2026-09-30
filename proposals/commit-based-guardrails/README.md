@@ -23,7 +23,9 @@ core/<module>/
   module.yaml                    home · api
   candidates.sh                  owns the search for its logic: prints path:line:snippet
 adr/<kebab-name>/ADR.md          concern · sloprails · modules · exceptions · settings (limits, space); ## Concern ## Decision
-rules/                           → .sloprail/  (19 file-guards, 2 gates, structure.yaml)
+rules/                           → .sloprail/  (20 file-guards, 3 gates, structure.yaml)
+  schemas/*.cue                  one CUE schema per structured file kind (invariant, capability, ADR, module, MANIFEST, run)
+CAPABILITY-MAP.md                what claude-mock models today: 47 capabilities → code, tests, evidence, docs; proposed modules; gaps
 tests/judge-cases/               judge inputs with their expected verdicts
 ```
 
@@ -44,6 +46,7 @@ the commit (`Sloprail-Cites-User:`).
 
 | | rule | kind | holds |
 |---|---|---|---|
+| **shapes** | `shapes` (file-guard) + `shapes` (gate) | D | each structured file matches its CUE schema (`rules/schemas/`) through `sr-file validate`: before the write (pending bytes) and on the committed bytes. Closed definitions, so an unknown key (`status`, a typo) is refused; a capability's runs must sit under its own harness. The other rules keep only what spans files. |
 | **layout** | `structure.yaml` | gate | files land only in declared places: specs, ADRs, `core/<module>/`, a mock's entrypoint, `internal/`, `e2e/NNN_suite/` and `e2etest/`, snapshot `setup/` and `capture.sh`, `tools/`, repo files. `claude-mock/evidence/` is frozen. Verified with today's engine (`sr-session pre-tool`), so it can be switched on before the rest. |
 | **invariants** | `invariant-grounded` | G+P | the statement is what the user's words ask |
 | | `invariant-covered` | D | ≥1 `sr:invariant` site and ≥1 `sr:proves` test; no unknown ids |
@@ -74,6 +77,20 @@ the commit (`Sloprail-Cites-User:`).
 3. It judges only what's left: a leak, or just a use? With nothing left, it
    makes no judge call. Code outside the range was judged when its own range
    passed, so it isn't grepped again.
+
+## Capabilities of claude-mock today
+
+`spec/capabilities/` holds all 47 capabilities the mock models, mapped in
+[`CAPABILITY-MAP.md`](CAPABILITY-MAP.md). **15 of them fail the capability schema** because
+they cite no doc section or no recorded run. These are the grounding gaps to close, by
+capturing a run with `capture.sh` or finding the doc, or else dropping the capability:
+
+- **no recorded run (11):** hook-matcher-filter, hooks-all-matching-run, hook-timeout,
+  http-hooks, plugin-hooks, worktree-hooks, subprocess-session-env, file-tools,
+  schedule-wakeup, foreground-subagent-bash-ends-with-response, agent-input-validation
+- **no doc (5, one overlapping):** hook-output-transcript-records,
+  compaction-transcript-continuity, transcript-record-envelope,
+  empty-tool-result-placeholder, agent-input-validation
 
 ## Samples
 

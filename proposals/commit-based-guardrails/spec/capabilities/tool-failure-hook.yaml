@@ -1,0 +1,12 @@
+statement: >-
+  When a tool that ran fails, a failure hook fires, carrying the error text
+  the agent received, instead of the success hook. A call that a hook refused
+  fires neither.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#posttoolusefailure
+      - https://code.claude.com/docs/en/hooks#posttoolusefailure-input
+    runs:
+      - claude-mock/snapshots/runs/bashfail
+      - claude-mock/snapshots/runs/stops

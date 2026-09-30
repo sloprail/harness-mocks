@@ -1,0 +1,13 @@
+statement: >-
+  When a sub-agent-stop hook blocks, the sub-agent runs again with the hook's
+  reason as feedback, until the hook lets it stop or the block cap is reached.
+  The feedback is recorded in the sub-agent's own transcript.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#subagentstop
+      - https://code.claude.com/docs/en/hooks#subagentstop-input
+      - https://code.claude.com/docs/en/hooks#decision-control
+    runs:
+      - claude-mock/snapshots/runs/cap-sub
+      - claude-mock/snapshots/runs/hookmix

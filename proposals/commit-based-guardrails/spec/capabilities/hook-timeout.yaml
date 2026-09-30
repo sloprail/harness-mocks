@@ -1,0 +1,9 @@
+statement: >-
+  A hook is bounded by a timeout; when it expires, the hook and every process
+  it spawned are killed and the event carries on.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#timeouts
+      - https://code.claude.com/docs/en/hooks#command-hook-fields
+    runs: []

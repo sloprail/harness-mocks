@@ -1,0 +1,10 @@
+statement: >-
+  A compaction leaves a boundary in the transcript, followed by a summary and
+  a preserved tail of earlier records, so a reader can still follow the record
+  chain across it.
+providers:
+  claude:
+    docs: []
+    runs:
+      - claude-mock/snapshots/runs/compact
+      - claude-mock/snapshots/runs/compact-nohooks

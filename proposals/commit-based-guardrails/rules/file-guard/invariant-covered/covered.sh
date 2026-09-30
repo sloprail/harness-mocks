@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# For each spec/invariants/<id>.yaml:
-#   - the file has a non-empty string `statement` and no other key
+# The file's shape is file-guard/shapes' (schemas/invariant.cue). For each
+# spec/invariants/<id>.yaml:
 #   - ≥1 `// sr:invariant <id>` in non-test code
 #   - ≥1 `// sr:proves <id>` in a *_test.go
 # And back: every sr:invariant, and every sr:proves without a /harness part,
@@ -20,9 +20,6 @@ while IFS= read -r i; do
   [ -n "$i" ] || continue
   id="$(jq -r '.id' <<<"$i")"
   kebab "$id" || add "spec/invariants/$id.yaml: the file name must be kebab-case"
-  jq -e '(.doc | type) == "object" and (.doc.statement | type) == "string" and (.doc.statement | length) > 0
-         and ((.doc | keys) == ["statement"])' <<<"$i" >/dev/null ||
-    add "spec/invariants/$id.yaml must hold exactly one key, a non-empty string 'statement'"
   printf '%s\n' "$impl" | awk -F'\t' -v id="$id" '$2 == id && $1 !~ /_test\.go$/' | grep -q . ||
     add "invariant '$id' has no implementation: mark the code that upholds it with // sr:invariant $id"
   printf '%s\n' "$proves" | awk -F'\t' -v id="$id" '$2 == id && $1 ~ /_test\.go$/' | grep -q . ||

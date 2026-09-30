@@ -1,0 +1,14 @@
+statement: >-
+  A hook command's exit status decides its effect: 0 accepts its output, 2
+  blocks with a meaning that differs per event, and any other status is a non-
+  blocking error the agent carries on past.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#exit-code-output
+      - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+      - https://code.claude.com/docs/en/hooks#other-exit-codes
+    runs:
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/stops

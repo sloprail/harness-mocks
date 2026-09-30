@@ -1,6 +1,7 @@
 statement: >-
   A PreToolUse hook can refuse a tool call before it runs; the refusal reaches
-  the agent as the tool's error result, the tool does not run, and the turn goes on.
+  the agent as the tool's error result, the tool does not run, and the turn
+  goes on.
 providers:
   claude:
     docs:

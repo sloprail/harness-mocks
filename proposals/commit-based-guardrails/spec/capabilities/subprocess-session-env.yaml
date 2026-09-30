@@ -1,0 +1,9 @@
+statement: >-
+  Processes the harness spawns for tools and hooks see environment variables
+  that identify the harness and the current session, even when the harness
+  itself runs inside another session.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/env-vars#variables
+    runs: []

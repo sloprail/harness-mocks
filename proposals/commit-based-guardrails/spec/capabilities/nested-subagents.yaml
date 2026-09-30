@@ -1,0 +1,9 @@
+statement: >-
+  A sub-agent can itself dispatch sub-agents; each records its depth and its
+  parent, and all of a session's sub-agent transcripts sit in one directory.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents
+    runs:
+      - claude-mock/snapshots/runs/meta

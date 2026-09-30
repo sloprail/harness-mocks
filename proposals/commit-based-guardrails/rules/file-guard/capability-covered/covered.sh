@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# For each spec/capabilities/<id>.yaml:
-#   - keys: a non-empty string `statement`, and `providers`
-#   - providers: a cell for EVERY harness mock (<h>-mock/ dirs), each `false` or
-#     {docs: [≥1 full URL with #anchor], runs: [≥1 <h>-mock/snapshots/runs/<name>]};
-#     no cell for a harness that does not exist
+# The file's shape (statement, cells, citation formats, a run under its own
+# harness) is file-guard/shapes' (schemas/capability.cue). Across files, for
+# each spec/capabilities/<id>.yaml:
+#   - a cell for EVERY harness mock (<h>-mock/ dirs); none for a harness that
+#     does not exist
 #   - exactly one `// sr:capability <id>`, under core/
 #   - each harness set to a cell: ≥1 `// sr:provides <id>/<h>` under <h>-mock/,
 #     and ≥1 `// sr:proves <id>/<h>` in a *_test.go
@@ -28,10 +28,7 @@ while IFS= read -r c; do
   [ -n "$c" ] || continue
   id="$(jq -r '.id' <<<"$c")"
   kebab "$id" || add "spec/capabilities/$id.yaml: the file name must be kebab-case"
-  jq -e '(.doc | type) == "object" and ((.doc | keys) == ["providers", "statement"])
-         and (.doc.statement | type) == "string" and (.doc.statement | length) > 0
-         and (.doc.providers | type) == "object"' <<<"$c" >/dev/null ||
-    { add "spec/capabilities/$id.yaml must hold exactly 'statement' (a non-empty string) and 'providers' (a map)"; continue; }
+  jq -e '(.doc.providers | type) == "object"' <<<"$c" >/dev/null || continue   # a bad shape is shapes' finding
   for h in $(jq -r '.doc.providers | keys[]' <<<"$c"); do
     printf '%s\n' "$hs" | grep -Fxq -- "$h" || add "capability '$id' has a cell for '$h', but there is no $h-mock/"
   done
@@ -43,17 +40,6 @@ while IFS= read -r c; do
       '"missing"') add "capability '$id' has no cell for '$h': set it to false, or {docs, runs}" ;;
       false) ;;
       *)
-        jq -e '(type) == "object" and ((keys) == ["docs", "runs"]) and (.docs | type) == "array" and (.docs | length) > 0
-               and (.runs | type) == "array" and (.runs | length) > 0' <<<"$v" >/dev/null ||
-          add "capability '$id' × '$h' must be false or {docs: [≥1], runs: [≥1]}"
-        for u in $(jq -r '.docs[]? // empty' <<<"$v" 2>/dev/null); do
-          printf '%s' "$u" | grep -Eq '^https://[^[:space:]#]+#[a-z0-9-]+$' ||
-            add "capability '$id' × '$h': doc '$u' must be a full URL with a #section anchor"
-        done
-        for r in $(jq -r '.runs[]? // empty' <<<"$v" 2>/dev/null); do
-          printf '%s' "$r" | grep -Eq "^$h-mock/snapshots/runs/[a-z][a-z0-9]*(-[a-z0-9]+)*\$" ||
-            add "capability '$id' × '$h': run '$r' must be a repo-relative path, $h-mock/snapshots/runs/<name>"
-        done
         printf '%s\n' "$provides" | awk -F'\t' -v f="$id/$h" '$2 == f' | grep -q . ||
           add "capability '$id' is provided by '$h' but no $h-mock/ code carries // sr:provides $id/$h"
         printf '%s\n' "$proves" | awk -F'\t' -v f="$id/$h" '$2 == f && $1 ~ /_test\.go$/' | grep -q . ||

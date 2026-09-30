@@ -1,0 +1,13 @@
+statement: >-
+  A sub-agent's records go to its own transcript file beside the session's,
+  not into the session's, together with a sidecar naming its type, the call
+  that spawned it and its depth.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/claude-directory#application-data
+      - https://code.claude.com/docs/en/sub-agents#resume-subagents
+    runs:
+      - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/bgagent

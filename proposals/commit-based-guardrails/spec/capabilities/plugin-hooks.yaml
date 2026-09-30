@@ -1,0 +1,10 @@
+statement: >-
+  Hooks contributed by enabled plugins, resolved through the marketplace the
+  settings declare, run alongside the project's own hooks; an undeclared
+  marketplace or disabled plugin contributes none.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#hook-locations
+      - https://code.claude.com/docs/en/plugin-marketplaces#add-plugin-entries
+    runs: []

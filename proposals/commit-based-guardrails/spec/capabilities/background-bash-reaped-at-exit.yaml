@@ -1,0 +1,9 @@
+statement: >-
+  In a non-interactive run, a background command still running when the run's
+  other work is done is terminated.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/headless#background-tasks-at-exit
+    runs:
+      - claude-mock/snapshots/runs/bgbash

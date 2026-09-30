@@ -1,0 +1,9 @@
+statement: >-
+  A hook can be an HTTP endpoint that receives the event payload as a POST
+  body; a failing or non-2xx response is a non-blocking error.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#http-hook-fields
+      - https://code.claude.com/docs/en/hooks#http-response-handling
+    runs: []

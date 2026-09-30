@@ -1,0 +1,11 @@
+statement: >-
+  When a stop hook blocks, its reason is handed back to the agent, the turn
+  goes on, and the caller sees a single result at the turn's real end.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#stop-decision-control
+      - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+    runs:
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/cap

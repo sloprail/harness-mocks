@@ -1,0 +1,11 @@
+statement: >-
+  A foreground shell command's result carries its output and a structured form
+  of it; a command that exits non-zero is an error result stating the exit
+  code and the output.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
+    runs:
+      - claude-mock/snapshots/runs/bashfail
+      - claude-mock/snapshots/runs/bgbash

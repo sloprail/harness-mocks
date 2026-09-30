@@ -1,0 +1,8 @@
+statement: >-
+  Hooks are configured per event with an optional matcher, and a hook runs
+  only for events whose subject (for tool events, the tool name) matches it.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#matcher-patterns
+    runs: []
