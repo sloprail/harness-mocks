@@ -3,8 +3,8 @@
 #   - the folder name is kebab-case starting with a letter (no numbers or
 #     dates: rules find ADRs by link, git keeps the order), and holds ADR.md
 #   - frontmatter: `concern` is a one-line string (the index concern-undeclared
-#     judges against); `sloprails` is a non-empty list; `modules` and
-#     `exceptions` are lists when present; every `modules` entry is a dir
+#     judges against); `sloprails` is a non-empty list; `modules`,
+#     `exceptions` and `space` are lists when present; every `modules` entry is a dir
 #     holding a module.yaml
 #   - there is no `status`: an ADR in the tree is in force; a retired one is
 #     deleted (git keeps it)
@@ -36,7 +36,7 @@ while IFS= read -r a; do
     add "adr/$id has a status: an ADR in the tree is in force; delete a retired one instead (git keeps it)"
   jq -e '(.concern | type) == "string" and (.concern | length) > 0 and (.concern | test("\n") | not)' <<<"$fm" >/dev/null ||
     add "adr/$id needs 'concern:', one line naming what it decides"
-  for k in modules exceptions; do
+  for k in modules exceptions space; do
     jq -e --arg k "$k" '(.[$k] == null) or (.[$k] | type == "array")' <<<"$fm" >/dev/null || add "adr/$id: '$k' must be a list"
   done
   for mod in $(jq -r '(.modules // [])[]' <<<"$fm"); do

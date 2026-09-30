@@ -3,5 +3,9 @@ statement: >-
   the agent as the tool's error result, the tool does not run, and the turn goes on.
 providers:
   claude:
-    docs: [hooks.md#pretooluse-decision-control, hooks.md#exit-code-2-behavior-per-event]
-    runs: [stops, bashfail]
+    docs:
+      - https://code.claude.com/docs/en/hooks#pretooluse-decision-control
+      - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+    runs:
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/bashfail

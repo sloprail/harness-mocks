@@ -3,7 +3,7 @@
 #
 #   <harness>-mock/snapshots/
 #     MANIFEST.yaml          version: <the one freeze point>
-#                            docs: {<page>.md: {url, version}}
+#                            docs: {<page>.md: {url: <the page's canonical URL>, version}}
 #     docs/<page>.md         a doc page, copied at that version
 #     runs/<name>/           a recorded real scenario
 #       run.yaml             version, command
@@ -12,7 +12,10 @@
 #         events.jsonl       the normalized event sequence (hook payloads + stream frames)
 #         …                  the raw capture (payloads.jsonl, stream.jsonl, transcript/)
 #
-# A capability cites them per harness: docs as <page>.md#<anchor>, runs by name.
+# A capability cites them per harness: docs by the page's full URL plus
+# #anchor (resolved to the copy whose MANIFEST url matches), runs by their
+# repo-relative path (<harness>-mock/snapshots/runs/<name>). A run is a
+# scenario; its captures are the timestamped samples inside it.
 
 snap_dir() { printf '%s/%s-mock/snapshots' "$SR_TREE" "$1"; }
 
@@ -34,4 +37,21 @@ doc_section() {
     }
     on { print }
     END { exit found ? 0 : 1 }' "$file"
+}
+
+# doc_file HARNESS URL — the snapshot file MANIFEST.docs registers for URL
+# (anchor dropped), relative to the snapshots dir. Exit 1 if none.
+doc_file() {
+  local m="$(snap_dir "$1")/MANIFEST.yaml" page
+  [ -f "$m" ] || return 1
+  page="$(yq -o=json '.docs // {}' "$m" 2>/dev/null | jq -r --arg u "${2%%#*}" 'to_entries[] | select(.value.url == $u) | .key' | head -1)"
+  [ -n "$page" ] || return 1
+  printf 'docs/%s' "$page"
+}
+
+# doc_ref_section HARNESS URL#ANCHOR — the cited section's text from the snapshot.
+doc_ref_section() {
+  local f
+  f="$(doc_file "$1" "$2")" || return 1
+  doc_section "$(snap_dir "$1")/$f" "${2#*#}"
 }

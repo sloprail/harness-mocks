@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # prepare: steps 1 and 2 of module-leaks. Emits {"skip": true} when nothing is
-# left to judge, else the leftover matches grouped by module, with the text of
-# the ADRs linking each module (frontmatter `modules:`).
+# left to judge, else the leftover candidates grouped by module, with the text
+# of the ADRs linking each module (frontmatter `modules:`).
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/modules.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/adr.sh"
 load_modules; load_adrs
-added="$(added_lines)"
+added="$(added_lines | awk -F'\t' 'NF >= 2 {print $1 ":" $2}')"      # path:line of every added line
 changed="$(cs '.changeset.files[].path')"
 work="$(mktemp -d "${TMPDIR:-/tmp}/module-leaks.XXXXXX")"; trap 'rm -rf "$work"' EXIT
 
@@ -16,31 +16,25 @@ groups="[]"
 while IFS= read -r m; do
   [ -n "$m" ] || continue
   dir="$(jq -r '.dir' <<<"$m")"
+  [ -x "$SR_TREE/$dir/candidates.sh" ] || continue
   home=(); while IFS= read -r g; do home+=("$g"); done < <(jq -r '.home[]' <<<"$m")
-  [ -x "$SR_TREE/$dir/signatures.sh" ] || continue
-  (cd "$SR_TREE" && "./$dir/signatures.sh") >"$work/sig" 2>"$work/err" ||
-    refuse "$dir/signatures.sh failed, so leaks of that module cannot be found: $(head -c 300 "$work/err")"
-  grep -v '^[[:space:]]*$' "$work/sig" >"$work/pat" || continue
+  # 1. the module's own search
+  (cd "$SR_TREE" && "./$dir/candidates.sh") >"$work/cand" 2>"$work/err" ||
+    refuse "$dir/candidates.sh failed, so leaks of that module cannot be found: $(head -c 300 "$work/err")"
+  # 2. scope to the range, then drop the expected places
+  whole=0; printf '%s\n' "$changed" | grep -Fxq -e "$dir/module.yaml" -e "$dir/candidates.sh" && whole=1
   adrs="$(jq -c --arg d "$dir" '[.[] | select(.frontmatter.modules // [] | index($d))]' <<<"$ADRS")"
   exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$adrs")"
-  # 1. candidate lines: the whole tree if the module's boundary changed, else added lines
-  if printf '%s\n' "$changed" | grep -Fxq -e "$dir/module.yaml" -e "$dir/signatures.sh"; then
-    (cd "$SR_TREE" && git grep -n -I -E -f "$work/pat" -- '*.go' ':!proposals/**') 2>/dev/null |
-      awk -F: '{p = $1; l = $2; sub(/^[^:]*:[^:]*:/, ""); print p "\t" l "\t" $0}' >"$work/hits"
-  else
-    printf '%s\n' "$added" | awk -F'\t' 'NF >= 3' | while IFS=$'\t' read -r p l t; do
-      printf '%s\n' "$t" | grep -Eq -f "$work/pat" && printf '%s\t%s\t%s\n' "$p" "$l" "$t"
-    done >"$work/hits"
-  fi
-  # 2. drop the expected places
   left="[]"
-  while IFS=$'\t' read -r p l t; do
-    [ -n "$p" ] || continue
+  while IFS= read -r c; do
+    [[ "$c" =~ ^(.+):([0-9]+):(.*)$ ]] || refuse "$dir/candidates.sh printed '$c', not path:line:snippet"
+    p="${BASH_REMATCH[1]}"; l="${BASH_REMATCH[2]}"; t="${BASH_REMATCH[3]}"
+    [ "$whole" = 1 ] || printf '%s\n' "$added" | grep -Fxq -- "$p:$l" || continue
     case "$p" in *_test.go) continue ;; esac
     in_globs "$p" "${home[@]}" && continue
     printf '%s\n' "$exc" | grep -Fxq -- "$p" && continue
     left="$(jq -c --arg p "$p" --argjson l "$l" --arg t "$t" '. + [{path: $p, line: $l, text: $t}]' <<<"$left")"
-  done <"$work/hits"
+  done < <(grep -v '^[[:space:]]*$' "$work/cand")
   [ "$(jq 'length' <<<"$left")" -gt 0 ] || continue
   groups="$(jq -c --arg d "$dir" --argjson m "$m" --argjson a "$adrs" --argjson left "$left" \
     '. + [{module: $d, home: $m.home, api: $m.api, adrs: [$a[] | {id, text}], matches: $left}]' <<<"$groups")"

@@ -23,15 +23,15 @@ while IFS= read -r c; do
     hit=0
     printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && hit=1
     printf '%s\n' "$fqns" | grep -Fxq -e "$id" -e "$id/$h" && hit=1
-    for r in $(jq -r '.runs[]' <<<"$cell"); do printf '%s\n' "$changed" | grep -q "^$h-mock/snapshots/runs/$r/" && hit=1; done
-    for p in $(jq -r '.docs[] | split("#")[0]' <<<"$cell"); do printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/docs/$p" && hit=1; done
+    for r in $(jq -r '.runs[]' <<<"$cell"); do printf '%s\n' "$changed" | grep -q "^$r/" && hit=1; done
+    for u in $(jq -r '.docs[]' <<<"$cell"); do f="$(doc_file "$h" "$u")" && printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/$f" && hit=1; done
     [ "$hit" = 1 ] || continue
     d="$(snap_dir "$h")"
     docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do
-      docs="$(jq -c --arg r "$ref" --arg t "$(doc_section "$d/docs/${ref%%#*}" "${ref#*#}")" '. + [{ref: $r, section: $t}]' <<<"$docs")"; done
+      docs="$(jq -c --arg r "$ref" --arg t "$(doc_ref_section "$h" "$ref")" '. + [{ref: $r, section: $t}]' <<<"$docs")"; done
     runs="[]"; for r in $(jq -r '.runs[]' <<<"$cell"); do
-      runs="$(jq -c --arg r "$r" --arg y "$(cat "$d/runs/$r/run.yaml" 2>/dev/null)" --arg s "$(ls "$d/runs/$r/samples" 2>/dev/null | tr '\n' ' ')" \
-        --arg dir "$h-mock/snapshots/runs/$r" '. + [{name: $r, dir: $dir, run: $y, samples: $s}]' <<<"$runs")"; done
+      runs="$(jq -c --arg r "$r" --arg y "$(cat "$SR_TREE/$r/run.yaml" 2>/dev/null)" --arg s "$(ls "$SR_TREE/$r/samples" 2>/dev/null | tr '\n' ' ')" \
+        '. + [{name: ($r | split("/") | last), dir: $r, run: $y, samples: $s}]' <<<"$runs")"; done
     tests="[]"; for f in $(printf '%s\n' "$proves" | awk -F'\t' -v q="$id/$h" '$2 == q {print $1}' | sort -u); do
       tests="$(jq -c --arg p "$f" --rawfile t "$SR_TREE/$f" '. + [{path: $p, text: $t}]' <<<"$tests")"; done
     subjects="$(jq -c --arg id "$id/$h" --arg st "$(jq -r '.doc.statement' <<<"$c")" --arg h "$h" \

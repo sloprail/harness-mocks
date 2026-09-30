@@ -1,0 +1,10 @@
+# Modules together cover all code in the space [deterministic]: every non-test
+# Go file in the space declared by the ADR linking this rule lies in exactly one
+# module's home, except paths matching that ADR's `exceptions` globs. Whole
+# committed tree: adding or narrowing a module can orphan files it never touched.
+match: >-
+  (path endsWith ".go" and not (path endsWith "_test.go"))
+  or path endsWith "/module.yaml" or path startsWith "adr/"
+deletions: include
+checks:
+  - script: ./every-file-mapped.sh

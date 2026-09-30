@@ -17,8 +17,8 @@ while IFS= read -r c; do
   providers="[]"
   while IFS=$'\t' read -r h ref; do
     [ -n "$h" ] || continue
-    printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/docs/${ref%%#*}" && hit=1
-    text="$(doc_section "$(snap_dir "$h")/docs/${ref%%#*}" "${ref#*#}")"
+    f="$(doc_file "$h" "$ref")" && printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/$f" && hit=1
+    text="$(doc_ref_section "$h" "$ref")"
     providers="$(jq -c --arg h "$h" --arg r "$ref" --arg t "$text" '. + [{harness: $h, ref: $r, section: $t}]' <<<"$providers")"
   done < <(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h | .value.docs[] | [$h, .] | @tsv' <<<"$c")
   [ "$hit" = 1 ] || continue

@@ -3,6 +3,11 @@ statement: >-
   row; once the limit is reached, the next block is overridden and the turn ends.
 providers:
   claude:
-    docs: [hooks.md#stop-input, hooks.md#stop-decision-control, hooks.md#subagentstop-input]
-    runs: [cap, cap-sub]
+    docs:
+      - https://code.claude.com/docs/en/hooks#stop-input
+      - https://code.claude.com/docs/en/hooks#stop-decision-control
+      - https://code.claude.com/docs/en/hooks#subagentstop-input
+    runs:
+      - claude-mock/snapshots/runs/cap
+      - claude-mock/snapshots/runs/cap-sub
   # a harness whose Stop hook cannot block: `cursor: false`

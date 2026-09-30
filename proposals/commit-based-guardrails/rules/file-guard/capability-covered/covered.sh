@@ -2,7 +2,8 @@
 # For each spec/capabilities/<id>.yaml:
 #   - keys: a non-empty string `statement`, and `providers`
 #   - providers: a cell for EVERY harness mock (<h>-mock/ dirs), each `false` or
-#     {docs: [≥1], runs: [≥1]}; no cell for a harness that does not exist
+#     {docs: [≥1 full URL with #anchor], runs: [≥1 <h>-mock/snapshots/runs/<name>]};
+#     no cell for a harness that does not exist
 #   - exactly one `// sr:capability <id>`, under core/
 #   - each harness set to a cell: ≥1 `// sr:provides <id>/<h>` under <h>-mock/,
 #     and ≥1 `// sr:proves <id>/<h>` in a *_test.go
@@ -45,6 +46,14 @@ while IFS= read -r c; do
         jq -e '(type) == "object" and ((keys) == ["docs", "runs"]) and (.docs | type) == "array" and (.docs | length) > 0
                and (.runs | type) == "array" and (.runs | length) > 0' <<<"$v" >/dev/null ||
           add "capability '$id' × '$h' must be false or {docs: [≥1], runs: [≥1]}"
+        for u in $(jq -r '.docs[]? // empty' <<<"$v" 2>/dev/null); do
+          printf '%s' "$u" | grep -Eq '^https://[^[:space:]#]+#[a-z0-9-]+$' ||
+            add "capability '$id' × '$h': doc '$u' must be a full URL with a #section anchor"
+        done
+        for r in $(jq -r '.runs[]? // empty' <<<"$v" 2>/dev/null); do
+          printf '%s' "$r" | grep -Eq "^$h-mock/snapshots/runs/[a-z][a-z0-9]*(-[a-z0-9]+)*\$" ||
+            add "capability '$id' × '$h': run '$r' must be a repo-relative path, $h-mock/snapshots/runs/<name>"
+        done
         printf '%s\n' "$provides" | awk -F'\t' -v f="$id/$h" '$2 == f' | grep -q . ||
           add "capability '$id' is provided by '$h' but no $h-mock/ code carries // sr:provides $id/$h"
         printf '%s\n' "$proves" | awk -F'\t' -v f="$id/$h" '$2 == f && $1 ~ /_test\.go$/' | grep -q . ||

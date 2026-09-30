@@ -17,8 +17,8 @@ for h in $(harnesses); do
   [ -n "$runs" ] || continue
   [ -d "$SR_TREE/tools/replay" ] || refuse "capabilities cite $h runs, but tools/replay does not exist, so they cannot be replayed"
   for r in $runs; do
-    out="$(cd "$SR_TREE" && go run ./tools/replay --harness "$h" --run "$h-mock/snapshots/runs/$r" 2>&1)" ||
-      problems="${problems}- $h/$r: $(printf '%s' "$out" | head -c 600)"$'\n'
+    out="$(cd "$SR_TREE" && go run ./tools/replay --harness "$h" --run "$r" 2>&1)" ||
+      problems="${problems}- $r: $(printf '%s' "$out" | head -c 600)"$'\n'
   done
 done
 [ -z "$problems" ] && exit 0

@@ -4,8 +4,8 @@
 #   runs   kebab name; run.yaml version == version; ≥1 sample; sample dirs are
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
 #          have identical events (a re-run that changed nothing adds nothing)
-# Per capability cell: every cited <page>.md#<anchor> resolves to a heading in
-# the snapshot, every cited run exists. A run no capability cites fails.
+# Per capability cell: every cited doc URL is copied in MANIFEST.docs and its
+# #anchor resolves to a heading in that copy; every cited run path exists. A run no capability cites fails.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -57,19 +57,19 @@ for h in $(harnesses); do
       seen="$seen$hv $ts"$'\n'
     done
     [ "$n" -gt 0 ] || add "run $h/$name has no samples"
-    jq -e --arg n "$name" 'any(.[]; .runs | index($n))' <<<"$cited" >/dev/null ||
+    jq -e --arg n "$h-mock/snapshots/runs/$name" 'any(.[]; .runs | index($n))' <<<"$cited" >/dev/null ||
       add "run $h/$name is cited by no capability: cite it, or delete it"
   done
 
   while IFS=$'\t' read -r id ref kind; do
     [ -n "$id" ] || continue
     if [ "$kind" = run ]; then
-      [ -d "$d/runs/$ref" ] || add "capability '$id' cites run '$ref', but $h-mock/snapshots/runs/$ref does not exist"
+      [ -d "$SR_TREE/$ref" ] || add "capability '$id' cites run '$ref', which does not exist"
     else
-      page="${ref%%#*}"; anchor="${ref#*#}"
-      case "$ref" in *#*) ;; *) add "capability '$id' cites doc '$ref' for $h: cite a section, <page>.md#<anchor>"; continue ;; esac
-      doc_section "$d/docs/$page" "$anchor" >/dev/null ||
-        add "capability '$id' cites $h doc '$ref', but $h-mock/snapshots/docs/$page has no such heading"
+      doc_file "$h" "$ref" >/dev/null ||
+        { add "capability '$id' cites $h doc '${ref%%#*}', which no snapshot in $h-mock/snapshots/MANIFEST.yaml copies"; continue; }
+      doc_ref_section "$h" "$ref" >/dev/null ||
+        add "capability '$id' cites '$ref', but the $h snapshot of that page has no such section"
     fi
   done < <(jq -r --arg h "$h" '.[] | .id as $id | (.doc.providers[$h] // false) | select(type == "object")
             | ((.runs // [])[] | [$id, ., "run"]), ((.docs // [])[] | [$id, ., "doc"]) | @tsv' <<<"$caps")

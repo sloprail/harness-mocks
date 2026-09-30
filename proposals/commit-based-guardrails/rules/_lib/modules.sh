@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # Modules: a <dir>/module.yaml declares a boundary (home, api). Source after changeset.sh.
+#
+# A module may also ship <dir>/candidates.sh, which owns the whole search for
+# its logic: run from the root of the tree being judged, it prints every line
+# that looks like the module's work, one `path:line:snippet` per line (the
+# format of `git grep -n`). The rules decide what is expected; the module only
+# says where its logic appears.
 
 # load_modules — sets MODULES to a JSON array of {dir, home, api} for every
 # module.yaml in the committed tree. Unparseable is refused, never skipped.
