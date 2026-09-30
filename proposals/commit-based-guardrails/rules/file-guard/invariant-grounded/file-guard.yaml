@@ -1,0 +1,10 @@
+# Stage 1 of the invariants funnel [grounded + judge]: an invariant says what
+# the user asked for, no more and no less. Every added, reworded or removed
+# invariant needs the user's words on the commit (Sloprail-Cites-User), and a
+# judge checks the words ask for exactly that invariant.
+match: path == "spec/invariants.yaml"
+subjects: ./subjects.sh
+require:
+  - citation: {source_types: [user]}
+checks:
+  - judge: ./statement-from-words.md.j2

@@ -1,0 +1,11 @@
+# ADR-0003 (see ADR.md): only core/procenv builds a child process's environment.
+# The script catches the direct form deterministically; the judge catches the
+# rest (an env built another way and handed to exec).
+match: >-
+  path endsWith ".go" and not (path endsWith "_test.go")
+  and (path startsWith "core/" or path matches "^[a-z0-9]+-mock/")
+  and not (path contains "/e2etest/")
+checks:
+  - script: ./no-own-env.sh
+  - prepare: ../../_lib/adr-text.sh
+    judge: ../../_lib/adr-conforms.md.j2

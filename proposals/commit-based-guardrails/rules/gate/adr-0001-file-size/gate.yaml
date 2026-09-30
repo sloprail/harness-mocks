@@ -1,0 +1,8 @@
+# ADR-0001's early half: refuse a Write/Edit that would make a Go file too big,
+# before the bytes land. The commit-time file-guard of the same name is the
+# backstop for writes this gate cannot predict (sed, >, generators).
+on:
+  - event: PreFileWrite
+    match: event.path endsWith ".go"
+checks:
+  - script: ../../file-guard/adr-0001-file-size/size.sh

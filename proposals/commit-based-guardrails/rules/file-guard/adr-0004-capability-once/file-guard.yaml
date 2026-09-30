@@ -1,0 +1,12 @@
+# ADR-0004 (see ADR.md): a capability's behaviour lives once in core/; adapters
+# only translate. The script checks the markers over the whole tree; the judge
+# checks that changed adapter code only translates.
+match: >-
+  path endsWith ".go" and not (path endsWith "_test.go")
+  and (path startsWith "core/" or path matches "^[a-z0-9]+-mock/")
+  or any(markers, .kind == "capability" or .kind == "provides")
+  or any(oldMarkers, .kind == "capability" or .kind == "provides")
+checks:
+  - script: ./one-site-per-capability.sh
+  - prepare: ../../_lib/adr-text.sh
+    judge: ../../_lib/adr-conforms.md.j2

@@ -1,0 +1,10 @@
+# Stage 4 of the invariants funnel [judge, no user grounding]: each test that
+# claims to prove a matrix item (// sr:proves <id>) really sets up the item's
+# case and asserts its expect. The item was grounded at stage 2; this stage
+# only checks the test against it.
+match: >-
+  path == "spec/matrix.yaml"
+  or any(markers, .kind == "proves") or any(oldMarkers, .kind == "proves")
+subjects: ./subjects.sh
+checks:
+  - judge: ./test-executes-item.md.j2
