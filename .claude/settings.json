@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "sloprail-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "sloprail/sloprail"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "sloprail@sloprail-marketplace": true
+  }
+}
