@@ -1,9 +1,9 @@
-# An ADR is an architectural decision, and the architecture grows only when the
-# user decides it should. A new ADR, a changed decision, a widened exception
-# list, or a changed check needs the user's words on the commit
-# (Sloprail-Cites-User), and a judge checks the words ask for that decision.
-# Shrinking an ADR's exception list (a legacy site brought into line) needs none.
-match: path matches "^\\.sloprail/file-guard/adr-[0-9]{4}-[a-z0-9-]+/"
+# The architecture grows only when the user decides it should. A new ADR, a
+# changed decision, a new exception, a new or dropped rule link, or a deleted
+# ADR needs the user's words on the commit (Sloprail-Cites-User), and a judge
+# checks the words ask for that decision. Shrinking an exception list (a legacy
+# site brought into line) needs none.
+match: path matches "^adr/[a-z0-9-]+/"
 deletions: include
 subjects: ./subjects.sh
 require:

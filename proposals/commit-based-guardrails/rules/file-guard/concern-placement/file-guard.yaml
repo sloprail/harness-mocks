@@ -1,0 +1,14 @@
+# Every cross-cutting concern has a decision, and lives where its decision puts
+# it [judge]. One judge per changed Go file under core/ or a mock:
+#   - it implements a concern no ADR covers → fail: the user decides (a new
+#     ADR, or the ADR it falls under);
+#   - it implements a concern whose ADR declares a `home`, outside that home →
+#     fail: a leak (module logic inlined elsewhere, a capability's behaviour in
+#     an adapter).
+match: >-
+  path endsWith ".go" and not (path endsWith "_test.go")
+  and (path startsWith "core/" or path matches "^[a-z0-9]+-mock/")
+subjects: ./subjects.sh
+checks:
+  - prepare: ./all-adrs.sh
+    judge: ./classify-and-place.md.j2

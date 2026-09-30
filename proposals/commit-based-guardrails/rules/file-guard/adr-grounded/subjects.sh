@@ -5,9 +5,8 @@ set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 cs_json '
-  [.changeset.files[]
-   | select(.path | test("^\\.sloprail/file-guard/adr-[0-9]{4}-[a-z0-9-]+/"))
-   | . + {adr: (.path | capture("^\\.sloprail/file-guard/(?<n>adr-[0-9]{4}-[a-z0-9-]+)/").n)}]
+  [.changeset.files[] | select(.path | test("^adr/[a-z0-9-]+/"))
+   | . + {adr: (.path | split("/")[1])}]
   | group_by(.adr)
   | {subjects: map({
       id: .[0].adr,

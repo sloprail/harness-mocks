@@ -8,7 +8,7 @@ set -uo pipefail
 payload="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 printf '%s' "$payload" | jq -e '
-  [.changeset.files[] | select(.path | test("^\\.sloprail/file-guard/adr-"))] as $f
+  [.changeset.files[] | select(.path | test("^adr/"))] as $f
   | ($f | length) > 0
   and all($f[];
       .status == "M" and (.path | endswith("/ADR.md"))

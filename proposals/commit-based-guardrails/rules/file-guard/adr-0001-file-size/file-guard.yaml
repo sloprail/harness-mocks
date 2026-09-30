@@ -1,4 +1,0 @@
-# ADR-0001 (see ADR.md): Go files stay small; exceptions may not grow.
-match: path endsWith ".go"
-checks:
-  - script: ./size.sh

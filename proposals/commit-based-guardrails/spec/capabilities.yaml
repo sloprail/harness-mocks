@@ -1,0 +1,35 @@
+# SAMPLE. The capability catalog: which harness behaviours the mocks model, and
+# which harness provides each one. It is the capability × harness join table.
+#
+# - `statement` comes from the user choosing to mock it (Sloprail-Cites-User)
+#   AND a harness doc section saying it exists.
+# - `providers` has a cell for EVERY harness mock in the repo (a top-level
+#   <harness>-mock/ directory): `supported`, or {n/a: <reason>}. A missing cell
+#   fails (capability-once, deterministic).
+# - The behaviour is implemented once, in core/, on code marked
+#   `// sr:capability <id>`. Each `supported` cell has adapter code in
+#   <harness>-mock/ marked `// sr:provides <id> <harness>` (adr/capability-once).
+#
+# Only claude-mock exists today, so only the claude column is filled. Cursor
+# and Codex columns are added with their mocks, from recorded trajectories of
+# those harnesses.
+capabilities:
+  - id: hooks.stop-block
+    statement: A Stop hook can block the end of a turn, and the turn continues with its reason.
+    providers:
+      claude: supported
+
+  - id: hooks.pretooluse-refusal
+    statement: A PreToolUse hook can refuse a tool call before it runs.
+    providers:
+      claude: supported
+
+  - id: compaction.manual
+    statement: The session can be compacted on request, firing the compaction hooks around it.
+    providers:
+      claude: supported
+
+  - id: background.bash
+    statement: A Bash command can run in the background and notify the agent when it ends.
+    providers:
+      claude: supported

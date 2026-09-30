@@ -1,0 +1,7 @@
+# An ADR is a decision rules can enforce and people can apply [judge]. One
+# judge per ADR whose ADR.md changed. The format itself (frontmatter, sections,
+# links) is adr-linked's deterministic check; this judges the content.
+match: path matches "^adr/[a-z0-9-]+/ADR\\.md$"
+subjects: ./subjects.sh
+checks:
+  - judge: ./decision-is-sound.md.j2

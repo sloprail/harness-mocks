@@ -1,0 +1,7 @@
+# Every ADR is enforced, and its format can be read by the rules that depend
+# on it [deterministic]. Re-checked when an ADR changes, and when any rule
+# changes, since deleting or renaming a rule breaks the ADRs that link it.
+match: path startsWith "adr/" or path startsWith ".sloprail/"
+deletions: include
+checks:
+  - script: ./links-resolve.sh

@@ -1,0 +1,38 @@
+# SAMPLE. The invariant catalog: stage 1 of the invariants funnel.
+#
+# One entry per rule the product must always hold. Each is written from the
+# user's own words: a commit that adds, rewords or removes one carries
+# `Sloprail-Cites-User: <their words>`, and invariant-grounded's judge checks the
+# statement says what the words ask, no more and no less.
+#
+# Code that upholds an invariant carries `// sr:invariant <id>`. matrix-covered
+# fails an invariant with no such code, or one no matrix item covers.
+#
+# These samples are real Claude Code 2.1.282 behaviour, from
+# claude-mock/EVIDENCE.md (the evidence column is cited in each statement).
+invariants:
+  - id: stop.block-cap
+    statement: >-
+      A Stop or SubagentStop block continues the turn at most
+      CLAUDE_CODE_STOP_HOOK_BLOCK_CAP times in a row (default 8; 0 means no
+      cap). The next block is overridden and the turn ends. For Stop only, a
+      system/informational warning record is written and the result streams "".
+
+  - id: subprocess.session-id
+    statement: >-
+      Every child process the harness starts (hook commands, the Bash tool,
+      the scenario script, background tasks) has CLAUDE_CODE_SESSION_ID set to
+      the active session's id.
+
+  - id: pretooluse.refusal
+    statement: >-
+      A PreToolUse refusal (exit 2, or a JSON deny) becomes the tool_result
+      "PreToolUse:<Tool> hook error: <reason>" with is_error true. The tool
+      does not run, neither PostToolUse nor PostToolUseFailure fires, and the
+      turn goes on.
+
+  - id: compaction.order
+    statement: >-
+      A manual compaction fires PreCompact, then SubagentStop for the
+      summarizer, then SessionStart with source "compact", then PostCompact.
+      PreCompact exit 2 or decision:block stops the compaction.

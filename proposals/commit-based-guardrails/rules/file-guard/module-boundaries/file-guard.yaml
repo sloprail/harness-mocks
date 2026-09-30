@@ -1,0 +1,8 @@
+# Modules keep their insides to themselves [deterministic]. A module ADR
+# declares `home` (where everything about its concern lives) and `api` (the
+# packages others may import). Nothing outside a module's home imports a
+# package inside it that is not its api. Whether a concern LEAKS into other
+# code without an import is concern-placement's judge.
+match: path endsWith ".go" or path == "go.mod" or path startsWith "adr/"
+checks:
+  - script: ./imports-through-api.sh

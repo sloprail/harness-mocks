@@ -1,0 +1,59 @@
+# SAMPLE. The coverage matrix: stage 2 of the invariants funnel.
+#
+# One item per case the tests must cover: the conditions (`case`) and what
+# must then hold (`expect`). `covers` names the invariants the case exercises.
+# An item covering several invariants is an INTERACTION case, where invariants
+# meet. A commit that adds or changes an item carries Sloprail-Cites-User, and
+# matrix-grounded's judge checks the item follows from what it covers.
+#
+# Every item needs at least one test marked `// sr:proves <item-id>`
+# (matrix-covered, deterministic), and test-matches-item's judge checks the test
+# really sets up `case` and asserts `expect`.
+items:
+  - id: stop.block-cap.default
+    covers: [stop.block-cap]
+    case: {hook: Stop, handler: always-blocks, cap_env: unset}
+    expect: >-
+      Stop fires 9 times; the 9th block is overridden; one warning record is
+      written; the result frame streams "".
+
+  - id: stop.block-cap.disabled
+    covers: [stop.block-cap]
+    case: {hook: Stop, handler: blocks-12-times-then-allows, cap_env: "0"}
+    expect: Stop fires 13 times; no block is overridden; no warning record.
+
+  - id: stop.block-cap.subagent
+    covers: [stop.block-cap]
+    case: {hook: SubagentStop, handler: always-blocks, cap_env: unset}
+    expect: SubagentStop fires 9 times; the 9th block is overridden; NO warning record.
+
+  - id: subprocess.session-id.bash-in-subagent
+    covers: [subprocess.session-id]
+    case: {process: bash-tool, caller: foreground-subagent}
+    expect: The command sees CLAUDE_CODE_SESSION_ID equal to the root session's id.
+
+  - id: subprocess.session-id.background-bash
+    covers: [subprocess.session-id]
+    case: {process: bash-tool, run_in_background: true}
+    expect: The backgrounded command sees CLAUDE_CODE_SESSION_ID equal to the session's id.
+
+  - id: pretooluse.refusal.exit2-with-post-hooks
+    covers: [pretooluse.refusal]
+    case: {refusal: exit-2, post_hooks_configured: [PostToolUse, PostToolUseFailure]}
+    expect: >-
+      tool_result is "PreToolUse:Bash hook error: [<command>]: <stderr>" with
+      is_error; neither post hook fires; the next turn step runs.
+
+  # An interaction case: a refused tool inside the turn that compaction summarises.
+  - id: compaction.after-refused-tool
+    covers: [compaction.order, pretooluse.refusal]
+    case: {before_compact: pretooluse-deny-on-bash, compact: manual}
+    expect: >-
+      The refused call is in the transcript as an is_error tool_result; the
+      compaction then fires PreCompact, SubagentStop, SessionStart(compact),
+      PostCompact in that order.
+
+  - id: compaction.precompact-blocks
+    covers: [compaction.order]
+    case: {compact: manual, precompact_handler: exit-2}
+    expect: No SubagentStop, SessionStart(compact) or PostCompact fires; the transcript is not compacted.

@@ -18,8 +18,16 @@ ok()  { pass=$((pass + 1)); printf '  ok    %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
 
 # run RULE SCRIPT PAYLOAD — runs a rule's script as the engine would; sets $out, $rc.
+# RULE is a file-guard folder name, or gate/<name> for a gate.
 run() {
-  out="$(cd "$fg/$1" && printf '%s' "$3" | SR_GUARDRAIL_DIR="$fg/$1" SR_GUARDRAIL="$1" SR_TREE="$tree" "./$2" 2>&1)"
+  local dir="$fg/$1"; case "$1" in gate/*) dir="$rules/$1" ;; esac
+  out="$(cd "$dir" && printf '%s' "$3" | SR_GUARDRAIL_DIR="$dir" SR_GUARDRAIL="$(basename "$dir")" SR_TREE="$tree" "./$2" 2>&1)"
+  rc=$?
+}
+# run_gate RULE SCRIPT PAYLOAD — a gate runs before the write: no SR_TREE, only the workspace.
+run_gate() {
+  local dir="$rules/$1"
+  out="$(cd "$dir" && printf '%s' "$3" | SR_GUARDRAIL_DIR="$dir" SR_GUARDRAIL="$(basename "$dir")" SR_WORKSPACE="$tree" "$dir/$2" 2>&1)"
   rc=$?
 }
 # expect NAME WANT(pass|refuse) [SUBSTRING]
@@ -122,25 +130,33 @@ got="$(printf '%s' "$out" | jq -r '.subjects[] | "\(.id):\(.context.tests[0].pat
   bad "test-matches-item subjects" "got '$got' ($out)"
 
 # ---------------------------------------------------------------------------
-echo "adr-0001-file-size/size.sh"
-tree="$work/cov"
-run adr-0001-file-size size.sh "$(changeset "[$(file x-mock/internal/new.go A '' "$(nlines 150)")]")"
+# A tree holding this proposal's own ADRs, for the rules that read them.
+newtree adrs
+cp -R "$here/../adr" "$tree/adr"; commit
+adrtree="$tree"
+
+echo "file-size/size.sh (limits + exceptions read from adr/file-size)"
+run file-size size.sh "$(changeset "[$(file x-mock/internal/new.go A '' "$(nlines 150)")]")"
 expect "a new 150-line file passes" pass
-run adr-0001-file-size size.sh "$(changeset "[$(file x-mock/internal/new.go A '' "$(nlines 151)")]")"
-expect "a new 151-line file is refused" refuse "over ADR-0001's limit of 150"
-run adr-0001-file-size size.sh "$(changeset "[$(file x-mock/e2e/new_test.go A '' "$(nlines 400)")]")"
+run file-size size.sh "$(changeset "[$(file x-mock/internal/new.go A '' "$(nlines 151)")]")"
+expect "a new 151-line file is refused" refuse "over the limit of 150"
+run file-size size.sh "$(changeset "[$(file x-mock/e2e/new_test.go A '' "$(nlines 400)")]")"
 expect "a 400-line test passes" pass
-run adr-0001-file-size size.sh "$(changeset "[$(file claude-mock/internal/runner/session.go M "$(nlines 701)" "$(nlines 702)")]")"
+run file-size size.sh "$(changeset "[$(file claude-mock/internal/runner/session.go M "$(nlines 701)" "$(nlines 702)")]")"
 expect "an exception that grows is refused" refuse "may not grow (701 → 702 lines)"
-run adr-0001-file-size size.sh "$(changeset "[$(file claude-mock/internal/runner/session.go M "$(nlines 701)" "$(nlines 650)")]")"
+run file-size size.sh "$(changeset "[$(file claude-mock/internal/runner/session.go M "$(nlines 701)" "$(nlines 650)")]")"
 expect "an exception that shrinks passes" pass
-run adr-0001-file-size size.sh "$(jq -n -c --arg n "$(nlines 151)" '{event: {kind: "PreFileCreate", path: "a/b.go", newContent: $n, resultKnown: true}}')"
-expect "gate: a Write of 151 lines is refused before it lands" refuse "over ADR-0001's limit"
-run adr-0001-file-size size.sh "$(jq -n -c '{event: {kind: "PreFileUpdate", path: "a/b.go", oldContent: "x", newContent: "", resultKnown: false}}')"
+run_gate gate/file-size ../../file-guard/file-size/size.sh "$(jq -n -c --arg n "$(nlines 151)" '{event: {kind: "PreFileCreate", path: "a/b.go", newContent: $n, resultKnown: true}}')"
+expect "gate: a Write of 151 lines is refused before it lands" refuse "over the limit of 150"
+run_gate gate/file-size ../../file-guard/file-size/size.sh "$(jq -n -c '{event: {kind: "PreFileUpdate", path: "a/b.go", oldContent: "x", newContent: "", resultKnown: false}}')"
 expect "gate: an unpredictable edit is left to the commit check" pass
+tree="$work/cov"
+run file-size size.sh "$(changeset "[$(file x-mock/internal/new.go A '' "$(nlines 151)")]")"
+expect "no ADR linking the rule: refuses rather than guessing limits" refuse "no ADR linking file-guard/file-size declares limits"
+tree="$adrtree"
 
 # ---------------------------------------------------------------------------
-echo "adr-0002-layering/imports.sh"
+echo "layering/imports.sh"
 newtree layer
 mkdir -p "$tree/core/c" "$tree/a-mock/x" "$tree/b-mock/y"
 printf 'module example.com/m\n\ngo 1.22\n' >"$tree/go.mod"
@@ -148,69 +164,131 @@ printf 'package c\n' >"$tree/core/c/c.go"
 printf 'package y\n' >"$tree/b-mock/y/y.go"
 printf 'package x\n\nimport _ "example.com/m/core/c"\n' >"$tree/a-mock/x/x.go"
 commit
-run adr-0002-layering imports.sh "$(changeset "[$(file a-mock/x/x.go M '' '')]")"
+run layering imports.sh "$(changeset "[$(file a-mock/x/x.go M '' '')]")"
 expect "a mock importing core passes" pass
 printf 'package x\n\nimport _ "example.com/m/b-mock/y"\n' >"$tree/a-mock/x/x.go"; commit
-run adr-0002-layering imports.sh "$(changeset "[$(file a-mock/x/x.go M '' '')]")"
+run layering imports.sh "$(changeset "[$(file a-mock/x/x.go M '' '')]")"
 expect "a mock importing another mock is refused" refuse "(another mock, b-mock)"
 printf 'package x\n' >"$tree/a-mock/x/x.go"
 printf 'package c\n\nimport _ "example.com/m/a-mock/x"\n' >"$tree/core/c/c.go"; commit
-run adr-0002-layering imports.sh "$(changeset "[$(file core/c/c.go M '' '')]")"
+run layering imports.sh "$(changeset "[$(file core/c/c.go M '' '')]")"
 expect "core importing a mock is refused" refuse "(core) imports example.com/m/a-mock/x"
 
 # ---------------------------------------------------------------------------
-echo "adr-0003-subprocess-env/no-own-env.sh"
-run adr-0003-subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/newproc.go A '' $'package runner\n\tcmd.Env = append(os.Environ(), "X=1")')]")"
+echo "module-boundaries/imports-through-api.sh (adr/hooks-module: home core/hooks/**, api core/hooks)"
+mkdir -p "$tree/adr" "$tree/core/hooks/match" && cp -R "$here/../adr/hooks-module" "$tree/adr/"
+printf 'package c\n' >"$tree/core/c/c.go"
+printf 'package hooks\n\nimport _ "example.com/m/core/hooks/match"\n' >"$tree/core/hooks/hooks.go"
+printf 'package match\n' >"$tree/core/hooks/match/match.go"
+printf 'package x\n\nimport _ "example.com/m/core/hooks"\n' >"$tree/a-mock/x/x.go"; commit
+run module-boundaries imports-through-api.sh "$(changeset "[$(file a-mock/x/x.go M '' '')]")"
+expect "using a module through its api, and the module using its own insides, pass" pass
+printf 'package x\n\nimport _ "example.com/m/core/hooks/match"\n' >"$tree/a-mock/x/x.go"; commit
+run module-boundaries imports-through-api.sh "$(changeset "[$(file a-mock/x/x.go M '' '')]")"
+expect "reaching into a module past its api is refused" refuse "a-mock/x imports core/hooks/match, inside adr/hooks-module's module but not its api"
+
+# ---------------------------------------------------------------------------
+echo "subprocess-env/no-own-env.sh (exceptions read from adr/subprocess-env)"
+tree="$adrtree"
+run subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/newproc.go A '' $'package runner\n\tcmd.Env = append(os.Environ(), "X=1")')]")"
 expect "a new site assigning cmd.Env is refused" refuse "claude-mock/internal/runner/newproc.go assigns cmd.Env"
-run adr-0003-subprocess-env no-own-env.sh "$(changeset "[$(file core/procenv/env.go A '' $'package procenv\n\tcmd.Env = env')]")"
+run subprocess-env no-own-env.sh "$(changeset "[$(file core/procenv/env.go A '' $'package procenv\n\tcmd.Env = env')]")"
 expect "core/procenv may assign it" pass
-run adr-0003-subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/runner.go M $'\tcmd.Env = buildEnv(cfg, tr)' $'\tcmd.Env = buildEnv(cfg, tr)\n\tx := 1')]")"
+run subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/runner.go M $'\tcmd.Env = buildEnv(cfg, tr)' $'\tcmd.Env = buildEnv(cfg, tr)\n\tx := 1')]")"
 expect "a legacy site that keeps its one assignment passes" pass
-run adr-0003-subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/runner.go M $'\tcmd.Env = buildEnv(cfg, tr)' $'\tcmd.Env = buildEnv(cfg, tr)\n\tc2.Env = other()')]")"
+run subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/runner.go M $'\tcmd.Env = buildEnv(cfg, tr)' $'\tcmd.Env = buildEnv(cfg, tr)\n\tc2.Env = other()')]")"
 expect "a legacy site that adds one is refused" refuse "adds a cmd.Env assignment (1 → 2)"
-run adr-0003-subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/newproc.go A '' $'\tif cmd.Env == nil {}')]")"
+run subprocess-env no-own-env.sh "$(changeset "[$(file claude-mock/internal/runner/newproc.go A '' $'\tif cmd.Env == nil {}')]")"
 expect "a comparison is not an assignment" pass
 
 # ---------------------------------------------------------------------------
-echo "adr-0004-capability-once/one-site-per-capability.sh"
+echo "capability-once/catalog-matches-markers.sh (spec/capabilities.yaml ⇄ markers)"
 newtree caps
-mkdir -p "$tree/core/stop" "$tree/claude-mock/adapter" "$tree/cursor-mock/adapter"
+mkdir -p "$tree/spec" "$tree/core/stop" "$tree/claude-mock/adapter" "$tree/cursor-mock/adapter"
+cat >"$tree/spec/capabilities.yaml" <<'YAML'
+capabilities:
+  - id: stop.block
+    statement: s
+    providers: {claude: supported, cursor: {n/a: "cursor's stop hook cannot block"}}
+YAML
 printf 'package stop\n// sr:capability stop.block\n' >"$tree/core/stop/stop.go"
 printf 'package adapter\n// sr:provides stop.block claude\n' >"$tree/claude-mock/adapter/stop.go"
+printf 'package adapter\n' >"$tree/cursor-mock/adapter/a.go"
 commit
 p="$(changeset "[$(file core/stop/stop.go M '' '')]")"
-run adr-0004-capability-once one-site-per-capability.sh "$p"; expect "one core site and a matching adapter pass" pass
-printf 'package adapter\n// sr:capability stop.block\n' >"$tree/cursor-mock/adapter/stop.go"; commit
-run adr-0004-capability-once one-site-per-capability.sh "$p"; expect "a second implementation is refused" refuse "implemented in more than one place"
-expect "an implementation outside core is refused" refuse "declares capability 'stop.block' outside core/"
-printf 'package adapter\n// sr:provides stop.block claude\n' >"$tree/cursor-mock/adapter/stop.go"; commit
-run adr-0004-capability-once one-site-per-capability.sh "$p"; expect "provides under the wrong harness is refused" refuse "must sit under claude-mock/"
-printf 'package adapter\n// sr:provides compact cursor\n' >"$tree/cursor-mock/adapter/stop.go"; commit
-run adr-0004-capability-once one-site-per-capability.sh "$p"; expect "provides of an undeclared capability is refused" refuse "provides 'compact', which no core/ code declares"
+run capability-once catalog-matches-markers.sh "$p"; expect "catalog, core implementation and adapters agree" pass
+sed -i '' '/sr:capability/d' "$tree/core/stop/stop.go"; commit
+run capability-once catalog-matches-markers.sh "$p"; expect "a catalogued capability with no marked implementation is refused" refuse "capability 'stop.block' has no implementation"
+git -C "$tree" reset -q --hard HEAD~1
+sed -i '' '/sr:provides/d' "$tree/claude-mock/adapter/stop.go"; commit
+run capability-once catalog-matches-markers.sh "$p"; expect "a supported cell with no adapter is refused" refuse "supported by 'claude' but no claude-mock/ code carries // sr:provides stop.block claude"
+git -C "$tree" reset -q --hard HEAD~1
+printf '  - {id: compact, statement: s, providers: {claude: supported}}\n' >>"$tree/spec/capabilities.yaml"; commit
+run capability-once catalog-matches-markers.sh "$p"; expect "a missing cell is refused" refuse "capability 'compact' has no cell for harness 'cursor'"
+git -C "$tree" reset -q --hard HEAD~1
+printf '// sr:provides stop.block cursor\n' >>"$tree/cursor-mock/adapter/a.go"; commit
+run capability-once catalog-matches-markers.sh "$p"; expect "providing an n/a cell is refused" refuse "is n/a for 'cursor', yet cursor-mock/ code provides it"
+git -C "$tree" reset -q --hard HEAD~1
+printf '// sr:capability undeclared.thing\n' >>"$tree/core/stop/stop.go"; commit
+run capability-once catalog-matches-markers.sh "$p"; expect "a marker for an uncatalogued capability is refused" refuse "sr:capability 'undeclared.thing' is not in spec/capabilities.yaml"
+git -C "$tree" reset -q --hard HEAD~1
+printf '// sr:capability stop.block\n' >>"$tree/cursor-mock/adapter/a.go"; commit
+run capability-once catalog-matches-markers.sh "$p"; expect "a second implementation outside core is refused" refuse "implemented in more than one place"
+
+# ---------------------------------------------------------------------------
+echo "adr-linked/links-resolve.sh"
+newtree linked
+cp -R "$here/../adr" "$tree/adr"; cp -R "$rules" "$tree/.sloprail"; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file adr/file-size/ADR.md M '' '')]")"
+expect "this proposal's own ADRs are well-formed and every link resolves" pass
+rm -rf "$tree/.sloprail/file-guard/layering"; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file .sloprail/file-guard/layering/file-guard.yaml D '' '')]")"
+expect "deleting a rule an ADR links is refused" refuse "adr/layering links 'file-guard/layering', but .sloprail/file-guard/layering/file-guard.yaml does not exist"
+git -C "$tree" reset -q --hard HEAD~1
+sed -i '' 's/^sloprails: .*/sloprails: []/' "$tree/adr/layering/ADR.md"; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file adr/layering/ADR.md M '' '')]")"
+expect "an ADR linking no sloprail is refused" refuse "adr/layering links no sloprail"
+git -C "$tree" reset -q --hard HEAD~1
+sed -i '' 's/^## Consequences/## Outcome/; s/^status: proposed/status: maybe/' "$tree/adr/layering/ADR.md"; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file adr/layering/ADR.md M '' '')]")"
+expect "a missing section is refused" refuse "adr/layering has no '## Consequences' section"
+expect "an unknown status is refused" refuse "adr/layering: status must be proposed, accepted or superseded"
+git -C "$tree" reset -q --hard HEAD~1
+printf -- '---\nsloprails: [file-guard/layering\n---\n' >"$tree/adr/layering/ADR.md"; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file adr/layering/ADR.md M '' '')]")"
+expect "unparseable frontmatter is refused, not skipped" refuse "frontmatter that is not valid YAML"
+git -C "$tree" reset -q --hard HEAD~1
+
+# ---------------------------------------------------------------------------
+echo "adr-matches-sloprails/subjects.sh"
+run adr-matches-sloprails subjects.sh "$(changeset "[$(file .sloprail/file-guard/subprocess-env/no-own-env.sh M a b)]")"
+got="$(printf '%s' "$out" | jq -r '[.subjects[] | "\(.id):\([.context.rules[].path | select(endswith("no-own-env.sh"))] | length)"] | join(",")' 2>/dev/null)"
+[ "$got" = "subprocess-env:1" ] && ok "changing a rule re-judges the ADR that links it, with the rule's files" || bad "adr-matches subjects (rule change)" "got '$got' ($out)"
+run adr-matches-sloprails subjects.sh "$(changeset "[$(file adr/file-size/ADR.md M a b)]")"
+got="$(printf '%s' "$out" | jq -r '[.subjects[] | "\(.id):\([.context.rules[].rule] | unique | join("+"))"] | join(",")' 2>/dev/null)"
+[ "$got" = "file-size:file-guard/file-size+gate/file-size" ] && ok "changing an ADR re-judges it against every rule it links (many-to-many)" || bad "adr-matches subjects (adr change)" "got '$got' ($out)"
 
 # ---------------------------------------------------------------------------
 echo "adr-grounded/needs-words.sh · subjects.sh"
-adr=.sloprail/file-guard/adr-0001-file-size/ADR.md
+adr=adr/file-size/ADR.md
 run adr-grounded needs-words.sh "$(changeset "[$(file "$adr" M x y $'--- a\n+++ b\n@@\n-  - claude-mock/run.go   # 238\n')]")"
 [ "$rc" -eq 1 ] && ok "shrinking an exception list needs no words (waived)" || bad "needs-words shrink" "rc=$rc $out"
 run adr-grounded needs-words.sh "$(changeset "[$(file "$adr" M x y $'--- a\n+++ b\n@@\n+  - core/big.go\n')]")"
 [ "$rc" -eq 0 ] && ok "adding an exception needs words" || bad "needs-words add" "rc=$rc $out"
-run adr-grounded needs-words.sh "$(changeset "[$(file .sloprail/file-guard/adr-0009-x/ADR.md A '' y $'+new')]")"
+run adr-grounded needs-words.sh "$(changeset "[$(file adr/new-thing/ADR.md A '' y $'+new')]")"
 [ "$rc" -eq 0 ] && ok "a new ADR needs words" || bad "needs-words new" "rc=$rc $out"
-run adr-grounded subjects.sh "$(changeset "[$(file "$adr" M old new d1), $(file .sloprail/file-guard/adr-0001-file-size/size.sh M a b d2), $(file .sloprail/file-guard/adr-0003-subprocess-env/ADR.md A '' n3 d3)]")"
-got="$(printf '%s' "$out" | jq -r '[.subjects[] | "\(.id)=\(.files | length):\(.context.adr_after)"] | join(",")' 2>/dev/null)"
-[ "$got" = "adr-0001-file-size=2:new,adr-0003-subprocess-env=1:n3" ] && ok "one subject per ADR folder touched" ||
-  bad "adr-grounded subjects" "got '$got' ($out)"
+run adr-grounded subjects.sh "$(changeset "[$(file "$adr" M old new d1), $(file adr/subprocess-env/ADR.md A '' n3 d3)]")"
+got="$(printf '%s' "$out" | jq -r '[.subjects[] | "\(.id):\(.context.adr_after)"] | join(",")' 2>/dev/null)"
+[ "$got" = "file-size:new,subprocess-env:n3" ] && ok "one subject per ADR touched" || bad "adr-grounded subjects" "got '$got' ($out)"
 
 # ---------------------------------------------------------------------------
-echo "adr-undeclared/all-adrs.sh"
-newtree adrs
-mkdir -p "$tree/.sloprail/file-guard/adr-0001-a" "$tree/.sloprail/file-guard/adr-0002-b"
-echo "# A" >"$tree/.sloprail/file-guard/adr-0001-a/ADR.md"; echo "# B" >"$tree/.sloprail/file-guard/adr-0002-b/ADR.md"; commit
-run adr-undeclared all-adrs.sh "$(changeset '[]')"
-got="$(printf '%s' "$out" | jq -r '[.additionalContext.adrs[].id] | join(",")' 2>/dev/null)"
-[ "$got" = "adr-0001-a,adr-0002-b" ] && ok "the classifier is handed every ADR in the committed tree" || bad "all-adrs" "got '$got' ($out)"
-
+echo "adr-well-formed/subjects.sh · concern-placement/all-adrs.sh"
+run adr-well-formed subjects.sh "$(changeset "[$(file adr/layering/ADR.md M a b d), $(file adr/layering/notes.md A '' x)]")"
+got="$(printf '%s' "$out" | jq -r '[.subjects[].id] | join(",")' 2>/dev/null)"
+[ "$got" = "layering" ] && ok "only a changed ADR.md is judged for form" || bad "adr-well-formed subjects" "got '$got' ($out)"
+run concern-placement all-adrs.sh "$(changeset '[]')"
+got="$(printf '%s' "$out" | jq -r '[.additionalContext.adrs[] | select(.home | length > 0) | "\(.id)=\(.home | join(","))"] | join(" ")' 2>/dev/null)"
+[ "$got" = "capability-once=core/** hooks-module=core/hooks/**" ] && ok "the placement judge gets every ADR, with each home" || bad "all-adrs" "got '$got' ($out)"
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
