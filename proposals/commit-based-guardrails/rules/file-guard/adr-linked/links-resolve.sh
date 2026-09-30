@@ -3,8 +3,7 @@
 #   - the folder name is kebab-case starting with a letter (no numbers or
 #     dates: rules find ADRs by link, git keeps the order), and holds ADR.md
 #   - its frontmatter's shape (concern, sloprails, no status, …) is
-#     file-guard/shapes' (schemas/adr.cue); this checks what it points at:
-#     every `modules` entry is a dir holding a module.yaml
+#     file-guard/shapes' (schemas/adr.cue)
 #   - every sloprails entry is <nature>/<name> and names a rule folder that
 #     exists in .sloprail/ (file-guard.yaml, gate.yaml or context.yaml)
 #   - the body has the sections ## Concern and ## Decision
@@ -29,9 +28,6 @@ while IFS= read -r a; do
   [ -n "$a" ] || continue
   id="$(jq -r '.id' <<<"$a")"
   fm="$(jq -c '.frontmatter' <<<"$a")"
-  for mod in $(jq -r '(.modules // [])[]' <<<"$fm"); do
-    [ -f "$SR_TREE/$mod/module.yaml" ] || add "adr/$id links module '$mod', but $mod/module.yaml does not exist"
-  done
   links="$(jq -r 'if (.sloprails | type) == "array" then .sloprails[] else empty end' <<<"$fm")"
   [ -n "$links" ] || add "adr/$id links no sloprail: list the rules that enforce it under 'sloprails:' (an ADR nothing enforces is prose)"
   while IFS= read -r l; do

@@ -60,10 +60,9 @@ the commit (`Sloprail-Cites-User:`).
 | | `invariant-rigor` | P | per invariant touched: its statement and ALL its tests. Each test proves it, and together they cover every condition, edge and failure path |
 | **capabilities** | `capability-grounded` | P (+G to add/drop one) | each provider's cited doc sections say what the statement says |
 | | `capability-covered` | D | one `sr:capability` in core; `sr:provides` and ≥1 proving test for each cell that isn't `false`; every mock has a cell (`false`, never omitted) |
-| | `capability-rigor` | P | per capability × harness touched: the tests prove it as that harness's docs and runs show it |
+| | `capability-rigor` | P | **the real-vs-mock comparison.** Per capability × harness touched, the e2e tests marked `sr:proves <capability>/<harness>` are compared with what the real harness did: the recorded runs' events (inlined) and the cited doc sections. Tests must reproduce the recorded situation and assert the recorded outcome, or a declared deviation. |
 | | `snapshots-read-only` | gate | a Write, Edit or visible shell write under `snapshots/` is refused, pointing at `capture.sh`. `setup/` and `capture.sh` stay editable. |
 | | `snapshots-current` | D | runs and docs match `version` (a bump makes them stale); each sample matches its `SEAL` and each doc its recorded sha256, so a hand edit is caught at the commit; samples are timestamped, have `events.jsonl`, and aren't duplicates; every cited URL, anchor and run resolves; an uncited run fails; `capture.sh` exists |
-| | `fidelity-replay` | D | the cited runs, replayed against the mock by `tools/replay`, match a sample |
 | **ADRs** | `adr-linked` | D | kebab name, one-line `concern`, no `status`, links ≥1 existing rule, linked modules exist, has the sections |
 | | `adr-well-formed` | P | one concern, checkable, present tense only (no history, commit references or plans) |
 | | `adr-matches-sloprails` | P | the ADR and its linked rules say the same thing |
@@ -72,7 +71,9 @@ the commit (`Sloprail-Cites-User:`).
 | **modules** | `module-coverage` | D | every non-test Go file in the `space` (from `adr/modules-cover-code`) lies in exactly one module's home; homes don't overlap; legacy code is covered by `exceptions` globs, which only shrink |
 | | `module-boundaries` | D | nothing imports past a module's `api` |
 | | `module-leaks` | D→P | see below |
-| **ADR-specific** | `file-size` (+ gate), `layering`, `subprocess-env` | D | limits and exceptions are read from the linked ADR |
+| **ADR-specific** | `file-size` (+ gate), `layering`, `child-processes`, `config-at-entry` | D | each ADR's deterministic half; settings and exceptions are read from the linked ADR. `child-processes` and `config-at-entry` share one helper (`_lib/confine.sh`: "only X may do Y; a legacy file may not add sites"). |
+| | `adr-conformance` | P | **one** judge for every ADR's judged half: a changeset is judged once against every ADR that lists this rule in `sloprails` (today `capability-once`, `child-processes`, `mock-config`), not once per ADR |
+| **refactoring** | `move-only` | D | every commit carrying `Sloprail-Refactor: move-only` is checked against its parent by `tools/moveonly`: only where code lives may change. A relocation names its dirs: `move-only <old>=<new>`. |
 
 **`module-leaks`:**
 1. Each module's `candidates.sh` owns the whole search for its logic, and
@@ -99,6 +100,13 @@ capturing a run with `capture.sh` or finding the doc, or else dropping the capab
   compaction-transcript-continuity, transcript-record-envelope,
   empty-tool-result-placeholder, agent-input-validation
 
+## Tests mapped to capabilities
+
+Every existing test that really proves a capability carries `// sr:proves <capability>/claude`: 167 markers
+on 124 tests, each checked against the test body, not its name. [`TEST-COVERAGE.md`](TEST-COVERAGE.md)
+has the table, the tests left unmarked and why, and the contradictions found. Uncovered:
+`http-hooks` (no test at all) and `foreground-subagent-bash-ends-with-response`.
+
 ## Samples
 
 - **Capabilities:** `stop-block-cap`, `pretooluse-refusal` and
@@ -108,8 +116,15 @@ capturing a run with `capture.sh` or finding the doc, or else dropping the capab
   mock's own features.
 - **Module:** `internal/hooks` (sample). Its `candidates.sh` finds 24 candidates in today's code, all of them in tests, which the rule drops.
 - **Snapshots:** `MANIFEST.yaml`, the `capture.sh` for Claude Code, and one authored scenario, `runs/cap/setup/` (a Stop hook that always blocks). `capture.sh` was run against a stub `claude` and the live hooks page, and its output passes `snapshots-current`, while a hand edit to a sample or the doc fails it.
-- **ADRs:** `file-size`, `layering`, `subprocess-env`, `capability-once` and
-  `hooks-module` and `modules-cover-code`. They're for your approval.
+- **ADRs (global only):** `file-size`, `layering`, `modules-cover-code`,
+  `capability-once`, `child-processes` (one package spawns every child: its
+  environment, its own process group, killed as a group) and `mock-config`
+  (flags and env read once, at the mock's entrypoint).
+- **Modules** decide their own concern, home and api in `internal/<m>/module.yaml`
+  (11 target modules), not in ADRs.
+- **Deviations:** where the mock deliberately differs from the real harness, the
+  capability's cell says so: `deviations: [{adr, statement}]`. Changing one needs
+  the user's words; the rigor judge then holds tests to the deviation.
 
 ## What the engine must provide
 
@@ -126,6 +141,8 @@ capturing a run with `capture.sh` or finding the doc, or else dropping the capab
    Is that OK licence-wise, or should docs be snapshotted by content hash
    only, and fetched when a rule runs?
 2. **Migrating `claude-mock/evidence/`:** each fixture becomes
-   `runs/<name>/samples/<ts>/`, plus an `events.jsonl`. That needs the capture
-   normalizer, and `tools/replay` for `fidelity-replay`.
+   `runs/<name>/samples/<ts>/`, plus an `events.jsonl`. `capture.sh`'s
+   normalizer produces it. A real run is not replayed against the mock: the model, cwd,
+   env and tools differ, so the mock is proven by e2e tests and `capability-rigor`
+   compares those tests with the recordings.
 3. **Parked:** dimensions and suites.

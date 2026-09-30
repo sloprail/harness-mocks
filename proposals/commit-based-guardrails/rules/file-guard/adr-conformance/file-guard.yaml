@@ -1,0 +1,10 @@
+# One judge for every ADR's judged half [judge], instead of one judge per ADR
+# rule: a changeset is judged ONCE against the text of every ADR that links
+# this rule (many-to-many: an ADR opts in by listing file-guard/adr-conformance
+# under `sloprails`). Each ADR's deterministic half stays in its own cheap
+# script rule. As ADRs grow past what one prompt reads well, split this into
+# subjects (e.g. one per ADR group); until then one call per changeset.
+match: path endsWith ".go" and (path startsWith "internal/" or path matches "^[a-z0-9]+-mock/")
+checks:
+  - prepare: ../../_lib/linked-adrs.sh
+    judge: ../../_lib/adr-conforms.md.j2

@@ -1,0 +1,5 @@
+# SAMPLE target module (the package does not exist yet). A module is an area
+# of code with a boundary; its decisions live here, not in an ADR.
+concern: "a nested agent run: its identity, working directory or worktree, transcript, hooks and result"
+home: ["internal/subagents/**"]   # everything about the concern lives here
+api: ["internal/subagents"]       # the only package others may import

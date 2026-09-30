@@ -1,0 +1,5 @@
+# SAMPLE target module (the package does not exist yet). A module is an area
+# of code with a boundary; its decisions live here, not in an ADR.
+concern: "starting child processes: their environment, process group, and stopping them"
+home: ["internal/procexec/**"]   # everything about the concern lives here
+api: ["internal/procexec"]       # the only package others may import

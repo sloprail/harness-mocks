@@ -1,0 +1,5 @@
+# SAMPLE target module (the package does not exist yet). A module is an area
+# of code with a boundary; its decisions live here, not in an ADR.
+concern: "executing the built-in tools (Bash, Read, Write, Edit, Glob)"
+home: ["internal/tools/**"]   # everything about the concern lives here
+api: ["internal/tools"]       # the only package others may import

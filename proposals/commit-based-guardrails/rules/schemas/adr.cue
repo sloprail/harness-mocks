@@ -3,7 +3,6 @@
 #ADR: {
 	concern!: string & =~"^[^\n]*\\S[^\n]*$" // one line: the index concern-undeclared uses
 	sloprails!: [#Rule, ...#Rule]
-	modules?: [...string]    // dirs holding a module.yaml
 	exceptions?: [...string] // legacy paths (or globs, where the ADR says so); only shrink
 	space?: [...string]      // globs of code that must be mapped to modules
 	limits?: [string]: int & >0

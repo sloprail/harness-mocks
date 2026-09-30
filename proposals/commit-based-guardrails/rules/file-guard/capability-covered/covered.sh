@@ -40,6 +40,9 @@ while IFS= read -r c; do
       '"missing"') add "capability '$id' has no cell for '$h': set it to false, or {docs, runs}" ;;
       false) ;;
       *)
+        for a in $(jq -r '.deviations[]?.adr' <<<"$v"); do
+          [ -f "$SR_TREE/adr/$a/ADR.md" ] || add "capability '$id' × '$h' deviates citing adr/$a, which does not exist"
+        done
         printf '%s\n' "$provides" | awk -F'\t' -v f="$id/$h" '$2 == f' | grep -q . ||
           add "capability '$id' is provided by '$h' but no $h-mock/ code carries // sr:provides $id/$h"
         printf '%s\n' "$proves" | awk -F'\t' -v f="$id/$h" '$2 == f && $1 ~ /_test\.go$/' | grep -q . ||

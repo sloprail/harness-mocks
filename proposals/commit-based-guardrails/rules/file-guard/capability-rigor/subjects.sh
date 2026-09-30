@@ -30,13 +30,19 @@ while IFS= read -r c; do
     docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do
       docs="$(jq -c --arg r "$ref" --arg t "$(doc_ref_section "$h" "$ref")" '. + [{ref: $r, section: $t}]' <<<"$docs")"; done
     runs="[]"; for r in $(jq -r '.runs[]' <<<"$cell"); do
-      runs="$(jq -c --arg r "$r" --arg y "$(cat "$SR_TREE/$r/run.yaml" 2>/dev/null)" --arg s "$(ls "$SR_TREE/$r/samples" 2>/dev/null | tr '\n' ' ')" \
-        '. + [{name: ($r | split("/") | last), dir: $r, run: $y, samples: $s}]' <<<"$runs")"; done
+      # every sample's normalized events, inlined (capped): what the real harness did
+      samples="[]"; for s in "$SR_TREE/$r"/samples/*/; do
+        [ -f "$s/events.jsonl" ] || continue
+        samples="$(jq -c --arg ts "$(basename "$s")" --arg ev "$(head -c 60000 "$s/events.jsonl")" '. + [{ts: $ts, events: $ev}]' <<<"$samples")"
+      done
+      runs="$(jq -c --arg r "$r" --arg y "$(cat "$SR_TREE/$r/run.yaml" 2>/dev/null)" --arg setup "$(cat "$SR_TREE/$r/setup/prompt.txt" 2>/dev/null)" \
+        --argjson sm "$samples" '. + [{name: ($r | split("/") | last), dir: $r, run: $y, prompt: $setup, samples: $sm}]' <<<"$runs")"; done
     tests="[]"; for f in $(printf '%s\n' "$proves" | awk -F'\t' -v q="$id/$h" '$2 == q {print $1}' | sort -u); do
       tests="$(jq -c --arg p "$f" --rawfile t "$SR_TREE/$f" '. + [{path: $p, text: $t}]' <<<"$tests")"; done
     subjects="$(jq -c --arg id "$id/$h" --arg st "$(jq -r '.doc.statement' <<<"$c")" --arg h "$h" \
       --argjson docs "$docs" --argjson runs "$runs" --argjson tests "$tests" --arg path "spec/capabilities/$id.yaml" \
-      '. + [{id: $id, files: ([$path] + [$tests[].path]), context: {harness: $h, statement: $st, docs: $docs, runs: $runs, tests: $tests}}]' <<<"$subjects")"
+      --argjson dev "$(jq -c '.deviations // []' <<<"$cell")" \
+      '. + [{id: $id, files: ([$path] + [$tests[].path]), context: {harness: $h, statement: $st, docs: $docs, runs: $runs, deviations: $dev, tests: $tests}}]' <<<"$subjects")"
   done
 done < <(jq -c '.[]' <<<"$caps")
 jq -n -c --argjson s "$subjects" '{subjects: $s}'

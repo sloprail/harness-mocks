@@ -1,4 +1,5 @@
-# SAMPLE module manifest (the hooks module does not exist yet; it is what
-# adr/hooks-module decides). A module is an area of code with a boundary:
-home: ["internal/hooks/**"]     # everything about the module's concern lives here
-api: ["internal/hooks"]         # the only package others may import
+# SAMPLE target module (the package does not exist yet). A module is an area
+# of code with a boundary; its decisions live here, not in an ADR.
+concern: "hooks: which handlers match an event, running them, and what their result means"
+home: ["internal/hooks/**"]   # everything about the concern lives here
+api: ["internal/hooks"]       # the only package others may import

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # prepare: steps 1 and 2 of module-leaks. Emits {"skip": true} when nothing is
-# left to judge, else the leftover candidates grouped by module, with the text
-# of the ADRs linking each module (frontmatter `modules:`).
+# left to judge, else the leftover candidates grouped by module, with the
+# module's own concern (module.yaml), and the exceptions of the ADRs whose
+# decisions cover it.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -23,8 +24,7 @@ while IFS= read -r m; do
     refuse "$dir/candidates.sh failed, so leaks of that module cannot be found: $(head -c 300 "$work/err")"
   # 2. scope to the range, then drop the expected places
   whole=0; printf '%s\n' "$changed" | grep -Fxq -e "$dir/module.yaml" -e "$dir/candidates.sh" && whole=1
-  adrs="$(jq -c --arg d "$dir" '[.[] | select(.frontmatter.modules // [] | index($d))]' <<<"$ADRS")"
-  exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$adrs")"
+  exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")"
   left="[]"
   while IFS= read -r c; do
     [[ "$c" =~ ^(.+):([0-9]+):(.*)$ ]] || refuse "$dir/candidates.sh printed '$c', not path:line:snippet"
@@ -36,8 +36,8 @@ while IFS= read -r m; do
     left="$(jq -c --arg p "$p" --argjson l "$l" --arg t "$t" '. + [{path: $p, line: $l, text: $t}]' <<<"$left")"
   done < <(grep -v '^[[:space:]]*$' "$work/cand")
   [ "$(jq 'length' <<<"$left")" -gt 0 ] || continue
-  groups="$(jq -c --arg d "$dir" --argjson m "$m" --argjson a "$adrs" --argjson left "$left" \
-    '. + [{module: $d, home: $m.home, api: $m.api, adrs: [$a[] | {id, text}], matches: $left}]' <<<"$groups")"
+  groups="$(jq -c --arg d "$dir" --argjson m "$m" --argjson left "$left" \
+    '. + [{module: $d, concern: $m.concern, home: $m.home, api: $m.api, matches: $left}]' <<<"$groups")"
 done < <(jq -c '.[]' <<<"$MODULES")
 [ "$(jq 'length' <<<"$groups")" -gt 0 ] || { jq -n '{skip: true}'; exit 0; }
 jq -n -c --argjson g "$groups" '{additionalContext: {modules: $g}}'

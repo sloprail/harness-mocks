@@ -1,0 +1,5 @@
+# SAMPLE target module (the package does not exist yet). A module is an area
+# of code with a boundary; its decisions live here, not in an ADR.
+concern: "the compaction sequence and what it preserves"
+home: ["internal/compaction/**"]   # everything about the concern lives here
+api: ["internal/compaction"]       # the only package others may import

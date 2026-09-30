@@ -1,6 +1,6 @@
 ---
 concern: the environment of every child process a mock starts
-sloprails: [file-guard/subprocess-env]
+sloprails: [file-guard/child-processes]
 exceptions:
   - claude-mock/internal/runner/runner.go
 ---

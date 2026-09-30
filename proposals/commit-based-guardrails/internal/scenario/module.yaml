@@ -1,0 +1,5 @@
+# SAMPLE target module (the package does not exist yet). A module is an area
+# of code with a boundary; its decisions live here, not in an ADR.
+concern: "driving the scenario script and routing its records"
+home: ["internal/scenario/**"]   # everything about the concern lives here
+api: ["internal/scenario"]       # the only package others may import

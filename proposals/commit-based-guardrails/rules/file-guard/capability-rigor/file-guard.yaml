@@ -1,7 +1,11 @@
-# For each harness providing a capability, its tests rigorously prove it AS
-# THAT HARNESS DOES IT [judge]: against the statement, the harness's cited doc
-# sections, and its recorded runs. One judge per (capability × harness)
-# touched.
+# The mock's e2e tests match the real harness [judge]. For each harness
+# providing a capability, the tests marked `sr:proves <capability>/<harness>`
+# are compared with what the real harness actually did: the recorded runs the
+# capability cites (their normalized events, inlined) and its cited doc
+# sections. The tests must drive the mock into the recorded situation and
+# assert what the real harness produced (or a declared deviation). This is
+# the real-vs-mock comparison: the mock is proven by e2e tests, and the tests
+# are held to the recordings. One judge per (capability × harness) touched.
 match: >-
   path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/"
   or any(markers, .kind == "capability" or .kind == "provides" or .kind == "proves")

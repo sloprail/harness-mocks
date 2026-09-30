@@ -1,0 +1,9 @@
+# A commit that declares itself a pure move really is one [deterministic]. For
+# every commit in the range carrying `Sloprail-Refactor: move-only`,
+# tools/moveonly compares it with its parent: every declaration and comment
+# must be identical, only its file (and imports) may differ. A relocation
+# names its directories in the trailer: `Sloprail-Refactor: move-only
+# claude-mock/internal/hooks=internal/hooks`.
+match: '"move-only" in trailers["Sloprail-Refactor"] or any(trailers["Sloprail-Refactor"], # startsWith "move-only ")'
+checks:
+  - script: ./reconcile.sh

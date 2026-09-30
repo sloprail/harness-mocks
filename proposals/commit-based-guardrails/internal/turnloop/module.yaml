@@ -1,0 +1,5 @@
+# SAMPLE target module (the package does not exist yet). A module is an area
+# of code with a boundary; its decisions live here, not in an ADR.
+concern: "the turn: running the agent, the end-of-turn hook, re-prompting on a block, and the block cap"
+home: ["internal/turnloop/**"]   # everything about the concern lives here
+api: ["internal/turnloop"]       # the only package others may import

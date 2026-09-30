@@ -16,7 +16,7 @@ load_modules() {
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     m="$(yq -o=json '.' "$SR_TREE/$f" 2>/dev/null)" || refuse "$f is not valid YAML"
-    MODULES="$(jq -c --arg d "$(dirname "$f")" --argjson m "$m" '. + [{dir: $d, home: ($m.home // []), api: ($m.api // [])}]' <<<"$MODULES")"
+    MODULES="$(jq -c --arg d "$(dirname "$f")" --argjson m "$m" '. + [{dir: $d, concern: ($m.concern // ""), home: ($m.home // []), api: ($m.api // [])}]' <<<"$MODULES")"
   done <<<"$out"
 }
 
