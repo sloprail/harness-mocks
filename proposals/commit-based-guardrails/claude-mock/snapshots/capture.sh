@@ -7,6 +7,7 @@
 #   capture.sh run <name>    run the scenario in runs/<name>/setup/ against the
 #                            real `claude`, and add a sample
 #   capture.sh doc <url>     copy a doc page (e.g. https://code.claude.com/docs/en/hooks)
+#                            to docs/<host>/<path>.md, and register its URL in MANIFEST
 #   capture.sh all           re-capture every run and doc at the installed
 #                            claude's version, and set MANIFEST.version to it
 #
@@ -25,7 +26,9 @@ version() { yq -r '.version' "$manifest"; }
 installed() { claude --version | awk '{print $1}'; }
 
 # seal DIR — SEAL lists the sha256 of every other file under DIR.
-seal() { (cd "$1" && find . -type f ! -name SEAL | LC_ALL=C sort | xargs shasum -a 256 >SEAL); }
+# Written to SEAL.tmp and renamed only on success, so a SEAL always means a
+# complete sample (the cleanup trap relies on it).
+seal() { (cd "$1" && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shasum -a 256 >SEAL.tmp && mv SEAL.tmp SEAL); }
 
 # normalize — hook payloads and stream frames into events.jsonl: what a
 # scenario did, without what differs between two captures of the same
@@ -40,11 +43,16 @@ normalize() {
 }
 
 capture_run() {
-  local name="$1" run="$here/runs/$1" v ts work home cap
+  local name="$1" run="$here/runs/$1" v ts home
+  work="" cap=""   # global: the EXIT trap below reads them
   [ -f "$run/setup/prompt.txt" ] || die "runs/$name/setup/prompt.txt is missing: author the scenario first"
   v="$(version)"; [ "$(installed)" = "$v" ] || die "installed claude is $(installed), MANIFEST.version is $v: run 'capture.sh all' to move to it"
   ts="$(date -u +%Y%m%d-%H%M%S)"
-  work="$(mktemp -d)"; home="$work/home"; cap="$run/samples/$ts"
+  cap="$run/samples/$ts"
+  [ ! -e "$cap" ] || die "a sample named $ts already exists; re-run in a second"
+  work="$(mktemp -d)"; home="$work/home"
+  # a capture that fails part-way leaves nothing behind: no half-written sample
+  trap 'rm -rf "$work"; [ -f "$cap/SEAL" ] || rm -rf "$cap"' EXIT
   mkdir -p "$work/repo/.claude" "$home/Library" "$cap"
   ln -s "$HOME/Library/Keychains" "$home/Library/Keychains" 2>/dev/null || true   # keeps the login, nothing else
   cp "$run/setup/settings.json" "$work/repo/.claude/settings.json" 2>/dev/null || true
@@ -52,7 +60,7 @@ capture_run() {
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
   set +e
-  (cd "$work/repo" && HOME="$home" HOOK_LOG="$cap/payloads.jsonl" \
+  (cd "$work/repo" && HOME="$home" HOOK_LOG="$cap/payloads.jsonl" CLAUDE_PROJECT_DIR="$work/repo" \
     claude -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose \
       ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
   echo $? >"$cap/exit.txt"
@@ -60,32 +68,39 @@ capture_run() {
   mkdir -p "$cap/transcript"
   cp -R "$home/.claude/projects/"*/* "$cap/transcript/" 2>/dev/null || true
   # sanitize: the machine's paths out of everything captured
-  grep -rlF -e "$work" -e "$HOME" "$cap" 2>/dev/null | while IFS= read -r f; do
+  { grep -rlF -e "$work" -e "$HOME" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do
     sed -i '' -e "s#$work/repo#<RUN>#g" -e "s#$work#<TMP>#g" -e "s#$HOME#<HOME>#g" "$f"
   done
   normalize "$cap" >"$cap/events.jsonl"
-  rm -rf "$work"
   # a re-capture with the same events adds nothing
   for other in "$run"/samples/*/; do
     [ "$other" = "$cap/" ] && continue
     if cmp -s "$other/events.jsonl" "$cap/events.jsonl"; then
-      rm -rf "$cap"; echo "same events as $(basename "$other"): no new sample"; return 0
+      trap - EXIT; rm -rf "$cap" "$work"; echo "same events as $(basename "$other"): no new sample"; return 0
     fi
   done
   printf 'version: %s\ncommand: claude -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose\n' "$v" >"$run/run.yaml"
   seal "$cap"
+  trap - EXIT; rm -rf "$work"
   echo "captured runs/$name/samples/$ts"
 }
 
+# The same URL → path function as the rules' doc_path (rules/_lib/snapshots.sh).
+doc_path() {
+  local u="${1%%#*}"; u="${u%%\?*}"; u="${u#https://}"; u="${u#http://}"; u="${u%/}"
+  printf 'docs/%s.md' "$u"
+}
+
 capture_doc() {
-  local url="${1%%#*}" page v tmp
-  page="$(basename "$url").md"
+  local url="${1%%#*}" path v tmp
+  url="${url%/}"; path="$(doc_path "$url")"
   v="$(version)"; tmp="$(mktemp)"
   curl -fsSL "$url.md" -o "$tmp" || die "could not fetch $url.md"
   head -c 200 "$tmp" | grep -q '<html' && die "$url.md is not markdown"
-  mkdir -p "$here/docs"; mv "$tmp" "$here/docs/$page"; chmod 644 "$here/docs/$page"
-  yq -i ".docs[\"$page\"] = {\"url\": \"$url\", \"version\": \"$v\", \"sha256\": \"$(shasum -a 256 "$here/docs/$page" | cut -d' ' -f1)\"}" "$manifest"
-  echo "copied $url → docs/$page"
+  mkdir -p "$(dirname "$here/$path")"; mv "$tmp" "$here/$path"; chmod 644 "$here/$path"
+  URL="$url" V="$v" SHA="$(shasum -a 256 "$here/$path" | cut -d' ' -f1)" \
+    yq -i '.docs[strenv(URL)] = {"version": strenv(V), "sha256": strenv(SHA)}' "$manifest"
+  echo "copied $url → $path"
 }
 
 case "${1:-}" in
@@ -94,7 +109,7 @@ case "${1:-}" in
   all)
     v="$(installed)"; yq -i ".version = \"$v\"" "$manifest"
     for r in "$here"/runs/*/; do rm -rf "$r/samples"; capture_run "$(basename "$r")"; done
-    for u in $(yq -r '.docs // {} | to_entries[] | .value.url' "$manifest"); do capture_doc "$u"; done
+    for u in $(yq -r '.docs // {} | keys | .[]' "$manifest"); do capture_doc "$u"; done
     ;;
   *) die "usage: capture.sh run <name> | doc <url> | all" ;;
 esac

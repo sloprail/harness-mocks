@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Per harness with snapshots, against its MANIFEST.yaml `version`:
 #   script <harness>-mock/snapshots/capture.sh exists: the only writer
-#   docs   every docs/<page> is registered in MANIFEST.docs, with version ==
+#   docs   every docs/<host>/<path>.md is registered in MANIFEST.docs by its URL, with version ==
 #          version and a sha256 that matches the file (a hand edit breaks it)
 #   runs   kebab name; run.yaml version == version; ≥1 sample; sample dirs are
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
@@ -32,17 +32,17 @@ for h in $(harnesses); do
   [ -n "$ver" ] || { add "$h-mock/snapshots/MANIFEST.yaml has no version"; continue; }
   [ -f "$d/capture.sh" ] || add "$h-mock/snapshots/capture.sh is missing: snapshots are only written by it"
 
-  for f in "$d"/docs/*; do
-    [ -f "$f" ] || continue
-    p="$(basename "$f")"
-    dv="$(jq -r --arg p "$p" '.docs[$p].version // ""' <<<"$m")"
-    [ -n "$dv" ] || { add "$h-mock/snapshots/docs/$p is not registered in MANIFEST.docs"; continue; }
-    [ "$dv" = "$ver" ] || add "$h-mock/snapshots/docs/$p was copied at $dv, not $ver: re-fetch it"
-    [ "$(jq -r --arg p "$p" '.docs[$p].sha256 // ""' <<<"$m")" = "$(hash "$f")" ] ||
-      add "$h-mock/snapshots/docs/$p does not match the sha256 capture.sh recorded: it was edited by hand; re-fetch it with capture.sh doc"
-  done
-  for p in $(jq -r '(.docs // {}) | keys[]' <<<"$m"); do
-    [ -f "$d/docs/$p" ] || add "MANIFEST.docs registers $p, but $h-mock/snapshots/docs/$p does not exist"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    p="${f#"$d"/}"; u="$(doc_url "$p")"
+    dv="$(jq -r --arg u "$u" '.docs[$u].version // ""' <<<"$m")"
+    [ -n "$dv" ] || { add "$h-mock/snapshots/$p is not registered in MANIFEST.docs (as $u)"; continue; }
+    [ "$dv" = "$ver" ] || add "$h-mock/snapshots/$p was copied at $dv, not $ver: re-fetch it"
+    [ "$(jq -r --arg u "$u" '.docs[$u].sha256 // ""' <<<"$m")" = "$(hash "$f")" ] ||
+      add "$h-mock/snapshots/$p does not match the sha256 capture.sh recorded: it was edited by hand; re-fetch it with capture.sh doc $u"
+  done < <(find "$d/docs" -type f 2>/dev/null)
+  for u in $(jq -r '(.docs // {}) | keys[]' <<<"$m"); do
+    [ -f "$d/$(doc_path "$u")" ] || add "MANIFEST.docs registers $u, but $h-mock/snapshots/$(doc_path "$u") does not exist"
   done
 
   for r in "$d"/runs/*/; do

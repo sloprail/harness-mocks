@@ -1,0 +1,43 @@
+# Where files may land in harness-mocks. Everything not allowed here is refused
+# before the write, so new code maps to a declared place or the place is agreed
+# first (a change here is a change to the architecture: adr-grounded does not
+# cover this file, so pair it with an ADR change the user asked for).
+#
+# Names are kebab (specs, ADRs, runs) or Go-style lowercase (packages, files).
+allow:
+  # the rules, and what they are about
+  - glob: ".sloprail/**"
+  - regex: '^adr/[a-z][a-z0-9]*(-[a-z0-9]+)*/ADR\.md$'
+  - regex: '^spec/(invariants|capabilities)/[a-z][a-z0-9]*(-[a-z0-9]+)*\.yaml$'
+
+  # the shared core: modules, each with its boundary
+  - regex: '^core/[a-z0-9]+(/[a-z0-9]+)*/[a-z0-9_]+\.go$'
+  - regex: '^core/[a-z0-9]+(/[a-z0-9]+)*/(module\.yaml|candidates\.sh)$'
+
+  # a harness mock: entrypoint, adapter packages, e2e suites
+  - regex: '^[a-z0-9]+-mock/[a-z0-9_]+\.go$'
+  - regex: '^[a-z0-9]+-mock/internal/[a-z0-9]+(/[a-z0-9]+)*/[a-z0-9_]+\.go$'
+  - regex: '^[a-z0-9]+-mock/e2e/[0-9]{3}_[a-z0-9_]+/[a-z0-9_]+_test\.go$'
+  - regex: '^[a-z0-9]+-mock/e2etest/[a-z0-9_]+\.go$'
+  - regex: '^[a-z0-9]+-mock/Makefile$'
+
+  # snapshots: only what a person authors. Everything else under snapshots/ is
+  # written by capture.sh alone (gate snapshots-read-only).
+  - regex: '^[a-z0-9]+-mock/snapshots/capture\.sh$'
+  - regex: '^[a-z0-9]+-mock/snapshots/runs/[a-z][a-z0-9]*(-[a-z0-9]+)*/setup/[^/]+$'
+
+  # repo tooling (e.g. tools/replay)
+  - regex: '^tools/[a-z0-9-]+(/[a-z0-9]+)*/[a-z0-9_]+\.go$'
+
+  # the repository itself
+  - regex: '^(README|CONTRIBUTING|CLA)\.md$'
+  - regex: '^(LICENSE|\.gitignore|go\.mod|go\.sum)$'
+  - regex: '^\.github/workflows/[a-z0-9-]+\.yml$'
+  - regex: '^\.claude/settings\.json$'
+
+  # legacy, until claude-mock's evidence moves to snapshots/: its index only.
+  # claude-mock/evidence/** itself is frozen (not allowed; deletes are not gated).
+  - regex: '^claude-mock/EVIDENCE\.md$'
+
+  # this proposal, until it is activated
+  - glob: "proposals/**"

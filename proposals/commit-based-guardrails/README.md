@@ -13,8 +13,9 @@ spec/
   capabilities/<id>.yaml         statement · providers.<harness>: {docs: [full URL#anchor], runs: [repo path]} | false
 <harness>-mock/snapshots/        the real harness, frozen at one version; written ONLY by capture.sh
   capture.sh                     one per harness: run <scenario> | doc <url> | all (re-capture at the installed version)
-  MANIFEST.yaml                  version · docs: {<page>.md: {url (canonical page URL), version}}
-  docs/<page>.md                 doc pages pulled as markdown (<url>.md), once per page, shared by every capability
+  MANIFEST.yaml                  version · docs: {<page URL>: {version, sha256}}
+  docs/<host>/<path>.md          doc pages pulled as markdown (<url>.md), once per page, shared by every capability;
+                                 the path is a pure function of the URL: …/docs/en/hooks#x → docs/code.claude.com/docs/en/hooks.md
   runs/<name>/setup/             the scenario, hand-authored: prompt.txt · settings.json · hook.sh · args
   runs/<name>/run.yaml           version, command (written by capture.sh)
   runs/<name>/samples/<ts>/      each capture, timestamped: events.jsonl (normalized) · raw payloads/stream/transcript · SEAL
@@ -22,7 +23,7 @@ core/<module>/
   module.yaml                    home · api
   candidates.sh                  owns the search for its logic: prints path:line:snippet
 adr/<kebab-name>/ADR.md          concern · sloprails · modules · exceptions · settings (limits, space); ## Concern ## Decision
-rules/                           → .sloprail/  (19 file-guards, 2 gates)
+rules/                           → .sloprail/  (19 file-guards, 2 gates, structure.yaml)
 tests/judge-cases/               judge inputs with their expected verdicts
 ```
 
@@ -43,6 +44,7 @@ the commit (`Sloprail-Cites-User:`).
 
 | | rule | kind | holds |
 |---|---|---|---|
+| **layout** | `structure.yaml` | gate | files land only in declared places: specs, ADRs, `core/<module>/`, a mock's entrypoint, `internal/`, `e2e/NNN_suite/` and `e2etest/`, snapshot `setup/` and `capture.sh`, `tools/`, repo files. `claude-mock/evidence/` is frozen. Verified with today's engine (`sr-session pre-tool`), so it can be switched on before the rest. |
 | **invariants** | `invariant-grounded` | G+P | the statement is what the user's words ask |
 | | `invariant-covered` | D | ≥1 `sr:invariant` site and ≥1 `sr:proves` test; no unknown ids |
 | | `invariant-rigor` | P | per invariant touched: its statement and ALL its tests. Each test proves it, and together they cover every condition, edge and failure path |

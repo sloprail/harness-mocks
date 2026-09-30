@@ -3,8 +3,9 @@
 #
 #   <harness>-mock/snapshots/
 #     MANIFEST.yaml          version: <the one freeze point>
-#                            docs: {<page>.md: {url: <the page's canonical URL>, version}}
-#     docs/<page>.md         a doc page, copied at that version
+#                            docs: {<page URL>: {version, sha256}}
+#     docs/<host>/<path>.md  a doc page, copied at that version; its path is a
+#                            pure function of its URL (doc_path), so no lookup
 #     runs/<name>/           a recorded real scenario
 #       run.yaml             version, command
 #       setup/               what makes it this scenario (settings, hooks, prompt)
@@ -13,7 +14,7 @@
 #         …                  the raw capture (payloads.jsonl, stream.jsonl, transcript/)
 #
 # A capability cites them per harness: docs by the page's full URL plus
-# #anchor (resolved to the copy whose MANIFEST url matches), runs by their
+# #anchor (the copy is at doc_path of that URL), runs by their
 # repo-relative path (<harness>-mock/snapshots/runs/<name>). A run is a
 # scenario; its captures are the timestamped samples inside it.
 
@@ -39,14 +40,20 @@ doc_section() {
     END { exit found ? 0 : 1 }' "$file"
 }
 
-# doc_file HARNESS URL — the snapshot file MANIFEST.docs registers for URL
-# (anchor dropped), relative to the snapshots dir. Exit 1 if none.
+# doc_path URL — where the copy of a doc page lives, relative to the snapshots
+# dir: https://code.claude.com/docs/en/hooks#stop → docs/code.claude.com/docs/en/hooks.md
+doc_path() {
+  local u="${1%%#*}"; u="${u%%\?*}"; u="${u#https://}"; u="${u#http://}"; u="${u%/}"
+  printf 'docs/%s.md' "$u"
+}
+# doc_url PATH — the inverse: docs/<host>/<path>.md → https://<host>/<path>.
+doc_url() { local p="${1#docs/}"; printf 'https://%s' "${p%.md}"; }
+
+# doc_file HARNESS URL — doc_path of URL, if that copy exists. Exit 1 if not.
 doc_file() {
-  local m="$(snap_dir "$1")/MANIFEST.yaml" page
-  [ -f "$m" ] || return 1
-  page="$(yq -o=json '.docs // {}' "$m" 2>/dev/null | jq -r --arg u "${2%%#*}" 'to_entries[] | select(.value.url == $u) | .key' | head -1)"
-  [ -n "$page" ] || return 1
-  printf 'docs/%s' "$page"
+  local f; f="$(doc_path "$2")"
+  [ -f "$(snap_dir "$1")/$f" ] || return 1
+  printf '%s' "$f"
 }
 
 # doc_ref_section HARNESS URL#ANCHOR — the cited section's text from the snapshot.
