@@ -65,5 +65,20 @@ yaml_str_json() {
   printf '%s' "$1" | yq -o=json '.' 2>/dev/null || printf 'null'
 }
 
-# changed_file PATH — the changeset's entry for PATH, or "null".
-changed_file() { cs_json "[.changeset.files[] | select(.path == \"$1\")][0] // null"; }
+
+# kebab ID — a spec, ADR, run or harness name: lowercase kebab, starting with a letter.
+kebab() { printf '%s' "$1" | grep -Eq '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'; }
+
+# added_lines — every line this changeset adds, one "path<TAB>line<TAB>text" per
+# line, parsed from the unified diffs (new-file line numbers). Moved code counts:
+# it is added at its new path. Deleted files add nothing.
+added_lines() {
+  cs_json '.changeset.files[] | select(.status != "D") | {path, diff}' | while IFS= read -r f; do
+    jq -r '.diff' <<<"$f" | awk -v p="$(jq -r '.path' <<<"$f")" '
+      /^@@/ { match($0, /\+[0-9]+/); n = substr($0, RSTART + 1, RLENGTH - 1) + 0; next }
+      /^\+\+\+/ || /^---/ { next }
+      /^\+/ { print p "\t" n "\t" substr($0, 2); n++; next }
+      /^-/   { next }
+      { n++ }'
+  done
+}

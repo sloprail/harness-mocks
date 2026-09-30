@@ -1,0 +1,4 @@
+# SAMPLE. The one freeze point for the Claude Code snapshots.
+version: 2.1.282
+docs:
+  hooks.md: {url: "https://code.claude.com/docs/en/hooks.md", version: 2.1.282}

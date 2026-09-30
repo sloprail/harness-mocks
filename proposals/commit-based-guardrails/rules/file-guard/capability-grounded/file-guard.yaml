@@ -1,0 +1,14 @@
+# A capability states what each harness providing it documents [judge]. The
+# statement is abstract (harness-neutral); each provider's cited doc sections
+# must support it. Adding or dropping a capability is the user's choice of what
+# to mock, so it needs their words (Sloprail-Cites-User); a change to the
+# statement or its citations does not. One subject per capability touched
+# (its file, or a doc page it cites).
+match: path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/docs/"
+deletions: include
+subjects: ./subjects.sh
+require:
+  - citation: {source_types: [user]}
+    when: ./added-or-removed.sh
+checks:
+  - judge: ./docs-support-statement.md.j2

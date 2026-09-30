@@ -1,0 +1,8 @@
+statement: >-
+  Stop hooks that block keep the turn going only a limited number of times in a
+  row; once the limit is reached, the next block is overridden and the turn ends.
+providers:
+  claude:
+    docs: [hooks.md#stop-input, hooks.md#stop-decision-control, hooks.md#subagentstop-input]
+    runs: [cap, cap-sub]
+  # a harness whose Stop hook cannot block: `cursor: false`

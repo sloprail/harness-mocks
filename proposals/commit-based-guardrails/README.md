@@ -1,184 +1,99 @@
-# Proposal: commit-based guardrails for the invariants and ADR funnels
+# Proposal: commit-based guardrails for invariants, capabilities and ADRs
 
-**Status: for review. Not active.** These rules are written for the
-commit-based sloprail engine being built now: file-guards that judge a
-committed changeset, split into `subjects:`, with `SR_TREE` pointing at the
-commit. They live here, not in `.sloprail/`, because today's engine loads them
-without complaint (it accepts the unknown `subjects:` key), runs them with
-per-file semantics, and feeds the judges empty `{{ subject }}` and
-`{{ changeset }}`. Once the engine lands, activating them is three moves:
-
-| here | becomes |
-|---|---|
-| `rules/` | `.sloprail/` |
-| `adr/` | `adr/` (repo root) |
-| `spec/` | `spec/` (repo root, with real content) |
+**Status: for review. Not active.** Written for the commit-based sloprail
+engine being built now: file-guards judge a committed changeset, split into
+`subjects:`, with `SR_TREE` pointing at the commit. Today's engine would load
+these rules silently (it accepts the unknown `subjects:` key) and run them
+with the wrong semantics, so they live here. To activate, move `rules/` to
+`.sloprail/`, and the other folders to the repo root.
 
 ```
-proposals/commit-based-guardrails/
-├── adr/<kebab-name>/ADR.md     the architecture: 5 ADRs (for your approval), each linking its sloprails
-├── spec/                       SAMPLE catalogs: invariants, coverage matrix, capabilities
-├── rules/                      laid out exactly as .sloprail/
-│   ├── _lib/                   shared helpers and the shared ADR rubric (not rules)
-│   ├── file-guard/             14 file-guards
-│   └── gate/                   1 gate
-├── tests/run.sh                every deterministic part, refusing and passing (55 cases)
-└── tests/judge-cases/          judge cases with expected verdicts, for when the engine can run them
+spec/
+  invariants/<id>.yaml           statement                                   features: the user's words
+  capabilities/<id>.yaml         statement · providers.<harness>: {docs, runs} | false    doc-based mocks
+<harness>-mock/snapshots/        the real harness, frozen at one version
+  MANIFEST.yaml                  version · docs: {<page>.md: {url, version}}
+  docs/<page>.md                 doc pages, copied at that version
+  runs/<name>/                   run.yaml (version, command) · setup/ · samples/<YYYYMMDD-HHMMSS>/events.jsonl
+core/<module>/
+  module.yaml                    home · api
+  signatures.sh                  prints regexes that mean "this module's logic"
+adr/<kebab-name>/ADR.md          concern · sloprails · modules · exceptions · limits; ## Concern ## Decision
+rules/                           → .sloprail/  (18 file-guards, 1 gate)
+tests/judge-cases/               judge inputs with their expected verdicts
 ```
 
-Legend: **[G]** grounded (needs the user's words on the commit,
-`Sloprail-Cites-User:`) · **[D]** deterministic script · **[P]** judge.
-
----
-
-## The invariants funnel
-
-```
-user's words ─[G]─► invariants ─[G]─► coverage matrix ─[D]─► tests exist ─[P]─► tests do what the item says
-                    stage 1            stage 2               stage 3            stage 4
-```
-
-| rule | kind | unit | what it holds |
-|---|---|---|---|
-| `invariant-grounded` | [G][P] | one per invariant added, changed or removed | the statement says what the cited words ask, no more and no less |
-| `matrix-grounded` | [G][P] | one per matrix item added, changed or removed | `case`/`expect` follow from the invariants covered, and the words agree the case is worth covering |
-| `matrix-covered` | [D] | whole committed tree | every item has a `// sr:proves <item>` test · every invariant is in an item and has `// sr:invariant <id>` code · no marker names an unknown id · proofs only in `*_test.go` |
-| `test-matches-item` | [P] | one per item whose entry or proving test changed | the proving test sets up the case and asserts the expected outcome |
-
-**Samples:**
-- [`spec/invariants.yaml`](spec/invariants.yaml) holds 4 invariants, all real
-  Claude Code 2.1.282 behaviour from `claude-mock/EVIDENCE.md`: the Stop
-  block cap, `CLAUDE_CODE_SESSION_ID` in every child process, the PreToolUse
-  refusal, and the compaction order.
-- [`spec/matrix.yaml`](spec/matrix.yaml) holds 8 items, including an
-  interaction case (compaction after a refused tool).
-
-Markers in code look like this:
+Markers each take one token, per the engine's marker grammar:
 
 ```go
-// sr:invariant stop.block-cap          ← on the code that upholds it
-// sr:proves stop.block-cap.default     ← on the test function that proves the item
+// sr:invariant <id>              code upholding an invariant
+// sr:proves <id>                 a test proving an invariant
+// sr:capability <id>             a capability's one implementation, in core/
+// sr:provides <id>/<harness>     that harness's adapter for it
+// sr:proves <id>/<harness>       a test proving it for that harness
 ```
 
----
+Legend: **D** deterministic · **P** judge · **G** needs the user's words on
+the commit (`Sloprail-Cites-User:`).
 
-## The ADR funnel
+## Rules
 
-ADRs live at `adr/<kebab-name>/ADR.md`: plain kebab names, no numbers or dates
-(rules find an ADR by its link, git keeps the order, and numbers collide across
-parallel worktrees). **An ADR in the tree is in force**: there is no status, and
-a retired ADR is deleted (git keeps it). Not yet accepted means not yet merged.
-
-**An ADR states only the current decision, in the present tense.** It has no
-history, no description of today's code, no commit references and no plans,
-because its text goes into judge prompts, which apply it literally. Legacy
-code appears only as paths under `exceptions:`. The context behind a decision
-belongs in its commit message or PR.
-
-```markdown
----
-concern: the size of Go files                        # one line: the index concern-placement uses
-sloprails: [gate/file-size, file-guard/file-size]   # ≥1, each <nature>/<name>
-home: ["core/hooks/**"]      # optional: where this concern lives (module ADRs)
-api:  ["core/hooks"]         # optional: what others may import from the home
-exceptions: [...]            # optional: legacy paths; the list only shrinks
-limits: {...}                # optional: settings the linked rules read
----
-# Title
-## Concern
-## Decision
-```
-
-**Links are many-to-many.** A rule finds the ADRs it enforces by its own
-qualified name, so nothing inside a rule names an ADR:
-- `file-size` reads its limits and exceptions from whichever ADR links it;
-- one rule (`concern-placement`) enforces several ADRs;
-- one ADR (`file-size`) is enforced by a gate plus a file-guard.
-
-### Rules about ADRs themselves
-
-| rule | kind | what it holds |
-|---|---|---|
-| `adr-linked` | [D] | every ADR is kebab-named (starting with a letter), has a one-line `concern`, has no `status`, links ≥1 sloprail, and every link resolves to a rule folder. List types and the two sections are checked. Unparseable frontmatter is refused, not skipped. It re-runs when a rule changes, so deleting a linked rule fails. |
-| `adr-matches-sloprails` | [P] | one per ADR whose text, or any linked rule, changed. The judge sees the ADR and every file of every linked rule, and checks that each Decision bullet is enforced by some rule, that no rule refuses what no ADR decides, and that the matches cover what the decision governs. |
-| `adr-well-formed` | [P] | one per changed `ADR.md`: one concern; the decision is a checkable rule naming the place or mechanism (no "prefer" or "where possible"); scoped; **present tense, current state only** (no history, commit references or plans; legacy code only in `exceptions`); no contradictions with the frontmatter. Judge case: [`tests/judge-cases/adr-well-formed/history-in-adr`](tests/judge-cases/adr-well-formed/history-in-adr/expected.yaml). |
-| `adr-grounded` | [G][P] | a new ADR, a changed decision, a new exception, a changed `home`/`api`, or a link added or dropped needs your words, and they must ask for that. Shrinking `exceptions` is waived. |
-| `concern-placement` | [P] | one per changeset. **Undeclared:** code implements a cross-cutting concern no ADR decides → fail, and you decide. **Leak:** code implements a concern whose ADR has a `home`, outside that home → fail. It gets only an index of the ADRs (id, `concern`, `home`), about 50 tokens each, not their full text, so the prompt stays small as ADRs grow. |
-
-### The ADRs, and the rules that enforce them
-
-| ADR | sloprails | deterministic part | judged part |
+| | rule | kind | holds |
 |---|---|---|---|
-| `file-size` | `gate/file-size`, `file-guard/file-size` | ≤150 lines, tests ≤400; 17 legacy files may not grow. Checked before the write, and again at commit. | — |
-| `layering` | `file-guard/layering` | `go list`: core imports no mock; no mock imports another | — |
-| `subprocess-env` | `file-guard/subprocess-env` | only `core/procenv` assigns `cmd.Env`; 5 legacy files may not add any | an env built any other way |
-| `capability-once` | `file-guard/capability-once` | `spec/capabilities.yaml` ⇄ markers, both directions (below) | adapter code only translates |
-| `hooks-module` (sample module ADR) | `file-guard/module-boundaries`, `file-guard/concern-placement` | nothing outside `core/hooks/**` imports past its api `core/hooks` | hook logic inlined anywhere else is a leak |
+| **invariants** | `invariant-grounded` | G+P | the statement is what the user's words ask |
+| | `invariant-covered` | D | ≥1 `sr:invariant` site and ≥1 `sr:proves` test; no unknown ids |
+| | `invariant-rigor` | P | per invariant touched: its statement and ALL its tests. Each test proves it, and together they cover every condition, edge and failure path |
+| **capabilities** | `capability-grounded` | P (+G to add/drop one) | each provider's cited doc sections say what the statement says |
+| | `capability-covered` | D | one `sr:capability` in core; `sr:provides` and ≥1 proving test for each cell that isn't `false`; every mock has a cell (`false`, never omitted) |
+| | `capability-rigor` | P | per capability × harness touched: the tests prove it as that harness's docs and runs show it |
+| | `snapshots-current` | D | runs and docs match `version` (a bump makes them stale); samples are timestamped, have `events.jsonl`, and aren't duplicates; every cited `page#anchor` and run resolves; an uncited run fails |
+| | `fidelity-replay` | D | the cited runs, replayed against the mock by `tools/replay`, match a sample |
+| **ADRs** | `adr-linked` | D | kebab name, one-line `concern`, no `status`, links ≥1 existing rule, linked modules exist, has the sections |
+| | `adr-well-formed` | P | one concern, checkable, present tense only (no history, commit references or plans) |
+| | `adr-matches-sloprails` | P | the ADR and its linked rules say the same thing |
+| | `adr-grounded` | G+P | an ADR, or a `module.yaml`, changes only with the user's words (shrinking `exceptions` is waived) |
+| | `concern-undeclared` | P | once per changeset, from an ADR index (id + concern): changed code implements a concern no ADR covers |
+| **modules** | `module-boundaries` | D | nothing imports past a module's `api` |
+| | `module-leaks` | D→P | see below |
+| **ADR-specific** | `file-size` (+ gate), `layering`, `subprocess-env` | D | limits and exceptions are read from the linked ADR |
 
----
+**`module-leaks`:**
+1. It greps each module's signatures on the lines this range adds. It greps
+   the whole tree only when that module's `module.yaml` or `signatures.sh`
+   changed.
+2. It drops matches inside the module's home, in tests, and in paths the
+   module's ADRs list as exceptions.
+3. It judges only what's left: a leak, or just a use? With nothing left, it
+   makes no judge call. Code outside the range was judged when its own range
+   passed, so it isn't grepped again.
 
-## Answers to the review
+## Samples
 
-**How do we prove each capability actually has markers?**
-`capability-once`'s script checks the catalog against the code in both
-directions, over the whole committed tree:
-- each capability in [`spec/capabilities.yaml`](spec/capabilities.yaml) has
-  exactly one `// sr:capability <id>`, under `core/`;
-- each `supported` cell has a `// sr:provides <id> <harness>` under
-  `<harness>-mock/`;
-- every harness mock has a cell for every capability (a missing cell fails,
-  and `n/a` needs a reason);
-- a marker for an uncatalogued capability, or a provides in an `n/a` cell,
-  fails.
+- **Capabilities:** `stop-block-cap`, `pretooluse-refusal` and
+  `manual-compaction`, citing real anchors of the Claude Code hooks page and
+  the runs recorded today in `claude-mock/evidence/`.
+- **Invariants:** `scenario-prompt-env` and `prompt-context-appended`: the
+  mock's own features.
+- **Module:** `core/hooks` (sample).
+- **Snapshots:** `MANIFEST.yaml` and `runs/cap/run.yaml`.
+- **ADRs:** `file-size`, `layering`, `subprocess-env`, `capability-once` and
+  `hooks-module`. They're for your approval.
 
-Code that implements a capability with no marker at all can't be seen by a
-marker check. That's `concern-placement`'s judge: capability behaviour outside
-`core/` (the ADR's `home`) is a leak.
+## What the engine must provide
 
-**Modules/DDD pieces that gravitate their stuff and don't leak.**
-This is the same ADR mechanism, not a separate one. A module is an ADR with
-`home` and `api` (sample: [`adr/hooks-module`](adr/hooks-module/ADR.md)).
-Enforcement comes in two halves:
-- **`module-boundaries` [D]:** nothing outside the home imports past the api.
-  This is `go list`, and it's exact.
-- **`concern-placement` [P]:** module logic re-implemented inline elsewhere.
-  That isn't an import, so only a judge can see it.
+- a Changeset payload: `.changeset.{base, head, commits[].trailers, files[].{path, status, diff, …}, citations[]}`;
+- `SR_TREE`;
+- `subjects:`, and `{{ subject }}` in templates;
+- `require: citation` resolved from `Sloprail-Cites-User:` trailers;
+- check paths that point outside the rule's folder (`../../_lib/…`);
+- `{"skip": true}` from a `prepare`.
 
-`capability-once` is the same idea for capabilities (`home: core/**`).
+## Open
 
-**A judge for `ADR.md` itself.** `adr-well-formed` judges the content, and
-`adr-linked` checks the format deterministically.
-
----
-
-## What these rules assume the engine provides
-
-| assumed | used by |
-|---|---|
-| a Changeset payload: `.changeset.{base, head, commits[].trailers, files[], others[], citations[]}` | every rule |
-| `SR_TREE`: a read-only checkout of the commit being judged | every script that reads beyond the diff |
-| `subjects:` → `{"subjects":[{id, files, context}]}`, and `{{ subject }}` in templates | all rules marked "one per" above |
-| `require: citation` resolved from `Sloprail-Cites-User:` trailers into `.changeset.citations` | `invariant-grounded`, `matrix-grounded`, `adr-grounded` |
-| a check path may point outside the rule's folder (`../../_lib/…`) | the ADR judges, the file-size gate |
-| a `prepare` may return `{"skip": true}` | `_lib/linked-adrs.sh`, for a rule no ADR links |
-
-## Running the tests
-
-```
-proposals/commit-based-guardrails/tests/run.sh
-```
-
-The harness builds throwaway git trees and Changeset payloads, and calls each
-script the way the engine will. It also runs `adr-linked` over this proposal's
-own `adr/` and `rules/`, so the sample ADRs are shown to be well-formed and
-linked. The judges need the engine and are not exercised. Their subjects
-scripts are, since those decide what each judge sees.
-
-## Open questions
-
-1. Are these the right first ADRs, and what's missing (e.g. transcript-write
-   through one writer, harness wire format only in adapters)?
-2. The 150/400 line limits.
-3. Are capabilities invariants too? Today `spec/capabilities.yaml` and
-   `spec/invariants.yaml` are separate. An invariant could name the
-   capability it belongs to, making the matrix per (capability × harness).
+1. **Snapshot docs:** copying Claude Code's doc pages into this public repo.
+   Is that OK licence-wise, or should docs be snapshotted by content hash
+   only, and fetched when a rule runs?
+2. **Migrating `claude-mock/evidence/`:** each fixture becomes
+   `runs/<name>/samples/<ts>/`, plus an `events.jsonl`. That needs the capture
+   normalizer, and `tools/replay` for `fidelity-replay`.
+3. **Parked:** dimensions and suites.

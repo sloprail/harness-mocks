@@ -23,8 +23,9 @@ literally. It must be specific enough that two readers apply it the same way.
 - **Checkable.** Every rule in the Decision could be checked from the code:
   by a script (an import, a path, a marker, a count) or by a reader comparing
   a change against it.
-- **Scoped.** It is clear which code the decision governs. For a module ADR,
-  `home` covers where the concern lives, and `api` names what others may use.
+- **Scoped.** It is clear which code the decision governs. A module ADR
+  names its module under `modules:`; that module's module.yaml holds the
+  boundary (home, api).
 - **Present tense, current state only.** It states the decision in force: no
   history ("today", "used to", "was split"), no description of the code as it
   is now, no commit references, no plans ("will", "later", "migrate"). Code
@@ -35,7 +36,7 @@ literally. It must be specific enough that two readers apply it the same way.
 - **`concern:`** in the frontmatter names, in one line, the same concern as
   `## Concern`.
 - **No contradiction** with itself, or with the frontmatter (concern, limits,
-  exceptions, home, api).
+  exceptions, modules).
 
 ## Fail
 

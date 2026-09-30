@@ -1,0 +1,11 @@
+# For each harness providing a capability, its tests rigorously prove it AS
+# THAT HARNESS DOES IT [judge]: against the statement, the harness's cited doc
+# sections, and its recorded runs. One judge per (capability × harness)
+# touched.
+match: >-
+  path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/"
+  or any(markers, .kind == "capability" or .kind == "provides" or .kind == "proves")
+  or any(oldMarkers, .kind == "capability" or .kind == "provides" or .kind == "proves")
+subjects: ./subjects.sh
+checks:
+  - judge: ./tests-prove-as-documented.md.j2

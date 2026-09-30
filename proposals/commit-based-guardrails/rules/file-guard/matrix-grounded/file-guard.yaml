@@ -1,9 +1,0 @@
-# Stage 2 of the invariants funnel [grounded + judge]: a coverage-matrix item is
-# a case that follows from the invariants it covers (including how they
-# interact), and the user's words agree it is a case worth covering.
-match: path == "spec/matrix.yaml"
-subjects: ./subjects.sh
-require:
-  - citation: {source_types: [user]}
-checks:
-  - judge: ./item-from-invariants.md.j2

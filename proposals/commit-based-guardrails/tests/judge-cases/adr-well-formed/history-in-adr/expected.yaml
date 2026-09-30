@@ -1,4 +1,4 @@
-# A judge case: needs the engine (sr-agent) to run, so tests/run.sh only proves
+# A judge case: needs the engine (sr-agent) to run. Verified by hand:
 # the deterministic half: this ADR PASSES adr-linked (its format is valid), so
 # the history in it is caught by nothing but adr-well-formed's judge.
 rule: file-guard/adr-well-formed

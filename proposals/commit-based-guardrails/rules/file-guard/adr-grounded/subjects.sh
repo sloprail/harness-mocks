@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# One subject per ADR folder the changeset touched: its ADR.md before and
+# One subject per ADR folder, or module.yaml, the changeset touched: its ADR.md before and
 # after, and the diffs of every file in the folder that changed.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 cs_json '
-  [.changeset.files[] | select(.path | test("^adr/[a-z0-9-]+/"))
-   | . + {adr: (.path | split("/")[1])}]
+  [.changeset.files[] | select((.path | test("^adr/[a-z0-9-]+/")) or (.path | endswith("/module.yaml")))
+   | . + {adr: (if (.path | startswith("adr/")) then (.path | split("/")[1]) else "module:" + (.path | rtrimstr("/module.yaml")) end)}]
   | group_by(.adr)
   | {subjects: map({
       id: .[0].adr,

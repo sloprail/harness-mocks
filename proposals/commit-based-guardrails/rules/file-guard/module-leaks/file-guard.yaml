@@ -1,0 +1,17 @@
+# A module's logic lives only in its home [deterministic, then judge]:
+#   1. [D] each module's signatures.sh prints regexes that mean "this is the
+#      module's logic"; grep them on the lines this range ADDS (moved code is
+#      added at its new path) — or on the whole tree when the module's own
+#      module.yaml or signatures.sh changed;
+#   2. [D] drop matches inside the module's home, in tests, and in files an
+#      ADR linking the module lists under `exceptions`;
+#   3. [P] judge only what is left: an implementation of the module's logic
+#      outside it (a leak), or a use of it (calling its API, a log line)?
+# No match left: the judge is skipped. Earlier ranges were judged already
+# (the per-rule watermark), so unchanged code is never grepped again.
+match: >-
+  (path endsWith ".go" and not (path endsWith "_test.go"))
+  or path endsWith "module.yaml" or path endsWith "signatures.sh"
+checks:
+  - prepare: ./find-leaks.sh
+    judge: ./leak-or-use.md.j2

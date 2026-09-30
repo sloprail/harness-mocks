@@ -1,0 +1,7 @@
+# The real-harness snapshots are frozen at one version per harness, every
+# citation into them resolves, and none sits unused [deterministic]. Bumping a
+# MANIFEST version fails every run and doc still captured at the old one.
+match: path matches "^[a-z0-9]+-mock/snapshots/" or path startsWith "spec/capabilities/"
+deletions: include
+checks:
+  - script: ./current.sh

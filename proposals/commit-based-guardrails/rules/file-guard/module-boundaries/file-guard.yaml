@@ -1,8 +1,7 @@
-# Modules keep their insides to themselves [deterministic]. A module ADR
-# declares `home` (where everything about its concern lives) and `api` (the
-# packages others may import). Nothing outside a module's home imports a
-# package inside it that is not its api. Whether a concern LEAKS into other
-# code without an import is concern-placement's judge.
-match: path endsWith ".go" or path == "go.mod" or path startsWith "adr/"
+# Modules keep their insides to themselves [deterministic]. A module's
+# module.yaml declares `home` (where everything about it lives) and `api` (the
+# packages others may import). Nothing outside a home imports a package inside
+# it that is not its api. Logic that leaks WITHOUT an import is module-leaks'.
+match: path endsWith ".go" or path == "go.mod" or path endsWith "module.yaml"
 checks:
   - script: ./imports-through-api.sh

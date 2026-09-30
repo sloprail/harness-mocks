@@ -1,0 +1,14 @@
+# Every cross-cutting concern has a decision [judge]. One judge per changeset,
+# over its changed Go files under core/ or a mock: code that implements a
+# concern no ADR covers fails, and the user decides (a new ADR, or the ADR it
+# falls under). Where a decided concern lives is module-leaks' job.
+# It gets only an index of the ADRs (id, one-line concern), not their text: it
+# decides which concern code implements, never whether the code follows a
+# decision (each ADR's own rules judge that). So the prompt stays small as ADRs
+# grow.
+match: >-
+  path endsWith ".go" and not (path endsWith "_test.go")
+  and (path startsWith "core/" or path matches "^[a-z0-9]+-mock/")
+checks:
+  - prepare: ./adr-index.sh
+    judge: ./classify.md.j2
