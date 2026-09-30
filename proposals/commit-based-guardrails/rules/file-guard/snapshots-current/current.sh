@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Per harness with snapshots, against its MANIFEST.yaml `version`:
-#   docs   every docs/<page> is registered in MANIFEST.docs, with version == version
+#   script <harness>-mock/snapshots/capture.sh exists: the only writer
+#   docs   every docs/<page> is registered in MANIFEST.docs, with version ==
+#          version and a sha256 that matches the file (a hand edit breaks it)
 #   runs   kebab name; run.yaml version == version; ≥1 sample; sample dirs are
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
-#          have identical events (a re-run that changed nothing adds nothing)
+#          have identical events (a re-run that changed nothing adds nothing);
+#          each sample's SEAL lists exactly its files, with matching sha256s
 # Per capability cell: every cited doc URL is copied in MANIFEST.docs and its
 # #anchor resolves to a heading in that copy; every cited run path exists. A run no capability cites fails.
 set -uo pipefail
@@ -27,6 +30,7 @@ for h in $(harnesses); do
   m="$(yq -o=json '.' "$d/MANIFEST.yaml" 2>/dev/null)" || { add "$h-mock/snapshots/MANIFEST.yaml is missing or not valid YAML"; continue; }
   ver="$(jq -r '.version // ""' <<<"$m")"
   [ -n "$ver" ] || { add "$h-mock/snapshots/MANIFEST.yaml has no version"; continue; }
+  [ -f "$d/capture.sh" ] || add "$h-mock/snapshots/capture.sh is missing: snapshots are only written by it"
 
   for f in "$d"/docs/*; do
     [ -f "$f" ] || continue
@@ -34,6 +38,8 @@ for h in $(harnesses); do
     dv="$(jq -r --arg p "$p" '.docs[$p].version // ""' <<<"$m")"
     [ -n "$dv" ] || { add "$h-mock/snapshots/docs/$p is not registered in MANIFEST.docs"; continue; }
     [ "$dv" = "$ver" ] || add "$h-mock/snapshots/docs/$p was copied at $dv, not $ver: re-fetch it"
+    [ "$(jq -r --arg p "$p" '.docs[$p].sha256 // ""' <<<"$m")" = "$(hash "$f")" ] ||
+      add "$h-mock/snapshots/docs/$p does not match the sha256 capture.sh recorded: it was edited by hand; re-fetch it with capture.sh doc"
   done
   for p in $(jq -r '(.docs // {}) | keys[]' <<<"$m"); do
     [ -f "$d/docs/$p" ] || add "MANIFEST.docs registers $p, but $h-mock/snapshots/docs/$p does not exist"
@@ -51,6 +57,13 @@ for h in $(harnesses); do
       n=$((n + 1)); ts="$(basename "$s")"
       printf '%s' "$ts" | grep -Eq '^[0-9]{8}-[0-9]{6}$' || add "run $h/$name: sample '$ts' must be named YYYYMMDD-HHMMSS (UTC)"
       [ -f "$s/events.jsonl" ] || { add "run $h/$name sample $ts has no events.jsonl"; continue; }
+      if [ ! -f "$s/SEAL" ]; then add "run $h/$name sample $ts has no SEAL: it was not written by capture.sh"
+      else
+        listed="$(awk '{print $2}' "$s/SEAL" | LC_ALL=C sort)"
+        actual="$(cd "$s" && find . -type f ! -name SEAL | LC_ALL=C sort)"
+        [ "$listed" = "$actual" ] && (cd "$s" && shasum -a 256 -c SEAL >/dev/null 2>&1) ||
+          add "run $h/$name sample $ts does not match its SEAL: it was edited by hand; re-capture it with capture.sh run $name"
+      fi
       hv="$(hash "$s/events.jsonl")"
       dup="$(printf '%s\n' "$seen" | awk -v h="$hv" '$1 == h {print $2}')"
       [ -z "$dup" ] || add "run $h/$name: sample $ts has the same events as $dup; drop it"

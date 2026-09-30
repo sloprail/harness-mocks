@@ -11,16 +11,18 @@ with the wrong semantics, so they live here. To activate, move `rules/` to
 spec/
   invariants/<id>.yaml           statement                                   features: the user's words
   capabilities/<id>.yaml         statement · providers.<harness>: {docs: [full URL#anchor], runs: [repo path]} | false
-<harness>-mock/snapshots/        the real harness, frozen at one version
+<harness>-mock/snapshots/        the real harness, frozen at one version; written ONLY by capture.sh
+  capture.sh                     one per harness: run <scenario> | doc <url> | all (re-capture at the installed version)
   MANIFEST.yaml                  version · docs: {<page>.md: {url (canonical page URL), version}}
-  docs/<page>.md                 doc pages, copied at that version
-  runs/<name>/                   a scenario: run.yaml (version, command) · setup/ ·
-                                 samples/<YYYYMMDD-HHMMSS>/events.jsonl (each capture, timestamped)
+  docs/<page>.md                 doc pages pulled as markdown (<url>.md), once per page, shared by every capability
+  runs/<name>/setup/             the scenario, hand-authored: prompt.txt · settings.json · hook.sh · args
+  runs/<name>/run.yaml           version, command (written by capture.sh)
+  runs/<name>/samples/<ts>/      each capture, timestamped: events.jsonl (normalized) · raw payloads/stream/transcript · SEAL
 core/<module>/
   module.yaml                    home · api
   candidates.sh                  owns the search for its logic: prints path:line:snippet
 adr/<kebab-name>/ADR.md          concern · sloprails · modules · exceptions · settings (limits, space); ## Concern ## Decision
-rules/                           → .sloprail/  (19 file-guards, 1 gate)
+rules/                           → .sloprail/  (19 file-guards, 2 gates)
 tests/judge-cases/               judge inputs with their expected verdicts
 ```
 
@@ -47,7 +49,8 @@ the commit (`Sloprail-Cites-User:`).
 | **capabilities** | `capability-grounded` | P (+G to add/drop one) | each provider's cited doc sections say what the statement says |
 | | `capability-covered` | D | one `sr:capability` in core; `sr:provides` and ≥1 proving test for each cell that isn't `false`; every mock has a cell (`false`, never omitted) |
 | | `capability-rigor` | P | per capability × harness touched: the tests prove it as that harness's docs and runs show it |
-| | `snapshots-current` | D | runs and docs match `version` (a bump makes them stale); samples are timestamped, have `events.jsonl`, and aren't duplicates; every cited `page#anchor` and run resolves; an uncited run fails |
+| | `snapshots-read-only` | gate | a Write, Edit or visible shell write under `snapshots/` is refused, pointing at `capture.sh`. `setup/` and `capture.sh` stay editable. |
+| | `snapshots-current` | D | runs and docs match `version` (a bump makes them stale); each sample matches its `SEAL` and each doc its recorded sha256, so a hand edit is caught at the commit; samples are timestamped, have `events.jsonl`, and aren't duplicates; every cited URL, anchor and run resolves; an uncited run fails; `capture.sh` exists |
 | | `fidelity-replay` | D | the cited runs, replayed against the mock by `tools/replay`, match a sample |
 | **ADRs** | `adr-linked` | D | kebab name, one-line `concern`, no `status`, links ≥1 existing rule, linked modules exist, has the sections |
 | | `adr-well-formed` | P | one concern, checkable, present tense only (no history, commit references or plans) |
@@ -78,7 +81,7 @@ the commit (`Sloprail-Cites-User:`).
 - **Invariants:** `scenario-prompt-env` and `prompt-context-appended`: the
   mock's own features.
 - **Module:** `core/hooks` (sample). Its `candidates.sh` finds 24 candidates in today's code, all of them in tests, which the rule drops.
-- **Snapshots:** `MANIFEST.yaml` and `runs/cap/run.yaml`.
+- **Snapshots:** `MANIFEST.yaml`, the `capture.sh` for Claude Code, and one authored scenario, `runs/cap/setup/` (a Stop hook that always blocks). `capture.sh` was run against a stub `claude` and the live hooks page, and its output passes `snapshots-current`, while a hand edit to a sample or the doc fails it.
 - **ADRs:** `file-size`, `layering`, `subprocess-env`, `capability-once` and
   `hooks-module` and `modules-cover-code`. They're for your approval.
 

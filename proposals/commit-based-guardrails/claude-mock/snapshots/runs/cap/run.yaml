@@ -1,5 +1,0 @@
-# SAMPLE. A recorded real scenario: a Stop hook that always blocks.
-version: 2.1.282
-command: claude -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose
-# setup/ holds settings.json + hook.sh (today: claude-mock/evidence/cap/)
-# samples/<YYYYMMDD-HHMMSS>/ holds events.jsonl + the raw capture
