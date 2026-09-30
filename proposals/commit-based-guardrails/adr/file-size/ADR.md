@@ -1,11 +1,10 @@
 ---
-status: proposed
+concern: the size of Go files
 sloprails: [gate/file-size, file-guard/file-size]
 limits:
   go: 150         # non-test Go
   go_test: 400    # *_test.go
-# Files over their limit when this ADR was written. Each may not grow, and the
-# list may only shrink (a split is a Sloprail-Refactor: move-only commit).
+# Files over their limit. Each does not grow; the list only shrinks.
 exceptions:
   - claude-mock/internal/runner/session.go            # 701
   - claude-mock/internal/runner/background.go         # 667
@@ -30,22 +29,11 @@ exceptions:
 
 ## Concern
 
-File size. In the sibling sloprail repo, 101 of 159 Go files grew past the
-skills' own ~150-line ceiling, and 12 were created already oversized, because
-the rule was prose nobody checked at write time. Large files are where
-near-duplicate logic hides and drifts.
+The size of every Go file in the repository.
 
 ## Decision
 
 - A non-test Go file has at most `limits.go` lines. A test file has at most
   `limits.go_test` lines.
-- A file listed under `exceptions` may not grow.
-- It is checked before a Write or Edit lands (`gate/file-size`), and again on
-  every commit (`file-guard/file-size`), which also sees shell writes and
-  generated files.
-
-## Consequences
-
-New code is split by responsibility from the start. Legacy files shrink
-through move-only refactors, and each split removes its line from
-`exceptions`.
+- A file listed under `exceptions` does not grow.
+- New code is split by responsibility into files within the limit.

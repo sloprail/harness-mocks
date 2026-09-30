@@ -1,5 +1,5 @@
 ---
-status: proposed
+concern: which packages core and the harness mocks may import
 sloprails: [file-guard/layering]
 ---
 
@@ -7,17 +7,11 @@ sloprails: [file-guard/layering]
 
 ## Concern
 
-Package dependencies between the shared core and the per-harness mocks.
-Behaviour common to every harness (tool execution, the session store and
-lifecycle, streaming, hook dispatch) exists once. A mock that imports another
-mock is the first step to copying one harness's shape into another.
+Package imports between `core/` and the per-harness mocks.
 
 ## Decision
 
 - No package under `core/` imports a package under any `*-mock/`.
 - No package under `<a>-mock/` imports a package under a different
-  `<b>-mock/`. It may import `core/` and its own packages.
-
-## Consequences
-
-Anything two mocks both need moves to `core/` first.
+  `<b>-mock/`. It imports only `core/` and its own packages.
+- Code two mocks both need lives in `core/`.

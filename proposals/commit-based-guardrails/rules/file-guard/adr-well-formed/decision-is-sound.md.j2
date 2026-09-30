@@ -25,9 +25,16 @@ literally. It must be specific enough that two readers apply it the same way.
   a change against it.
 - **Scoped.** It is clear which code the decision governs. For a module ADR,
   `home` covers where the concern lives, and `api` names what others may use.
-- **Consequences.** `## Consequences` says what changes for existing and new
-  code, including how any `exceptions` go away.
-- **No contradiction** with itself, or with the frontmatter (limits,
+- **Present tense, current state only.** It states the decision in force: no
+  history ("today", "used to", "was split"), no description of the code as it
+  is now, no commit references, no plans ("will", "later", "migrate"). Code
+  that does not follow the decision yet appears only as paths under
+  `exceptions`. A "why not" is a present-tense rule ("child processes never get
+  `os.Environ()` directly"), not a rejected alternative. (This text goes into
+  judge prompts, which apply it literally.)
+- **`concern:`** in the frontmatter names, in one line, the same concern as
+  `## Concern`.
+- **No contradiction** with itself, or with the frontmatter (concern, limits,
   exceptions, home, api).
 
 ## Fail

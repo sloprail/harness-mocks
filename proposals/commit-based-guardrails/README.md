@@ -16,13 +16,14 @@ per-file semantics, and feeds the judges empty `{{ subject }}` and
 
 ```
 proposals/commit-based-guardrails/
-├── adr/<kebab-name>/ADR.md     the architecture: 5 proposed ADRs, each linking its sloprails
+├── adr/<kebab-name>/ADR.md     the architecture: 5 ADRs (for your approval), each linking its sloprails
 ├── spec/                       SAMPLE catalogs: invariants, coverage matrix, capabilities
 ├── rules/                      laid out exactly as .sloprail/
 │   ├── _lib/                   shared helpers and the shared ADR rubric (not rules)
 │   ├── file-guard/             14 file-guards
 │   └── gate/                   1 gate
-└── tests/run.sh                every deterministic part, refusing and passing (51 cases)
+├── tests/run.sh                every deterministic part, refusing and passing (55 cases)
+└── tests/judge-cases/          judge cases with expected verdicts, for when the engine can run them
 ```
 
 Legend: **[G]** grounded (needs the user's words on the commit,
@@ -63,12 +64,20 @@ Markers in code look like this:
 
 ## The ADR funnel
 
-ADRs live at `adr/<kebab-name>/ADR.md`. Each has frontmatter linking the
-sloprails that enforce it, and three fixed sections:
+ADRs live at `adr/<kebab-name>/ADR.md`: plain kebab names, no numbers or dates
+(rules find an ADR by its link, git keeps the order, and numbers collide across
+parallel worktrees). **An ADR in the tree is in force**: there is no status, and
+a retired ADR is deleted (git keeps it). Not yet accepted means not yet merged.
+
+**An ADR states only the current decision, in the present tense.** It has no
+history, no description of today's code, no commit references and no plans,
+because its text goes into judge prompts, which apply it literally. Legacy
+code appears only as paths under `exceptions:`. The context behind a decision
+belongs in its commit message or PR.
 
 ```markdown
 ---
-status: proposed | accepted | superseded
+concern: the size of Go files                        # one line: the index concern-placement uses
 sloprails: [gate/file-size, file-guard/file-size]   # ≥1, each <nature>/<name>
 home: ["core/hooks/**"]      # optional: where this concern lives (module ADRs)
 api:  ["core/hooks"]         # optional: what others may import from the home
@@ -78,7 +87,6 @@ limits: {...}                # optional: settings the linked rules read
 # Title
 ## Concern
 ## Decision
-## Consequences
 ```
 
 **Links are many-to-many.** A rule finds the ADRs it enforces by its own
@@ -91,13 +99,13 @@ qualified name, so nothing inside a rule names an ADR:
 
 | rule | kind | what it holds |
 |---|---|---|
-| `adr-linked` | [D] | every ADR is kebab-named, links ≥1 sloprail, and every link resolves to a rule folder. Status, list types and the three sections are checked. Unparseable frontmatter is refused, not skipped. It re-runs when a rule changes, so deleting a linked rule fails. |
+| `adr-linked` | [D] | every ADR is kebab-named (starting with a letter), has a one-line `concern`, has no `status`, links ≥1 sloprail, and every link resolves to a rule folder. List types and the two sections are checked. Unparseable frontmatter is refused, not skipped. It re-runs when a rule changes, so deleting a linked rule fails. |
 | `adr-matches-sloprails` | [P] | one per ADR whose text, or any linked rule, changed. The judge sees the ADR and every file of every linked rule, and checks that each Decision bullet is enforced by some rule, that no rule refuses what no ADR decides, and that the matches cover what the decision governs. |
-| `adr-well-formed` | [P] | one per changed `ADR.md`: one concern; the decision is a checkable rule naming the place or mechanism (no "prefer" or "where possible"); scoped; consequences stated; no contradictions with the frontmatter |
+| `adr-well-formed` | [P] | one per changed `ADR.md`: one concern; the decision is a checkable rule naming the place or mechanism (no "prefer" or "where possible"); scoped; **present tense, current state only** (no history, commit references or plans; legacy code only in `exceptions`); no contradictions with the frontmatter. Judge case: [`tests/judge-cases/adr-well-formed/history-in-adr`](tests/judge-cases/adr-well-formed/history-in-adr/expected.yaml). |
 | `adr-grounded` | [G][P] | a new ADR, a changed decision, a new exception, a changed `home`/`api`, or a link added or dropped needs your words, and they must ask for that. Shrinking `exceptions` is waived. |
-| `concern-placement` | [P] | one per changed Go file. **Undeclared:** it implements a cross-cutting concern no ADR decides → fail, and you decide. **Leak:** it implements a concern whose ADR has a `home`, outside that home → fail. |
+| `concern-placement` | [P] | one per changeset. **Undeclared:** code implements a cross-cutting concern no ADR decides → fail, and you decide. **Leak:** code implements a concern whose ADR has a `home`, outside that home → fail. It gets only an index of the ADRs (id, `concern`, `home`), about 50 tokens each, not their full text, so the prompt stays small as ADRs grow. |
 
-### The proposed ADRs, and the rules that enforce them
+### The ADRs, and the rules that enforce them
 
 | ADR | sloprails | deterministic part | judged part |
 |---|---|---|---|

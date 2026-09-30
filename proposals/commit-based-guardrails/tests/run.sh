@@ -249,14 +249,29 @@ sed -i '' 's/^sloprails: .*/sloprails: []/' "$tree/adr/layering/ADR.md"; commit
 run adr-linked links-resolve.sh "$(changeset "[$(file adr/layering/ADR.md M '' '')]")"
 expect "an ADR linking no sloprail is refused" refuse "adr/layering links no sloprail"
 git -C "$tree" reset -q --hard HEAD~1
-sed -i '' 's/^## Consequences/## Outcome/; s/^status: proposed/status: maybe/' "$tree/adr/layering/ADR.md"; commit
+sed -i '' 's/^## Decision/## Outcome/' "$tree/adr/layering/ADR.md"
+sed -i '' '2i\
+status: accepted
+' "$tree/adr/layering/ADR.md"; commit
 run adr-linked links-resolve.sh "$(changeset "[$(file adr/layering/ADR.md M '' '')]")"
-expect "a missing section is refused" refuse "adr/layering has no '## Consequences' section"
-expect "an unknown status is refused" refuse "adr/layering: status must be proposed, accepted or superseded"
+expect "a missing section is refused" refuse "adr/layering has no '## Decision' section"
+expect "a status is refused: an ADR in the tree is in force" refuse "adr/layering has a status"
+git -C "$tree" reset -q --hard HEAD~1
+sed -i '' '/^concern:/d' "$tree/adr/layering/ADR.md"; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file adr/layering/ADR.md M '' '')]")"
+expect "an ADR without a one-line concern is refused" refuse "adr/layering needs 'concern:'"
+git -C "$tree" reset -q --hard HEAD~1
+git -C "$tree" mv adr/layering adr/0002-layering; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file adr/0002-layering/ADR.md A '' '')]")"
+expect "a numbered ADR folder is refused" refuse "adr/0002-layering: the folder name must be kebab-case starting with a letter"
 git -C "$tree" reset -q --hard HEAD~1
 printf -- '---\nsloprails: [file-guard/layering\n---\n' >"$tree/adr/layering/ADR.md"; commit
 run adr-linked links-resolve.sh "$(changeset "[$(file adr/layering/ADR.md M '' '')]")"
 expect "unparseable frontmatter is refused, not skipped" refuse "frontmatter that is not valid YAML"
+git -C "$tree" reset -q --hard HEAD~1
+mkdir -p "$tree/adr/history-in-adr" && cp "$here/judge-cases/adr-well-formed/history-in-adr/ADR.md" "$tree/adr/history-in-adr/"; commit
+run adr-linked links-resolve.sh "$(changeset "[$(file adr/history-in-adr/ADR.md A '' '')]")"
+expect "judge case history-in-adr is format-valid, so only adr-well-formed's judge can catch it" pass
 git -C "$tree" reset -q --hard HEAD~1
 
 # ---------------------------------------------------------------------------
@@ -282,13 +297,16 @@ got="$(printf '%s' "$out" | jq -r '[.subjects[] | "\(.id):\(.context.adr_after)"
 [ "$got" = "file-size:new,subprocess-env:n3" ] && ok "one subject per ADR touched" || bad "adr-grounded subjects" "got '$got' ($out)"
 
 # ---------------------------------------------------------------------------
-echo "adr-well-formed/subjects.sh · concern-placement/all-adrs.sh"
+echo "adr-well-formed/subjects.sh · concern-placement/adr-index.sh"
 run adr-well-formed subjects.sh "$(changeset "[$(file adr/layering/ADR.md M a b d), $(file adr/layering/notes.md A '' x)]")"
 got="$(printf '%s' "$out" | jq -r '[.subjects[].id] | join(",")' 2>/dev/null)"
 [ "$got" = "layering" ] && ok "only a changed ADR.md is judged for form" || bad "adr-well-formed subjects" "got '$got' ($out)"
-run concern-placement all-adrs.sh "$(changeset '[]')"
+run concern-placement adr-index.sh "$(changeset '[]')"
 got="$(printf '%s' "$out" | jq -r '[.additionalContext.adrs[] | select(.home | length > 0) | "\(.id)=\(.home | join(","))"] | join(" ")' 2>/dev/null)"
-[ "$got" = "capability-once=core/** hooks-module=core/hooks/**" ] && ok "the placement judge gets every ADR, with each home" || bad "all-adrs" "got '$got' ($out)"
+[ "$got" = "capability-once=core/** hooks-module=core/hooks/**" ] && ok "the placement judge gets every ADR's home" || bad "adr-index homes" "got '$got' ($out)"
+got="$(printf '%s' "$out" | jq -r '[.additionalContext.adrs[] | keys | join(",")] | unique | join(" ")' 2>/dev/null)"
+[ "$got" = "concern,home,id" ] && ok "…as an index (id, concern, home), never the full ADR text" || bad "adr-index shape" "got '$got'"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

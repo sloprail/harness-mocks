@@ -1,14 +1,18 @@
 # Every cross-cutting concern has a decision, and lives where its decision puts
-# it [judge]. One judge per changed Go file under core/ or a mock:
-#   - it implements a concern no ADR covers → fail: the user decides (a new
-#     ADR, or the ADR it falls under);
-#   - it implements a concern whose ADR declares a `home`, outside that home →
-#     fail: a leak (module logic inlined elsewhere, a capability's behaviour in
-#     an adapter).
+# it [judge]. One judge per changeset, over its changed Go files under core/
+# or a mock:
+#   - code implementing a concern no ADR covers → fail: the user decides (a
+#     new ADR, or the ADR it falls under);
+#   - code implementing a concern whose ADR declares a `home`, outside that
+#     home → fail: a leak (module logic inlined elsewhere, a capability's
+#     behaviour in an adapter).
+# It gets only an index of the ADRs (id, concern, home), not their text: it
+# decides which concern code implements and where it belongs, never whether
+# the code follows a decision (each ADR's own linked rules judge that, with
+# its full text). So the prompt stays small as ADRs grow.
 match: >-
   path endsWith ".go" and not (path endsWith "_test.go")
   and (path startsWith "core/" or path matches "^[a-z0-9]+-mock/")
-subjects: ./subjects.sh
 checks:
-  - prepare: ./all-adrs.sh
+  - prepare: ./adr-index.sh
     judge: ./classify-and-place.md.j2
