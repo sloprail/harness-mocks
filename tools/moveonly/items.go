@@ -22,7 +22,7 @@ type item struct {
 func (i item) key() string {
 	k := i.Kind + "|" + i.Sig + "|"
 	if i.Pin {
-		k += "@" + i.File
+		k += "@" + path.Base(i.File)
 	}
 	return k + "\n" + i.Text
 }
