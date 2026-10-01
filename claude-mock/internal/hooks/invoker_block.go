@@ -14,6 +14,9 @@ type BlockError struct {
 	Command string
 	Stderr  string
 	Reason  string
+	// SuppressPrompt: the hook's JSON asked for the blocked prompt to be left
+	// out of the block message.
+	SuppressPrompt bool
 }
 
 func (e *BlockError) Error() string {

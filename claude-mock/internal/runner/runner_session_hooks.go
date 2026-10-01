@@ -100,7 +100,10 @@ func promptBlocked(cfg Config, tr *transcript, err error) error {
 	if !errors.As(err, &be) {
 		return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
 	}
-	text := "UserPromptSubmit operation blocked by hook:\n" + be.Quoted() + "\n\nOriginal prompt: " + cfg.Prompt
+	text := "UserPromptSubmit operation blocked by hook:\n" + be.Quoted()
+	if !be.SuppressPrompt {
+		text += "\n\nOriginal prompt: " + cfg.Prompt
+	}
 	if tr != nil {
 		tr.persistMap(map[string]any{
 			"type": "system", "subtype": "informational", "content": text,

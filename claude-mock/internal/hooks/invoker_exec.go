@@ -120,7 +120,8 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventNa
 		if run.JSONParsed {
 			run.BlockReason = jsonBlockReason(run.Output)
 		}
-		return run, &BlockError{Command: h.Command, Stderr: run.Stderr, Reason: run.BlockReason}
+		suppress := run.JSONParsed && run.Output.HookSpecificOutput != nil && run.Output.HookSpecificOutput.SuppressOriginalPrompt
+		return run, &BlockError{Command: h.Command, Stderr: run.Stderr, Reason: run.BlockReason, SuppressPrompt: suppress}
 	}
 	if runErr != nil {
 		slog.Debug("hooks: command non-blocking error", "cmd", h.Command, "err", runErr, "stderr", stderr.String())

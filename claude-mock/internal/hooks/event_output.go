@@ -39,8 +39,11 @@ type Output struct {
 
 // HookSpecificOutput carries event-specific control fields inside Output.
 type HookSpecificOutput struct {
-	HookEventName            EventName       `json:"hookEventName,omitempty"`
-	AdditionalContext        string          `json:"additionalContext,omitempty"`
+	HookEventName     EventName `json:"hookEventName,omitempty"`
+	AdditionalContext string    `json:"additionalContext,omitempty"`
+	// SuppressOriginalPrompt leaves the prompt out of a blocked
+	// UserPromptSubmit's message (recorded: snapshots/runs/prompt-blocked-suppressed).
+	SuppressOriginalPrompt   bool            `json:"suppressOriginalPrompt,omitempty"`
 	PermissionDecision       string          `json:"permissionDecision,omitempty"`
 	PermissionDecisionReason string          `json:"permissionDecisionReason,omitempty"`
 	UpdatedInput             json.RawMessage `json:"updatedInput,omitempty"`
