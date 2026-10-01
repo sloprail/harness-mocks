@@ -75,6 +75,8 @@ func (h HandlerSpec) env() []string {
 // event's working directory, the directory the session started in, the project
 // root, the home directory and the system temp directory (docs, Hook handler
 // fields); core picks the first that exists.
+//
+// sr:provides hook-command-handler/claude
 func hookDir(cwd string, fallbacks ...string) string {
 	home, _ := os.UserHomeDir()
 	return corehooks.FirstDir(append(append([]string{cwd}, fallbacks...), home, os.TempDir())...)
