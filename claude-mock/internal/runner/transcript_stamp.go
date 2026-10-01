@@ -25,9 +25,9 @@ type recordStamp struct {
 
 // Real Claude Code's own bookkeeping values for a `claude -p` session: a
 // print-mode run records entrypoint "sdk-cli" (3,210 real records, and every
-// record of the controlled 2.1.282 runs in EVIDENCE.md), userType "external",
-// and its version. The mock models 2.1.282, the version its evidence was taken
-// from.
+// record of the recorded runs under claude-mock/snapshots/runs), userType
+// "external", and its version. The mock models 2.1.285, the version those runs
+// were taken from.
 const (
 	stampUserType   = "external"
 	stampEntrypoint = "sdk-cli"

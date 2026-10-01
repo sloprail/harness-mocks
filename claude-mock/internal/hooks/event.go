@@ -60,7 +60,7 @@ type Input struct {
 	Model string `json:"model,omitempty"`
 
 	// SessionEnd: Reason is why the session ended. A `claude -p` run ends with
-	// reason "other" (verified against claude 2.1.282; see EVIDENCE.md).
+	// reason "other" (recorded in claude-mock/snapshots/runs: the SessionEnd payloads of runs such as resume-unknown).
 	// sr:docs https://code.claude.com/docs/en/hooks#sessionend
 	Reason string `json:"reason,omitempty"`
 

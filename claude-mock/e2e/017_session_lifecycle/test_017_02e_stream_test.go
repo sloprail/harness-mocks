@@ -118,7 +118,7 @@ func TestT017_29b_FailingRead(t *testing.T) {
 // fields claude 2.1.282 writes — spawnDepth, requestShape, requestNonInteractive;
 // parentAgentId for a nested one; model when the call names one; and for an
 // isolated one worktreePath, spawnedWithWorktree and the worktree-agent-<id>
-// branch it really creates (fixture evidence/meta, 626 real sidecars).
+// branch it really creates (snapshots/runs/meta, 626 real sidecars).
 // sr:proves nested-subagents/claude
 // sr:proves subagent-transcripts/claude
 // sr:proves subagent-worktree-isolation/claude
