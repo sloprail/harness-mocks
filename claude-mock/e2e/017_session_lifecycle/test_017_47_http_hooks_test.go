@@ -40,14 +40,14 @@ func TestT017_47_HTTPHookAnswers(t *testing.T) {
 		body   string
 		url    string // overrides the server's
 		want   string // the call's result
-		errMsg string // the non-blocking error recorded, "" for none
+		errMsg string // the non-blocking error recorded: "" none, "*" any text, "=x" exactly x (Claude Code's own wording), else a part of it
 	}{
 		{"empty 2xx", 200, "", "", "RAN", ""},
 		{"2xx json deny", 200, `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"HTTP-DENY"}}`, "", "HTTP-DENY", ""},
-		{"non-2xx with a deny body", 500, `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"HTTP-DENY"}}`, "", "RAN", "HTTP 500"},
-		{"2xx plain text", 200, "not json", "", "RAN", "the response is not a JSON object"},
+		{"non-2xx with a deny body", 500, `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"HTTP-DENY"}}`, "", "RAN", "500"},
+		{"2xx plain text", 200, "not json", "", "RAN", "*"},
 		{"2xx json failing the output schema", 200, `{"decision":"maybe"}`, "", "RAN", "*"},
-		{"unreachable", 0, "", closed, "RAN", "connect ECONNREFUSED " + strings.TrimSuffix(strings.TrimPrefix(closed, "http://"), "/hook")},
+		{"unreachable", 0, "", closed, "RAN", "=connect ECONNREFUSED " + strings.TrimSuffix(strings.TrimPrefix(closed, "http://"), "/hook")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -79,6 +79,9 @@ func TestT017_47_HTTPHookAnswers(t *testing.T) {
 			recs := readRecs(t, transcriptPath(t, cfg, dir, "ht-1"))
 			block, _ := toolResultOf(t, recs, "b1turn-s-a")
 			assert.Contains(t, block["content"], tc.want)
+			if tc.want != "RAN" {
+				assert.NotContains(t, block["content"], "RAN", "the refused call did not run")
+			}
 			var nonBlocking []map[string]any
 			for _, r := range recs {
 				if r.Type == "attachment" && r.Attachment["type"] == "hook_non_blocking_error" {
@@ -90,8 +93,13 @@ func TestT017_47_HTTPHookAnswers(t *testing.T) {
 				assert.Empty(t, nonBlocking)
 			} else {
 				require.Len(t, nonBlocking, 1)
-				if tc.errMsg != "*" { // any message: the schema's complaint is the mock's own wording
-					assert.Equal(t, tc.errMsg, nonBlocking[0]["stderr"])
+				switch {
+				case tc.errMsg == "*": // the mock's own wording
+					assert.NotEmpty(t, nonBlocking[0]["stderr"])
+				case strings.HasPrefix(tc.errMsg, "="):
+					assert.Equal(t, strings.TrimPrefix(tc.errMsg, "="), nonBlocking[0]["stderr"])
+				default:
+					assert.Contains(t, nonBlocking[0]["stderr"], tc.errMsg)
 				}
 				assert.Equal(t, "PreToolUse:Bash", nonBlocking[0]["hookName"])
 				assert.EqualValues(t, 0, nonBlocking[0]["exitCode"])
@@ -118,6 +126,7 @@ func TestT017_47_HTTPHookAnswers(t *testing.T) {
 // discarded, the call goes ahead and the transcript records the cancellation.
 // sr:proves http-hooks/claude
 // sr:proves hook-timeout/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT017_48_HTTPHookTimeout(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

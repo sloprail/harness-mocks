@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -111,4 +112,35 @@ func TestPluginHookEnvironment(t *testing.T) {
 	h := handler("A")
 	h.PluginRoot, h.PluginData = "/p/root", "/p/data"
 	assert.Equal(t, []string{"CLAUDE_PLUGIN_ROOT=/p/root", "CLAUDE_PLUGIN_DATA=/p/data"}, h.env())
+}
+
+// A command hook runs in the event's working directory; when that is gone it
+// falls back to the session's start directory, the project root, the home
+// directory, the temp directory (docs, Hook handler fields).
+// sr:proves hook-command-handler/claude
+func TestHookDirFallsBack(t *testing.T) {
+	live, project := t.TempDir(), t.TempDir()
+	gone := live + "/deleted"
+	assert.Equal(t, live, hookDir(live, project))
+	assert.Equal(t, project, hookDir(gone, "", project), "the first fallback that exists")
+	assert.Equal(t, live, hookDir(gone, live, project), "the session's start directory comes first")
+	home, _ := os.UserHomeDir()
+	assert.Equal(t, home, hookDir(gone, gone+"2", gone+"3"), "then the home directory")
+}
+
+// A handler repeated across the settings files the loader reads runs once.
+// sr:proves hooks-all-matching-run/claude
+func TestLoadSettingsDedupesTheSameHandlerAcrossFiles(t *testing.T) {
+	repo := t.TempDir()
+	writeClaudeSettings(t, repo, "settings.json",
+		`{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"SAME"},{"type":"http","url":"http://x"}]}]}}`)
+	writeClaudeSettings(t, repo, "settings.local.json",
+		`{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"SAME"},{"type":"http","url":"http://x"},{"type":"command","command":"OTHER"}]}]}}`)
+	got, err := LoadSettings(repo, t.TempDir())
+	assert.NoError(t, err)
+	var cmds []string
+	for _, h := range got.EntriesFor(EventPreToolUse, "Bash") {
+		cmds = append(cmds, h.Type+":"+h.Command+h.URL)
+	}
+	assert.Equal(t, []string{"command:SAME", "http:http://x", "command:OTHER"}, cmds)
 }

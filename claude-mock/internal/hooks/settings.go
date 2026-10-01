@@ -86,17 +86,28 @@ func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) 
 
 // EntriesFor returns the handler entries configured for the given event whose
 // matcher selects subject (what the event filters on: see matcherSubject). An
-// event with no subject, or an empty one, takes every entry: its matcher is
-// ignored.
+// event with no subject takes every entry: its matcher is ignored. An event
+// that has one, even an empty one (a sub-agent of no type), is filtered by it.
 func (s *Settings) EntriesFor(event EventName, subject string) []HandlerSpec {
 	var out []HandlerSpec
 	for _, entry := range s.Hooks[event] {
 		// sr:provides hook-matcher-filter/claude
-		if subject == "" || corehooks.Select(corehooks.MatchExactOrRegexp, entry.Matcher, subject) {
+		if !hasSubject(event) || corehooks.Select(corehooks.MatchExactOrRegexp, entry.Matcher, subject) {
 			out = append(out, entry.Hooks...)
 		}
 	}
 	return out
+}
+
+// hasSubject reports whether an event's matcher filters on something (docs,
+// Matcher patterns); a matcher given to any other event is silently ignored.
+func hasSubject(event EventName) bool {
+	switch event {
+	case EventPreToolUse, EventPostToolUse, EventPostToolUseFailure, EventSessionStart, EventSessionEnd,
+		EventSubagentStart, EventSubagentStop, EventPreCompact, EventPostCompact:
+		return true
+	}
+	return false
 }
 
 // matcherSubject is what an event's matcher filters on (docs, "Matcher

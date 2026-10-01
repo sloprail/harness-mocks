@@ -16,6 +16,7 @@ import (
 // snapshots/runs/hook-unstartable).
 // sr:docs https://code.claude.com/docs/en/hooks#other-exit-codes
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT009_12_UnstartableHookIsNonBlockingNotice(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

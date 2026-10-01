@@ -133,6 +133,7 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 // hook_cancelled with timedOut and timeoutMs). A session-end hook is bounded by
 // the harness's 1.5-second budget when it sets no timeout of its own.
 // sr:proves hook-timeout/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT017_44_HookTimeoutKillsTheHookAndWhatItSpawned(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

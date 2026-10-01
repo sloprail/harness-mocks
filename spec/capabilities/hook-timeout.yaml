@@ -2,7 +2,9 @@ statement: >-
   A hook is bounded by a timeout; when it expires, the hook and every process
   it spawned are killed, whatever it printed is discarded, and the event
   carries on. (How long a hook with no timeout of its own may run is the
-  harness's default for the event.)
+  harness's default for the event. Hooks run in the background, and the
+  handler kinds that are neither a command nor an endpoint, are not part of
+  this.)
 providers:
   claude:
     docs:
