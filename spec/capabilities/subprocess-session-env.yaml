@@ -14,3 +14,9 @@ providers:
     runs:
       - claude-mock/snapshots/runs/subprocess-session-env
       - claude-mock/snapshots/runs/nested-session-env
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no /clear, PowerShell tool or Monitor tool, so the
+          docs' session id updated on /clear and the variables set for
+          PowerShell and Monitor children are not modeled.
