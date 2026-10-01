@@ -5,8 +5,8 @@ statement: >-
   its process id, whether the session is attended, and the session's id. These
   are this run's values even when the harness itself runs inside another
   session. (Other variables the harness hands children, such as the project
-  dir or its temp dir, and the environment of the long-lived servers it starts
-  (MCP servers), are other capabilities'.)
+  dir, its temp dir or the path of its own executable, and the environment of
+  the long-lived servers it starts (MCP servers), are other capabilities'.)
 providers:
   claude:
     docs:
