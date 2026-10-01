@@ -34,13 +34,7 @@ visible and deliberate, not a test nobody wrote.
     whose shell will not start: it always runs `/bin/sh`);
   - the reference text a harness prints inside its own diagnostics (such as
     the output schema Claude Code appends to a hook validation error): a mock
-    writes the diagnostic's first line and the hook's own output;
-  - the frames of a run's output stream that report the harness's own state
-    rather than the conversation (for claude-mock, the `system` init, status,
-    commands_changed and hook lifecycle frames, `rate_limit_event` and
-    `thinking_tokens`), and the stream copies of a compaction's boundary and of
-    the command that requested it: a mock streams the records its script
-    writes, a compaction's summary and the task frames it models.
+    writes the diagnostic's first line and the hook's own output.
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.
