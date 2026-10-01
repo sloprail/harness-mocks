@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,11 @@ func TestT009_12_UnstartableHookIsNonBlockingNotice(t *testing.T) {
 	require.Len(t, errs, 1, "one notice for the hook that cannot start")
 	assert.Equal(t, "PreToolUse:Bash", errs[0]["hookName"])
 	assert.Equal(t, float64(127), errs[0]["exitCode"])
-	assert.Equal(t, "Failed with non-blocking status code: /bin/sh: "+missing+": No such file or directory", errs[0]["stderr"])
+	// the interpreter's own message follows; its wording is the platform's shell
+	// ("No such file or directory" on macOS, "not found" under dash on Linux)
+	stderr, _ := errs[0]["stderr"].(string)
+	assert.True(t, strings.HasPrefix(stderr, "Failed with non-blocking status code: /bin/sh: "), stderr)
+	assert.Contains(t, stderr, missing)
 }
 
 // A non-blocking failure's notice keeps the hook's whole stderr in the
