@@ -1,0 +1,13 @@
+statement: >-
+  Every conversation record in a transcript (user, assistant, attachment and
+  system records) carries the bookkeeping a reader relies on: session, working
+  directory, branch, timestamp, version and how the run
+  was launched; a prompt given to a non-interactive run is marked as such.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/claude-directory#application-data
+    runs:
+      - claude-mock/snapshots/runs/bgbash
+      - claude-mock/snapshots/runs/midturn
+      - claude-mock/snapshots/runs/bgagent

@@ -23,9 +23,11 @@ import (
 // an agent_transcript_path never written, the summary as last_assistant_message)
 // between PreCompact and SessionStart, and writes the /compact command's three
 // records after the summary, ahead of SessionStart:compact's attachment. The
-// turn goes on after each compaction.
-// staged:proves compaction-transcript-continuity/claude
-// staged:proves manual-compaction/claude
+// turn goes on after each compaction. (The summarizer's SubagentStop payload is
+// in the compact sample's payloads.jsonl with its agent_id, agent_transcript_path
+// and last_assistant_message; events.jsonl strips those run-specific values.)
+// sr:proves compaction-transcript-continuity/claude
+// sr:proves manual-compaction/claude
 // staged:proves session-start-hook/claude
 // sr:proves control-records
 func TestT017_07_Compaction(t *testing.T) {
@@ -200,7 +202,7 @@ func TestT017_07c_CompactionWithoutAPreservedSegment(t *testing.T) {
 // preserved segment's tail. In 7 real mid-file boundaries that tail is an
 // EARLIER written record, 2 to 253 records before the boundary; "tail_offset"
 // reproduces it.
-// staged:proves compaction-transcript-continuity/claude
+// sr:proves compaction-transcript-continuity/claude
 func TestT017_07d_TailEarlierThanTheLastRecord(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -255,7 +257,7 @@ func TestT017_07e_TailOffsetBeyondTheRecordIsAnError(t *testing.T) {
 
 // TestT017_07b_PreCompactExit2BlocksTheCompaction: PreCompact can block a
 // compaction (docs, "Exit code 2 behavior per event"): nothing is written.
-// staged:proves manual-compaction/claude
+// sr:proves manual-compaction/claude
 func TestT017_07b_PreCompactExit2BlocksTheCompaction(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

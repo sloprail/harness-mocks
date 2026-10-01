@@ -42,6 +42,8 @@ type Plan struct {
 // PlanBoundary plans a compaction's boundary so the record chain stays
 // walkable across it: a boundary, then a summary, then a preserved tail of
 // earlier records, the boundary's logical parent being that tail's last record.
+//
+// sr:capability compaction-transcript-continuity
 func PlanBoundary(in PlanInput) Plan {
 	kept := []string{}
 	if in.WithSegment {

@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/procexec"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // tasksDir is where a session's background task output lives, as real Claude
@@ -33,10 +32,20 @@ func tasksDir(cwd, sessionID string) string {
 	return filepath.Join(root, encoded, sessionID, "tasks")
 }
 
-// launchBash starts a background Bash for owner and returns its receipt.
-// endsWithFinalResponse is true inside a foreground sub-agent, whose
-// background commands real Claude Code kills when it gives its final response
-// (and says so in the receipt).
+// exitTrailer is what Claude Code appends to a background command's output file
+// when it ends: how it ended.
+func exitTrailer(code int, killed bool) string {
+	if killed {
+		return "\n[killed]\n"
+	}
+	return fmt.Sprintf("\n[exited with code %d]\n", code)
+}
+
+// launchBash starts a background Bash for owner and returns its receipt. Inside
+// a foreground sub-agent (cfg.SyncSubagent) the receipt says the command is
+// terminated at the sub-agent's final response, as real Claude Code's does.
+//
+// sr:provides foreground-subagent-bash-ends-with-response/claude
 func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawMessage) toolexec.Result {
 	var in struct {
 		Command     string `json:"command"`
@@ -59,49 +68,19 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	if desc == "" {
 		desc = in.Command
 	}
-	task := &backgroundTask{
-		id: id, toolUseID: toolUseID, owner: cfg.AgentID, description: desc, command: in.Command,
-		outputFile: outFile, started: time.Now(), done: make(chan struct{}),
-	}
-
-	// Not bound to the turn's context: a background command outlives the turn
-	// that started it. Its own process group, so ending it reaches whatever it
-	// spawned.
-	cmd := exec.Command("/bin/sh", "-c", in.Command) //nolint:gosec
-	cmd.Dir = cfg.Cwd
-	cmd.Env = procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID), childenv.Defaults())
-	cmd.Stdout = out
-	cmd.Stderr = out
-	procexec.OwnGroup(cmd)
-	if err := cmd.Start(); err != nil {
-		out.Close()
+	task := tasks.NewTask(tasks.Command, id)
+	task.ToolUseID, task.Owner, task.Description, task.Command, task.OutputFile = toolUseID, cfg.AgentID, desc, in.Command, outFile
+	task.Meta = taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true}
+	frames := frameObserver{cfg}
+	if err := b.StartCommand(task, tasks.CommandSpec{
+		Argv: []string{"/bin/sh", "-c", in.Command}, Dir: cfg.Cwd,
+		Env: procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID), childenv.Defaults()),
+		Out: out, Trailer: exitTrailer,
+		Started: func(t *tasks.Task) { tasks.Announce(t, frames) },
+		Ended:   func(t *tasks.Task) { tasks.Conclude(t, frames) },
+	}); err != nil {
 		return toolexec.Result{Output: fmt.Sprintf("Bash: %v", err), IsError: true}
 	}
-	task.cmd = cmd
-	b.add(task)
-	writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true})
-	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-		err := cmd.Wait()
-		code := 0
-		if err != nil {
-			code = 1
-			if cmd.ProcessState != nil && cmd.ProcessState.ExitCode() >= 0 {
-				code = cmd.ProcessState.ExitCode()
-			}
-		}
-		task.exitCode = code
-		// Real Claude Code appends how the command ended to its output file.
-		if task.killed.Load() {
-			fmt.Fprint(out, "\n[killed]\n")
-		} else {
-			fmt.Fprintf(out, "\n[exited with code %d]\n", code)
-		}
-		out.Close()
-		writeTaskEndFrames(cfg, task)
-		b.finish(task)
-	}()
 
 	endsWithFinal := cfg.SyncSubagent
 	parts := []string{"Command running in background with ID: " + id + ". Output is being written to: " + outFile + "."}

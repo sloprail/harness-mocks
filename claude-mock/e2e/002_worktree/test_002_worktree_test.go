@@ -16,7 +16,8 @@ func hookScript(t *testing.T, dir, logFile string) string {
 	p := filepath.Join(dir, "hook.sh")
 	require.NoError(t, os.WriteFile(p, []byte(`#!/bin/sh
 input=$(cat)
-name=$(echo "$input" | grep -o '"worktree_name":"[^"]*"' | cut -d'"' -f4)
+name=$(echo "$input" | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
+[ -z "$name" ] && name=$(echo "$input" | grep -o '"worktree_path":"[^"]*"' | cut -d'"' -f4 | sed 's#.*/.claude/worktrees/##')
 echo "$name" >> "`+logFile+`"
 `), 0o755))
 	return p
@@ -40,7 +41,7 @@ func writeScript(t *testing.T, dir, name, content string) string {
 // --- WorktreeCreate ---
 
 // TestT002_01_WorktreeCreateHookFires: positive — hook fires and receives worktree_name.
-// staged:proves worktree-hooks/claude
+// sr:proves worktree-hooks/claude
 func TestT002_01_WorktreeCreateHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -70,7 +71,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 }
 
 // TestT002_03_WorktreeCreateBlockCausesNonZeroExit: hook exit 2 must block the run.
-// staged:proves worktree-hooks/claude
+// sr:proves worktree-hooks/claude
 func TestT002_03_WorktreeCreateBlockCausesNonZeroExit(t *testing.T) {
 	dir := t.TempDir()
 	blockHook := writeScript(t, dir, "block.sh", `#!/bin/sh
@@ -121,7 +122,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 // --- WorktreeRemove ---
 
 // TestT002_05_WorktreeRemoveHookFires: positive — WorktreeRemove hook fires.
-// staged:proves worktree-hooks/claude
+// sr:proves worktree-hooks/claude
 func TestT002_05_WorktreeRemoveHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -182,7 +183,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 }
 
 // TestT002_07_BothWorktreeEventsDistinct: WorktreeCreate and WorktreeRemove fire separately.
-// staged:proves worktree-hooks/claude
+// sr:proves worktree-hooks/claude
 // sr:proves control-records
 func TestT002_07_BothWorktreeEventsDistinct(t *testing.T) {
 	dir := t.TempDir()
@@ -190,7 +191,8 @@ func TestT002_07_BothWorktreeEventsDistinct(t *testing.T) {
 	fullHook := writeScript(t, dir, "hook.sh", `#!/bin/sh
 input=$(cat)
 evt=$(echo "$input" | grep -o '"hook_event_name":"[^"]*"' | cut -d'"' -f4)
-name=$(echo "$input" | grep -o '"worktree_name":"[^"]*"' | cut -d'"' -f4)
+name=$(echo "$input" | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
+[ -z "$name" ] && name=$(echo "$input" | grep -o '"worktree_path":"[^"]*"' | cut -d'"' -f4 | sed 's#.*/.claude/worktrees/##')
 echo "$evt:$name" >> "`+logFile+`"
 `)
 	claudeDir := filepath.Join(dir, ".claude")

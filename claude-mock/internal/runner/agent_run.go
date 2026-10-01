@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/subagents"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // subagentRun is one dispatched sub-agent: where it runs, what it is, and the
@@ -26,6 +28,8 @@ type subagentRun struct {
 	toolUseID      string
 	description    string
 	outputFile     string
+	// worktree is the real worktree of an isolated sub-agent, nil when it has none.
+	worktree *subagents.Worktree
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -36,66 +40,56 @@ type subagentOutcome struct {
 }
 
 // execute fires SubagentStart, runs the sub-agent (re-running it while
-// SubagentStop blocks) and returns how it ended.
+// SubagentStop blocks) and returns how it ended. The sequence, the block loop
+// and its cap are the sub-agent core's (subagents.Execute); this supplies the
+// hooks, the script run and Claude Code's task frames.
+//
+// sr:provides subagent-lifecycle-hooks/claude
+// sr:provides subagent-stop-block-loop/claude
 func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks, prompt string) subagentOutcome {
 	started := time.Now()
-	writeTaskStarted(s.parent, taskStart{
+	frames := frameObserver{s.parent}
+	task := tasks.NewTask(tasks.Agent, s.agentID)
+	task.ToolUseID, task.Description, task.AgentType, task.OutputFile = s.toolUseID, s.description, s.agentType, s.outputFile
+	task.Meta = taskStart{
 		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
 		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
-	})
+	}
+	tasks.Announce(task, frames)
 	sideInv := s.invoker(inv)
-	// SubagentStart — cannot block. transcript_path is the SESSION's (the
-	// invoker's default); the sub-agent is named by agent_id.
-	_, _ = sideInv.Fire(ctx, hooks.Input{
-		SessionID:     s.parent.SessionID,
-		Cwd:           s.subCwd,
-		HookEventName: hooks.EventSubagentStart,
-		AgentType:     s.agentType,
-		AgentID:       s.agentID,
-	})
-
-	blockCap := stopHookBlockCap() // 0 = unlimited
-	out := s.run(ctx, bg, prompt)
-	for turn := 0; ; turn++ {
+	out := subagents.Execute(subagents.Hooks{
+		// SubagentStart — cannot block. transcript_path is the SESSION's (the
+		// invoker's default); the sub-agent is named by agent_id.
+		Start: func() {
+			_, _ = sideInv.Fire(ctx, hooks.Input{
+				SessionID:     s.parent.SessionID,
+				Cwd:           s.subCwd,
+				HookEventName: hooks.EventSubagentStart,
+				AgentType:     s.agentType,
+				AgentID:       s.agentID,
+			})
+		},
 		// What the hook said is recorded as it fires — into the SUB-AGENT's own
-		// file, where real Claude Code writes a SubagentStop's feedback — before
-		// deciding whether to loop, so the last refusal before the cap is on the
-		// record too.
-		blocked, reason := fireSubagentStop(ctx, s, sideInv, bg, out.lastAssistant, turn > 0)
-		if !blocked {
-			break
-		}
-		if blockCap > 0 && turn >= blockCap {
+		// file, where real Claude Code writes a SubagentStop's feedback — so the
+		// last refusal before the cap is on the record too.
+		Stop: func(active bool, last string) (bool, string) {
+			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
+		},
+		OnRerun: func(reason string, turn int) {
+			fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn)
+		},
+		OnCap: func(blockCap int) {
 			fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop still blocked after %d turns (cap) — giving up\n", blockCap)
-			break
-		}
-		fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn+1)
-		next := s.run(ctx, bg, prompt)
-		next.toolUses += out.toolUses
-		out = next
-	}
-	final := out.finalText
+		},
+	}, stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
+	final := out.FinalText
 	if final == "" {
-		final = out.lastAssistant
+		final = out.LastAssistant
 	}
-	status, summary := "completed", final
-	if out.failure != "" {
-		status, summary = "failed", out.failure
-	}
-	writeTaskUpdated(s.parent, s.agentID, status)
-	writeTaskNotification(s.parent, taskNote{
-		ID: s.agentID, ToolUseID: s.toolUseID, Status: status, OutputFile: s.outputFile, Summary: summary,
-		Usage: map[string]any{"total_tokens": 0, "tool_uses": out.toolUses, "duration_ms": time.Since(started).Milliseconds()},
-	})
-	return subagentOutcome{finalText: final, failure: out.failure, toolUses: out.toolUses}
-}
-
-// runOutcome is one nested run of a sub-agent's script.
-type runOutcome struct {
-	finalText     string
-	lastAssistant string
-	failure       string
-	toolUses      int
+	task.Result, task.Failure = final, out.Failure
+	task.ToolUses, task.DurationMs = out.ToolUses, time.Since(started).Milliseconds()
+	tasks.Conclude(task, frames)
+	return subagentOutcome{finalText: final, failure: out.Failure, toolUses: out.ToolUses}
 }
 
 // invoker is inv recording into the sub-agent's own file — real Claude Code

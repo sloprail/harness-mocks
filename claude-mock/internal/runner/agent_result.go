@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 	"regexp"
 	"strings"
 )
@@ -106,7 +107,10 @@ var lineBreaks = regexp.MustCompile(`\r\n?|[\x{2028}\x{2029}\x{85}\x{0b}\x{0c}\x
 //
 // Its toolUseResult (also PostToolUse's tool_response) carries status
 // "completed", the report as content, and the run's counts. The mock spends no
-// tokens: subagent_tokens is 0.
+// tokens: subagent_tokens is 0. Whether the trailer is there is the sub-agent
+// core's call (subagents.HandBack).
+//
+// sr:provides foreground-subagent-result/claude
 func buildAgentResult(sub *subagentRun, in agentToolInput, model string, out subagentOutcome, durationMs int64, worktreePath string) toolexec.Result {
 	report := out.finalText
 	content := []map[string]any{{"type": "text", "text": report}}
@@ -116,7 +120,7 @@ func buildAgentResult(sub *subagentRun, in agentToolInput, model string, out sub
 	}
 	norm := lineBreaks.ReplaceAllString(report, "\n")
 	text := handbackFrame + "\n  " + strings.ReplaceAll(norm, "\n", "\n  ")
-	if !((sub.agentType == "Explore" || sub.agentType == "Plan") && worktreePath == "") {
+	if subagents.HandBack(sub.agentType, worktreePath, builtinReadOnlyAgents) {
 		wt := ""
 		if worktreePath != "" {
 			wt = "\nworktreePath: " + worktreePath

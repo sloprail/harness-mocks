@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/scenario"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // streamAndHook owns a run's turns. At every end of turn (the script's result
@@ -19,6 +21,9 @@ import (
 // A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
 // the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
 // own background commands end with its final response.
+// The run streams one result, at its real end (internal/scenario's Result).
+//
+// sr:provides noninteractive-run/claude
 // sr:invariant turn-loop
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
 	// Every FILE record persisted below goes through tr, which chains it from the
@@ -28,7 +33,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// stay the mock's claude stream).
 	if cfg.bg == nil {
 		cfg.bg = newBackgroundTasks()
-		defer cfg.bg.shutdown()
+		defer cfg.bg.Shutdown()
 	}
 	bg := cfg.bg
 	nested := cfg.SuppressSubagentHooks
@@ -36,6 +41,8 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var repeats int
 	var stopBlocks int
 	var lastText string
+	var final scenario.Result // the run's one result frame, held until its turn really ends
+	finish := func() { final.Finish(func(line []byte) { writeStreamLine(cfg, line) }) }
 	blockCap := stopHookBlockCap()
 	for {
 		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
@@ -46,13 +53,14 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			lastText = turn.lastText
 		}
 		if turn.done {
+			final.Hold(turn.resultLine)
 			if nested {
-				writeStreamLine(cfg, turn.resultLine)
-				bg.stopOwned(cfg)
+				finish()
+				bg.EndOfResponse(cfg.AgentID)
 				return nil
 			}
 			active := stopBlocks > 0
-			tasks := bg.running()
+			running := bg.running()
 			crons := []any{}
 			last := lastText
 			stopOut, stopRuns, stopErr := inv.FireRuns(ctx, hooks.Input{
@@ -61,7 +69,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				HookEventName:        hooks.EventStop,
 				StopHookActive:       &active,
 				LastAssistantMessage: &last,
-				BackgroundTasks:      &tasks,
+				BackgroundTasks:      &running,
 				SessionCrons:         &crons,
 			})
 			writeStopHookError(cfg, stopRuns)
@@ -76,6 +84,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 					// (claude 2.1.282 streamed a single result across 8
 					// continuations).
 					lastSig, repeats = "", 0
+					final.Continue()
 					continue
 				}
 				// The block cap: real Claude Code lets a Stop block the turn
@@ -86,26 +95,19 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				writeCapOverride(tr, stopBlocks)
 				// The overridden turn's result carries no text: claude
 				// 2.1.282 streamed "result":"" after the override.
-				turn.resultLine = withEmptyResult(turn.resultLine)
+				final.Hold(withEmptyResult(turn.resultLine))
 			}
 			stopBlocks = 0
-			writeStreamLine(cfg, turn.resultLine)
+			finish()
 			// The turn is over. Hand over what finished in the background, one
 			// new turn per task, waiting while a background agent still runs.
-			delivered := false
-			for t := bg.awaitAfterTurn(ctx, cfg.AgentID); t != nil; t = bg.awaitAfterTurn(ctx, cfg.AgentID) {
-				// A notification UserPromptSubmit refuses starts no turn;
-				// the next finished task is handed over instead.
-				if bg.deliverAsTurn(ctx, cfg, inv, tr, t) {
-					delivered = true
-					break
-				}
-			}
-			if delivered {
+			// A notification UserPromptSubmit refuses starts no turn; the next
+			// finished task is handed over instead (tasks.NextTurn).
+			if bg.NextTurn(ctx, cfg.AgentID, func(t *tasks.Task) bool { return bg.deliverAsTurn(ctx, cfg, inv, tr, t) }) != nil {
 				lastSig, repeats = "", 0
 				continue
 			}
-			bg.stopOwned(cfg)
+			bg.ReapAtExit(cfg.AgentID)
 			return nil
 		}
 		sig := turn.sig

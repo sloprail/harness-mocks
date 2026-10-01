@@ -1,0 +1,1 @@
+Run exactly this Bash command with run_in_background set to true and description 'long sleep': sleep 8; echo BGDONE . Then immediately end your turn by replying only the word LAUNCHED. Do not wait for it or check on it.

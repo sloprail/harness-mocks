@@ -111,7 +111,7 @@ func driveAgentTool(t *testing.T, dir, subScript, stopHook string, env []string)
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves subagent-stop-block-loop/claude
+// sr:proves subagent-stop-block-loop/claude
 func TestT010_01_BlockViaExit2RerunsSubagent(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -151,7 +151,7 @@ exit 0`)
 // process error) and the one the a10n bridge handoff relies on — it MUST work.
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
-// staged:proves subagent-stop-block-loop/claude
+// sr:proves subagent-stop-block-loop/claude
 func TestT010_02_BlockViaDecisionJSONRerunsSubagent(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")

@@ -54,11 +54,8 @@ func Run(ctx context.Context, cfg Config) error {
 		if cfg.ForkFrom != "" {
 			from = cfg.ForkFrom
 		}
-		if sessionFilePathIfExists(cfg.ConfigDir, cfg.Cwd, from) == "" {
-			inv := hooks.NewInvoker(settings, cfg.Cwd, from)
-			inv.SetTranscriptPath(sessionFilePath(cfg.ConfigDir, cfg.Cwd, from))
-			fireSessionEnd(ctx, cfg, inv)
-			return &ErrNoConversation{SessionID: from}
+		if err := resumeFailed(ctx, cfg, settings, from); err != nil {
+			return err
 		}
 	}
 

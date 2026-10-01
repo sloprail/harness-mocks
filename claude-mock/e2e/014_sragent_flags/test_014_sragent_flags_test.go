@@ -211,7 +211,7 @@ printf '%s\n' '{"type":"user","message":{"role":"user","content":[{"type":"tool_
 // tool_use with id "toolu_spawn_1"; that id must land in the sidecar.
 //
 // sr:docs https://code.claude.com/docs/en/agent-sdk/sessions
-// staged:proves subagent-transcripts/claude
+// sr:proves subagent-transcripts/claude
 func TestT014_06_SubagentMetaCarriesSpawningToolUseID(t *testing.T) {
 	dir := t.TempDir()
 	cfgDir := filepath.Join(dir, "cfg")

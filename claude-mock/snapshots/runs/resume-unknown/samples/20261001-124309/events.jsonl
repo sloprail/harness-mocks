@@ -1,0 +1,2 @@
+{"event":"hook","hook":"SessionEnd","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionEnd","reason":"other"}}
+{"event":"stream","type":"result","subtype":"error_during_execution"}

@@ -174,8 +174,8 @@ func TestT017_12c_AgentWithoutRequiredInputIsRefused(t *testing.T) {
 // Each gets its own file in the session's one subagents/ directory; each
 // file's records carry that sub-agent's id; the inner sub-agent's tool call
 // reports its own agent_id; the dispatcher's file holds no sidechain record.
-// staged:proves nested-subagents/claude
-// staged:proves subagent-transcripts/claude
+// sr:proves nested-subagents/claude
+// sr:proves subagent-transcripts/claude
 func TestT017_13_NestedSubAgents(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -224,7 +224,7 @@ func TestT017_13_NestedSubAgents(t *testing.T) {
 // back the way claude 2.1.282 returns it — one text block: the hand-back
 // frame, the report indented, and the agentId/usage trailer — with a
 // toolUseResult of status "completed" that PostToolUse also receives.
-// staged:proves foreground-subagent-result/claude
+// sr:proves foreground-subagent-result/claude
 // staged:proves task-stream-frames/claude
 func TestT017_25_ForegroundAgentResult(t *testing.T) {
 	dir := t.TempDir()

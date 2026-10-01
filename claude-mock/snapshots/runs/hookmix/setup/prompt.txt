@@ -1,0 +1,1 @@
+Step 1: run the Bash command: echo SECOND . Step 2: use the Agent tool (not in background) with subagent_type general-purpose, description 'helper', prompt 'Reply with the single word HELPED. If told to continue, reply HELPED again.'. Then reply with only the word DONE.

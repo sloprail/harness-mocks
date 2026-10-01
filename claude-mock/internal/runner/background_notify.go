@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // Background tasks: a Bash or an Agent called with run_in_background, the
@@ -40,22 +41,6 @@ import (
 // carries when it stops with no background work of its own still running.
 const agentNotificationNote = "A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once."
 
-// writeTaskEndFrames writes what a real `claude -p --output-format
-// stream-json` run streams when a background command ends: task_updated
-// {patch:{status, end_time}}, then task_notification {status, output_file,
-// summary}. A command killed at the end of a session is "killed", then
-// "stopped" with its description as summary (F:bgbash); one that finished is
-// "completed"/"failed" with the notification's summary (F:midturn).
-func writeTaskEndFrames(cfg Config, t *backgroundTask) {
-	updated := t.status()
-	summary := t.summary()
-	if t.killed.Load() {
-		updated, summary = "killed", t.description
-	}
-	writeTaskUpdated(cfg, t.id, updated)
-	writeTaskNotification(cfg, taskNote{ID: t.id, ToolUseID: t.toolUseID, Status: t.status(), OutputFile: t.outputFile, Summary: summary})
-}
-
 // writeFrame writes a system frame to the session's output stream, stamped
 // with a uuid and the session id as real frames are.
 func writeFrame(cfg Config, frame map[string]any) {
@@ -78,8 +63,8 @@ func writeFrame(cfg Config, frame map[string]any) {
 // with the notification as its prompt — as claude 2.1.282 did in a controlled
 // `claude -p` run. A notification the hook refuses is not handed over.
 func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) {
-	for _, t := range b.takeFinished(cfg.AgentID) {
-		note := t.notification()
+	for _, t := range b.TakeFinished(cfg.AgentID) {
+		note := taskNotification(t)
 		if !submitNotification(ctx, cfg, inv, tr, note) {
 			continue
 		}
@@ -94,8 +79,8 @@ func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *h
 // deliverAsTurn writes a finished task's notification as the user turn that
 // starts a new turn, once UserPromptSubmit has let it through. It reports
 // false — writing nothing, so no turn runs for it — when the hook refused it.
-func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, t *backgroundTask) bool {
-	note := t.notification()
+func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, t *tasks.Task) bool {
+	note := taskNotification(t)
 	if !submitNotification(ctx, cfg, inv, tr, note) {
 		return false
 	}

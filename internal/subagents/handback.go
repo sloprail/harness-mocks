@@ -6,6 +6,8 @@ package subagents
 // final report as the tool's result; types in noTrailer (the built-in
 // read-only ones) get no trailer unless they ran in a worktree, which the
 // trailer then names.
+//
+// sr:capability foreground-subagent-result
 func HandBack(agentType, worktreePath string, noTrailer []string) (trailer bool) {
 	if worktreePath != "" {
 		return true

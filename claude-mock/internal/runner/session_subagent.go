@@ -1,10 +1,13 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/subagents"
 )
 
 // subagentMeta is a sub-agent's .meta.json sidecar, in the shape claude
@@ -47,11 +50,11 @@ func seedSubagentTranscript(path, subCwd, sessionID, agentID, prompt string, met
 	stamp := newRecordStamp(sessionID, subCwd)
 	stamp.IsSidechain, stamp.AgentID = true, agentID
 	rec := map[string]any{
-		"type":       "user",
-		"uuid":       newRecordUUID(),
-		"parentUuid": nil,
-		"message":    map[string]any{"role": "user", "content": prompt},
+		"type":    "user",
+		"uuid":    newRecordUUID(),
+		"message": map[string]any{"role": "user", "content": prompt},
 	}
+	asOrigin(rec)
 	if line, err := marshalRecord(rec); err == nil {
 		if f, ferr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); ferr == nil {
 			appendToSession(f, stampRecord(line, stamp))
@@ -61,4 +64,27 @@ func seedSubagentTranscript(path, subCwd, sessionID, agentID, prompt string, met
 	if mb, err := json.Marshal(meta); err == nil {
 		_ = os.WriteFile(strings.TrimSuffix(path, ".jsonl")+".meta.json", mb, 0o644)
 	}
+}
+
+// cleanupWorktree removes an isolated sub-agent's worktree and branch when it
+// left them as it found them (subagents.CleanupWorktree), and rewrites its
+// sidecar the way Claude Code does: worktreePath, spawnedWithWorktree and
+// worktreeBranch dropped, worktreeCleanlyRemoved true. It reports whether it
+// removed them.
+func (s *subagentRun) cleanupWorktree(ctx context.Context) bool {
+	if s.worktree == nil || !subagents.CleanupWorktree(ctx, s.parent.Cwd, *s.worktree) {
+		return false
+	}
+	sidecar := strings.TrimSuffix(s.sidechain, ".jsonl") + ".meta.json"
+	var meta map[string]any
+	if b, err := os.ReadFile(sidecar); err == nil && json.Unmarshal(b, &meta) == nil {
+		delete(meta, "worktreePath")
+		delete(meta, "spawnedWithWorktree")
+		delete(meta, "worktreeBranch")
+		meta["worktreeCleanlyRemoved"] = true
+		if out, err := json.Marshal(meta); err == nil {
+			_ = os.WriteFile(sidecar, out, 0o644)
+		}
+	}
+	return true
 }

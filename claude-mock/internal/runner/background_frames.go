@@ -1,6 +1,42 @@
 package runner
 
-import "time"
+import (
+	"time"
+
+	"github.com/sloprail/harness-mocks/internal/tasks"
+)
+
+// frameObserver writes Claude Code's stream frames for what the tasks core
+// reports of a task: a task_started frame from the taskStart the launcher
+// attached (Meta), a task_updated frame, and a task_notification frame. A
+// command killed at the end of a session is "killed", then "stopped" with its
+// description as summary (F:bgbash); one that finished carries the
+// notification's summary (F:midturn); a sub-agent's is its result text or
+// failure, with its usage.
+type frameObserver struct{ cfg Config }
+
+func (o frameObserver) Started(t *tasks.Task) {
+	if s, ok := t.Meta.(taskStart); ok {
+		writeTaskStarted(o.cfg, s)
+	}
+}
+
+func (o frameObserver) Updated(t *tasks.Task, status string) { writeTaskUpdated(o.cfg, t.ID, status) }
+
+func (o frameObserver) Notified(t *tasks.Task) {
+	n := taskNote{ID: t.ID, ToolUseID: t.ToolUseID, Status: string(t.Status()), OutputFile: t.OutputFile, Summary: taskSummary(t)}
+	switch {
+	case t.Kind == tasks.Agent:
+		n.Summary = t.Result
+		if t.Failure != "" {
+			n.Summary = t.Failure
+		}
+		n.Usage = map[string]any{"total_tokens": 0, "tool_uses": t.ToolUses, "duration_ms": t.DurationMs}
+	case t.Killed():
+		n.Summary = t.Description
+	}
+	writeTaskNotification(o.cfg, n)
+}
 
 // The task frames a stream-json run carries for a task (a sub-agent, a Bash
 // command, backgrounded or not): task_started when it begins, task_updated

@@ -37,6 +37,8 @@ type Isolation struct {
 // parentCwd. bind makes the directory a real worktree; when it cannot, the
 // sub-agent gets a plain directory, and when that cannot be made either it
 // shares the parent's.
+//
+// sr:capability subagent-worktree-isolation
 func Isolate(parentCwd, id string, l WorktreeLayout, bind func(dir, branch string) error) Isolation {
 	dir := filepath.Join(parentCwd, l.Dir, l.Prefix+id)
 	branch := l.BranchPrefix + id
@@ -79,4 +81,6 @@ func BindGit(ctx context.Context, parentCwd string) func(dir, branch string) err
 // WorktreeHook fires the hook for the harness creating or removing an isolated
 // worktree, and returns the hook's failure: a failing create hook aborts the
 // creation.
+//
+// sr:capability worktree-hooks
 func WorktreeHook(fire func() error) error { return fire() }

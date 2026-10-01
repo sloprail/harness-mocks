@@ -1,0 +1,1 @@
+Use the Agent tool (not in background) with subagent_type general-purpose, description 'iso', isolation 'worktree', prompt 'Reply with the single word ISO'. Then reply only DONE.

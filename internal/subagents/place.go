@@ -20,6 +20,8 @@ type Layout struct {
 // sessionFile: a file of its own in the session's sub-agent directory, never
 // the session's. A nested sub-agent's is in the same directory as its parent's,
 // since every sub-agent of a session is recorded there.
+//
+// sr:capability subagent-transcripts
 func (l Layout) Path(sessionFile, id string) string {
 	return filepath.Join(strings.TrimSuffix(sessionFile, l.SessionExt), l.Dir, l.Prefix+id+l.Ext)
 }
@@ -42,6 +44,8 @@ type Placement struct {
 
 // Place is the placement of a sub-agent dispatched by parent: one deeper, naming
 // the parent. A sub-agent can itself dispatch sub-agents.
+//
+// sr:capability nested-subagents
 func Place(parent Parent) Placement {
 	return Placement{Depth: parent.Depth + 1, ParentID: parent.ID}
 }

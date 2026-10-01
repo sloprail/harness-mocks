@@ -30,7 +30,7 @@ func captureHook(t *testing.T, dir, logFile, extract string) string {
 // going on, not a sub-agent: real Claude Code fires SessionStart (source
 // resume), UserPromptSubmit, Stop and SessionEnd — no SubagentStart and no
 // SubagentStop (a controlled claude 2.1.282 resume).
-// staged:proves session-resume/claude
+// sr:proves session-resume/claude
 func TestT004_01_NoSubagentHooksOnResume(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -75,7 +75,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 }
 
 // TestT004_03_SubagentStartControlRecordOverridesAgentType: explicit control record sets agent_type.
-// staged:proves subagent-lifecycle-hooks/claude
+// sr:proves subagent-lifecycle-hooks/claude
 // sr:proves control-records
 func TestT004_03_SubagentStartControlRecordOverridesAgentType(t *testing.T) {
 	dir := t.TempDir()
@@ -103,7 +103,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // "[<command>]: <stderr>").
 // sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
-// staged:proves subagent-lifecycle-hooks/claude
+// sr:proves subagent-lifecycle-hooks/claude
 func TestT004_04_SubagentStartExit2DoesNotBlock(t *testing.T) {
 	dir := t.TempDir()
 	blockHook := filepath.Join(dir, "block.sh")

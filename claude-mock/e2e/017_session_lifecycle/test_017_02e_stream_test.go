@@ -117,9 +117,9 @@ func TestT017_29b_FailingRead(t *testing.T) {
 // parentAgentId for a nested one; model when the call names one; and for an
 // isolated one worktreePath, spawnedWithWorktree and the worktree-agent-<id>
 // branch it really creates (fixture evidence/meta, 626 real sidecars).
-// staged:proves nested-subagents/claude
-// staged:proves subagent-transcripts/claude
-// staged:proves subagent-worktree-isolation/claude
+// sr:proves nested-subagents/claude
+// sr:proves subagent-transcripts/claude
+// sr:proves subagent-worktree-isolation/claude
 func TestT017_30_SubagentMetaSidecars(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
