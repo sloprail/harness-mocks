@@ -1,0 +1,7 @@
+statement: A probe capability that no code implements and no test proves.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/env-vars#variables
+    runs:
+      - claude-mock/snapshots/runs/subprocess-session-env
