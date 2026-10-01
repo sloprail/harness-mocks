@@ -45,6 +45,15 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{sig: sc.compactSig, lastText: sc.lastText}, nil
 	}
 
+	// Input the tool cannot take: its tool_use_error is the result, and the
+	// turn goes on; no hook fires (recorded: snapshots/runs/tool-invalid-input).
+	if pending.Invalid != nil {
+		if err := emitToolResult(cfg, pending, *pending.Invalid, tr); err != nil {
+			return turnResult{}, err
+		}
+		return turnResult{sig: "invalid:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
+	}
+
 	// PreToolUse REFUSED this tool call — an exit-0 permissionDecision deny, or
 	// an exit 2. The tool does not run and no PostToolUse fires; the refusal is
 	// the tool_result, "PreToolUse:<Tool> hook error: <reason>" (for an exit 2,

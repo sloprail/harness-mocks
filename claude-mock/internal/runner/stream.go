@@ -3,6 +3,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"os"
 )
 
@@ -81,6 +82,10 @@ type pendingToolUse struct {
 	// tool is NOT executed; BlockReason is what the refusal tool_result quotes.
 	Blocked     bool
 	BlockReason string
+
+	// Invalid is the tool_use_error a call whose input failed validation is
+	// answered with: no hook fired and the tool does not run.
+	Invalid *toolexec.Result
 }
 
 // scanResult is what one script invocation's output amounted to.
