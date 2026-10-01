@@ -65,7 +65,9 @@ failure.
   and name it; the fix is a test (and a run that records it), not leniency.
 - **Deviations:** where a <deviation> says the mock deliberately differs, the
   tests assert the deviation, and a test asserting the real behaviour instead
-  fails.
+  fails. Where it says a part is not modeled at all (no such command or tool
+  in the mock), no test is expected for that part, and the checklist item is
+  the deviation itself; check that the mock indeed lacks the part.
 
 ## How to decide
 
