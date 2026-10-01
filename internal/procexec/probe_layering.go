@@ -1,5 +1,5 @@
 package procexec
 
-import "github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
+import "github.com/sloprail/harness-mocks/claude-mock/e2etest"
 
-var probeDefaults = childenv.Defaults
+var probeRun = e2etest.Run
