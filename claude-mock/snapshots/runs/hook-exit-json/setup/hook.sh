@@ -18,6 +18,8 @@ case "$ev" in
       *"echo f"*) printf '%s\n%s' '[1, 2]' '"just a string"' ;;
       *"echo g"*) printf '%s' '{"decision": 42}' ;;
       *"echo i"*) printf '%s\n%s' '{"x": 1}' '{"y": 2}' ;;
+      *"echo j"*) printf '%s\n%s' '{"x": 1}' '{"decision": "block", "reason": "lines with a field"}' ;;
+      *"echo k"*) printf '%s' '{not json on exit 1}'; echo "malformed on exit 1" >&2; code=1 ;;
       *"echo h"*) printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"the JSON reason wins"}}'; echo "the stderr loses" >&2; code=2 ;;
     esac ;;
   Stop) echo "stop hook failed with exit 1" >&2; code=1 ;;
