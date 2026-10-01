@@ -1,6 +1,6 @@
 ---
 concern: where a mocked harness capability is implemented
-sloprails: [file-guard/capability-covered, file-guard/capability-rigor, file-guard/adr-conformance]
+sloprails: [file-guard/capability-covered, file-guard/capability-rigor]
 ---
 
 # Each mocked capability is implemented once, in core
