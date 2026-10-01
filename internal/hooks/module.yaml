@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/hooks); today it lives in claude-mock's adapter.
 concern: "hooks: which handlers match an event, running them, and what their result means"
-home: ["internal/hooks/**"]   # everything about the concern lives here
-api: ["internal/hooks"]       # the only package others may import
+home: ["internal/hooks/**", "*-mock/internal/hooks/**"]   # everything about the concern lives here
+api: ["internal/hooks", "claude-mock/internal/hooks"]      # the only packages others may import
