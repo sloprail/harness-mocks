@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -95,7 +96,8 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 		DurationMs: time.Since(started).Milliseconds(),
 	}
 
-	if exitCode == 2 {
+	// sr:provides hook-exit-code-semantics/claude
+	if corehooks.VerdictOf(exitCode) == corehooks.Blocked {
 		run.Blocked = true
 		return run, &BlockError{Command: h.Command, Stderr: run.Stderr}
 	}
