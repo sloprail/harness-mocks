@@ -1,10 +1,8 @@
 statement: >-
   When a tool that ran fails (a command exiting non-zero, a file tool's
   error), a failure hook fires instead of the success
-  hook, carrying the error text the agent received, whether it was an
-  interrupt, and how long the call took. A call that a hook refused fires
-  neither; a call whose input the tool cannot take is answered with a
-  validation error before any hook fires, PreToolUse included.
+  hook, carrying an error message, whether it was an interrupt, and how long
+  the call took.
 providers:
   claude:
     docs:

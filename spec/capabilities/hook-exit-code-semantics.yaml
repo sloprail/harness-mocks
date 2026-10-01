@@ -1,11 +1,8 @@
 statement: >-
-  A hook command's exit status, read together with the JSON it prints,
-  classifies its outcome: accepted (0), blocked (2, which JSON cannot
-  override, with the JSON's blocking reason or else the stderr as its
-  message), or a non-blocking error (any other status, a hook that cannot
-  start, or output that looks like JSON and does not parse or validate, unless
-  valid JSON decides instead), and each outcome leaves its notice. What a block
-  does on each event, how accepted output is used (context, decisions,
+  A hook command's exit status classifies its outcome: accepted (0), blocked
+  (2, with the hook's stderr as its message when it gave no other reason), or a
+  non-blocking error (any other status), after which the action goes on. What a
+  block does on each event, how accepted output is used (context, decisions,
   updated input) and hook timeouts are those events' and hook output's own
   capabilities.
 providers:
