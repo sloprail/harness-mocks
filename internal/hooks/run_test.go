@@ -81,3 +81,12 @@ func TestPreToolRefusalOneRefusalStandsAndTheFirstReasonIsTold(t *testing.T) {
 		}
 	}
 }
+
+func TestRunAllGivesACommandItsOwnEnvironmentAfterTheRuntimes(t *testing.T) {
+	out := RunAll(context.Background(), []Command{
+		{Line: `printf '%s %s' "$X" "$Y"`, Env: []string{"Y=own", "X=override"}}, {Line: `printf '%s %s' "$X" "${Y-unset}"`},
+	}, nil, rt)
+	if out[0].Stdout != "override own" || out[1].Stdout != "1 unset" {
+		t.Errorf("outputs = %q, %q", out[0].Stdout, out[1].Stdout)
+	}
+}
