@@ -15,6 +15,8 @@ type Command struct {
 	Line string
 	// Timeout is how long it may run; zero is the Runtime's default.
 	Timeout time.Duration
+	// Env is what only this command is told, KEY=VALUE, after the Runtime's.
+	Env []string
 }
 
 // Outcome is how one hook command ended.
@@ -70,7 +72,7 @@ func runOne(ctx context.Context, c Command, stdin []byte, rt Runtime) Outcome {
 	timeout := DefaultTimeout(c.Timeout, rt.DefaultTimeout)
 	start := time.Now()
 	res, err := procexec.Run(ctx, procexec.Spec{
-		Argv: []string{"/bin/sh", "-c", c.Line}, Dir: rt.Dir, Stdin: stdin, Env: rt.Env, Timeout: timeout,
+		Argv: []string{"/bin/sh", "-c", c.Line}, Dir: rt.Dir, Stdin: stdin, Env: append(append([]string{}, rt.Env...), c.Env...), Timeout: timeout,
 	})
 	return Outcome{Command: c.Line, Exit: res.ExitCode, Started: err == nil && res.Started, TimedOut: res.TimedOut,
 		Stdout: string(res.Stdout), Stderr: string(res.Stderr), Took: time.Since(start), Timeout: timeout}
