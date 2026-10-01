@@ -60,7 +60,6 @@ func TestT017_40_AgentCallPostToolUsePayload(t *testing.T) {
 // agent's scenario receives it, and the mock does not cut it short (declared
 // deviation: Claude Code moves context over 10,000 characters to a file).
 // sr:proves hook-additional-context/claude
-// sr:proves hooks-all-matching-run/claude
 func TestT017_41_SessionStartContextFromSeveralHooksWhole(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
