@@ -6,6 +6,7 @@
 	exceptions?: [...string] // legacy paths (or globs, where the ADR says so); only shrink
 	space?: [...string]      // globs of code that must be mapped to modules
 	limits?: [string]: int & >0
+	ceilings?: [string]: int & >0 // legacy path → the most it may hold; a ceiling only goes down
 }
 
 #Rule: string & =~"^(file-guard|gate|context)/[a-z][a-z0-9]*(-[a-z0-9]+)*$"
