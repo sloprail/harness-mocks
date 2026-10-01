@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
 // subagentRun is one dispatched sub-agent: where it runs, what it is, and the
@@ -65,7 +66,8 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		if !blocked {
 			break
 		}
-		if blockCap > 0 && turn >= blockCap {
+		// sr:provides stop-block-cap/claude
+		if !turnloop.AfterBlock(turn+1, blockCap) {
 			fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop still blocked after %d turns (cap) — giving up\n", blockCap)
 			break
 		}

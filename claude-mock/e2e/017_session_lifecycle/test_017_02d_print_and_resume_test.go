@@ -15,7 +15,7 @@ import (
 // is recorded as "Failed with non-blocking status code: No stderr output", and
 // its stop_hook_summary lists the error.
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT017_16_NoStderrOutput(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

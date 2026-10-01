@@ -87,7 +87,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // "[<command>]: <stderr>" — and the session runs (docs, "Exit code 2 behavior
 // per event"; a controlled claude 2.1.282 run).
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 // sr:proves session-start-hook/claude
 func TestT003_03_SessionStartExit2DoesNotBlock(t *testing.T) {
 	dir := t.TempDir()

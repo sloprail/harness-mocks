@@ -4,9 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"log/slog"
+	"os"
+	"strings"
+	"sync"
 	"time"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // Fire invokes every handler configured for the event and matcher and returns
@@ -35,7 +41,7 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 		corehooks.Agent{ID: inv.agentID, Type: inv.agentType})
 	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
 	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
-	handlers := inv.settings.EntriesFor(input.HookEventName, input.ToolName)
+	handlers := inv.settings.EntriesFor(input.HookEventName, matcherSubject(input))
 	if len(handlers) == 0 {
 		return Output{}, nil, nil
 	}
@@ -56,15 +62,15 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 		hookCwd = inv.cwd
 	}
 
+	runs, outs := inv.runHandlers(ctx, handlers, input.HookEventName, hookCwd, payload)
 	var merged Output
-	var runs []HandlerRun
 	var firstBlock error
-	for _, h := range handlers {
-		run, blockErr := inv.invoke(ctx, h, input.HookEventName, hookCwd, payload)
-		runs = append(runs, run)
-		if blockErr != nil {
-			if firstBlock == nil {
-				firstBlock = blockErr
+	// sr:provides hooks-all-matching-run/claude
+	acted, blocked := corehooks.ActedBlock(outs, strictExitEvents[input.HookEventName])
+	for i, run := range runs {
+		if run.Blocked {
+			if blocked && i == acted {
+				firstBlock = blockError(run)
 			}
 			continue
 		}
@@ -76,24 +82,48 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 	return merged, runs, firstBlock
 }
 
-func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, ev EventName, hookCwd string, payload []byte) (HandlerRun, error) {
-	timeout := defaultHookTimeout
-	if h.Timeout > 0 {
-		timeout = time.Duration(h.Timeout) * time.Second
+// runHandlers runs every handler of one event together, as Claude Code does
+// (docs: "All matching hooks run in parallel"), and returns each handler's run
+// in the order given, with what the command handlers did behind them. Only
+// the command handlers carry an Outcome; an HTTP handler's slot is zero.
+func (inv *Invoker) runHandlers(ctx context.Context, handlers []HandlerSpec, ev EventName, hookCwd string, payload []byte) ([]HandlerRun, []corehooks.Outcome) {
+	runs := make([]HandlerRun, len(handlers))
+	outs := make([]corehooks.Outcome, len(handlers))
+	var cmds []corehooks.Command
+	var at []int
+	var wg sync.WaitGroup
+	for i, h := range handlers {
+		switch h.Type {
+		case "command":
+			if strings.TrimSpace(h.Command) == "" {
+				continue
+			}
+			// sr:provides hook-command-handler/claude
+			cmds = append(cmds, corehooks.Command{Line: strings.TrimSpace(h.Command), Timeout: time.Duration(h.Timeout) * time.Second})
+			at = append(at, i)
+		case "http":
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				runs[i] = inv.httpRun(ctx, h, ev, payload)
+			}()
+		default:
+			slog.Debug("hooks: unsupported handler type", "type", h.Type)
+		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	switch h.Type {
-	case "command":
-		return inv.invokeCommand(ctx, h, ev, hookCwd, payload)
-	case "http":
-		out, err := inv.invokeHTTP(ctx, h, payload)
-		return HandlerRun{Command: h.URL, Output: out}, err
-	default:
-		slog.Debug("hooks: unsupported handler type", "type", h.Type)
-		return HandlerRun{}, nil
+	// Mirror the real claude CLI's hook environment (see NewInvoker): the
+	// session's identity, whether or not a session id is known.
+	// sr:provides hook-timeout/claude
+	rt := corehooks.Runtime{
+		Dir: hookCwd, Env: procexec.Env(os.Environ(), childenv.Identity(inv.sessionID), childenv.Defaults()),
+		DefaultTimeout: defaultTimeout(ev),
 	}
+	for k, o := range corehooks.RunAll(ctx, cmds, payload, rt) {
+		outs[at[k]] = o
+		runs[at[k]] = commandRun(handlers[at[k]], ev, o)
+	}
+	wg.Wait()
+	return runs, outs
 }
 
 func mergeOutput(dst *Output, src Output) {

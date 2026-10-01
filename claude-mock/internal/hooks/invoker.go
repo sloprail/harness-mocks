@@ -4,13 +4,19 @@ import (
 	"time"
 )
 
-const defaultHookTimeout = 60 * time.Second
-
-// hookKillGrace bounds how long Run may go on waiting after the process group
-// has been killed — the ceiling on a descendant that does not die. It is a
-// backstop for an already-abnormal case, so it is short; the kill itself is
-// what ends the hook.
-const hookKillGrace = 2 * time.Second
+// defaultTimeout is how long a hook with no timeout of its own may run:
+// 600 seconds, 30 for a hook that runs before every prompt, and the 1.5-second
+// budget a session-end hook shares (docs, "Common fields").
+// sr:docs https://code.claude.com/docs/en/hooks#common-fields
+func defaultTimeout(ev EventName) time.Duration {
+	switch ev {
+	case EventUserPromptSubmit:
+		return 30 * time.Second
+	case EventSessionEnd:
+		return 1500 * time.Millisecond
+	}
+	return 600 * time.Second
+}
 
 // Invoker fires hook handlers for a given event and collects their output.
 type Invoker struct {
@@ -76,6 +82,13 @@ type HandlerRun struct {
 	JSONError  string
 	// BlockReason is the blocking reason a blocked handler's JSON gave.
 	BlockReason string
+	// TimedOut: its timeout cancelled it (TimeoutMs is the limit); its output
+	// is discarded.
+	TimedOut  bool
+	TimeoutMs int64
+	// HTTPError: an HTTP hook that failed or answered what cannot be read,
+	// a non-blocking error.
+	HTTPError string
 }
 
 // NewInvoker creates an Invoker backed by the given settings. Every command hook

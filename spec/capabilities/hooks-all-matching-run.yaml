@@ -1,0 +1,11 @@
+statement: >-
+  Every hook that matches an event runs, all together, even when one of them
+  blocks; when several block, the one that finishes last is the one acted on.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#hook-handler-fields
+      - https://code.claude.com/docs/en/hooks-guide#combine-results-from-multiple-hooks
+    runs:
+      - claude-mock/snapshots/runs/all-hooks
+      - claude-mock/snapshots/runs/all-hooks-slow-first

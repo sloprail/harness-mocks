@@ -1,6 +1,6 @@
 statement: >-
-  A command hook runs through the shell in the event's working directory with
-  the event payload as JSON on its standard input.
+  A command hook given as a shell line runs through the shell in the event's
+  working directory, with the event payload as JSON on its standard input.
 providers:
   claude:
     docs:

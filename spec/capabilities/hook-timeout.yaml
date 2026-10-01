@@ -1,0 +1,12 @@
+statement: >-
+  A hook is bounded by a timeout; when it expires, the hook and every process
+  it spawned are killed, whatever it printed is discarded, and the event
+  carries on. (How long a hook with no timeout of its own may run is the
+  harness's default for the event.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#timeouts
+      - https://code.claude.com/docs/en/hooks#common-fields
+    runs:
+      - claude-mock/snapshots/runs/hook-timeout

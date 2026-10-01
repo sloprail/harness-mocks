@@ -6,6 +6,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
 // streamAndHook owns a run's turns. At every end of turn (the script's result
@@ -69,9 +70,11 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			writeStopHookError(cfg, stopRuns)
 			// Its feedback, attachment and stop_hook_summary are written as it
 			// fires (transcript.recordHookRuns).
-			if stopErr != nil || stopOut.Decision == "block" {
+			// sr:provides stop-block-continuation/claude
+			if turnloop.Continues(stopErr != nil, stopOut.Decision == "block") {
 				stopBlocks++
-				if blockCap == 0 || stopBlocks <= blockCap {
+				// sr:provides stop-block-cap/claude
+				if turnloop.AfterBlock(stopBlocks, blockCap) {
 					// Re-prompt: the turn goes on, so the script runs again and
 					// reacts to the block. Its result frame is dropped — a
 					// continued turn ends with one result, at its real end

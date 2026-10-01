@@ -7,4 +7,5 @@ providers:
     docs:
       - https://code.claude.com/docs/en/hooks#hook-locations
       - https://code.claude.com/docs/en/plugin-marketplaces#add-plugin-entries
-    runs: []
+    runs:
+      - claude-mock/snapshots/runs/plugin-hooks
