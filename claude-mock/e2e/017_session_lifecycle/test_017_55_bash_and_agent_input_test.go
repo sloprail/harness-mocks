@@ -44,7 +44,7 @@ func TestT017_55_BashResults(t *testing.T) {
 		`find . -maxdepth 0 -exec false {} +`,
 		`[ 1 = 2 ]`,
 		`git diff --no-index --quiet in.txt /dev/null`,
-		`pgrep -x zzz-no-such-process-name`,
+		`pgrep -x zzznoproc`,
 		`cmp in.txt /dev/null`,
 		`echo false | jq -e .`,
 	}
