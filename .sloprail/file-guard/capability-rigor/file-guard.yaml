@@ -15,3 +15,5 @@ match: >-
 checks:
   - prepare: ./prepare.sh
     judge: ./tests-prove-as-documented.md.j2
+    # the frozen doc pages live in a cache under the git dir, outside the project
+    allowed_tools: [Read]

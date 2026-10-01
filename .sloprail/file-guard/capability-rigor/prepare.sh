@@ -37,18 +37,17 @@ while IFS= read -r c; do
         --argjson sm "$samples" '. + [{name: ($r | split("/") | last), dir: $r, run: $y, prompt: $setup, samples: $sm}]' <<<"$runs")"; done
     tests="[]"; for f in $(printf '%s\n' "$proves" | awk -F'\t' -v q="$id/$h" '$2 == q {print $1}' | sort -u); do
       tests="$(jq -c --arg p "$f" --rawfile t "$SR_TREE/$f" '. + [{path: $p, text: $t}]' <<<"$tests")"; done
-    # A section over 20k chars (a page-long table) is cut to its headings and
-    # the lines naming an identifier the runs or tests mention: the rest would
-    # drown the judge.
-    seen="$(jq -r '([.[].samples[].events] | join("\n"))' <<<"$runs"; jq -r '.[].text' <<<"$tests")"
+    # Docs are not inlined: a cited section can be huge, or not the only place
+    # the page describes the behaviour. The judge gets each frozen page as a
+    # local file (fetched on a miss and checked against the MANIFEST's sha256
+    # by doc_copy; a page that cannot be had fails this check closed) and the
+    # line its cited section starts at.
     docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do
-      t="$(doc_ref_section "$h" "$ref")"
-      if [ "${#t}" -gt 20000 ]; then
-        ids="$(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' <<<"$seen" | sort -u | grep -Fx -f <(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' <<<"$t" | sort -u) | paste -sd'|' -)"
-        t="(section cut to its headings and the lines naming ${ids:-nothing the runs or tests mention})
-$(grep -E "^#${ids:+|$ids}" <<<"$t")"
-      fi
-      docs="$(jq -c --arg r "$ref" --arg t "$t" '. + [{ref: $r, section: $t}]' <<<"$docs")"; done
+      f="$(doc_copy "$h" "$ref")" || { echo "$DOC_ERROR" >&2; exit 1; }
+      a="${ref#*#}"; [ "$a" = "$ref" ] && a=""
+      line="$(awk -v a="$a" 'a != "" && /^#+ / { t = tolower($0); sub(/^#+ +/, "", t); gsub(/[^a-z0-9 -]/, "", t); gsub(/ /, "-", t); if (t == a) { print NR; exit } }' "$f")"
+      docs="$(jq -c --arg r "$ref" --arg p "$f" --arg l "${line:-1}" --arg n "$(wc -l <"$f" | tr -d ' ')" \
+        '. + [{ref: $r, path: $p, line: ($l | tonumber), lines: ($n | tonumber)}]' <<<"$docs")"; done
     subjects="$(jq -c --arg id "$id/$h" --arg st "$(jq -r '.doc.statement' <<<"$c")" --arg h "$h" \
       --argjson docs "$docs" --argjson runs "$runs" --argjson tests "$tests" --arg path "spec/capabilities/$id.yaml" \
       --argjson dev "$(jq -c '.deviations // []' <<<"$cell")" \
