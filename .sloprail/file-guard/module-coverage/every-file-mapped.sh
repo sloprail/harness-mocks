@@ -35,6 +35,23 @@ while IFS= read -r f; do
   esac
 done <<<"$files"
 [ "$checked" -gt 0 ] || refuse "no Go file in the tree matches the ADR's space, so module coverage was not checked: fix the space globs of adr/modules-cover-code"
+
+# Module homes do not overlap: a direct home-vs-home check over EVERY tracked
+# file (any type, in or out of the space), not only the in-space Go files above.
+mod_dirs=(); mod_globs=()
+while IFS=$'\t' read -r d g; do mod_dirs+=("$d"); mod_globs+=("${g//\*\*/*}"); done < <(jq -r '.[] | .dir as $d | .home[] | [$d, .] | @tsv' <<<"$MODULES")
+all="$(git -C "$SR_TREE" ls-files 2>&1)" || refuse "could not list the tracked files: $all"
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  owners=""
+  for i in "${!mod_globs[@]}"; do
+    [[ "$f" == ${mod_globs[$i]} ]] || continue
+    case ",$owners," in *",${mod_dirs[$i]},"*) ;; *) owners="${owners:+$owners,}${mod_dirs[$i]}" ;; esac
+  done
+  case "$owners" in
+    *,*) problems="${problems}- $f lies in the homes of ${owners//,/ and }: module homes may not overlap"$'\n' ;;
+  esac
+done <<<"$all"
 [ -z "$problems" ] && exit 0
 refuse "Code outside the module map (adr/modules-cover-code):
 ${problems}"
