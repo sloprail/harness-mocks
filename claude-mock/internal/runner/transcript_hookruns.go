@@ -32,30 +32,14 @@ import (
 //     non-blocking status code: <stderr or No stderr output>", stdout,
 //     exitCode, command, durationMs}.
 //
-// Every attachment carries hookName ("PreToolUse:Bash",
-// "SessionStart:startup", "SubagentStart:<agent_type>", "Stop"), hookEvent and
-// toolUseID — the tool call's id for a tool event, else one fresh uuid for the
-// whole fire. A Stop fire that ran any handler ends with a stop_hook_summary
+// Every attachment carries hookName (see hookRunName), hookEvent and toolUseID
+// — the tool call's id for a tool event, else one fresh uuid for the whole fire. A Stop fire that ran any handler ends with a stop_hook_summary
 // record carrying the same toolUseID.
 func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 	if t == nil || !recordedEvents[in.HookEventName] {
 		return
 	}
-	hookName := string(in.HookEventName)
-	switch in.HookEventName {
-	case hooks.EventPreToolUse, hooks.EventPostToolUse, hooks.EventPostToolUseFailure:
-		if in.ToolName != "" {
-			hookName += ":" + in.ToolName
-		}
-	case hooks.EventSessionStart:
-		if in.Source != "" {
-			hookName += ":" + in.Source
-		}
-	case hooks.EventSubagentStart:
-		if in.AgentType != "" {
-			hookName += ":" + in.AgentType
-		}
-	}
+	hookName := hookRunName(in)
 	toolUseID := in.ToolUseID
 	if toolUseID == "" {
 		toolUseID = newRecordUUID()
