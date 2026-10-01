@@ -42,12 +42,18 @@ while IFS= read -r c; do
     # local file (fetched on a miss and checked against the MANIFEST's sha256
     # by doc_copy; a page that cannot be had fails this check closed) and the
     # line its cited section starts at.
+    seen="$(jq -r '([.[].samples[].events] | join("\n"))' <<<"$runs"; jq -r '.[].text' <<<"$tests")"
     docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do
       f="$(doc_copy "$h" "$ref")" || { echo "$DOC_ERROR" >&2; exit 1; }
       a="${ref#*#}"; [ "$a" = "$ref" ] && a=""
       line="$(awk -v a="$a" 'a != "" && /^#+ / { t = tolower($0); sub(/^#+ +/, "", t); gsub(/[^a-z0-9 -]/, "", t); gsub(/ /, "-", t); if (t == a) { print NR; exit } }' "$f")"
-      docs="$(jq -c --arg r "$ref" --arg p "$f" --arg l "${line:-1}" --arg n "$(wc -l <"$f" | tr -d ' ')" \
-        '. + [{ref: $r, path: $p, line: ($l | tonumber), lines: ($n | tonumber)}]' <<<"$docs")"; done
+      # and an excerpt the judge always sees, whether or not it opens the page
+      # (measured: it often does not): the page's lines naming an identifier the
+      # runs or tests mention. A floor, never the whole story.
+      ids="$(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' <<<"$seen" | sort -u | grep -Fx -f <(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' "$f" | sort -u) | paste -sd'|' -)"
+      ex="$([ -n "$ids" ] && grep -nE "$ids" "$f" | head -c 20000)"
+      docs="$(jq -c --arg r "$ref" --arg p "$f" --arg l "${line:-1}" --arg n "$(wc -l <"$f" | tr -d ' ')" --arg ex "$ex" \
+        '. + [{ref: $r, path: $p, line: ($l | tonumber), lines: ($n | tonumber), excerpt: $ex}]' <<<"$docs")"; done
     subjects="$(jq -c --arg id "$id/$h" --arg st "$(jq -r '.doc.statement' <<<"$c")" --arg h "$h" \
       --argjson docs "$docs" --argjson runs "$runs" --argjson tests "$tests" --arg path "spec/capabilities/$id.yaml" \
       --argjson dev "$(jq -c '.deviations // []' <<<"$cell")" \
