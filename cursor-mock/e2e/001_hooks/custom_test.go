@@ -162,3 +162,24 @@ func TestAfterAToolSucceedsTheHookGetsItsInputItsOutputAndHowLongItTook(t *testi
 	}
 	require.Equal(t, 4, n, "the write, the read, and the write that follows with the read it makes first")
 }
+
+// TestADenyFromOneHookRefusesTheCallWhateverAnotherHookAsks: docs, any deny
+// wins over ask: with one preToolUse hook asking and another denying the same
+// call, in either order, the call is refused and does not run.
+// sr:proves pretooluse-refusal/cursor
+func TestADenyFromOneHookRefusesTheCallWhateverAnotherHookAsks(t *testing.T) {
+	scripts := map[string]string{
+		"ask.sh":  "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"ask\",\"user_message\":\"ASK-MSG\"}'\n",
+		"deny.sh": "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"deny\",\"user_message\":\"DENY-MSG\"}'\n",
+	}
+	for name, order := range map[string]string{
+		"ask first":  `[{"command":".cursor/hooks/ask.sh"},{"command":".cursor/hooks/deny.sh"}]`,
+		"deny first": `[{"command":".cursor/hooks/deny.sh"},{"command":".cursor/hooks/ask.sh"}]`,
+	} {
+		c := runCustom(t, `{"version":1,"hooks":{"preToolUse":`+order+`,"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, scripts, "echo REFUSED-OR-NOT")
+		require.Contains(t, c.stdout, `"rejected"`, name)
+		require.Contains(t, c.stdout, "DENY-MSG", name)
+		require.NotContains(t, c.stdout, "ASK-MSG", name)
+		require.NotContains(t, c.logged(t), "REFUSED-OR-NOT", name+": the command must not have run")
+	}
+}

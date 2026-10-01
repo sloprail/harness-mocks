@@ -16,3 +16,10 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/hook-exit-codes
       - cursor-mock/snapshots/runs/hook-matchers
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock reads the project's .cursor/hooks.json only, and runs its
+          hooks from the project root. The user-level hooks of
+          ~/.cursor/hooks.json (which run from ~/.cursor), and the team and
+          enterprise sources, are not modeled.

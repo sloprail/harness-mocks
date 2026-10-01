@@ -77,6 +77,8 @@ func TestRefusalDenyWinsAndABlockOutranksIt(t *testing.T) {
 		{"allow", []Decision{allow}, false, ""},
 		{"ask decides nothing", []Decision{{Permission: "ask"}, allow}, false, ""},
 		{"deny before allow", []Decision{deny, allow}, true, "json says no"},
+		{"deny after ask", []Decision{{Permission: "ask"}, deny}, true, "json says no"},
+		{"deny before ask", []Decision{deny, {Permission: "ask"}}, true, "json says no"},
 		{"deny after allow", []Decision{allow, deny}, true, "json says no"},
 		{"a block outranks a deny", []Decision{deny, block}, true, "exit says no"},
 		{"messages of denying hooks are concatenated", []Decision{deny, {Permission: "deny", Message: "and more"}}, true, "json says no\nand more"},
