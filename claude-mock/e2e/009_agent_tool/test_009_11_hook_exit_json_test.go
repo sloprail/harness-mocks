@@ -251,3 +251,85 @@ func TestT009_10_21_UserPromptSubmitAndStopExit1AreNonBlocking(t *testing.T) {
 		})
 	}
 }
+
+// plainTextStdoutCases are the recorded exit-0 outputs that are not a JSON
+// output object, so they are plain text (hook_success, content = stdout).
+var plainTextStdoutCases = []struct{ name, stdout string }{
+	{"unclosed object", `{"unclosed": 1`},
+	{"array and string lines", "[1, 2]\n\"just a string\""},
+	{"object lines setting no field", "{\"x\": 1}\n{\"y\": 2}"},
+}
+
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_11_PlainTextLikeStdoutIsHookSuccessContent(t *testing.T) {
+	for _, tc := range plainTextStdoutCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			sess := filepath.Join(dir, "sess")
+			toolFile := filepath.Join(dir, "tool-ran")
+			hook := hookWithRaw(t, dir, tc.stdout, "", 0)
+			writeSettings(t, dir, map[string]string{"PreToolUse": hook})
+			script := toolScenario(t, dir, filepath.Join(dir, "runs"), sess, toolFile)
+			out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-pt", "--project-dir", dir, "-p", "go")
+			require.Equal(t, 0, code, "output:\n%s", out)
+			assert.True(t, fileExists(toolFile), "the tool runs")
+			recs := readRecordsFile(t, sess)
+			assert.Empty(t, attachmentsOf(recs, "hook_non_blocking_error"), "no error")
+			ok := attachmentsOf(recs, "hook_success")
+			require.Len(t, ok, 1)
+			assert.Equal(t, map[string]any{
+				"type": "hook_success", "hookName": "PreToolUse:Bash", "hookEvent": "PreToolUse",
+				"content": tc.stdout, "stdout": tc.stdout, "stderr": "", "exitCode": float64(0), "command": hook,
+			}, withoutKeys(ok[0], "toolUseID", "durationMs"))
+		})
+	}
+}
+
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_11_Exit0SchemaInvalidJSONIsNonBlockingError(t *testing.T) {
+	dir := t.TempDir()
+	sess := filepath.Join(dir, "sess")
+	toolFile := filepath.Join(dir, "tool-ran")
+	hook := hookWithRaw(t, dir, `{"decision": 42}`, "", 0)
+	writeSettings(t, dir, map[string]string{"PreToolUse": hook})
+	script := toolScenario(t, dir, filepath.Join(dir, "runs"), sess, toolFile)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-g", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	assert.True(t, fileExists(toolFile), "the tool runs")
+	nb := attachmentsOf(readRecordsFile(t, sess), "hook_non_blocking_error")
+	require.Len(t, nb, 1)
+	stderr := nb[0]["stderr"].(string)
+	assert.True(t, strings.HasPrefix(stderr, "Hook JSON output validation failed"), "stderr: %s", stderr)
+	assert.NotContains(t, stderr, "Hook exited", "exit 0 has no 'Hook exited' tail")
+	assert.EqualValues(t, 0, nb[0]["exitCode"])
+}
+
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_11_Exit2JSONReasonBeatsStderr(t *testing.T) {
+	dir := t.TempDir()
+	sess := filepath.Join(dir, "sess")
+	toolFile := filepath.Join(dir, "tool-ran")
+	hook := hookWithRaw(t, dir, `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"the JSON reason wins"}}`, "the stderr loses", 2)
+	writeSettings(t, dir, map[string]string{"PreToolUse": hook})
+	script := toolScenario(t, dir, filepath.Join(dir, "runs"), sess, toolFile)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-h", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	assert.False(t, fileExists(toolFile), "the tool is blocked")
+	var results []string
+	for _, r := range readRecordsFile(t, sess) {
+		if r["type"] != "user" {
+			continue
+		}
+		msg, _ := r["message"].(map[string]any)
+		parts, _ := msg["content"].([]any)
+		for _, p := range parts {
+			if m, ok := p.(map[string]any); ok && m["type"] == "tool_result" {
+				results = append(results, m["content"].(string))
+			}
+		}
+	}
+	assert.Equal(t, []string{"PreToolUse:Bash hook error: the JSON reason wins"}, results, "no [cmd] prefix, no stderr")
+}
