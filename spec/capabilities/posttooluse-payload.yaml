@@ -10,3 +10,9 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/hookerrors
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#posttooluse
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/posttool-block

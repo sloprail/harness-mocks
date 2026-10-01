@@ -1,0 +1,1 @@
+Make every shell command its own separate tool call, never combined with another command or put in a script. Do these steps in order. 1) Run exactly this shell command: echo one. 2) Run exactly this shell command: ls /nonexistent-dir-for-this-run. 3) Run exactly this shell command: echo three. 4) Reply with the secret word you were given, and nothing else.

@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
 # Its core is internal/procexec; claude-mock's child environment facts live in claude-mock/internal/childenv.
 concern: "starting child processes: their environment, process group, and stopping them"
-home: ["internal/procexec/**", "claude-mock/internal/childenv/**"]   # everything about the concern lives here
-api: ["internal/procexec", "claude-mock/internal/childenv"]       # the only packages others may import
+home: ["internal/procexec/**", "claude-mock/internal/childenv/**", "codex-mock/internal/childenv/**"]   # everything about the concern lives here
+api: ["internal/procexec", "claude-mock/internal/childenv", "codex-mock/internal/childenv"]       # the only packages others may import

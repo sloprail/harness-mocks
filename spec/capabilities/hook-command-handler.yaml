@@ -9,3 +9,10 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/hookerrors
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#config-shape
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/hook-exit-json

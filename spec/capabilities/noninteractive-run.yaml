@@ -10,3 +10,10 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bashfail
+  codex:
+    docs:
+      - https://developers.openai.com/codex/noninteractive#make-output-machine-readable
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/prompt-blocked

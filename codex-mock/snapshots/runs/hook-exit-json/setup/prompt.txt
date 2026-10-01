@@ -1,0 +1,1 @@
+Make every shell command its own separate tool call, never combined with another command or put in a script. Run these eleven shell commands, one at a time, in this order, even if one is refused: echo a, echo b, echo c, echo d, echo e, echo f, echo g, echo i, echo j, echo k, echo h. Then reply with the single word DONE.

@@ -1,0 +1,4 @@
+CODEX_THREAD_ID=decoy-outer-thread
+CODEX_SANDBOX=decoy
+CODEX_CI=decoy
+CODEX_MANAGED_BY_NPM=decoy
