@@ -58,7 +58,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"subagent done","is
 				assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT="+tc.wantEntrypoint+"\n", ev)
 				assert.Contains(t, got, "CLAUDE_CODE_SESSION_ID=sess-envtest\n", ev)
 				assert.Contains(t, got, "CLAUDE_CODE_CHILD_SESSION=1\n", ev)
-				assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=", ev)
+				assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=0\n", ev)
 				assert.Regexp(t, `(?m)^CLAUDE_PID=[0-9]+$`, got, ev)
 			}
 		})

@@ -120,7 +120,7 @@ func TestInvokeCommand_SetsClaudeCodeEnvOnHook(t *testing.T) {
 	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=decoy-launcher\n", "the launcher's entrypoint passes through")
 	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ID=sess-xyz\n", "CLAUDE_CODE_SESSION_ID is this run's")
 	assert.Contains(t, got, "CLAUDE_CODE_CHILD_SESSION=1\n", "CLAUDE_CODE_CHILD_SESSION is this run's")
-	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=", "a print-mode session is unattended")
+	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=0\n", "a print-mode session is unattended")
 	assert.Contains(t, got, "CLAUDE_PID="+strconv.Itoa(os.Getpid())+"\n", "CLAUDE_PID is the harness's own pid")
 }
 
