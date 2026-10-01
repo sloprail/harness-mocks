@@ -55,11 +55,11 @@ func (inv *Invoker) runHandlers(ctx context.Context, handlers []HandlerSpec, ev 
 // commandTimeout is a handler's own timeout. A session-end hook may raise its
 // limit above the shared budget, but not beyond 60 seconds (docs, Common fields).
 func commandTimeout(h HandlerSpec, ev EventName) time.Duration {
-	secs := h.Timeout
-	if ev == EventSessionEnd && secs > 60 {
-		secs = 60
+	limit := time.Duration(0)
+	if ev == EventSessionEnd {
+		limit = 60 * time.Second
 	}
-	return time.Duration(secs) * time.Second
+	return corehooks.CapTimeout(time.Duration(h.Timeout)*time.Second, limit)
 }
 
 // env is what only a plugin's hook is told: where the plugin is installed and

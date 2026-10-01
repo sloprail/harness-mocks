@@ -101,7 +101,7 @@ func TestMergeEntriesRunsTheSameHandlerOnce(t *testing.T) {
 	// a plugin's copy of a handler stays separate: it names where it came from
 	withPlugin := handler("A")
 	withPlugin.PluginRoot = "/p"
-	assert.False(t, hasHandler(have, "Bash", withPlugin))
+	assert.Len(t, mergeEntries(have, []HookEntry{{Matcher: "Bash", Hooks: []HandlerSpec{withPlugin}}}), 2)
 }
 
 // A plugin's hook is told where its plugin is installed and where its data

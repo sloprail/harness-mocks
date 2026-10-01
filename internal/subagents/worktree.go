@@ -2,6 +2,7 @@ package subagents
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,6 +32,10 @@ type Isolation struct {
 	Worktree *Worktree
 	// Notes are what the harness reports of a fallback.
 	Notes []string
+	// Cleanup, set with a Worktree, removes the worktree and its branch once the
+	// sub-agent has finished, when it left them as it found them: nothing
+	// uncommitted and no commit on the branch. It reports whether it removed them.
+	Cleanup func(ctx context.Context) bool
 }
 
 // Isolate puts sub-agent id in its own worktree on a new branch, under
@@ -41,7 +46,8 @@ func Isolate(parentCwd, id string, l WorktreeLayout, bind func(dir, branch strin
 	dir := filepath.Join(parentCwd, l.Dir, l.Prefix+id)
 	branch := l.BranchPrefix + id
 	if err := bind(dir, branch); err == nil {
-		return Isolation{Cwd: dir, Worktree: &Worktree{Path: dir, Branch: branch}}
+		wt := Worktree{Path: dir, Branch: branch}
+		return Isolation{Cwd: dir, Worktree: &wt, Cleanup: func(ctx context.Context) bool { return cleanupWorktree(ctx, parentCwd, wt) }}
 	} else if mkErr := os.MkdirAll(dir, 0o755); mkErr == nil {
 		return Isolation{Cwd: dir, Notes: []string{fmt.Sprintf("bind %s: %v (falling back to a plain directory)", dir, err)}}
 	} else {
@@ -77,6 +83,24 @@ func BindGit(ctx context.Context, parentCwd string) func(dir, branch string) err
 }
 
 // WorktreeHook fires the hook for the harness creating or removing an isolated
-// worktree, and returns the hook's failure: a failing create hook aborts the
-// creation.
-func WorktreeHook(fire func() error) error { return fire() }
+// worktree. A failing hook is the error: a failing create hook aborts the
+// creation. A create hook replaces the harness's own creation and returns the
+// directory it made, so with wantPath its stdout must hold one (HookWorktreePath
+// rules), else it fails the creation. ran is false when no hook is configured
+// (fire says so), and the harness's default goes ahead.
+func WorktreeHook(wantPath bool, fire func() (stdout string, ran bool, err error)) (path string, ran bool, err error) {
+	stdout, ran, err := fire()
+	switch {
+	case !ran:
+		return "", false, nil
+	case err != nil:
+		return "", true, err
+	case !wantPath:
+		return "", true, nil
+	}
+	path, ok := hookWorktreePath(stdout)
+	if !ok {
+		return "", true, errors.New("the worktree hook printed no worktree path")
+	}
+	return path, true, nil
+}

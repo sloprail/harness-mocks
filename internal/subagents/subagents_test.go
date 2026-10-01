@@ -156,12 +156,21 @@ func TestHandBack_TrailerExceptForReadOnlyTypesWithoutAWorktree(t *testing.T) {
 	}
 }
 
-func TestWorktreeHook_ReturnsTheHooksFailure(t *testing.T) {
+func TestWorktreeHook(t *testing.T) {
 	boom := errors.New("hook failed")
-	if err := WorktreeHook(func() error { return boom }); err != boom {
-		t.Fatalf("err = %v", err)
+	if _, ran, err := WorktreeHook(false, func() (string, bool, error) { return "", true, boom }); !ran || err != boom {
+		t.Fatalf("ran=%v err=%v: a failing hook is its error", ran, err)
 	}
-	if err := WorktreeHook(func() error { return nil }); err != nil {
-		t.Fatalf("err = %v", err)
+	if _, ran, err := WorktreeHook(true, func() (string, bool, error) { return "", false, nil }); ran || err != nil {
+		t.Fatalf("ran=%v err=%v: no hook configured is not a failure", ran, err)
+	}
+	if path, ran, err := WorktreeHook(true, func() (string, bool, error) { return "noise\n/w/made\n", true, nil }); !ran || err != nil || path != "/w/made" {
+		t.Fatalf("path=%q ran=%v err=%v", path, ran, err)
+	}
+	if _, ran, err := WorktreeHook(true, func() (string, bool, error) { return "\n", true, nil }); !ran || err == nil {
+		t.Fatalf("ran=%v err=%v: a create hook that prints no path fails the creation", ran, err)
+	}
+	if path, _, err := WorktreeHook(false, func() (string, bool, error) { return "ignored", true, nil }); err != nil || path != "" {
+		t.Fatalf("path=%q err=%v: a remove hook returns no path", path, err)
 	}
 }
