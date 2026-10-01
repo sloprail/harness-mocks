@@ -33,7 +33,7 @@ func uuidsOf(recs []map[string]any) []any {
 	return out
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkSegment_Uncompacted(t *testing.T) {
 	data := jsonl(t,
 		map[string]any{"type": "custom-title"},
@@ -46,7 +46,7 @@ func TestForkSegment_Uncompacted(t *testing.T) {
 	assert.Equal(t, "u1", seg[1]["parentUuid"], "parents unchanged")
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkSegment_Compacted(t *testing.T) {
 	boundary := map[string]any{
 		"type": "system", "subtype": "compact_boundary", "uuid": "B", "parentUuid": nil, "logicalParentUuid": "p3",
@@ -73,7 +73,7 @@ func TestForkSegment_Compacted(t *testing.T) {
 	assert.Equal(t, "p3", seg[0]["logicalParentUuid"], "the boundary is copied verbatim")
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkSegment_LastBoundaryWins(t *testing.T) {
 	b := func(u string, kept ...any) map[string]any {
 		return map[string]any{"type": "system", "subtype": "compact_boundary", "uuid": u, "parentUuid": nil,
@@ -90,7 +90,7 @@ func TestForkSegment_LastBoundaryWins(t *testing.T) {
 	assert.Equal(t, []any{"B2", "S2", "c"}, uuidsOf(forkSegment(data, "new")))
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkTranscript_RewritesSessionIDAndLeavesTheSourceAlone(t *testing.T) {
 	cfg := t.TempDir()
 	cwd := t.TempDir()
