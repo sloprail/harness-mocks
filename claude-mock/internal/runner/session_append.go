@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/session"
 )
 
 // openSessionFile creates (or appends to) the session JSONL file and returns
@@ -39,6 +41,8 @@ func appendToSession(f *os.File, line []byte) {
 //     directory holds it, when that is not this run's — and reports the path
 //     under this run's own directory, as real Claude Code does (see transcript);
 //   - anything else writes, and reports, <projects>/<encoded cwd>/<id>.jsonl.
+//
+// sr:provides session-resume/claude
 func openRunTranscript(cfg Config) (*transcript, error) {
 	stamp := newRecordStamp(cfg.SessionID, cfg.Cwd)
 	if cfg.SidechainPath != "" {
@@ -53,9 +57,9 @@ func openRunTranscript(cfg Config) (*transcript, error) {
 		}
 		return openTranscript(here, here, stamp)
 	}
-	if cfg.IsResume && !fileExists(here) {
-		if found := findSessionFile(cfg.ConfigDir, cfg.SessionID); found != "" {
-			return openTranscript(found, here, stamp)
+	if cfg.IsResume {
+		if r, err := session.Resume(claudeLayout, cfg.ConfigDir, cfg.Cwd, cfg.SessionID); err == nil {
+			return openTranscript(r.Path, r.Reported, stamp)
 		}
 	}
 	return openTranscript(here, here, stamp)
@@ -79,14 +83,14 @@ func writeRootPrompt(tr *transcript, sessionID, cwd, prompt string) {
 		seedPreamble(tr.file(), sessionID)
 		return
 	}
-	tr.persistMap(map[string]any{
-		"type":         "user",
-		"uuid":         rootID,
-		"cwd":          cwd,
-		"message":      map[string]any{"role": "user", "content": prompt},
-		"promptSource": "sdk",
-		"turnOrigin":   "sdk",
-	})
+	rec := map[string]any{
+		"type":    "user",
+		"uuid":    rootID,
+		"cwd":     cwd,
+		"message": map[string]any{"role": "user", "content": prompt},
+	}
+	markPrompt(rec)
+	tr.persistMap(rec)
 }
 
 // appendResumePrompt writes a RESUME's prompt as the next human turn, chained
@@ -99,13 +103,13 @@ func appendResumePrompt(tr *transcript, sessionID, prompt string) {
 	if _, last := scanTranscriptTail(tr.path); last == prompt {
 		return
 	}
-	tr.persistMap(map[string]any{
-		"type":         "user",
-		"uuid":         newRecordUUID(),
-		"message":      map[string]any{"role": "user", "content": prompt},
-		"promptSource": "sdk",
-		"turnOrigin":   "sdk",
-	})
+	rec := map[string]any{
+		"type":    "user",
+		"uuid":    newRecordUUID(),
+		"message": map[string]any{"role": "user", "content": prompt},
+	}
+	markPrompt(rec)
+	tr.persistMap(rec)
 }
 
 // fileHasUUID reports whether any record in path has uuid as its own.

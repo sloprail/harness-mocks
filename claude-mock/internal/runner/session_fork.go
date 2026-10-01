@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sloprail/harness-mocks/internal/session"
 )
 
 // forkTranscript writes dest as a FORK of the session fromID under the new
@@ -24,8 +26,10 @@ import (
 //     transcripts that open on a compact_boundary.
 //
 // The source file is only read.
+//
+// sr:provides session-fork/claude
 func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
-	if fileExists(dest) {
+	if session.Exists(dest) {
 		return fmt.Errorf("fork: %s already exists", dest)
 	}
 	src := sessionFilePathIfExists(configDir, cwd, fromID)
@@ -36,7 +40,7 @@ func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
 	if err != nil {
 		return fmt.Errorf("fork: %w", err)
 	}
-	segment := forkSegment(data)
+	segment := forkSegment(data, newID)
 
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
@@ -46,7 +50,6 @@ func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
 		buf = append(append(buf, line...), '\n')
 	}
 	for _, rec := range segment {
-		rec["sessionId"] = newID
 		b, err := marshalRecord(rec)
 		if err != nil {
 			continue

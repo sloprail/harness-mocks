@@ -38,6 +38,8 @@ func (l Layout) ProjectDir(configDir, cwd string) string {
 // FilePath is the transcript of session sessionID run in cwd: under the
 // configuration directory, keyed by cwd with its symlinks resolved and by the
 // session id.
+//
+// sr:capability session-transcript-file
 func (l Layout) FilePath(configDir, cwd, sessionID string) string {
 	return filepath.Join(l.ProjectDir(configDir, cwd), sessionID+l.Ext)
 }

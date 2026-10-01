@@ -28,6 +28,13 @@ const (
 
 // rootRunE implements the root command's RunE — the primary entrypoint when the
 // binary is used as a drop-in for 'claude -p --output-format stream-json ...'.
+//
+// --resume <id> continues the session, --resume <id> --fork-session continues it
+// under a fresh (or --session-id) session id, and -p runs one prompt to its result.
+//
+// sr:provides session-resume/claude
+// sr:provides session-fork/claude
+// sr:provides noninteractive-run/claude
 // a10n:blueprint:ignore
 func rootRunE(cmd *cobra.Command, args []string) error {
 	scriptPath, _ := cmd.Flags().GetString(flagScript)
@@ -129,6 +136,8 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 // for a session it has no transcript of (claude 2.1.282): "No conversation
 // found with session ID: <id>" on stderr, an error result frame on stdout when
 // the output format is stream-json, exit status 1.
+//
+// sr:provides session-resume-unknown/claude
 func noConversation(cmd *cobra.Command, sessionID string) {
 	msg := "No conversation found with session ID: " + sessionID
 	fmt.Fprintln(os.Stderr, msg)

@@ -23,6 +23,8 @@ type Steps struct {
 // summarizer (manual only), the boundary, the summary, the session-start hook,
 // the hook after it, and for a manual compaction the command's own records. It
 // reports whether the compaction happened.
+//
+// sr:capability manual-compaction
 func Run(manual bool, s Steps) bool {
 	if s.Before != nil && s.Before() {
 		return false
