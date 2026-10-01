@@ -95,18 +95,15 @@ func PromptOutcome(blocked bool, context string) (refused bool, extra string) {
 }
 
 // ContextOf is the text a hook adds to the agent's context: the context its
-// structured output gave, else, for an event that reads plain output as
-// context, its plain output.
+// structured output gave and, for an event that reads plain output as
+// context, its plain output too (hooks that gave one each add both).
 //
 // sr:capability hook-additional-context
 func ContextOf(structured, plain string, plainAdds bool) string {
-	if structured != "" {
+	if !plainAdds {
 		return structured
 	}
-	if plainAdds {
-		return plain
-	}
-	return ""
+	return JoinContext(structured, plain)
 }
 
 // JoinContext adds a hook's context to what earlier hooks of the run added:

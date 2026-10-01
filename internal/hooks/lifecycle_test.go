@@ -60,7 +60,7 @@ func TestContext(t *testing.T) {
 		plainAdds         bool
 		want              string
 	}{
-		{"json", "plain", true, "json"},
+		{"json", "plain", true, "json\nplain"},
 		{"", "plain", true, "plain"},
 		{"", "plain", false, ""},
 		{"json", "plain", false, "json"},
