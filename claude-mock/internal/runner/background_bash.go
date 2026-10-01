@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
@@ -73,7 +72,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	cmd.Env = procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID), childenv.Defaults())
 	cmd.Stdout = out
 	cmd.Stderr = out
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	procexec.OwnGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		out.Close()
 		return toolexec.Result{Output: fmt.Sprintf("Bash: %v", err), IsError: true}

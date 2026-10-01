@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
-# No core yet (internal/scenario): the code lives in the claude-mock files below, until it moves.
+# Its core is internal/scenario (record type, the run's one result); claude-mock's adapter lives in the claude-mock files below.
 concern: "driving the scenario script and routing its records"
 home: ["internal/scenario/**", "claude-mock/internal/runner/runner.go", "claude-mock/internal/runner/runner_print.go", "claude-mock/internal/runner/config.go", "claude-mock/internal/runner/record*.go", "claude-mock/internal/runner/stream_scan.go", "claude-mock/main.go", "claude-mock/run.go", "claude-mock/run_flags.go", "claude-mock/e2etest/**", "cursor-mock/main.go", "cursor-mock/root.go", "cursor-mock/run.go", "cursor-mock/internal/runner/config.go", "cursor-mock/internal/runner/frames.go"]   # everything about the concern lives here
 api: ["internal/scenario"]       # the only packages others may import

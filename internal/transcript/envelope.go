@@ -25,6 +25,8 @@ type Envelope map[string]any
 
 // Stamp is line with every envelope field the record does not carry already,
 // and no other change. A line that is not a JSON object is returned as it is.
+//
+// sr:capability transcript-record-envelope
 func (e Envelope) Stamp(line []byte) []byte {
 	var rec map[string]any
 	if err := json.Unmarshal(line, &rec); err != nil || rec == nil {

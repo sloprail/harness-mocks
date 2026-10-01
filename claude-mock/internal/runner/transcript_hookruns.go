@@ -1,10 +1,8 @@
 package runner
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // recordHookRuns writes what real Claude Code records for one fired hook
@@ -31,12 +29,21 @@ import (
 //   - any other non-zero exit: hook_non_blocking_error {stderr: "Failed with
 //     non-blocking status code: <stderr or No stderr output>", stdout,
 //     exitCode, command, durationMs}.
+//   - a hook its timeout cancelled: hook_cancelled {command, durationMs,
+//     timedOut, timeoutMs}; an HTTP hook that failed: hook_non_blocking_error
+//     {stderr: the failure, stdout "", exitCode 0} (snapshots/runs/hook-timeout,
+//     http-hook). A prompt hook's JSON context leaves only its
+//     hook_additional_context (snapshots/runs/ctxmulti).
+//
+// What each run leaves is core's (corehooks.RecordFor); this writes it in
+// Claude Code's record shapes.
 //
 // Every attachment carries hookName (see hookRunName), hookEvent and toolUseID
 // — the tool call's id for a tool event, else one fresh uuid for the whole fire. A Stop fire that ran any handler ends with a stop_hook_summary
 // record carrying the same toolUseID.
 func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
-	if t == nil || !recordedEvents[in.HookEventName] {
+	ev := in.HookEventName
+	if t == nil || !corehooks.LeavesRecords(momentOf(ev)) {
 		return
 	}
 	hookName := hookRunName(in)
@@ -44,8 +51,6 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 	if toolUseID == "" {
 		toolUseID = newRecordUUID()
 	}
-	ev := in.HookEventName
-	stopLike := ev == hooks.EventStop || ev == hooks.EventSubagentStop
 	summary := stopSummary{toolUseID: toolUseID}
 	att := func(typ string, fields map[string]any) {
 		a := map[string]any{"type": typ, "hookName": hookName, "toolUseID": toolUseID, "hookEvent": string(ev)}
@@ -57,29 +62,22 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 	for _, r := range runs {
 		info := map[string]any{"command": r.Command}
 		ac := additionalContextFrom(r.Output)
+		// sr:provides hook-output-transcript-records/claude
+		rec := corehooks.RecordFor(ranOf(ev, r, ac))
 		switch {
+		case rec.Attachment == corehooks.AttachCancelled:
+			att("hook_cancelled", map[string]any{
+				"command": r.Command, "durationMs": r.DurationMs, "timedOut": true, "timeoutMs": r.TimeoutMs,
+			})
+			info["durationMs"] = r.DurationMs
 		case r.Blocked:
-			quoted := hooks.QuoteRun(r)
-			switch ev {
-			case hooks.EventSessionStart, hooks.EventSubagentStart:
-				att("hook_non_blocking_error", map[string]any{
-					"stderr": quoted, "stdout": r.Stdout, "exitCode": r.ExitCode, "command": r.Command,
-				})
-			case hooks.EventStop, hooks.EventSubagentStop:
-				t.stopHookFeedback(quoted)
-				summary.errors = append(summary.errors, quoted)
-			case hooks.EventPostToolUse, hooks.EventPostToolUseFailure: // the tool already ran; stderr is shown to Claude (docs)
-				att("hook_blocking_error", map[string]any{
-					"blockingError": map[string]any{"blockingError": quoted, "command": r.Command},
-				})
-			}
-			summary.hasOutput = true
-		case (stopLike || ev == hooks.EventPostToolUse) && r.Output.Decision == "block":
+			t.recordExit2(att, &summary, ev, r, rec)
+		case rec.Attachment == corehooks.AttachBlockingError: // exit 0, blocking by its JSON
 			reason := r.Output.Reason
 			if reason == "" {
 				reason = "Blocked by hook"
 			}
-			if stopLike {
+			if rec.Feedback {
 				t.stopHookFeedback(reason)
 			}
 			att("hook_blocking_error", map[string]any{
@@ -87,46 +85,18 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 			})
 			summary.errors = append(summary.errors, reason)
 			summary.hasOutput = true
-		case ev == hooks.EventPreToolUse && isDeny(r.Output):
-			// The refusal is the tool_result (see scanLines); nothing else.
-			info["durationMs"] = r.DurationMs
-		case r.JSONError != "":
-			// recorded in snapshots/runs/hook-exit-json: a non-blocking error
-			// whose stderr is the parse or validation message (and, on a
-			// non-zero exit, the hook's own stderr after it)
-			msg := r.JSONError
-			if r.ExitCode != 0 {
-				msg += fmt.Sprintf("\n\nHook exited %d with stderr:\n%s", r.ExitCode, strings.TrimSpace(r.Stderr))
+		case rec.Attachment == corehooks.AttachNonBlockingError:
+			msg := nonBlockingMessage(r)
+			fields := map[string]any{"stderr": msg, "stdout": r.Stdout, "exitCode": r.ExitCode, "command": r.Command, "durationMs": r.DurationMs}
+			if r.HTTPError != "" {
+				fields = map[string]any{"stderr": msg, "stdout": "", "exitCode": 0}
 			}
-			att("hook_non_blocking_error", map[string]any{
-				"stderr": msg, "stdout": r.Stdout, "exitCode": r.ExitCode, "command": r.Command, "durationMs": r.DurationMs,
-			})
+			att("hook_non_blocking_error", fields)
 			info["durationMs"] = r.DurationMs
 			summary.errors = append(summary.errors, msg)
 			summary.hasOutput = true
-		case r.ExitCode != 0 && !r.JSONParsed:
-			msg := strings.TrimSpace(r.Stderr)
-			if msg == "" {
-				msg = "No stderr output"
-			}
-			msg = "Failed with non-blocking status code: " + msg
-			att("hook_non_blocking_error", map[string]any{
-				"stderr": msg, "stdout": r.Stdout, "exitCode": r.ExitCode, "command": r.Command, "durationMs": r.DurationMs,
-			})
-			info["durationMs"] = r.DurationMs
-			summary.errors = append(summary.errors, msg)
-			summary.hasOutput = true
-		case r.Stdout != "" || r.Stderr != "":
-			content := ""
-			if !r.JSONParsed { // plain text, as the adapter read it
-				content = strings.TrimRight(r.Stdout, "\n")
-			}
-			att("hook_success", map[string]any{
-				"content": content, "stdout": r.Stdout, "stderr": r.Stderr, "exitCode": r.ExitCode,
-				"command": r.Command, "durationMs": r.DurationMs,
-			})
-			if ac != "" {
-				t.additionalContext(in, hookName, toolUseID, ac)
+		case rec.Attachment == corehooks.AttachSuccess || rec.Context:
+			if t.recordSuccess(att, in, r, hookName, toolUseID, ac, rec) {
 				summary.contexts = append(summary.contexts, ac)
 			}
 			info["durationMs"] = r.DurationMs
@@ -143,7 +113,7 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 		}
 		summary.infos = append(summary.infos, info)
 	}
-	if ev == hooks.EventStop {
+	if corehooks.SummaryAfter(momentOf(ev), len(runs)) {
 		t.writeStopSummary(summary)
 	}
 }

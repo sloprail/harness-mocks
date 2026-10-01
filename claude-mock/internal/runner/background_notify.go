@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // Background tasks: a Bash or an Agent called with run_in_background, the
@@ -116,10 +117,14 @@ func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *ho
 // and reports whether they let it through. A refused notification leaves
 // nothing.
 func submitNotification(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, note string) bool {
+	// sr:provides user-prompt-submit-hook/claude
+	if !corehooks.PromptHookFires(corehooks.PromptTaskNotification) {
+		return true
+	}
 	out, err := inv.WithRecorder(tr.holdHookRuns).Fire(ctx, hooks.Input{
 		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note,
 	})
-	if err != nil || out.Decision == "block" {
+	if refused, _ := corehooks.PromptOutcome(err != nil || out.Decision == "block", ""); refused {
 		tr.dropHeldHookRuns()
 		return false
 	}

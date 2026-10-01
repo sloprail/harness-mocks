@@ -1,0 +1,47 @@
+// Package subagents is the harness-neutral core of a nested agent run: where it
+// is placed, where its transcript lives, its hooks, its isolation and what it
+// hands back.
+package subagents
+
+import (
+	"path/filepath"
+	"strings"
+)
+
+// Layout is where a harness keeps sub-agent transcripts: in one directory
+// beside the session's own transcript.
+type Layout struct {
+	// SessionExt is the session transcript's extension, which the directory
+	// name drops: <session transcript without ext>/<Dir>/<Prefix><id><Ext>.
+	SessionExt, Dir, Prefix, Ext string
+}
+
+// Path is the transcript of sub-agent id for a session whose transcript is
+// sessionFile: a file of its own in the session's sub-agent directory, never
+// the session's. A nested sub-agent's is in the same directory as its parent's,
+// since every sub-agent of a session is recorded there.
+func (l Layout) Path(sessionFile, id string) string {
+	return filepath.Join(strings.TrimSuffix(sessionFile, l.SessionExt), l.Dir, l.Prefix+id+l.Ext)
+}
+
+// Parent is the agent that dispatches a sub-agent: the main thread (ID "",
+// depth 0) or a sub-agent.
+type Parent struct {
+	ID    string
+	Depth int
+}
+
+// Placement is where a sub-agent sits in the tree of a session's agents.
+type Placement struct {
+	// Depth is how deep in sub-agents it is: 1 for a sub-agent of the main
+	// thread, 2 for one that sub-agent dispatched.
+	Depth int
+	// ParentID is the dispatching sub-agent's id, "" for the main thread.
+	ParentID string
+}
+
+// Place is the placement of a sub-agent dispatched by parent: one deeper, naming
+// the parent. A sub-agent can itself dispatch sub-agents.
+func Place(parent Parent) Placement {
+	return Placement{Depth: parent.Depth + 1, ParentID: parent.ID}
+}

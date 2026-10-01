@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
-# No core yet (internal/transcript): the code lives in the claude-mock files below, until it moves.
+# Its core is internal/transcript (layout, lazy file, envelope, chain); claude-mock's adapter lives in the claude-mock files below.
 concern: "a session's append-only, chained record file"
 home: ["internal/transcript/**", "claude-mock/internal/runner/transcript*.go", "claude-mock/internal/runner/sessionwriter*.go", "cursor-mock/internal/runner/transcript.go"]   # everything about the concern lives here
 api: ["internal/transcript"]       # the only packages others may import

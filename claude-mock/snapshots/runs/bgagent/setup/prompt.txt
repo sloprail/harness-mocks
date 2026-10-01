@@ -1,0 +1,1 @@
+Use the Agent tool with subagent_type general-purpose, description 'sleeper', run_in_background true, and prompt: 'Run the Bash command: sleep 5; echo SUBDONE . Then reply with the single word SUBREPLY.' After launching it, immediately end your turn by replying only LAUNCHED. Do not wait.

@@ -1,0 +1,20 @@
+statement: >-
+  A hook fires when a session begins and says how it began: fresh, resumed,
+  forked, or continuing after a compaction. The hook cannot stop the session
+  from starting. (What else the hook receives or may return, such as context
+  for the agent, is other capabilities'.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#sessionstart-input
+      - https://code.claude.com/docs/en/hooks#sessionstart-decision-control
+      - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+    runs:
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/stops
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          A session cleared with /clear starts again with source "clear" in
+          Claude Code. The mock parses no slash command, so it never reports
+          that source.

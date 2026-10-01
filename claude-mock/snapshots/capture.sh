@@ -16,9 +16,14 @@
 # A scenario is hand-authored, and only its setup/ is:
 #   runs/<name>/setup/prompt.txt       the prompt
 #   runs/<name>/setup/settings.json    the project's .claude/settings.json (hooks)
+#   runs/<name>/setup/prepare.sh       optional: run in the scratch repo before claude
+#                                      (lays out a plugin marketplace, say)
 #   runs/<name>/setup/hook.sh          optional: the hook every event runs;
 #                                      it appends its stdin to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra claude flags, one per line
+#   runs/<name>/setup/then/<NN>/       optional later steps, run in name order in the same
+#                                      repo and HOME: prompt.txt, args, and `cwd` (a directory
+#                                      of the repo to run from). exit.txt has one line per step.
 #   runs/<name>/setup/env              optional: KEY=VALUE lines claude inherits on
 #                                      top of the hermetic env (e.g. an outer session's)
 set -euo pipefail
@@ -71,8 +76,12 @@ capture_run() {
   ln -s "$HOME/Library/Keychains" "$home/Library/Keychains" 2>/dev/null || true   # keeps the login, nothing else
   cp "$run/setup/settings.json" "$work/repo/.claude/settings.json" 2>/dev/null || true
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
+  # prepare.sh lays out what a scenario needs beyond settings and a hook (a plugin
+  # marketplace, say), in the scratch repo, before claude starts; it may rewrite
+  # .claude/settings.json (it knows the repo's absolute path: $PWD).
+  # It sees the same hermetic home as claude does, never the real one.
+  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" TMPDIR="$work/tmp" CLAUDE_CODE_TMPDIR="$work/tmp" sh "$run/setup/prepare.sh")
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
-  args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
   extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
   # Hermetic: claude starts from an EMPTY environment plus only what it needs to
   # run, so nothing of the session that runs this script (CLAUDECODE,
@@ -84,12 +93,29 @@ capture_run() {
   # (A literal /tmp path stays shared: only a sandbox could stop that.)
   local claude_bin; claude_bin="$(command -v claude)" || die "claude is not on PATH"
   set +e
-  (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
-    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" CLAUDE_CODE_TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-    "$claude_bin" -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose \
-      ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
-  echo $? >"$cap/exit.txt"
-  set -e
+  # One claude invocation per step: the scenario's own setup/ is step 1, and
+  # each runs/<name>/setup/then/<NN>/ is a later one, in name order, in the same
+  # repo and under the same fake HOME, so a later step can resume or fork what
+  # an earlier one left (the scenario fixes the session ids in each step's args).
+  # A step's `cwd` file names a directory of the repo to run it from (a `symlink` file, "<name> <target>", makes <name> a symlink to <target> first); its own settings.json and hook.sh go in that directory.
+  : >"$cap/stream.jsonl"; : >"$cap/stderr.txt"; : >"$cap/exit.txt"
+  steps=("$run/setup"); [ -d "$run/setup/then" ] && for d in "$run/setup/then"/*/; do steps+=("${d%/}"); done
+  for step in "${steps[@]}"; do
+    sargs=(); [ -f "$step/args" ] && while IFS= read -r a; do [ -n "$a" ] && sargs+=("$a"); done <"$step/args"
+    # a step's `symlink` file holds "<name> <target>": <name> in the repo is made a symlink
+    # to the directory <target> (also in the repo), for a step that runs from <name>
+    [ -f "$step/symlink" ] && { read -r lname ltarget <"$step/symlink"; mkdir -p "$work/repo/$ltarget"; ln -sfn "$work/repo/$ltarget" "$work/repo/$lname"; }
+    sdir="$work/repo"; [ -f "$step/cwd" ] && sdir="$work/repo/$(cat "$step/cwd")" && { [ -L "$sdir" ] || mkdir -p "$sdir"; }
+    # a step's own settings.json and hook.sh are installed in its directory, which is
+    # then a project of its own: the hooks of the repo root are not loaded from below it
+    [ -f "$step/settings.json" ] && mkdir -p "$sdir/.claude" && cp "$step/settings.json" "$sdir/.claude/settings.json"
+    [ -f "$step/hook.sh" ] && cp "$step/hook.sh" "$sdir/hook.sh" && chmod +x "$sdir/hook.sh"
+    (cd "$sdir" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+      TERM="${TERM:-dumb}" TMPDIR="$work/tmp" CLAUDE_CODE_TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
+      "$claude_bin" -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose \
+        ${sargs[@]+"${sargs[@]}"} "$(cat "$step/prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt")
+    echo $? >>"$cap/exit.txt"
+  done
   mkdir -p "$cap/transcript"
   cp -R "$home/.claude/projects/"*/* "$cap/transcript/" 2>/dev/null || true
   # drop what the login injects, which is the account's, not the harness's

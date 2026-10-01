@@ -96,7 +96,7 @@ func TestT007_11_BashToolSeesMockSessionID(t *testing.T) {
 // --- Read ---
 
 // TestT007_04_ReadToolReturnsFileContent: Read returns the file contents.
-// staged:proves file-tools/claude
+// sr:proves file-tools/claude
 func TestT007_04_ReadToolReturnsFileContent(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "hello.txt")
@@ -108,7 +108,7 @@ func TestT007_04_ReadToolReturnsFileContent(t *testing.T) {
 }
 
 // TestT007_05_ReadToolMissingFileIsError: Read on non-existent file sets is_error=true.
-// staged:proves file-tools/claude
+// sr:proves file-tools/claude
 func TestT007_05_ReadToolMissingFileIsError(t *testing.T) {
 	dir := t.TempDir()
 	out, code := runTool(t, dir, "Read", `{"file_path":"/nonexistent/file.txt"}`)
@@ -119,7 +119,7 @@ func TestT007_05_ReadToolMissingFileIsError(t *testing.T) {
 // --- Write ---
 
 // TestT007_06_WriteToolCreatesFile: Write creates the file with correct content.
-// staged:proves file-tools/claude
+// sr:proves file-tools/claude
 func TestT007_06_WriteToolCreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "out.txt")
@@ -131,7 +131,7 @@ func TestT007_06_WriteToolCreatesFile(t *testing.T) {
 }
 
 // TestT007_07_WriteToolCreatesParentDirs: Write creates missing parent directories.
-// staged:proves file-tools/claude
+// sr:proves file-tools/claude
 func TestT007_07_WriteToolCreatesParentDirs(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "a", "b", "c.txt")
@@ -145,7 +145,7 @@ func TestT007_07_WriteToolCreatesParentDirs(t *testing.T) {
 // --- Edit ---
 
 // TestT007_08_EditToolReplacesContent: Edit replaces old_string with new_string.
-// staged:proves file-tools/claude
+// sr:proves file-tools/claude
 func TestT007_08_EditToolReplacesContent(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "edit.txt")
@@ -158,7 +158,7 @@ func TestT007_08_EditToolReplacesContent(t *testing.T) {
 }
 
 // TestT007_09_EditToolOldStringNotFoundIsError: Edit returns is_error when old_string not found.
-// staged:proves file-tools/claude
+// sr:proves file-tools/claude
 func TestT007_09_EditToolOldStringNotFoundIsError(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "edit.txt")

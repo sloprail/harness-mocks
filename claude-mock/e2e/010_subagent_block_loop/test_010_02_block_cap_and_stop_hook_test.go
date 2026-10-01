@@ -11,11 +11,12 @@ import (
 // TestT010_04_BlockCapBoundsTheLoop: a SubagentStop hook that ALWAYS blocks must
 // be bounded by CLAUDE_CODE_STOP_HOOK_BLOCK_CAP. With the cap set to 2 the subagent
 // runs 3 times (initial + 2 re-runs) then the mock gives up; with the default
-// (unset = 8) it runs 9 times. The mock writes a "giving up" line to stderr.
+// (unset = 8) it runs 9 times. Nothing is written to stderr (the cap and cap-sub
+// recordings: stderr.txt is empty).
 //
 // sr:docs https://code.claude.com/docs/en/env-vars
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
-// staged:proves stop-block-cap/claude
+// sr:proves stop-block-cap/claude
 // staged:proves subagent-stop-block-loop/claude
 func TestT010_04_BlockCapBoundsTheLoop(t *testing.T) {
 	alwaysBlockExit2 := func(dir, fireCounter string) string {
@@ -38,10 +39,7 @@ exit 2`)
 
 		assert.Equal(t, 3, runCount(t, counter),
 			"CLAUDE_CODE_STOP_HOOK_BLOCK_CAP=2 must allow initial + 2 re-runs = 3 subagent runs")
-		assert.Contains(t, out, "giving up",
-			"mock must report giving up on stderr when the block cap is exceeded")
-		assert.Contains(t, out, "cap",
-			"the give-up message must reference the cap")
+		assert.NotContains(t, out, "giving up", "a real run says nothing when the cap overrides a block")
 	})
 
 	t.Run("default caps at 9 runs", func(t *testing.T) {
@@ -56,7 +54,7 @@ exit 2`)
 
 		assert.Equal(t, 9, runCount(t, counter),
 			"the default CLAUDE_CODE_STOP_HOOK_BLOCK_CAP=8 must allow initial + 8 re-runs = 9 subagent runs")
-		assert.Contains(t, out, "giving up", "mock must report giving up at the default cap")
+		assert.NotContains(t, out, "giving up", "a real run says nothing when the cap overrides a block")
 	})
 }
 
@@ -66,7 +64,7 @@ exit 2`)
 // 0 means unlimited, not "block zero times".
 //
 // sr:docs https://code.claude.com/docs/en/env-vars
-// staged:proves stop-block-cap/claude
+// sr:proves stop-block-cap/claude
 func TestT010_05_BlockCapZeroIsUnlimited(t *testing.T) {
 	dir := t.TempDir()
 	counter := filepath.Join(dir, "subagent-runs.txt")
@@ -162,7 +160,7 @@ exit 0`)
 // feedback turn, quoting the hook as "[<command>]: <stderr>".
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 // staged:proves subagent-stop-block-loop/claude
 func TestT010_07_BlockedSubagentStopSurfacesAsAttachment(t *testing.T) {
 	for _, tc := range []struct {

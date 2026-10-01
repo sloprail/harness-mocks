@@ -68,7 +68,7 @@ func isStopSummary(r rec) bool { return r.Subtype == "stop_hook_summary" }
 // UserPromptSubmit fires with it. Stop fires after, at the end of the turn.
 // staged:proves background-bash/claude
 // staged:proves task-notifications/claude
-// staged:proves user-prompt-submit-hook/claude
+// sr:proves user-prompt-submit-hook/claude
 func TestT017_11_BackgroundBashFinishedMidTurn(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -154,7 +154,7 @@ func TestT017_11b_BackgroundBashFailure(t *testing.T) {
 // stream only, never the transcript, and nothing waits for it. A command that
 // changes directory gets the cwd note (claude 2.1.282).
 // staged:proves background-bash-reaped-at-exit/claude
-// staged:proves stop-hook-payload/claude
+// sr:proves stop-hook-payload/claude
 func TestT017_11c_BackgroundBashStillRunningIsStopped(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
