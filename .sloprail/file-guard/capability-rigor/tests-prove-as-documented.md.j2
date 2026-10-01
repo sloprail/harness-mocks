@@ -48,6 +48,10 @@ failure.
 - **Covered:** every condition, value, limit and failure path the runs or the
   docs show for this capability is exercised by some test, for every
   kind of child process the runs show (e.g. a hook AND a tool command).
+- **A recording outranks a doc.** Where a recorded run and a doc sentence
+  disagree, the recording is what the real harness does, and a test that
+  matches the recording is right. A doc sentence about what the user is shown
+  (a notice on screen) is not a claim about what a transcript record holds.
 - **Docs count on their own.** A behaviour the docs state for this capability
   is required even when no recorded run shows it: a run records only what its
   scenario happened to log, so its silence is not evidence of absence. Fail
