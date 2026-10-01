@@ -25,6 +25,9 @@ visible and deliberate, not a test nobody wrote.
   - every hook event a mock does not define or never fires (for claude-mock,
     each event not named in `claude-mock/internal/hooks/event.go`, and those it
     names but no code path fires);
+  - the file-system effects a mock's scripted control record only announces
+    (for claude-mock, the worktree directory behind `worktree_create` and
+    `worktree_remove`: they fire the hooks, and no directory exists);
   - the reference text a harness prints inside its own diagnostics (such as
     the output schema Claude Code appends to a hook validation error): a mock
     writes the diagnostic's first line and the hook's own output.
