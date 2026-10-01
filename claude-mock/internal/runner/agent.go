@@ -103,7 +103,7 @@ type agentToolInput struct {
 // sr:docs https://code.claude.com/docs/en/sub-agents
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID string, rawInput json.RawMessage, tr *transcript) toolexec.Result {
-	sub, _, errRes := prepareSubagent(cfg, toolUseID, rawInput, tr, false)
+	sub, _, errRes := prepareSubagent(ctx, cfg, inv, toolUseID, rawInput, tr, false)
 	if sub == nil {
 		return errRes
 	}
@@ -112,7 +112,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID
 	var in agentToolInput
 	_ = json.Unmarshal(rawInput, &in)
 	worktree := ""
-	if sub.subCwd != cfg.Cwd {
+	if sub.subCwd != cfg.Cwd && !sub.cleanupWorktree(ctx) {
 		worktree = sub.subCwd
 	}
 	return buildAgentResult(sub, in, cfg.Model, out, time.Since(started).Milliseconds(), worktree)

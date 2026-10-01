@@ -31,7 +31,7 @@ type recordStamp struct {
 const (
 	stampUserType   = "external"
 	stampEntrypoint = "sdk-cli"
-	stampVersion    = "2.1.282"
+	stampVersion    = "2.1.285"
 )
 
 // newRecordStamp is the stamp for a run in cwd.

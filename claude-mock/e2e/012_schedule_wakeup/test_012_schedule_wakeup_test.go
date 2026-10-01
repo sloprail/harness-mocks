@@ -3,7 +3,10 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +64,7 @@ fi
 // success tool_result and RESUMES the turn (the runner re-runs the scenario), with NO
 // compaction event and NO SessionStart source=compact. ScheduleWakeup is a plain
 // resume tool — compaction is a separate, script-emitted event (see 013_compaction).
-// staged:proves schedule-wakeup/claude
+// sr:proves schedule-wakeup/claude
 func TestT012_01_ScheduleWakeupResumesScript(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")
@@ -69,7 +72,7 @@ func TestT012_01_ScheduleWakeupResumesScript(t *testing.T) {
 
 	script := filepath.Join(dir, "scenario.sh")
 	require.NoError(t, os.WriteFile(script,
-		[]byte(scheduleWakeupScenario(`{"delaySeconds":120,"reason":"more work","prompt":"resume work"}`)), 0o755))
+		[]byte(scheduleWakeupScenario(`{"delaySeconds":120,"reason":"more work","prompt":"resume work","noop":false}`)), 0o755))
 
 	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-wake", "--project-dir", dir, "-p", "go")
 	require.Equal(t, 0, code, "valid ScheduleWakeup run must succeed\noutput:\n%s", out)
@@ -97,7 +100,7 @@ func TestT012_01_ScheduleWakeupResumesScript(t *testing.T) {
 // TestT012_02_InvalidArgsProduceToolError: a ScheduleWakeup missing the required
 // delaySeconds arg must produce an is_error tool_result (and, as for any tool, must
 // not compact).
-// staged:proves schedule-wakeup/claude
+// sr:proves schedule-wakeup/claude
 func TestT012_02_InvalidArgsProduceToolError(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")
@@ -125,20 +128,125 @@ func TestT012_02_InvalidArgsProduceToolError(t *testing.T) {
 		"invalid ScheduleWakeup must NOT fire SessionStart source=compact\nsources:\n%s", string(data))
 }
 
-// TestT012_03_NegativeDelayRejected: a negative delaySeconds is rejected as an error.
-// staged:proves schedule-wakeup/claude
-func TestT012_03_NegativeDelayRejected(t *testing.T) {
+// TestT012_03_TooSmallADelayIsClamped: a delay below a minute (a negative one too)
+// is not an error: it is clamped to 60 seconds and the result says so (recorded:
+// snapshots/runs/schedule-wakeup-limits, a delay of 10 clamped to 60).
+// sr:proves schedule-wakeup/claude
+func TestT012_03_TooSmallADelayIsClamped(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")
 	writeSessionStartHook(t, dir, logFile)
 
 	script := filepath.Join(dir, "scenario.sh")
 	require.NoError(t, os.WriteFile(script,
-		[]byte(scheduleWakeupScenario(`{"delaySeconds":-5,"prompt":"resume"}`)), 0o755))
+		[]byte(scheduleWakeupScenario(`{"delaySeconds":-5,"prompt":"resume","noop":false}`)), 0o755))
 
 	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-wake4", "--project-dir", dir, "-p", "go")
 	require.Equal(t, 0, code, "output:\n%s", out)
 
-	assert.Contains(t, out, `"is_error":true`, "negative delay must be rejected\noutput:\n%s", out)
-	assert.NotContains(t, out, `"isCompactSummary":true`, "rejected ScheduleWakeup must not compact")
+	assert.Contains(t, out, "(clamped to 60s from your requested value)", "output:\n%s", out)
+	assert.NotContains(t, out, `"is_error":true`)
+	assert.NotContains(t, out, `"isCompactSummary":true`, "ScheduleWakeup must not compact")
+}
+
+// TestT012_04_NoopIsRequiredUnlessStop: a call without `noop` (and without `stop`)
+// is refused as an is_error tool_result, "`noop` is required when `stop` is not true."
+func TestT012_04_NoopIsRequiredUnlessStop(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "scenario.sh")
+	require.NoError(t, os.WriteFile(script,
+		[]byte(scheduleWakeupScenario(`{"delaySeconds":120,"reason":"r","prompt":"resume"}`)), 0o755))
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-wake5", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, out)
+	assert.Contains(t, out, "`noop` is required when `stop` is not true.")
+	assert.Contains(t, out, `"is_error":true`)
+}
+
+// TestT012_05_AcknowledgementAndPendingWakeup: a valid request is acknowledged with the
+// recorded text ("Next wakeup scheduled for HH:MM:SS (in Ns)." and the status-update
+// reminder) and a toolUseResult of scheduledFor, clampedDelaySeconds and wasClamped
+// (a delay over an hour clamped to 3600); the one pending wake-up is what the Stop
+// hook's session_crons lists ({id, schedule, recurring false, prompt}), a later request
+// replaces it, and stop cancels it, answering "Loop stopped — cancelled N pending
+// wakeup(s)" with stopped and cancelledWakeups (snapshots/runs/schedule-wakeup-limits).
+// sr:proves schedule-wakeup/claude
+func TestT012_05_AcknowledgementAndPendingWakeup(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "stops.log")
+	hook := filepath.Join(dir, "log.sh")
+	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat >> "+log+"\necho >> "+log+"\n"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"),
+		[]byte(`{"hooks":{"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}],"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
+	script := filepath.Join(dir, "scenario.sh")
+	call := func(id, input string) string {
+		return `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"` + id + `","name":"ScheduleWakeup","input":` + input + `}]}}`
+	}
+	body := "#!/bin/sh\nF=\"$A10N_MOCK_SESSION_FILE\"\n"
+	for _, c := range []struct{ id, input string }{
+		{"w1", `{"delaySeconds":100000,"reason":"r","prompt":"first","noop":false}`},
+		{"w2", `{"delaySeconds":300,"reason":"r","prompt":"second","noop":false}`},
+		{"w3", `{"stop":true,"reason":"done"}`},
+	} {
+		body += "if ! grep -q '\"id\":\"" + c.id + "\"' \"$F\" 2>/dev/null; then\nprintf '%s\\n' '" + call(c.id, c.input) + "'\nexit 0\nfi\n"
+	}
+	body += `printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'` + "\n"
+	require.NoError(t, os.WriteFile(script, []byte(body), 0o755))
+	start := time.Now()
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-wake6", "--project-dir", dir, "-p", "go")
+	end := time.Now()
+	require.Equal(t, 0, code, out)
+
+	assert.Contains(t, out, "(clamped to 3600s from your requested value)")
+	assert.Contains(t, out, "Next wakeup scheduled for ")
+	assert.Contains(t, out, "If you owe the user a status update this tick, write it now as ordinary response text; then end the turn")
+	assert.Contains(t, out, "Loop stopped — cancelled 1 pending wakeup(s)")
+	transcripts, err := filepath.Glob(filepath.Join(dir, ".claude-config", "projects", "*", "s-wake6.jsonl"))
+	require.NoError(t, err)
+	require.Len(t, transcripts, 1)
+	recorded, err := os.ReadFile(transcripts[0])
+	require.NoError(t, err)
+	// The time is rounded up to a whole minute, as recorded (scheduledFor a
+	// multiple of 60000), and never earlier than the delay asked for.
+	times := regexp.MustCompile(`"scheduledFor":([1-9][0-9]*)`).FindAllStringSubmatch(string(recorded), -1)
+	require.Len(t, times, 2)
+	for i, m := range times {
+		ms, err := strconv.ParseInt(m[1], 10, 64)
+		require.NoError(t, err)
+		assert.Zero(t, ms%60000, "scheduledFor %d is a whole minute", ms)
+		delay := []time.Duration{3600 * time.Second, 300 * time.Second}[i]
+		assert.GreaterOrEqual(t, ms, start.Add(delay).UnixMilli(), "rounded up, not down")
+		assert.Less(t, ms, end.Add(delay).Add(time.Minute).UnixMilli(), "by less than a minute")
+	}
+	assert.Contains(t, string(recorded), `"wasClamped":true`)
+	assert.Contains(t, string(recorded), `"clampedDelaySeconds":3600`)
+	assert.Contains(t, string(recorded), `"cancelledWakeups":1`)
+	assert.Contains(t, string(recorded), `"stopped":true`)
+	data, err := os.ReadFile(log)
+	require.NoError(t, err)
+	assert.Regexp(t, `"hook_event_name":"PostToolUse","tool_name":"ScheduleWakeup".*"tool_response":\{"clampedDelaySeconds":3600,"scheduledFor":[0-9]+,"wasClamped":true\}`, string(data), "PostToolUse carries the result")
+	assert.Contains(t, string(data), `"tool_response":{"cancelledWakeups":1,"clampedDelaySeconds":0,"scheduledFor":0,"stopped":true,"wasClamped":false}`)
+	assert.Contains(t, string(data), `"session_crons":[]`, "stopped, nothing is pending at the end of the turn")
+}
+
+// TestT012_06_StopHookListsThePendingWakeup: with a wake-up scheduled and not
+// stopped, the Stop payload's session_crons holds it: its id, a cron line of the
+// minute it is set for, recurring false and its prompt.
+// sr:proves schedule-wakeup/claude
+func TestT012_06_StopHookListsThePendingWakeup(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "stops.log")
+	hook := filepath.Join(dir, "log.sh")
+	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat >> "+log+"\necho >> "+log+"\n"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"),
+		[]byte(`{"hooks":{"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
+	script := filepath.Join(dir, "scenario.sh")
+	require.NoError(t, os.WriteFile(script,
+		[]byte(scheduleWakeupScenario(`{"delaySeconds":300,"reason":"r","prompt":"check later","noop":false}`)), 0o755))
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-wake7", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, out)
+	data, err := os.ReadFile(log)
+	require.NoError(t, err)
+	assert.Regexp(t, `"session_crons":\[\{"id":"[a-z0-9]{8}","prompt":"check later","recurring":false,"schedule":"[0-9]{1,2} [0-9]{1,2} \* \* \*"\}\]`, string(data))
 }

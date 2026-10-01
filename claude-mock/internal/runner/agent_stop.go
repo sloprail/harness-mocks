@@ -10,14 +10,15 @@ import (
 	"unicode/utf16"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 )
 
 // run drives the sub-agent's script as a nested run writing its sidechain
 // file, and reports its final text, its last assistant text, how many tools
 // it called, and why it failed if it did.
-func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt string) runOutcome {
+func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt string) subagents.Outcome {
 	if s.script == "" {
-		return runOutcome{finalText: "no subagent script"}
+		return subagents.Outcome{FinalText: "no subagent script"}
 	}
 	var buf bytes.Buffer
 	subCfg := Config{
@@ -39,18 +40,20 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SidechainPath:         s.sidechain,
 		ParentTranscriptPath:  s.parentReported,
 		bg:                    bg,
+		wake:                  s.parent.wake,
 		stream:                s.parent.stream,
 		sessionFile:           s.sessionFile,
 		spawnDepth:            s.spawnDepth,
+		SpawnLimit:            s.parent.SpawnLimit,
 	}
-	out := runOutcome{}
+	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
-		out.failure = err.Error()
+		out.Failure = err.Error()
 	}
-	out.finalText = lastResultText(buf.Bytes())
-	out.lastAssistant = lastAssistantText(buf.Bytes())
-	out.toolUses = countToolUses(buf.Bytes())
+	out.FinalText = lastResultText(buf.Bytes())
+	out.LastAssistant = lastAssistantText(buf.Bytes())
+	out.ToolUses = countToolUses(buf.Bytes())
 	return out
 }
 
@@ -64,18 +67,19 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 func fireSubagentStop(ctx context.Context, s *subagentRun, inv *hooks.Invoker, bg *backgroundTasks, lastAssistant string, stopHookActive bool) (bool, string) {
 	active := stopHookActive
-	tasks := bg.running()
-	crons := []any{}
+	facts := subagents.Stop(s.sidechain, lastAssistant, bg.Registry)
+	running := backgroundTaskList(facts.Tasks)
+	crons := sessionCrons(s.parent.wake)
 	out, err := inv.Fire(ctx, hooks.Input{
 		SessionID:            s.parent.SessionID,
 		Cwd:                  s.subCwd,
-		AgentTranscriptPath:  s.sidechain,
+		AgentTranscriptPath:  facts.TranscriptPath,
 		HookEventName:        hooks.EventSubagentStop,
 		AgentType:            s.agentType,
 		AgentID:              s.agentID,
 		StopHookActive:       &active,
-		LastAssistantMessage: &lastAssistant,
-		BackgroundTasks:      &tasks,
+		LastAssistantMessage: &facts.LastMessage,
+		BackgroundTasks:      &running,
 		SessionCrons:         &crons,
 	})
 	if err != nil {

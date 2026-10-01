@@ -19,11 +19,11 @@ import (
 // session waits for it; its notification (summary `Agent "<d>" finished`,
 // note, result, usage) starts a new turn, after the first stop_hook_summary,
 // with UserPromptSubmit fired for it; and Stop fires again at that turn's end.
-// staged:proves background-agent/claude
-// staged:proves print-waits-for-background-agents/claude
+// sr:proves background-agent/claude
+// sr:proves print-waits-for-background-agents/claude
 // sr:proves stop-hook-payload/claude
-// staged:proves task-notifications/claude
-// staged:proves task-stream-frames/claude
+// sr:proves task-notifications/claude
+// sr:proves task-stream-frames/claude
 // sr:proves user-prompt-submit-hook/claude
 func TestT017_12_BackgroundAgent(t *testing.T) {
 	dir := t.TempDir()
@@ -80,7 +80,7 @@ echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-7702"}'
 	assert.Equal(t, recs[first].UUID, *notification.ParentUUID)
 	var full map[string]any
 	require.NoError(t, json.Unmarshal([]byte(notification.Raw), &full))
-	assert.Equal(t, map[string]any{"kind": "task-notification"}, full["origin"])
+	assert.Equal(t, map[string]any{"kind": "task-notification", "producer": "session-task"}, full["origin"])
 	assert.Equal(t, "system", full["promptSource"])
 	assert.Equal(t, "task_notification", full["turnOrigin"])
 	note := messageText(notification)
@@ -174,8 +174,8 @@ func TestT017_12c_AgentWithoutRequiredInputIsRefused(t *testing.T) {
 // Each gets its own file in the session's one subagents/ directory; each
 // file's records carry that sub-agent's id; the inner sub-agent's tool call
 // reports its own agent_id; the dispatcher's file holds no sidechain record.
-// staged:proves nested-subagents/claude
-// staged:proves subagent-transcripts/claude
+// sr:proves nested-subagents/claude
+// sr:proves subagent-transcripts/claude
 func TestT017_13_NestedSubAgents(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -224,8 +224,8 @@ func TestT017_13_NestedSubAgents(t *testing.T) {
 // back the way claude 2.1.282 returns it — one text block: the hand-back
 // frame, the report indented, and the agentId/usage trailer — with a
 // toolUseResult of status "completed" that PostToolUse also receives.
-// staged:proves foreground-subagent-result/claude
-// staged:proves task-stream-frames/claude
+// sr:proves foreground-subagent-result/claude
+// sr:proves task-stream-frames/claude
 func TestT017_25_ForegroundAgentResult(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

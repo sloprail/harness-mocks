@@ -155,8 +155,8 @@ func TestT017_04_HookAttachmentsSitWhereRealOnesDo(t *testing.T) {
 // file — never into the dispatcher's (0 of 8,119 real main transcripts hold a
 // sidechain record).
 // sr:proves hook-common-payload/claude
-// staged:proves subagent-lifecycle-hooks/claude
-// staged:proves subagent-transcripts/claude
+// sr:proves subagent-lifecycle-hooks/claude
+// sr:proves subagent-transcripts/claude
 func TestT017_05_SubagentPayloadsAndRecords(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

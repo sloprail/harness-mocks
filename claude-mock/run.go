@@ -28,8 +28,6 @@ const (
 
 // rootRunE implements the root command's RunE — the primary entrypoint when the
 // binary is used as a drop-in for 'claude -p --output-format stream-json ...'.
-// --resume continues a session, --fork-session forks it, -p runs one prompt.
-//
 // sr:provides session-resume/claude
 // sr:provides session-fork/claude
 // sr:provides noninteractive-run/claude
@@ -120,6 +118,8 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		PluginCacheDir: pluginCacheDir,
 		PrintMode:      printMode,
 		Model:          model,
+		BgWaitCeiling:  printWaitCeiling(),
+		SpawnLimit:     spawnLimit(),
 		Stderr:         os.Stderr,
 		Out:            os.Stdout,
 	})

@@ -1,9 +1,0 @@
-statement: >-
-  Hooks fire when the harness creates or removes an isolated worktree, and a
-  failing create hook aborts the creation.
-providers:
-  claude:
-    docs:
-      - https://code.claude.com/docs/en/hooks#worktreecreate
-      - https://code.claude.com/docs/en/hooks#worktreeremove
-    runs: []

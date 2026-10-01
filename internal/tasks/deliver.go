@@ -5,6 +5,8 @@ import "context"
 // TakeFinished claims, in launch order, every finished task owner launched that
 // has not been handed over yet: what an owner that is still working is told
 // inside its turn, after its next tool result.
+//
+// sr:capability task-notifications
 func (r *Registry) TakeFinished(owner string) []*Task {
 	if r == nil {
 		return nil
@@ -25,6 +27,8 @@ func (r *Registry) TakeFinished(owner string) []*Task {
 // it returns the next finished task of owner, to start a further turn, waiting
 // while owner still has a background agent running. It returns nil when there
 // is nothing left to wait for.
+//
+// sr:capability print-waits-for-background-agents
 func (r *Registry) AwaitAfterTurn(ctx context.Context, owner string) *Task {
 	for {
 		if t := r.takeFirstFinished(owner); t != nil {

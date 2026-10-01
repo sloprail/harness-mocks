@@ -1,0 +1,1 @@
+Use the Agent tool (not in background) with subagent_type general-purpose, description 'bgrunner', prompt: 'Run this Bash command with run_in_background set to true and description bgsleep: sleep 30; echo SUBBG . Then immediately reply with the single word DONE. Do not wait for it.' Then reply only FINISHED.

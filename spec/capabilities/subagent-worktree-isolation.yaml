@@ -1,0 +1,12 @@
+statement: >-
+  A sub-agent can be dispatched into its own isolated worktree on a new
+  branch: its tools and hooks run there, while the session id stays shared
+  with its parent.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/sub-agents#write-subagent-files
+      - https://code.claude.com/docs/en/worktrees#isolate-subagents-with-worktrees
+    runs:
+      - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/isolated-worktree

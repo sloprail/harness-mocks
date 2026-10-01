@@ -13,7 +13,7 @@ import (
 // worktree_create control record causes the configured WorktreeCreate command
 // hook to fire. The hook writes the worktree name to a temp file; we assert
 // the file contains the expected name.
-// staged:proves worktree-hooks/claude
+// sr:proves worktree-hooks/claude
 func TestT002_01_WorktreeCreateHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "hook-log.txt")
@@ -23,7 +23,8 @@ func TestT002_01_WorktreeCreateHookFires(t *testing.T) {
 	require.NoError(t, os.WriteFile(hookScript, []byte(`#!/bin/sh
 # Read hook input from stdin and write the worktree_name field to logFile.
 input=$(cat)
-name=$(echo "$input" | grep -o '"worktree_name":"[^"]*"' | cut -d'"' -f4)
+name=$(echo "$input" | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
+[ -z "$name" ] && name=$(echo "$input" | grep -o '"worktree_path":"[^"]*"' | cut -d'"' -f4 | sed 's#.*/.claude/worktrees/##')
 echo "$name" >> "`+logFile+`"
 `), 0o755))
 
@@ -71,7 +72,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 
 // TestT002_02_WorktreeCreateHookBlockExitsNonZero verifies that a WorktreeCreate
 // hook that exits 2 causes the mock to exit non-zero.
-// staged:proves worktree-hooks/claude
+// sr:proves worktree-hooks/claude
 func TestT002_02_WorktreeCreateHookBlockExitsNonZero(t *testing.T) {
 	dir := t.TempDir()
 
@@ -143,7 +144,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // TestT002_05_SubagentStartControlRecordOverridesAgentType verifies that a
 // subagent_start control record in the script fires SubagentStart with the
 // agent_type from the record, overriding the default.
-// staged:proves subagent-lifecycle-hooks/claude
+// sr:proves subagent-lifecycle-hooks/claude
 func TestT002_05_SubagentStartControlRecordOverridesAgentType(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "subagent-log.txt")

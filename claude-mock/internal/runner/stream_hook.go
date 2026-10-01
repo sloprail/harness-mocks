@@ -7,6 +7,8 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/scenario"
+	"github.com/sloprail/harness-mocks/internal/tasks"
+	coretools "github.com/sloprail/harness-mocks/internal/tools"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -22,9 +24,14 @@ import (
 // A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
 // the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
 // own background commands end with its final response.
-// The run streams one result, at its real end (internal/scenario's Result).
+// The run streams one result, at its real end (internal/scenario's Result). Once
+// the turn is over a `claude -p` session waits for its background agents, each
+// finished task starting a further turn (tasks.NextTurn) until the idle ceiling,
+// and ends the background shells that are left after a grace (tasks.ReapAtExit).
 //
 // sr:provides noninteractive-run/claude
+// sr:provides print-waits-for-background-agents/claude
+// sr:provides background-bash-reaped-at-exit/claude
 // sr:invariant turn-loop
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
 	// Every FILE record persisted below goes through tr, which chains it from the
@@ -34,7 +41,10 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// stay the mock's claude stream).
 	if cfg.bg == nil {
 		cfg.bg = newBackgroundTasks()
-		defer cfg.bg.shutdown()
+		defer cfg.bg.Shutdown()
+	}
+	if cfg.wake == nil {
+		cfg.wake = coretools.NewWakeups()
 	}
 	bg := cfg.bg
 	nested := cfg.SuppressSubagentHooks
@@ -57,21 +67,23 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			final.Hold(turn.resultLine)
 			if nested {
 				finish()
-				bg.stopOwned(cfg)
+				if cfg.SyncSubagent { // only a foreground sub-agent's commands end with its response
+					bg.EndOfResponse(cfg.AgentID)
+				}
 				return nil
 			}
 			// sr:provides stop-hook-payload/claude
 			stop := corehooks.NewStop(lastText, stopBlocks)
 			active, last := stop.Continuing, stop.LastMessage
-			tasks := bg.running()
-			crons := []any{}
+			running := bg.running()
+			crons := sessionCrons(cfg.wake)
 			stopOut, stopRuns, stopErr := inv.FireRuns(ctx, hooks.Input{
 				SessionID:            cfg.SessionID,
 				Cwd:                  cfg.Cwd,
 				HookEventName:        hooks.EventStop,
 				StopHookActive:       &active,
 				LastAssistantMessage: &last,
-				BackgroundTasks:      &tasks,
+				BackgroundTasks:      &running,
 				SessionCrons:         &crons,
 			})
 			writeStopHookError(cfg, stopRuns)
@@ -105,20 +117,17 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			finish()
 			// The turn is over. Hand over what finished in the background, one
 			// new turn per task, waiting while a background agent still runs.
-			delivered := false
-			for t := bg.awaitAfterTurn(ctx, cfg.AgentID); t != nil; t = bg.awaitAfterTurn(ctx, cfg.AgentID) {
-				// A notification UserPromptSubmit refuses starts no turn;
-				// the next finished task is handed over instead.
-				if bg.deliverAsTurn(ctx, cfg, inv, tr, t) {
-					delivered = true
-					break
-				}
-			}
-			if delivered {
+			// A notification UserPromptSubmit refuses starts no turn; the next
+			// finished task is handed over instead (tasks.NextTurn).
+			// The wait for background agents ends after the idle ceiling.
+			waitCtx, cancelWait := tasks.WaitCeiling(ctx, cfg.BgWaitCeiling)
+			next := bg.NextTurn(waitCtx, cfg.AgentID, func(t *tasks.Task) bool { return bg.deliverAsTurn(ctx, cfg, inv, tr, t) })
+			cancelWait()
+			if next != nil {
 				lastSig, repeats = "", 0
 				continue
 			}
-			bg.stopOwned(cfg)
+			bg.ReapAtExit(cfg.AgentID, printReapGrace)
 			return nil
 		}
 		sig := turn.sig
