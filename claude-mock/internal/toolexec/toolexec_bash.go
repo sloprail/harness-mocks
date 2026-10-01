@@ -8,6 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // bashInput is the argument shape for the Bash tool.
@@ -61,10 +64,5 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 // Code session would hand its tool calls the OPERATOR's outer session id. Set
 // only when non-empty, matching the hook invoker (hooks/invoker.go).
 func bashEnv(sessionID string) []string {
-	env := os.Environ()
-	if sessionID != "" {
-		// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
-		env = append(env, "CLAUDE_CODE_SESSION_ID="+sessionID)
-	}
-	return env
+	return procexec.Env(os.Environ(), childenv.Identity(sessionID))
 }

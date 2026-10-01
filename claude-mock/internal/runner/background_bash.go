@@ -3,7 +3,6 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +10,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
+	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // tasksDir is where a session's background task output lives, as real Claude
@@ -67,7 +70,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	// spawned.
 	cmd := exec.Command("/bin/sh", "-c", in.Command) //nolint:gosec
 	cmd.Dir = cfg.Cwd
-	cmd.Env = append(os.Environ(), "CLAUDE_CODE_SESSION_ID="+cfg.SessionID)
+	cmd.Env = procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID))
 	cmd.Stdout = out
 	cmd.Stderr = out
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

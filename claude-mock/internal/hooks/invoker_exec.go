@@ -11,6 +11,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (HandlerRun, error) {
@@ -74,10 +77,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	// is set only when non-empty (the real CLI carries the active session id in each
 	// hook's env; a tool reads it to resolve "the current session").
 	// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID)
-	cmd.Env = append(os.Environ(), "CLAUDECODE=1", "CLAUDE_CODE_ENTRYPOINT=cli")
-	if inv.sessionID != "" {
-		cmd.Env = append(cmd.Env, "CLAUDE_CODE_SESSION_ID="+inv.sessionID)
-	}
+	cmd.Env = procexec.Env(os.Environ(), childenv.Identity(inv.sessionID))
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
