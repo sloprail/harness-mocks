@@ -40,3 +40,4 @@ visible and deliberate, not a test nobody wrote.
   part. Its tests prove the rest.
 - No `deviations` entry citing this ADR names a part its mock models (a tool
   its executor handles, an event it fires).
+
