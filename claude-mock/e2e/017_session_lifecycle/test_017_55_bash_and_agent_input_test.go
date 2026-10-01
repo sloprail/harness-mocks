@@ -47,6 +47,7 @@ func TestT017_55_BashResults(t *testing.T) {
 		`pgrep -x zzznoproc`,
 		`cmp in.txt /dev/null`,
 		`echo false | jq -e .`,
+		`git init -q . && git grep zzznomatch`,
 	}
 	var calls []string
 	for i, c := range cmds {
@@ -78,6 +79,7 @@ func TestT017_55_BashResults(t *testing.T) {
 		{want: "Exit code 1", isErr: true},           // pgrep: no match is still a failure
 		{contains: "Exit code 1\ncmp:", isErr: true}, // cmp: the files differ, still a failure
 		{want: "Exit code 1\nfalse", isErr: true},    // jq -e
+		{want: "(Bash completed with no output)"},    // git grep: no match, status 1
 	} {
 		block, r := toolResultOf(t, recs, fmt.Sprintf("c%dturn-s-%s", i, string(rune('a'+i))))
 		got := fmt.Sprint(block["content"])
@@ -114,7 +116,7 @@ func TestT017_55_BashResults(t *testing.T) {
 	require.GreaterOrEqual(t, len(structured), 6)
 	assert.Equal(t, map[string]any{"stdout": "hello", "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false}, structured[0])
 	assert.Equal(t, "", structured[1]["stdout"], "true: nothing printed")
-	assert.Len(t, structured, 11, "hello, true, the nine valid searches and comparisons: PostToolUse for each")
+	assert.Len(t, structured, 12, "hello, true, the nine valid searches and comparisons: PostToolUse for each")
 }
 
 // TestT017_56_AgentDispatchWithoutRequiredInputIsRefusedBeforeAnyHook: a
