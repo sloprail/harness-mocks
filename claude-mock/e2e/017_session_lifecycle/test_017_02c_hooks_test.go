@@ -20,8 +20,8 @@ import (
 // feedback quoting "[<command>]: <stderr>" and the summary, no attachment.
 // stop_hook_active is set on every Stop after a block.
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
-// staged:proves stop-block-continuation/claude
+// sr:proves hook-output-transcript-records/claude
+// sr:proves stop-block-continuation/claude
 // sr:proves stop-hook-payload/claude
 func TestT017_14_StopFeedbackInTheMainFile(t *testing.T) {
 	dir := t.TempDir()
@@ -132,7 +132,7 @@ echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":
 // TestT017_19_PromptAndSessionEndAttachments: a UserPromptSubmit hook that
 // prints plain text leaves a hook_success whose content is that text; a
 // SessionEnd hook's output leaves nothing (claude 2.1.282).
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 // sr:proves session-end-hook/claude
 func TestT017_19_PromptAndSessionEndAttachments(t *testing.T) {
 	dir := t.TempDir()
@@ -203,8 +203,8 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 // overridden, a warning is recorded, and the turn ends — claude 2.1.282 fired
 // Stop 9 times and wrote exactly this warning. The stream carries one result,
 // at the real end of the continued turn.
-// staged:proves stop-block-cap/claude
-// staged:proves stop-block-continuation/claude
+// sr:proves stop-block-cap/claude
+// sr:proves stop-block-continuation/claude
 func TestT017_26_StopBlockCap(t *testing.T) {
 	for _, tc := range []struct {
 		cap   string
@@ -247,7 +247,7 @@ echo '{"type":"result","subtype":"success","result":"DONE"}'
 // TestT017_27_SubagentStopBlockCap: SubagentStop shares the cap — 9 fires by
 // default, the sub-agent re-run 8 times — and, as in the controlled 2.1.282
 // run, leaves no warning record in either file.
-// staged:proves stop-block-cap/claude
+// sr:proves stop-block-cap/claude
 func TestT017_27_SubagentStopBlockCap(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -261,7 +261,13 @@ echo '{"type":"result","subtype":"success","result":"HELPED"}'
 	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "scap-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
-	assert.Len(t, payloads(t, log), 9)
+	ps := payloads(t, log)
+	assert.Len(t, ps, 9)
 	raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "scap-1"))
 	assert.NotContains(t, string(raw), "informational")
+	// the sub-agent's own file holds the nine blocks (recorded: snapshots/runs/cap-sub)
+	side, err := os.ReadFile(ps[0]["agent_transcript_path"].(string))
+	require.NoError(t, err)
+	assert.Equal(t, 9, strings.Count(string(side), `"type":"hook_blocking_error"`))
+	assert.NotContains(t, string(side), "informational")
 }

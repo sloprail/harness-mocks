@@ -68,6 +68,7 @@ func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Out
 	return out
 }
 
+// sr:capability hook-command-handler
 func runOne(ctx context.Context, c Command, stdin []byte, rt Runtime) Outcome {
 	timeout := DefaultTimeout(c.Timeout, rt.DefaultTimeout)
 	start := time.Now()

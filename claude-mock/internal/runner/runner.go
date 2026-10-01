@@ -74,6 +74,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
 	inv.SetTranscriptPath(tr.reported)
+	inv.SetProjectDir(projectDirOf(cfg))
 	inv.SetRecorder(tr.recordHookRuns)
 	if cfg.AgentID != "" {
 		inv.SetAgent(cfg.AgentID, cfg.AgentType)

@@ -105,9 +105,19 @@ func expandPluginRoot(entries []HookEntry, pluginDir string) []HookEntry {
 				}
 				return "${" + key + "}"
 			})
+			h.PluginRoot, h.PluginData = pluginDir, pluginDataDir(pluginDir)
 			expanded[j] = h
 		}
 		out[i] = HookEntry{Matcher: e.Matcher, Hooks: expanded}
 	}
 	return out
+}
+
+// pluginDataDir is where a plugin's persistent data lives, beside the
+// installation and apart from it so an update does not touch it (docs,
+// Reference scripts by path). It is made on first use.
+func pluginDataDir(pluginDir string) string {
+	dir := filepath.Join(filepath.Dir(pluginDir), ".data", filepath.Base(pluginDir))
+	_ = os.MkdirAll(dir, 0o755)
+	return dir
 }

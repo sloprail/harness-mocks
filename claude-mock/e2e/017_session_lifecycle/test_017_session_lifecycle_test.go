@@ -19,7 +19,7 @@ import (
 // `SessionStart:startup` runs of a hook reading its own transcript found no
 // file. When the hook prints something, its hook_success attachment is written
 // after it exits, and is the file's origin; the prompt chains to it.
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 // sr:proves session-transcript-file/claude
 func TestT017_01_FreshSessionHasNoRecordAtSessionStart(t *testing.T) {
 	dir := t.TempDir()
@@ -58,7 +58,7 @@ echo "starting up" 1>&2
 // TestT017_02_SilentSessionStartLeavesThePromptAsOrigin: a hook that prints
 // nothing leaves no attachment — 0 of 2,846 real PreToolUse successes are
 // empty — so the prompt is the origin.
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT017_02_SilentSessionStartLeavesThePromptAsOrigin(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -115,7 +115,7 @@ func TestT017_03_EveryHookCarriesTranscriptPath(t *testing.T) {
 // by the tool call's id; a non-zero, non-2 exit lands as
 // hook_non_blocking_error.
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT017_04_HookAttachmentsSitWhereRealOnesDo(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

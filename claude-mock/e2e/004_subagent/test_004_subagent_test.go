@@ -102,7 +102,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // claude 2.1.282 run: hookName "SubagentStart:<agent_type>", stderr
 // "[<command>]: <stderr>").
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 // staged:proves subagent-lifecycle-hooks/claude
 func TestT004_04_SubagentStartExit2DoesNotBlock(t *testing.T) {
 	dir := t.TempDir()

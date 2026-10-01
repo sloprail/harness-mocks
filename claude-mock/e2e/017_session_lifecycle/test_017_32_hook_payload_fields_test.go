@@ -131,7 +131,7 @@ exit 0
 // agent does, and what it prints cannot rewrite the prompt: a hook returning a
 // replacement prompt in any field leaves the agent's prompt as submitted, while
 // its additionalContext is added beside it; several hooks' contexts are all
-// kept, in order (docs, UserPromptSubmit decision control, Add context for
+// kept, in the order the hooks are configured (docs, UserPromptSubmit decision control, Add context for
 // Claude).
 // sr:proves user-prompt-submit-hook/claude
 // sr:proves hook-additional-context/claude
@@ -157,7 +157,10 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 
 	got, err := os.ReadFile(order)
 	require.NoError(t, err)
-	assert.Equal(t, "h1.sh\nh2.sh\nagent\n", string(got), "both hooks run, then the agent")
+	lines := strings.Split(strings.TrimSpace(string(got)), "\n")
+	require.Len(t, lines, 3)
+	assert.ElementsMatch(t, []string{"h1.sh", "h2.sh"}, lines[:2], "both hooks run (together, in either order) before the agent")
+	assert.Equal(t, "agent", lines[2])
 	prompt, err := os.ReadFile(filepath.Join(dir, "prompt.out"))
 	require.NoError(t, err)
 	assert.Equal(t, "the submitted prompt", string(prompt), "no field of a hook's output rewrites the prompt")

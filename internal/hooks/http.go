@@ -21,6 +21,8 @@ const (
 
 // HTTPResult is how an HTTP hook ended: reached is whether the endpoint was
 // reached at all, status its response status and body what it answered.
+//
+// sr:capability http-hooks
 func HTTPResult(reached, timedOut bool, status int, body string) HTTPOutcome {
 	if timedOut {
 		return HTTPCancelled

@@ -1,0 +1,18 @@
+statement: >-
+  What hooks do leaves records in the session transcript: a silent success
+  leaves nothing, while errors, blocks, cancellations and the context a hook
+  adds are recorded, and each stop that ran hooks ends with a summary record.
+  (Where context too long to keep goes is hook-additional-context's, and
+  a stop hook that gives context without blocking is not part of this.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#exit-code-0
+      - https://code.claude.com/docs/en/hooks#other-exit-codes
+      - https://code.claude.com/docs/en/hooks#add-context-for-claude
+    runs:
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/bgbash
+      - claude-mock/snapshots/runs/hook-timeout
