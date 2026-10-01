@@ -123,8 +123,12 @@ func mergeOutput(dst *Output, src Output) {
 		// decision wins, with its reason, whatever order they ran in (docs,
 		// "PreToolUse decision control").
 		h := *src.HookSpecificOutput
-		if prev := dst.HookSpecificOutput; prev != nil && corehooks.StrongerPermission(h.PermissionDecision, prev.PermissionDecision) != h.PermissionDecision {
-			h.PermissionDecision, h.PermissionDecisionReason = prev.PermissionDecision, prev.PermissionDecisionReason
+		if prev := dst.HookSpecificOutput; prev != nil {
+			if corehooks.StrongerPermission(h.PermissionDecision, prev.PermissionDecision) != h.PermissionDecision {
+				h.PermissionDecision, h.PermissionDecisionReason = prev.PermissionDecision, prev.PermissionDecisionReason
+			}
+			// Every hook's additionalContext reaches the agent, not the last's.
+			h.AdditionalContext = corehooks.JoinContext(prev.AdditionalContext, h.AdditionalContext)
 		}
 		dst.HookSpecificOutput = &h
 	}

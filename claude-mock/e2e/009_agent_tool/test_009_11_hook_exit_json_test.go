@@ -194,6 +194,7 @@ func TestT009_10_17_Exit2WithInvalidJSONStillBlocksWithStderr(t *testing.T) {
 
 // sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves session-start-hook/claude
 func TestT009_10_18_SessionStartExit2StderrNotSeenByModel(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

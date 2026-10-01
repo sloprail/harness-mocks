@@ -44,8 +44,11 @@ func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 		HookEventName: hooks.EventUserPromptSubmit,
 		Prompt:        cfg.Prompt,
 	})
-	refused, extra = corehooks.PromptOutcome(ferr != nil, promptContextFrom(out))
+	refused, extra = corehooks.PromptOutcome(ferr != nil || out.Decision == "block", promptContextFrom(out))
 	if refused {
+		if ferr == nil { // an exit-0 hook that blocked by its JSON decision (recorded: snapshots/runs/prompt-blocked-json)
+			ferr = &hooks.BlockError{Reason: out.Reason, SuppressPrompt: out.HookSpecificOutput != nil && out.HookSpecificOutput.SuppressOriginalPrompt}
+		}
 		return "", true, promptBlocked(cfg, tr, ferr)
 	}
 	return extra, false, nil

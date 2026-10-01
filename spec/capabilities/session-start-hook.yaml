@@ -1,7 +1,8 @@
 statement: >-
   A hook fires when a session begins and says how it began: fresh, resumed,
   forked, or continuing after a compaction. The hook cannot stop the session
-  from starting.
+  from starting. (What else the hook receives or may return, such as context
+  for the agent, is other capabilities'.)
 providers:
   claude:
     docs:

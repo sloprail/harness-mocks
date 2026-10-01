@@ -13,6 +13,7 @@ import (
 
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves user-prompt-submit-hook/claude
 func TestT009_10_01_UserPromptSubmitExit2BlocksPrompt(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -64,6 +65,8 @@ func TestT009_10_01_UserPromptSubmitExit2BlocksPrompt(t *testing.T) {
 
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-additional-context/claude
+// sr:proves user-prompt-submit-hook/claude
 func TestT009_10_02_PlainTextStdoutExit0IsContext(t *testing.T) {
 	for _, event := range []string{"UserPromptSubmit", "SessionStart"} {
 		t.Run(event, func(t *testing.T) {
@@ -140,6 +143,8 @@ func TestT009_10_05_PostToolUseExit2ShowsStderrAfterToolRan(t *testing.T) {
 
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves session-end-hook/claude
+// sr:proves session-start-hook/claude
 func TestT009_10_06_SessionEndExit1AndSessionStartExit2AreNonBlocking(t *testing.T) {
 	for _, tc := range []struct {
 		event string

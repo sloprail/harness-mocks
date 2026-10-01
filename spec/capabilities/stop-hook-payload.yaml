@@ -1,7 +1,9 @@
 statement: >-
   A hook fires each time the agent finishes responding. Its payload carries
   the agent's last message, whether the agent is already continuing because an
-  earlier hook blocked, and the background tasks still running.
+  earlier hook blocked, and the background tasks still running. (What those
+  tasks, and the scheduled wakeups the payload also lists, look like belongs
+  to their own capabilities.)
 providers:
   claude:
     docs:
