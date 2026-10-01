@@ -1,1 +1,0 @@
-Make every shell command its own separate tool call, never combined with another command or put in a script. Run exactly this shell command, once: ls /nonexistent-dir-for-this-run. Then reply only DONE.
