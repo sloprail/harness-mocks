@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
@@ -105,7 +106,21 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 		case ev == hooks.EventPreToolUse && isDeny(r.Output):
 			// The refusal is the tool_result (see scanLines); nothing else.
 			info["durationMs"] = r.DurationMs
-		case r.ExitCode != 0:
+		case r.JSONError != "":
+			// recorded in snapshots/runs/hook-exit-json: a non-blocking error
+			// whose stderr is the parse or validation message (and, on a
+			// non-zero exit, the hook's own stderr after it)
+			msg := r.JSONError
+			if r.ExitCode != 0 {
+				msg += fmt.Sprintf("\n\nHook exited %d with stderr:\n%s", r.ExitCode, strings.TrimSpace(r.Stderr))
+			}
+			att("hook_non_blocking_error", map[string]any{
+				"stderr": msg, "stdout": r.Stdout, "exitCode": r.ExitCode, "command": r.Command, "durationMs": r.DurationMs,
+			})
+			info["durationMs"] = r.DurationMs
+			summary.errors = append(summary.errors, msg)
+			summary.hasOutput = true
+		case r.ExitCode != 0 && !r.JSONParsed:
 			msg := strings.TrimSpace(r.Stderr)
 			if msg == "" {
 				msg = "No stderr output"

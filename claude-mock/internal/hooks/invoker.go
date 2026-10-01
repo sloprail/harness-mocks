@@ -69,6 +69,11 @@ type HandlerRun struct {
 	DurationMs int64
 	Blocked    bool
 	Output     Output
+	// JSONParsed: stdout was a JSON object the mock read; on a non-blocking
+	// exit status it then decides, not the status (docs, "Other exit codes").
+	// JSONError: stdout looked like JSON but did not parse or validate.
+	JSONParsed bool
+	JSONError  string
 }
 
 // NewInvoker creates an Invoker backed by the given settings. Every command hook

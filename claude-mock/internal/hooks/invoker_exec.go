@@ -97,6 +97,23 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventNa
 		DurationMs: time.Since(started).Milliseconds(),
 	}
 
+	// Claude Code reads the JSON on every exit code, not only 0 (docs, "Exit
+	// code output"): parse it before the status decides anything.
+	if stdout.Len() > 0 {
+		switch {
+		case !corehooks.IsJSONOutput(stdout.String()):
+			run.Output.PlainText = strings.TrimSpace(stdout.String())
+		case !json.Valid(stdout.Bytes()):
+			run.JSONError = "Hook output looks like a JSON object but is not valid JSON"
+		default:
+			if err := json.Unmarshal(stdout.Bytes(), &run.Output); err != nil {
+				run.JSONError = "Hook JSON output validation failed — " + err.Error()
+			} else {
+				run.JSONParsed = true
+			}
+		}
+	}
+
 	// sr:provides hook-exit-code-semantics/claude
 	if corehooks.VerdictOf(exitCode, strictExitEvents[ev]) == corehooks.Blocked {
 		run.Blocked = true
@@ -104,15 +121,6 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventNa
 	}
 	if runErr != nil {
 		slog.Debug("hooks: command non-blocking error", "cmd", h.Command, "err", runErr, "stderr", stderr.String())
-		return run, nil
-	}
-
-	if stdout.Len() > 0 {
-		if !corehooks.IsJSONOutput(stdout.String()) {
-			run.Output.PlainText = strings.TrimSpace(stdout.String())
-		} else if err := json.Unmarshal(stdout.Bytes(), &run.Output); err != nil {
-			slog.Debug("hooks: command output not valid JSON", "cmd", h.Command, "err", err)
-		}
 	}
 	return run, nil
 }

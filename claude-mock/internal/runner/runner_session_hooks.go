@@ -3,6 +3,8 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
@@ -85,4 +87,35 @@ func emitSystemContext(cfg Config, source, additionalContext string) {
 	if b, err := json.Marshal(rec); err == nil {
 		writeStreamLine(cfg, b)
 	}
+}
+
+// promptBlocked is what real Claude Code leaves behind when a UserPromptSubmit
+// hook blocks the prompt (exit 2): the prompt never reaches the model; a
+// warning names the hook and the original prompt, on the transcript and the
+// stream, and the run ends with a result carrying the same text, successfully
+// (recorded: snapshots/runs/prompt-blocked). Any other error is returned.
+// sr:docs https://code.claude.com/docs/en/hooks#what-a-blocked-prompt-leaves-behind
+func promptBlocked(cfg Config, tr *transcript, err error) error {
+	var be *hooks.BlockError
+	if !errors.As(err, &be) {
+		return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
+	}
+	text := "UserPromptSubmit operation blocked by hook:\n" + hooks.QuoteBlock(be.Command, be.Stderr) + "\n\nOriginal prompt: " + cfg.Prompt
+	if tr != nil {
+		tr.persistMap(map[string]any{
+			"type": "system", "subtype": "informational", "content": text,
+			"isMeta": false, "level": "warning", "preventContinuation": true,
+		})
+	}
+	writeFrame(cfg, map[string]any{
+		"type": "system", "subtype": "informational", "content": text,
+		"level": "warning", "prevent_continuation": true,
+	})
+	if line, merr := json.Marshal(map[string]any{
+		"type": "result", "subtype": "success", "is_error": false, "num_turns": 0,
+		"result": text, "session_id": cfg.SessionID,
+	}); merr == nil {
+		writeStreamLine(cfg, line)
+	}
+	return nil
 }

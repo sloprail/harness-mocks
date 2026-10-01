@@ -33,7 +33,7 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 			Prompt:        cfg.Prompt,
 		})
 		if err != nil {
-			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
+			return promptBlocked(cfg, tr, err)
 		}
 		cfg.AdditionalContext = addContext(cfg.AdditionalContext, promptContextFrom(promptOut))
 	}
