@@ -10,7 +10,7 @@ space=(); while IFS= read -r g; do [ -n "$g" ] && space+=("$g"); done < <(jq -r 
 exc=(); while IFS= read -r g; do [ -n "$g" ] && exc+=("$g"); done < <(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")
 [ "${#space[@]}" -gt 0 ] || refuse "no ADR linking $(rule_qname) declares a space, so module coverage cannot be checked"
 load_modules
-files="$(git -C "$SR_TREE" ls-files -- '*.go' ':!*_test.go' ':!proposals/**' 2>&1)" || refuse "could not list Go files: $files"
+files="$(git -C "$SR_TREE" ls-files -- '*.go' ':!*_test.go' 2>&1)" || refuse "could not list Go files: $files"
 
 problems=""
 while IFS= read -r f; do
