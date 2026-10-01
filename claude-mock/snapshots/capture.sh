@@ -8,6 +8,7 @@
 #                            real `claude`, and add a sample
 #   capture.sh doc <url>     copy a doc page (e.g. https://code.claude.com/docs/en/hooks)
 #                            to docs/<host>/<path>.md, and register its URL in MANIFEST
+#   capture.sh drop <run> <ts>  remove one sample (a bad or non-hermetic capture)
 #   capture.sh all           re-capture every run and doc at the installed
 #                            claude's version, and set MANIFEST.version to it
 #
@@ -21,9 +22,11 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 manifest="$here/MANIFEST.yaml"
 die() { echo "capture.sh: $*" >&2; exit 1; }
-[ -f "$manifest" ] || die "no MANIFEST.yaml beside this script"
 version() { yq -r '.version' "$manifest"; }
 installed() { claude --version | awk '{print $1}'; }
+# The first capture creates the MANIFEST, frozen at the installed version: it is
+# a snapshot file too, so nothing else may write it.
+[ -f "$manifest" ] || printf 'version: "%s"\n' "$(installed)" >"$manifest"
 
 # seal DIR — SEAL lists the sha256 of every other file under DIR.
 # Written to SEAL.tmp and renamed only on success, so a SEAL always means a
@@ -53,16 +56,23 @@ capture_run() {
   work="$(mktemp -d)"; home="$work/home"
   # a capture that fails part-way leaves nothing behind: no half-written sample
   trap 'rm -rf "$work"; [ -f "$cap/SEAL" ] || rm -rf "$cap"' EXIT
-  mkdir -p "$work/repo/.claude" "$home/Library" "$cap"
+  mkdir -p "$work/repo/.claude" "$work/tmp" "$home/Library" "$cap"
   ln -s "$HOME/Library/Keychains" "$home/Library/Keychains" 2>/dev/null || true   # keeps the login, nothing else
   cp "$run/setup/settings.json" "$work/repo/.claude/settings.json" 2>/dev/null || true
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
+  # Hermetic: claude starts from an EMPTY environment plus only what it needs to
+  # run, so nothing of the session that runs this script (CLAUDECODE,
+  # CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_ENTRYPOINT, …) can leak into what the
+  # capture records as the harness's own behaviour. stdin is closed so a -p run
+  # does not wait for it.
+  local claude_bin; claude_bin="$(command -v claude)" || die "claude is not on PATH"
   set +e
-  (cd "$work/repo" && HOME="$home" HOOK_LOG="$cap/payloads.jsonl" CLAUDE_PROJECT_DIR="$work/repo" \
-    claude -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose \
-      ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
+  (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" \
+    "$claude_bin" -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose \
+      ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
   echo $? >"$cap/exit.txt"
   set -e
   mkdir -p "$cap/transcript"
@@ -105,11 +115,20 @@ capture_doc() {
 
 case "${1:-}" in
   run) [ -n "${2:-}" ] || die "usage: capture.sh run <name>"; capture_run "$2" ;;
+  drop)
+    # The one way to remove a sample: this script is the only writer of
+    # snapshots/, and a hand `rm` there is refused by gate/snapshots-read-only.
+    [ -n "${2:-}" ] && [ -n "${3:-}" ] || die "usage: capture.sh drop <run> <sample-timestamp>"
+    printf '%s' "$3" | grep -Eq '^[0-9]{8}-[0-9]{6}$' || die "a sample is named YYYYMMDD-HHMMSS"
+    [ -d "$here/runs/$2/samples/$3" ] || die "no sample runs/$2/samples/$3"
+    rm -rf "$here/runs/$2/samples/$3"
+    echo "dropped runs/$2/samples/$3"
+    ;;
   doc) [ -n "${2:-}" ] || die "usage: capture.sh doc <url>"; capture_doc "$2" ;;
   all)
     v="$(installed)"; yq -i ".version = \"$v\"" "$manifest"
     for r in "$here"/runs/*/; do rm -rf "$r/samples"; capture_run "$(basename "$r")"; done
     for u in $(yq -r '.docs // {} | keys | .[]' "$manifest"); do capture_doc "$u"; done
     ;;
-  *) die "usage: capture.sh run <name> | doc <url> | all" ;;
+  *) die "usage: capture.sh run <name> | drop <run> <ts> | doc <url> | all" ;;
 esac
