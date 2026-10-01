@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
-	"github.com/sloprail/harness-mocks/internal/subagents"
 	"regexp"
 	"strings"
 )
@@ -99,16 +98,14 @@ var lineBreaks = regexp.MustCompile(`\r\n?|[\x{2028}\x{2029}\x{85}\x{0b}\x{0c}\x
 // foreground sub-agent, as the 2.1.282 binary's Agent result mapper builds it
 // and a controlled run recorded it: one text block holding the hand-back
 // frame, the report indented two spaces per line ("(Subagent completed but
-// returned no output.)" when it said nothing), then — except for the built-in
-// Explore and Plan agents without a worktree — the trailer
+// returned no output.)" when it said nothing), then the trailer
 //
 //	agentId: <id> (use SendMessage with to: '<id>', summary: '<5-10 word recap>' to continue this agent)[\nworktreePath: <p>]
 //	<usage>subagent_tokens: N\ntool_uses: N\nduration_ms: N</usage>
 //
 // Its toolUseResult (also PostToolUse's tool_response) carries status
 // "completed", the report as content, and the run's counts. The mock spends no
-// tokens: subagent_tokens is 0. Whether the trailer is there is the sub-agent
-// core's call (subagents.HandBack).
+// tokens: subagent_tokens is 0.
 //
 // sr:provides foreground-subagent-result/claude
 func buildAgentResult(sub *subagentRun, in agentToolInput, model string, out subagentOutcome, durationMs int64, worktreePath string) toolexec.Result {
@@ -120,14 +117,12 @@ func buildAgentResult(sub *subagentRun, in agentToolInput, model string, out sub
 	}
 	norm := lineBreaks.ReplaceAllString(report, "\n")
 	text := handbackFrame + "\n  " + strings.ReplaceAll(norm, "\n", "\n  ")
-	if subagents.HandBack(sub.agentType, worktreePath, builtinReadOnlyAgents) {
-		wt := ""
-		if worktreePath != "" {
-			wt = "\nworktreePath: " + worktreePath
-		}
-		text += "\nagentId: " + sub.agentID + " (use SendMessage with to: '" + sub.agentID + "', summary: '<5-10 word recap>' to continue this agent)" + wt +
-			fmt.Sprintf("\n<usage>subagent_tokens: 0\ntool_uses: %d\nduration_ms: %d</usage>", out.toolUses, durationMs)
+	wt := ""
+	if worktreePath != "" {
+		wt = "\nworktreePath: " + worktreePath
 	}
+	text += "\nagentId: " + sub.agentID + " (use SendMessage with to: '" + sub.agentID + "', summary: '<5-10 word recap>' to continue this agent)" + wt +
+		fmt.Sprintf("\n<usage>subagent_tokens: 0\ntool_uses: %d\nduration_ms: %d</usage>", out.toolUses, durationMs)
 	if model == "" {
 		model = "default"
 	}

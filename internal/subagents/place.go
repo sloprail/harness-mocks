@@ -14,6 +14,9 @@ type Layout struct {
 	// SessionExt is the session transcript's extension, which the directory
 	// name drops: <session transcript without ext>/<Dir>/<Prefix><id><Ext>.
 	SessionExt, Dir, Prefix, Ext string
+	// SidecarExt replaces Ext on a sub-agent's transcript path to name the
+	// metadata file that sits beside it.
+	SidecarExt string
 }
 
 // Path is the transcript of sub-agent id for a session whose transcript is
@@ -24,6 +27,12 @@ type Layout struct {
 // sr:capability subagent-transcripts
 func (l Layout) Path(sessionFile, id string) string {
 	return filepath.Join(strings.TrimSuffix(sessionFile, l.SessionExt), l.Dir, l.Prefix+id+l.Ext)
+}
+
+// Sidecar is the metadata file beside the sub-agent transcript at path: the
+// same name with the sidecar extension.
+func (l Layout) Sidecar(path string) string {
+	return strings.TrimSuffix(path, l.Ext) + l.SidecarExt
 }
 
 // Parent is the agent that dispatches a sub-agent: the main thread (ID "",
