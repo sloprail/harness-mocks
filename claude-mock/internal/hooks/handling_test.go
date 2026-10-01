@@ -126,6 +126,8 @@ func TestHookDirFallsBack(t *testing.T) {
 	assert.Equal(t, live, hookDir(gone, live, project), "the session's start directory comes first")
 	home, _ := os.UserHomeDir()
 	assert.Equal(t, home, hookDir(gone, gone+"2", gone+"3"), "then the home directory")
+	t.Setenv("HOME", gone+"4") // no home either: the system temp directory is the last resort
+	assert.Equal(t, os.TempDir(), hookDir(gone, gone+"2", gone+"3"), "and last the temp directory")
 }
 
 // A handler repeated across the settings files the loader reads runs once.
