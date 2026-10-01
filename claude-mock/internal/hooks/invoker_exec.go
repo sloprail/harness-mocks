@@ -18,7 +18,7 @@ import (
 	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
-func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (HandlerRun, error) {
+func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventName, hookCwd string, payload []byte) (HandlerRun, error) {
 	command := strings.TrimSpace(h.Command)
 	if command == "" {
 		return HandlerRun{}, nil
@@ -98,7 +98,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	}
 
 	// sr:provides hook-exit-code-semantics/claude
-	if corehooks.VerdictOf(exitCode) == corehooks.Blocked {
+	if corehooks.VerdictOf(exitCode, strictExitEvents[ev]) == corehooks.Blocked {
 		run.Blocked = true
 		return run, &BlockError{Command: h.Command, Stderr: run.Stderr}
 	}

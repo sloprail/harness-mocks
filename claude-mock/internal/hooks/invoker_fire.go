@@ -56,7 +56,7 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	var runs []HandlerRun
 	var firstBlock error
 	for _, h := range handlers {
-		run, blockErr := inv.invoke(ctx, h, hookCwd, payload)
+		run, blockErr := inv.invoke(ctx, h, input.HookEventName, hookCwd, payload)
 		runs = append(runs, run)
 		if blockErr != nil {
 			if firstBlock == nil {
@@ -72,7 +72,7 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	return merged, firstBlock
 }
 
-func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, payload []byte) (HandlerRun, error) {
+func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, ev EventName, hookCwd string, payload []byte) (HandlerRun, error) {
 	timeout := defaultHookTimeout
 	if h.Timeout > 0 {
 		timeout = time.Duration(h.Timeout) * time.Second
@@ -82,7 +82,7 @@ func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, p
 
 	switch h.Type {
 	case "command":
-		return inv.invokeCommand(ctx, h, hookCwd, payload)
+		return inv.invokeCommand(ctx, h, ev, hookCwd, payload)
 	case "http":
 		out, err := inv.invokeHTTP(ctx, h, payload)
 		return HandlerRun{Command: h.URL, Output: out}, err

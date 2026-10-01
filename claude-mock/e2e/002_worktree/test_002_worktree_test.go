@@ -89,8 +89,12 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach",
 	assert.NotEqual(t, 0, code, "blocking hook must cause non-zero exit")
 }
 
-// TestT002_04_WorktreeCreateNonBlockingHookErrorIsIgnored: hook exit 1 (not 2) is non-blocking.
-func TestT002_04_WorktreeCreateNonBlockingHookErrorIsIgnored(t *testing.T) {
+// TestT002_04_WorktreeCreateFailsOnAnyNonZeroExit: unlike most events, where
+// only exit 2 blocks, any non-zero exit of a WorktreeCreate hook fails the
+// worktree's creation (docs, "Exit code 2 behavior per event").
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+// sr:proves hook-exit-code-semantics/claude
+func TestT002_04_WorktreeCreateFailsOnAnyNonZeroExit(t *testing.T) {
 	dir := t.TempDir()
 	warnHook := writeScript(t, dir, "warn.sh", `#!/bin/sh
 echo "warning" >&2
@@ -105,7 +109,7 @@ printf '%s\n' '{"type":"worktree_create","worktree_name":"feat/warn"}'
 printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":false}'
 `)
 	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
-	assert.Equal(t, 0, code, "exit 1 hook must be non-blocking")
+	assert.NotEqual(t, 0, code, "an exit 1 WorktreeCreate hook fails the creation")
 }
 
 // --- WorktreeRemove ---

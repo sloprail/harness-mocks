@@ -136,3 +136,9 @@ func (in Input) MarshalJSON() ([]byte, error) {
 	}
 	return append(b[:len(b)-1], []byte(`,"agent_type":""}`)...), nil
 }
+
+// strictExitEvents are Claude Code's events that fail on any non-zero exit,
+// not only exit 2 (docs: "Any non-zero exit code causes worktree creation to
+// fail"; the same for removal).
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+var strictExitEvents = map[EventName]bool{EventWorktreeCreate: true, EventWorktreeRemove: true}

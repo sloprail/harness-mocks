@@ -13,14 +13,16 @@ const (
 	NonBlockingError
 )
 
-// VerdictOf is the verdict of a hook command's exit status.
+// VerdictOf is the verdict of a hook command's exit status. A strict event
+// (one that fails on any non-zero exit: a harness says which) takes every
+// non-zero status as Blocked.
 //
 // sr:capability hook-exit-code-semantics
-func VerdictOf(exitCode int) Verdict {
-	switch exitCode {
-	case 0:
+func VerdictOf(exitCode int, strict bool) Verdict {
+	switch {
+	case exitCode == 0:
 		return Accepted
-	case 2:
+	case exitCode == 2, strict:
 		return Blocked
 	default:
 		return NonBlockingError
