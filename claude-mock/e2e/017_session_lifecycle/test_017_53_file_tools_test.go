@@ -165,7 +165,8 @@ func TestT017_54_GlobListsMatchesOldestFirstUpToAHundred(t *testing.T) {
 	sc := script(t, dir, "s",
 		toolUse("g1", "Glob", q("*.txt")), toolUse("g2", "Glob", q("**/*.txt")), toolUse("g3", "Glob", q("sub/*.{json,yaml}")),
 		toolUse("g4", "Glob", q("sub")), toolUse("g5", "Glob", q("many/*.log")),
-		toolUse("g6", "Glob", `{"pattern":"tree/*.txt"}`), toolUse("g7", "Glob", `{"pattern":"*.txt","path":"`+tree+`\u0000"}`))
+		toolUse("g6", "Glob", `{"pattern":"tree/*.txt"}`), toolUse("g7", "Glob", `{"pattern":"*.txt","path":"`+tree+`\u0000"}`),
+		toolUse("g8", "Glob", `{"pattern":"*.txt\u0000"}`))
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "gl-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
@@ -181,6 +182,7 @@ func TestT017_54_GlobListsMatchesOldestFirstUpToAHundred(t *testing.T) {
 	assert.Len(t, strings.Split(text(4), "\n"), 100)
 	assert.Equal(t, "tree/older.txt\ntree/newer.txt", text(5), "with no path, the working directory is searched")
 	assert.Contains(t, text(6), "null byte", "a path with a null byte is an error asking for it to be removed")
+	assert.Contains(t, text(7), "null byte", "so is a pattern with one")
 	resp := map[string]map[string]any{}
 	for _, p := range payloads(t, log) {
 		resp[p["tool_use_id"].(string)[:2]] = p["tool_response"].(map[string]any)
