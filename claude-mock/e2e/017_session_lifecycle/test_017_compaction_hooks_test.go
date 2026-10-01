@@ -222,3 +222,24 @@ func TestT017_07h_CompactHookMatchersSelectTheTrigger(t *testing.T) {
 		})
 	}
 }
+
+// TestT017_07k_CompactionWithoutHooksStreamsNoHookFrames: with no hook
+// configured a manual compaction streams no hook_started or hook_response
+// frame, only its status, init and boundary frames and the summary
+// (snapshots/runs/compact-nohooks).
+// sr:proves manual-compaction/claude
+func TestT017_07k_CompactionWithoutHooksStreamsNoHookFrames(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	sc := script(t, dir, "s", toolUse("b1", "Bash", `{"command":"true"}`),
+		`{"type":"compact","summary":"the summary @MARK@","trigger":"manual","pre_tokens":900,"post_tokens":100}`)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-k",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.Contains(t, out, `"subtype":"compact_boundary"`)
+	assert.Contains(t, out, `"isCompactSummary":true`)
+	assert.NotContains(t, out, `"subtype":"hook_started"`)
+	assert.NotContains(t, out, `"subtype":"hook_response"`)
+	assert.NotContains(t, out, `"hook_event":"PreCompact"`)
+	assert.NotContains(t, out, `"hook_event":"PostCompact"`)
+}

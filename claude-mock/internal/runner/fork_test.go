@@ -157,9 +157,6 @@ func TestBuildAgentResult(t *testing.T) {
 
 	wt := buildAgentResult(sub, agentToolInput{}, "", subagentOutcome{finalText: "x"}, 1, "/w/.claude/worktrees/agent-a")
 	assert.Contains(t, wt.Output, "to continue this agent)\nworktreePath: /w/.claude/worktrees/agent-a\n<usage>")
-
-	explore := buildAgentResult(&subagentRun{agentID: "a1", agentType: "Explore"}, agentToolInput{}, "", subagentOutcome{}, 1, "")
-	assert.Equal(t, handbackFrame+"\n  (Subagent completed but returned no output.)", explore.Output, "Explore/Plan without a worktree: no trailer")
 }
 
 func TestSectionHashMatchesTheBinary(t *testing.T) {

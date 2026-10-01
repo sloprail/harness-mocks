@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // subagentMeta is a sub-agent's .meta.json sidecar, in the shape claude
@@ -60,7 +59,7 @@ func seedSubagentTranscript(path, subCwd, sessionID, agentID, prompt string, met
 		}
 	}
 	if mb, err := json.Marshal(meta); err == nil {
-		_ = os.WriteFile(strings.TrimSuffix(path, ".jsonl")+".meta.json", mb, 0o644)
+		_ = os.WriteFile(claudeSubagentLayout.Sidecar(path), mb, 0o644)
 	}
 }
 
@@ -73,7 +72,7 @@ func (s *subagentRun) cleanupWorktree(ctx context.Context) bool {
 	if s.cleanup == nil || !s.cleanup(ctx) {
 		return false
 	}
-	sidecar := strings.TrimSuffix(s.sidechain, ".jsonl") + ".meta.json"
+	sidecar := claudeSubagentLayout.Sidecar(s.sidechain)
 	var meta map[string]any
 	if b, err := os.ReadFile(sidecar); err == nil && json.Unmarshal(b, &meta) == nil {
 		delete(meta, "worktreePath")

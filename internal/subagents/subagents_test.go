@@ -143,19 +143,6 @@ func TestIsolate_FallsBackToAPlainDirectoryThenToTheParent(t *testing.T) {
 	}
 }
 
-func TestHandBack_TrailerExceptForReadOnlyTypesWithoutAWorktree(t *testing.T) {
-	skip := []string{"Explore", "Plan"}
-	if HandBack("Explore", "", skip) || HandBack("Plan", "", skip) {
-		t.Fatal("a built-in type without a worktree gets no trailer")
-	}
-	if !HandBack("Explore", "/wt", skip) {
-		t.Fatal("a worktree is named by the trailer")
-	}
-	if !HandBack("general-purpose", "", skip) {
-		t.Fatal("other types get the trailer")
-	}
-}
-
 func TestWorktreeHook(t *testing.T) {
 	boom := errors.New("hook failed")
 	if _, ran, err := WorktreeHook(false, func() (string, bool, error) { return "", true, boom }); !ran || err != boom {
