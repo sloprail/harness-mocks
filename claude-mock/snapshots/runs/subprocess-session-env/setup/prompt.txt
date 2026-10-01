@@ -1,0 +1,1 @@
+Run exactly this Bash command, once, and nothing else: echo "SID=$CLAUDE_CODE_SESSION_ID CC=$CLAUDECODE EP=$CLAUDE_CODE_ENTRYPOINT". Then reply with the single word DONE.
