@@ -2,7 +2,8 @@ statement: >-
   A hook run at the start of a session, on a submitted prompt, or after a tool
   call succeeds can return text that is added to the agent's context; when
   several hooks return text, all of it is kept. The harness records the text
-  beside the hook's own output.
+  beside the hook's own output. (What a harness does with text too long to
+  keep whole is not part of this.)
 providers:
   claude:
     docs:
@@ -11,10 +12,3 @@ providers:
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/ctxmulti
-    deviations:
-      - adr: modeled-surface
-        statement: >-
-          Claude Code writes context longer than 10,000 characters to a file
-          in the session directory and gives the agent the file's path with a
-          preview of its first 2,000 characters. The mock keeps any length
-          whole and writes no such file.
