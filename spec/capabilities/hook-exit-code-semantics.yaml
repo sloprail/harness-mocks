@@ -38,7 +38,9 @@ providers:
           A hook's JSON that fails Claude Code's output schema is a
           non-blocking error in the mock too, whose message names the failing
           field and carries the hook's own stderr, but not the full output
-          schema Claude Code prints after it.
+          schema Claude Code prints after it. Only an invalid decision gives
+          Claude Code's recorded wording; any other field's complaint is the
+          mock's own.
       - adr: modeled-surface
         statement: >-
           WorktreeRemove fails on a non-zero hook exit only if the worktree's

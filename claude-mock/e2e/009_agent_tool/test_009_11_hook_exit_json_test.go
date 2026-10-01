@@ -226,6 +226,11 @@ func TestT009_10_19_Exit0MalformedJSONIsNonBlockingError(t *testing.T) {
 	assert.EqualValues(t, 0, nb[0]["exitCode"])
 }
 
+// recordedDecisionInvalid is the message claude 2.1.285 gave a hook printing
+// {"decision": 42} (recorded: snapshots/runs/hook-exit-json, cases d and g):
+// it names the failing field and the values it allows.
+const recordedDecisionInvalid = "Hook JSON output validation failed — decision: Invalid option: expected one of \"approve\"|\"block\""
+
 // sr:docs https://code.claude.com/docs/en/hooks#other-exit-codes
 // sr:proves hook-exit-code-semantics/claude
 func TestT009_10_20_Exit1SchemaInvalidJSONIsNonBlockingError(t *testing.T) {
@@ -241,7 +246,7 @@ func TestT009_10_20_Exit1SchemaInvalidJSONIsNonBlockingError(t *testing.T) {
 	nb := attachmentsOf(readRecordsFile(t, sess), "hook_non_blocking_error")
 	require.Len(t, nb, 1)
 	stderr := nb[0]["stderr"].(string)
-	assert.True(t, strings.HasPrefix(stderr, "Hook JSON output validation failed"), "stderr: %s", stderr)
+	assert.True(t, strings.HasPrefix(stderr, recordedDecisionInvalid), "stderr: %s", stderr)
 	assert.Contains(t, stderr, "Hook exited 1 with stderr:\nschema-invalid on exit 1")
 	assert.EqualValues(t, 1, nb[0]["exitCode"])
 }
@@ -319,7 +324,7 @@ func TestT009_11_Exit0SchemaInvalidJSONIsNonBlockingError(t *testing.T) {
 	nb := attachmentsOf(readRecordsFile(t, sess), "hook_non_blocking_error")
 	require.Len(t, nb, 1)
 	stderr := nb[0]["stderr"].(string)
-	assert.True(t, strings.HasPrefix(stderr, "Hook JSON output validation failed"), "stderr: %s", stderr)
+	assert.True(t, strings.HasPrefix(stderr, recordedDecisionInvalid), "stderr: %s", stderr)
 	assert.NotContains(t, stderr, "Hook exited", "exit 0 has no 'Hook exited' tail")
 	assert.EqualValues(t, 0, nb[0]["exitCode"])
 }

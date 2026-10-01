@@ -106,8 +106,8 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventNa
 		case !json.Valid(stdout.Bytes()):
 			run.JSONError = "Hook output looks like a JSON object but is not valid JSON"
 		default:
-			if err := json.Unmarshal(stdout.Bytes(), &run.Output); err != nil {
-				run.JSONError = "Hook JSON output validation failed — " + err.Error()
+			if msg := decodeOutput(stdout.Bytes(), &run.Output); msg != "" {
+				run.JSONError = msg
 			} else {
 				run.JSONParsed = true
 			}

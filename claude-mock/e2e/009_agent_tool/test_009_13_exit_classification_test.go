@@ -113,3 +113,37 @@ func TestT009_13_Exit1JSONDecidesOnStop(t *testing.T) {
 	assert.Contains(t, sess, "json decides on exit 1")
 	assert.NotContains(t, sess, "Failed with non-blocking status code")
 }
+
+// Plain-text stdout does not change a non-zero, non-2 status: the hook is a
+// non-blocking error, the tool runs, and the notice carries its stderr.
+// sr:docs https://code.claude.com/docs/en/hooks#other-exit-codes
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_13_PlainTextStdoutOnExit1IsNonBlocking(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	writeSettings(t, dir, map[string]string{"PreToolUse": hookWithRaw(t, dir, "just some words", "plain on exit 1", 1)})
+	toolFile := filepath.Join(dir, "tool-ran")
+	script := toolScenario(t, dir, filepath.Join(dir, "runs.log"), filepath.Join(dir, "session.copy"), toolFile)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-pt1", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	assert.True(t, fileExists(toolFile), "the tool runs")
+	errs := attachmentsOf(allRecords(t, cfg), "hook_non_blocking_error")
+	require.Len(t, errs, 1)
+	assert.Equal(t, float64(1), errs[0]["exitCode"])
+	assert.Equal(t, "Failed with non-blocking status code: plain on exit 1", errs[0]["stderr"])
+	assert.Empty(t, attachmentsOf(allRecords(t, cfg), "hook_blocking_error"))
+}
+
+// SessionEnd cannot block: an exit 2 is shown to the user only, like any other
+// failure, and the run ends normally.
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_13_SessionEndExit2IsShownToTheUserOnly(t *testing.T) {
+	dir := t.TempDir()
+	hook := writeHook(t, dir, "end.sh", "cat >/dev/null\necho 'session-end stderr on exit 2' >&2\nexit 2")
+	writeSettings(t, dir, map[string]string{"SessionEnd": hook})
+	script := writeScript(t, dir, "s.sh", "#!/bin/sh\nprintf '%s\\n' '"+resultFrame+"'\n")
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-se2", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	assert.Contains(t, out, "SessionEnd hook ["+hook+"] failed: session-end stderr on exit 2")
+}
