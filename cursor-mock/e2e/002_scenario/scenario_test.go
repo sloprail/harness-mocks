@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+// The scenario protocol is every mock's, unchanged: the script prints
+// stream-json lines of Claude Code's shape (an assistant line whose tool_use
+// block is the agent's tool call, a result line to end the run), and the mock
+// prints Cursor's own frames for it.
 
 // run plays a scenario script against the mock in a fresh workspace and
 // returns its stdout, stderr and exit status.
@@ -28,53 +34,64 @@ func run(t *testing.T, script string, args ...string) (stdout, stderr string, co
 	return out.String(), errb.String(), code
 }
 
-const shellCall = `{"type":"tool_call","subtype":"started","call_id":"c","tool_call":{"shellToolCall":{"args":{"command":"echo hi"}}}}`
+const (
+	bashCall = `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_1","name":"Bash","input":{"command":"echo hi"}}]}}`
+	done     = `{"type":"result","subtype":"success","is_error":false,"result":"DONE"}`
+)
 
 // TestTheScriptRunsOncePerTurnAToolCallEndsTheTurnAndAResultEndsTheRun: the
-// script plays the agent; each tool_call started frame ends its turn, the mock
-// runs the tool and runs the script again, and the result ends the run.
+// script plays the agent; each tool call ends its turn, the mock runs the tool
+// and runs the script again, and the result ends the run.
 // sr:proves turn-loop
 func TestTheScriptRunsOncePerTurnAToolCallEndsTheTurnAndAResultEndsTheRun(t *testing.T) {
 	out, _, code := run(t, `#!/bin/sh
+printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"on it"}]}}'
 if grep -q tool_use "$A10N_MOCK_SESSION_FILE"; then
-  printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"result":"DONE"}'
+  printf '%s\n' '`+done+`'
 else
-  printf '%s\n' '`+shellCall+`'
+  printf '%s\n' '`+bashCall+`'
 fi
 `, "go")
 	require.Equal(t, 0, code, out)
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	require.Len(t, lines, 3, out)
-	require.Contains(t, lines[0], `"subtype":"started"`)
-	require.Contains(t, lines[1], `"subtype":"completed"`)
-	require.Contains(t, lines[1], `"stdout":"hi\n"`)
-	require.Contains(t, lines[2], `"type":"result"`, "the result is the last line of the stream")
+	var types []string
+	for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
+		var f struct{ Type string }
+		require.NoError(t, json.Unmarshal([]byte(l), &f))
+		types = append(types, f.Type)
+	}
+	// init, the user's prompt, then per turn the agent's words, and for the
+	// first the call (started, completed); the result is the last line.
+	require.Equal(t, []string{"system", "user", "assistant", "tool_call", "tool_call", "assistant", "result"}, types, out)
+	require.Contains(t, out, `"stdout":"hi\n"`)
+	require.Contains(t, out, `"result":"on iton it"`)
 }
 
 // TestThePromptReachesTheScriptUnchanged: the script receives the user's
 // prompt, unchanged, in A10N_MOCK_PROMPT.
 // sr:proves scenario-prompt-env
 func TestThePromptReachesTheScriptUnchanged(t *testing.T) {
-	out, _, code := run(t, "#!/bin/sh\nprintf '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"%s\"}\\n' \"$A10N_MOCK_PROMPT\"\n", "fix", "the  bug")
+	out, _, code := run(t, "#!/bin/sh\nprintf '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"%s\"}\\n' \"$A10N_MOCK_PROMPT\"\n"+
+		"printf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"'\"$A10N_MOCK_PROMPT\"'\"}]}}'\n", "fix", "the  bug")
 	require.Equal(t, 0, code, out)
-	require.Contains(t, out, `"result":"fix the  bug"`)
+	require.Contains(t, out, `"text":"fix the  bug"`)
 }
 
 // TestTheScriptCanReadTheSessionSoFar: the transcript so far is readable
 // through A10N_MOCK_SESSION_FILE: the user's prompt first.
 // sr:proves session-file-env
 func TestTheScriptCanReadTheSessionSoFar(t *testing.T) {
-	out, _, code := run(t, "#!/bin/sh\nhead -c 60 \"$A10N_MOCK_SESSION_FILE\" | grep -q user_query && printf '%s\\n' '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"saw-prompt\"}'\n", "hello")
+	out, _, code := run(t, "#!/bin/sh\nif grep -q user_query \"$A10N_MOCK_SESSION_FILE\"; then printf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"saw-prompt\"}]}}'; fi\n"+
+		"printf '%s\\n' '"+done+"'\n", "hello")
 	require.Equal(t, 0, code, out)
 	require.Contains(t, out, "saw-prompt")
 }
 
 // TestFiveIdenticalToolCallsInARowAbortTheRun: a script that never advances
-// aborts the run with an error on the 5th identical call.
+// aborts the run with an error at the 5th identical call.
 // sr:proves loop-guard
 func TestFiveIdenticalToolCallsInARowAbortTheRun(t *testing.T) {
-	out, stderr, code := run(t, "#!/bin/sh\nprintf '%s\\n' '"+shellCall+"'\n", "go")
+	out, stderr, code := run(t, "#!/bin/sh\nprintf '%s\\n' '"+bashCall+"'\n", "go")
 	require.Equal(t, 1, code)
-	require.Contains(t, stderr, "5 times in a row")
-	require.Equal(t, 5, strings.Count(out, `"subtype":"completed"`), "the 5th identical call stops the run")
+	require.Contains(t, stderr, "5 turns in a row")
+	require.NotContains(t, out, `"type":"result"`, "an aborted run reports no result")
 }

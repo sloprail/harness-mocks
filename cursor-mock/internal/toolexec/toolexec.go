@@ -7,13 +7,10 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"time"
-
-	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
-// Call is a tool call as the scenario script's tool_call frame names it: the
-// tool_call object's kind key (shellToolCall, readToolCall, editToolCall) and
-// its args.
+// Call is a tool call as Cursor names it: the kind of its tool_call frame
+// (shellToolCall, readToolCall, editToolCall) and that frame's args.
 type Call struct {
 	Kind string
 	Args map[string]any
@@ -21,7 +18,8 @@ type Call struct {
 
 // Result is what a tool call came to.
 type Result struct {
-	Outcome corehooks.ToolOutcome
+	// Failed: the call ran and failed.
+	Failed bool
 	// Frame is the result object of the call's completed stream frame.
 	Frame map[string]any
 	// ToolOutput is the call's result as postToolUse reports it, a JSON string.
@@ -41,10 +39,51 @@ type Edit struct {
 	NewString string `json:"new_string"`
 }
 
-// Name is the tool's name in hooks: Shell, Read or Write; "" for a tool the
-// mock does not model.
+// toolTable is the tools the mock models, by the name a scenario script gives
+// them (the Claude Code names, with Cursor's Shell too): the kind of Cursor
+// call, its name in hooks, and the parameters its input must carry.
+var toolTable = map[string]struct {
+	kind, hookName string
+	required       []string
+}{
+	"Bash":  {"shellToolCall", "Shell", []string{"command"}},
+	"Shell": {"shellToolCall", "Shell", []string{"command"}},
+	"Read":  {"readToolCall", "Read", []string{"file_path"}},
+	"Write": {"editToolCall", "Write", []string{"file_path", "content"}},
+}
+
+// Required is the parameters a call to the named tool must carry, and whether
+// the mock has the tool.
+func Required(name string) ([]string, bool) {
+	t, ok := toolTable[name]
+	return t.required, ok
+}
+
+// FromScript is the Cursor call a scenario script's tool call stands for.
+func FromScript(name string, input json.RawMessage) Call {
+	var in map[string]any
+	_ = json.Unmarshal(input, &in)
+	str := func(k string) string { s, _ := in[k].(string); return s }
+	c := Call{Kind: toolTable[name].kind, Args: map[string]any{}}
+	switch c.Kind {
+	case "shellToolCall":
+		c.Args["command"] = str("command")
+	case "readToolCall":
+		c.Args["path"] = str("file_path")
+	case "editToolCall":
+		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
+	}
+	return c
+}
+
+// Name is the tool's name in hooks: Shell, Read or Write.
 func (c Call) Name() string {
-	return map[string]string{"shellToolCall": "Shell", "readToolCall": "Read", "editToolCall": "Write"}[c.Kind]
+	for _, t := range toolTable {
+		if t.kind == c.Kind {
+			return t.hookName
+		}
+	}
+	return ""
 }
 
 func (c Call) str(key string) string { s, _ := c.Args[key].(string); return s }
@@ -74,17 +113,15 @@ func (c Call) HookInput(dir string) map[string]any {
 }
 
 // Execute runs the call: a shell command in dir with env, or a file tool on
-// the file it names. A call of a tool the mock does not model fails.
+// the file it names.
 func Execute(ctx context.Context, c Call, dir string, env []string) Result {
 	switch c.Kind {
 	case "shellToolCall":
 		return shell(ctx, c, dir, env)
 	case "readToolCall":
 		return read(c, dir)
-	case "editToolCall":
-		return write(c, dir)
 	}
-	return Result{Outcome: corehooks.ToolErrored, Frame: map[string]any{"error": map[string]any{"errorMessage": "unsupported tool " + c.Kind}}}
+	return write(c, dir)
 }
 
 func jsonString(v any) string { b, _ := json.Marshal(v); return string(b) }

@@ -1,26 +1,52 @@
 package runner
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
+)
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
 
-// completedFrame is the stream frame that ends a tool call that ran: the
-// call's kind and args with its result.
-func completedFrame(session string, p pending, result map[string]any) []byte {
+func jsonLine(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
+
+// toolFrame is a tool_call frame: the call's kind and args, and, once it has
+// ended, its result.
+func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]any) []byte {
+	body := map[string]any{"args": c.Args}
+	if result != nil {
+		body["result"] = result
+	}
 	return jsonLine(map[string]any{
-		"type": "tool_call", "subtype": "completed", "call_id": p.id, "session_id": session,
-		"tool_call": map[string]any{p.call.Kind: map[string]any{"args": p.call.Args, "result": result}},
+		"type": "tool_call", "subtype": subtype, "call_id": id, "session_id": session,
+		"tool_call": map[string]any{c.Kind: body},
 	})
 }
 
-// rejectedFrame is the frame that ends a call a hook refused: the call's
-// result is a rejection with the reason the agent was given.
-func rejectedFrame(session string, p pending, reason string) []byte {
+// startedFrame opens a tool call on the stream.
+func startedFrame(session, id string, c toolexec.Call) []byte {
+	return toolFrame(session, id, "started", c, nil)
+}
+
+// completedFrame ends a tool call that ran.
+func completedFrame(session, id string, c toolexec.Call, result map[string]any) []byte {
+	return toolFrame(session, id, "completed", c, result)
+}
+
+// rejectedFrame ends a call a hook refused: its result is a rejection with the
+// reason the agent was given.
+func rejectedFrame(session, id string, c toolexec.Call, reason string) []byte {
 	rejected := map[string]any{"reason": reason, "isReadonly": false}
-	if p.call.Kind == "shellToolCall" {
-		rejected["command"], rejected["workingDirectory"] = p.call.Command(), ""
+	if c.Kind == "shellToolCall" {
+		rejected["command"], rejected["workingDirectory"] = c.Command(), ""
 	} else {
-		rejected["path"] = p.call.Args["path"]
+		rejected["path"] = c.Args["path"]
 	}
-	return completedFrame(session, p, map[string]any{"rejected": rejected})
+	return toolFrame(session, id, "completed", c, map[string]any{"rejected": rejected})
+}
+
+// errorFrame ends a call that could not run.
+func errorFrame(session, id string, c toolexec.Call, message string) []byte {
+	return toolFrame(session, id, "completed", c, map[string]any{"error": map[string]any{"errorMessage": message}})
 }

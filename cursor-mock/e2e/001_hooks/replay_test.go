@@ -218,11 +218,9 @@ func replay(t *testing.T, run string) (got, want observed) {
 	}
 	writes := writtenContents(want)
 	for i, c := range calls {
-		c = strings.ReplaceAll(c, "<RUN>", ws)
-		if strings.Contains(c, "editToolCall") && len(writes) > 0 {
-			c, writes = withStreamContent(t, c, strings.ReplaceAll(writes[0], "<RUN>", ws)), writes[1:]
-		}
-		require.NoError(t, os.WriteFile(filepath.Join(scratch, itoa(i)+".json"), []byte(c+"\n"), 0o644))
+		line, rest := scriptCall(t, strings.ReplaceAll(c, "<RUN>", ws), writes)
+		writes = rest
+		require.NoError(t, os.WriteFile(filepath.Join(scratch, itoa(i)+".json"), []byte(line+"\n"), 0o644))
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(scratch, "end.json"), []byte(`{"type":"result","subtype":"success","is_error":false,"result":"DONE"}`+"\n"), 0o644))
 	script := filepath.Join(scratch, "scenario.sh")
@@ -281,13 +279,41 @@ func writtenContents(rec observed) (out []string) {
 	return out
 }
 
-func withStreamContent(t *testing.T, frame, content string) string {
+// scriptCall is the line the scenario script prints for a tool call the
+// recorded agent made: the scenario protocol's assistant line with one tool_use
+// block (the Claude Code names, which the mock maps onto Cursor's tools). A
+// write's content is what the recorded hooks saw written (the started frame's
+// streamContent is only what the model had streamed so far); writes are the
+// recorded contents not yet used, and what is left after this call is returned.
+func scriptCall(t *testing.T, frame string, writes []string) (string, []string) {
 	t.Helper()
 	var f map[string]any
 	require.NoError(t, json.Unmarshal([]byte(frame), &f))
-	args := f["tool_call"].(map[string]any)["editToolCall"].(map[string]any)["args"].(map[string]any)
-	args["streamContent"] = content
-	return jsonString(f)
+	id, _ := f["call_id"].(string)
+	var name string
+	var input map[string]any
+	for kind, v := range f["tool_call"].(map[string]any) {
+		body, ok := v.(map[string]any)
+		if !ok || !strings.HasSuffix(kind, "ToolCall") {
+			continue
+		}
+		args := body["args"].(map[string]any)
+		switch kind {
+		case "shellToolCall":
+			name, input = "Bash", map[string]any{"command": args["command"]}
+		case "readToolCall":
+			name, input = "Read", map[string]any{"file_path": args["path"]}
+		case "editToolCall":
+			content, _ := args["streamContent"].(string)
+			if len(writes) > 0 {
+				content, writes = writes[0], writes[1:]
+			}
+			name, input = "Write", map[string]any{"file_path": args["path"], "content": content}
+		}
+	}
+	require.NotEmpty(t, name, "a started frame naming no tool the mock runs: %s", frame)
+	return jsonString(map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "content": []any{
+		map[string]any{"type": "tool_use", "id": id, "name": name, "input": input}}}}), writes
 }
 
 func itoa(i int) string { return strings.TrimSpace(jsonString(i)) }

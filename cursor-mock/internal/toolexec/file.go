@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 
-	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
@@ -17,6 +16,10 @@ func lines(s string) int {
 	return n
 }
 
+func failed(message, frameMessage string) Result {
+	return Result{Failed: true, ErrorMessage: message, Frame: map[string]any{"error": map[string]any{"errorMessage": frameMessage}}}
+}
+
 // read runs a Read call. A file that does not exist fails the call: the
 // failure hook's error_message is "File not found: <path>" (recorded:
 // runs/tool-failure).
@@ -24,15 +27,13 @@ func read(c Call, dir string) Result {
 	path := c.Path(dir)
 	content, err := tools.ReadFile(path)
 	if errors.Is(err, tools.ErrNotFound) {
-		return Result{Outcome: corehooks.ToolFailed, ErrorMessage: "File not found: " + path,
-			Frame: map[string]any{"error": map[string]any{"errorMessage": "File not found"}}}
+		return failed("File not found: "+path, "File not found")
 	}
 	if err != nil {
-		return Result{Outcome: corehooks.ToolFailed, ErrorMessage: err.Error(), Frame: map[string]any{"error": map[string]any{"errorMessage": err.Error()}}}
+		return failed(err.Error(), err.Error())
 	}
 	total := strings.Count(content, "\n") + 1
 	return Result{
-		Outcome: corehooks.ToolSucceeded,
 		Frame: map[string]any{"success": map[string]any{
 			"content": content, "isEmpty": content == "", "exceededLimit": false, "totalLines": total, "fileSize": len(content),
 			"path": path, "readRange": map[string]any{"startLine": 1, "endLine": total},
@@ -53,11 +54,10 @@ func write(c Call, dir string) Result {
 	path, content := c.Path(dir), c.str("streamContent")
 	old, _, err := tools.WriteFile(path, content)
 	if err != nil {
-		return Result{Outcome: corehooks.ToolFailed, ErrorMessage: err.Error(), Frame: map[string]any{"error": map[string]any{"errorMessage": err.Error()}}}
+		return failed(err.Error(), err.Error())
 	}
 	before, after := trimShared(old, content)
 	return Result{
-		Outcome: corehooks.ToolSucceeded,
 		Frame: map[string]any{"success": map[string]any{
 			"path": path, "linesAdded": lines(content), "linesRemoved": lines(old),
 			"afterFullFileContent": content, "message": "Wrote contents to " + path,

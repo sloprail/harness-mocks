@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
@@ -17,22 +17,23 @@ func shell(ctx context.Context, c Call, dir string, env []string) Result {
 	if wd := c.str("workingDirectory"); wd != "" {
 		cwd = wd
 	}
-	res, err := tools.RunShell(ctx, tools.Shell{Command: c.Command(), Dir: cwd, Env: env})
-	out := res.Output()
+	start := time.Now()
+	res := tools.Bash(ctx, c.Command(), cwd, env)
+	took := time.Since(start)
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": c.str("workingDirectory"), "exitCode": res.ExitCode, "signal": "",
-		"stdout": res.Stdout, "stderr": res.Stderr, "executionTime": res.Took.Milliseconds(), "interleavedOutput": out,
+		"stdout": res.Stdout, "stderr": res.Stderr, "executionTime": took.Milliseconds(), "interleavedOutput": res.Output,
 	}
-	r := Result{Output: out, Took: res.Took, ToolOutput: jsonString(struct {
+	r := Result{Output: res.Output, Took: took, ToolOutput: jsonString(struct {
 		Output   string `json:"output"`
 		ExitCode int    `json:"exitCode"`
-	}{out, res.ExitCode})}
-	if err == nil && !res.Failed() {
-		r.Outcome, r.Frame = corehooks.ToolSucceeded, map[string]any{"success": body, "isBackground": false}
+	}{res.Output, res.ExitCode})}
+	if !res.Failed() {
+		r.Frame = map[string]any{"success": body, "isBackground": false}
 		return r
 	}
 	body["aborted"] = false
-	r.Outcome, r.Frame = corehooks.ToolFailed, map[string]any{"failure": body, "isBackground": false}
+	r.Failed, r.Frame = true, map[string]any{"failure": body, "isBackground": false}
 	r.ErrorMessage = strings.TrimSpace(res.Stderr)
 	if r.ErrorMessage == "" {
 		r.ErrorMessage = fmt.Sprintf("Command failed with exit code %d", res.ExitCode)

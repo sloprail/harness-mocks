@@ -17,17 +17,25 @@ type Hooks struct {
 	Common func() Common
 }
 
-// Fire runs every command configured for the event, in order, with the
-// event's payload on stdin, and returns what each decided. A project hook runs
-// from the project root.
+// Fire runs every command configured for the event, all at once (Cursor runs
+// an event's hooks side by side), with the event's payload on stdin, and
+// returns what each decided, in the order configured. A project hook runs from
+// the project root.
 //
 // sr:docs https://cursor.com/docs/hooks#configuration
 func (h *Hooks) Fire(ctx context.Context, e Event, own map[string]any) []Decision {
-	var ds []Decision
-	payload := h.Common().Payload(e, own)
-	for _, entry := range h.Config.Entries(e) {
-		run := corehooks.Invoke(ctx, corehooks.Command{Line: entry.Command, Dir: h.Dir, Stdin: payload, Env: h.Env, Strict: entry.FailClosed})
-		ds = append(ds, Interpret(e, entry, run))
+	entries := h.Config.Entries(e)
+	if len(entries) == 0 {
+		return nil
+	}
+	cmds := make([]corehooks.Command, len(entries))
+	for i, entry := range entries {
+		cmds[i] = corehooks.Command{Line: entry.Command}
+	}
+	outs := corehooks.RunAll(ctx, cmds, h.Common().Payload(e, own), corehooks.Runtime{Dir: h.Dir, Env: h.Env})
+	ds := make([]Decision, len(outs))
+	for i, o := range outs {
+		ds[i] = Interpret(e, entries[i], o)
 	}
 	return ds
 }

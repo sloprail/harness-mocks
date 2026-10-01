@@ -3,28 +3,28 @@ package runner
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
-	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
-// session is one run's state.
+// session is one run's state, and the harness side (turnloop.Host) of its turn.
 type session struct {
 	cfg     Config
 	id      string
 	tr      *transcript
 	hooks   *hooks.Hooks
-	result  []byte // the script's result frame, printed last
 	started time.Time
+	texts   []string // what the agent said, in order: the result frame's text
 }
 
-// Run plays one run: sessionStart hooks, the script's turns until its result,
-// sessionEnd hooks, and then the result frame, last on the stream.
+// Run plays one run: the stream's opening frames, the sessionStart hooks, the
+// script's turns until its result, the sessionEnd hooks, and then the result
+// frame, last on the stream.
 func Run(ctx context.Context, cfg Config) error {
 	s := &session{cfg: cfg, id: newID(), started: time.Now()}
 	var err error
@@ -37,8 +37,10 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	s.hooks = &hooks.Hooks{Config: conf, Dir: cfg.Dir, Env: procexec.Env(cfg.Environ, nil, nil), Common: s.common}
 	s.tr.user(cfg.Prompt)
+	s.forward(initFrame(s.id, cfg.Dir))
+	s.forward(userFrame(s.id, cfg.Prompt))
 	s.hooks.Fire(ctx, hooks.SessionStart, map[string]any{"is_background_agent": false})
-	runErr := turnloop.Run[pending](ctx, s)
+	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt})
 	s.hooks.Fire(ctx, hooks.SessionEnd, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
 		"is_background_agent": false, "final_status": "completed",
@@ -47,9 +49,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if runErr != nil {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}
-	if s.result != nil {
-		s.forward(s.result)
-	}
+	s.forward(resultFrame(s.id, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }
 
@@ -66,17 +66,9 @@ func (s *session) common() hooks.Common {
 // forward prints one stream-json line.
 func (s *session) forward(line []byte) { fmt.Fprintf(s.cfg.Stdout, "%s\n", line) }
 
-// pending is a tool call the script asked for.
-type pending struct {
-	call toolexec.Call
-	id   string
-}
-
 func newID() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	b[6], b[8] = b[6]&0x0f|0x40, b[8]&0x3f|0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
-
-func jsonLine(v any) []byte { b, _ := json.Marshal(v); return b }
