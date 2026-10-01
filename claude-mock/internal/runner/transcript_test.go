@@ -92,7 +92,7 @@ func TestRecordHookRuns_AdditionalContextPair(t *testing.T) {
 	assert.Equal(t, map[string]any{"type": "hook_additional_context", "content": []any{"CTX"}, "hookName": "SessionStart", "toolUseID": "SessionStart", "hookEvent": "SessionStart"}, att(recs[3]))
 }
 
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_NonBlockingError(t *testing.T) {
 	recs := recordsOf(t, func(tr *transcript) {
@@ -106,7 +106,7 @@ func TestRecordHookRuns_NonBlockingError(t *testing.T) {
 	assert.Contains(t, att(recs[1]), "durationMs")
 }
 
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_Exit2PerEvent(t *testing.T) {
 	blocked := []hooks.HandlerRun{{Command: "h", ExitCode: 2, Blocked: true, Stderr: "no\n"}}

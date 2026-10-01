@@ -14,7 +14,7 @@ import (
 // TestT017_16_NoStderrOutput: a Stop hook that fails without writing to stderr
 // is recorded as "Failed with non-blocking status code: No stderr output", and
 // its stop_hook_summary lists the error.
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
 func TestT017_16_NoStderrOutput(t *testing.T) {
 	dir := t.TempDir()

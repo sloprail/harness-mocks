@@ -62,7 +62,7 @@ printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
 // the refusal is the tool_result "PreToolUse:<Tool> hook error:
 // [<command>]: <stderr>" (is_error), after which the turn continues. Claude
 // 2.1.282 did exactly this in a controlled run; no attachment is written.
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves pretooluse-refusal/claude
 func TestT005_02_PreToolUseExit2RefusesTheCallAndTheTurnGoesOn(t *testing.T) {
 	dir := t.TempDir()

@@ -9,6 +9,4 @@ providers:
       - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
       - https://code.claude.com/docs/en/hooks#other-exit-codes
     runs:
-      - claude-mock/snapshots/runs/hookerrors
-      - claude-mock/snapshots/runs/hookmix
-      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/hook-exit-codes

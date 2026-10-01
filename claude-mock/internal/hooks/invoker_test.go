@@ -160,7 +160,7 @@ func TestInvokeCommand_SetsHarnessEnvWithoutSessionID(t *testing.T) {
 }
 
 // Exit 2 from a command hook is a blocking error surfaced via Fire's error.
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 func TestInvokeCommand_Exit2Blocks(t *testing.T) {
 	dir := t.TempDir()
 	script := writeExecScript(t, dir, "block.sh", "#!/bin/sh\ncat >/dev/null\necho 'denied' >&2\nexit 2\n")

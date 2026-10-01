@@ -86,7 +86,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // exit 2 is recorded as a non-blocking error — stderr quoted as
 // "[<command>]: <stderr>" — and the session runs (docs, "Exit code 2 behavior
 // per event"; a controlled claude 2.1.282 run).
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
 // staged:proves session-start-hook/claude
 func TestT003_03_SessionStartExit2DoesNotBlock(t *testing.T) {

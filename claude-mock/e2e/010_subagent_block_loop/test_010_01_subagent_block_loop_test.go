@@ -110,7 +110,7 @@ func driveAgentTool(t *testing.T, dir, subScript, stopHook string, env []string)
 // twice with the SAME agent_id.
 //
 // sr:docs https://code.claude.com/docs/en/hooks#subagentstop
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves subagent-stop-block-loop/claude
 func TestT010_01_BlockViaExit2RerunsSubagent(t *testing.T) {
 	dir := t.TempDir()

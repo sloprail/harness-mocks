@@ -114,7 +114,7 @@ func TestT017_03_EveryHookCarriesTranscriptPath(t *testing.T) {
 // prints lands as hook_success AFTER its tool_use and before the result, keyed
 // by the tool call's id; a non-zero, non-2 exit lands as
 // hook_non_blocking_error.
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
 func TestT017_04_HookAttachmentsSitWhereRealOnesDo(t *testing.T) {
 	dir := t.TempDir()

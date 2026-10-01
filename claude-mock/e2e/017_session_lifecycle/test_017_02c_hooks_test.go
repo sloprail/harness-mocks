@@ -19,7 +19,7 @@ import (
 // toolUseID, hookErrors [reason], hasOutput true). An exit 2 leaves the
 // feedback quoting "[<command>]: <stderr>" and the summary, no attachment.
 // stop_hook_active is set on every Stop after a block.
-// staged:proves hook-exit-code-semantics/claude
+// sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
 // staged:proves stop-block-continuation/claude
 // staged:proves stop-hook-payload/claude
