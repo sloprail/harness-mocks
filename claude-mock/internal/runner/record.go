@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // cliRecord is the top-level shape of a Claude Code JSONL stream-json record.
@@ -93,15 +95,14 @@ var knownTypes = map[string]bool{
 // validateRecord ensures the JSONL line is parseable JSON with a non-empty "type"
 // field that belongs to the known set.
 func validateRecord(line []byte) (*cliRecord, error) {
+	// Whether the line is a record of a known type is the non-interactive run's
+	// (internal/scenario); which types Claude Code's stream has is knownTypes.
+	if _, err := scenario.RecordType(line, knownTypes); err != nil {
+		return nil, err
+	}
 	var rec cliRecord
 	if err := json.Unmarshal(line, &rec); err != nil {
 		return nil, fmt.Errorf("not valid JSON: %w", err)
-	}
-	if rec.Type == "" {
-		return nil, fmt.Errorf("missing required field \"type\"")
-	}
-	if !knownTypes[strings.ToLower(rec.Type)] {
-		return nil, fmt.Errorf("unknown record type %q (expected: system, assistant, user, result)", rec.Type)
 	}
 	// The scenario script speaks for the ASSISTANT (Claude): it emits assistant
 	// turns (text / tool_use), result frames, and mock control records. When it

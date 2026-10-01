@@ -26,7 +26,7 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	// Fire UserPromptSubmit so any hook in the project-dir settings can intercept
 	// even in print mode. The hook cannot replace the prompt (real Claude
 	// contract); it may only append additionalContext or block (→ Fire errors).
-	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, corehooks.PromptFromUser)
+	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, corehooks.PromptFromUser, false)
 	if refused {
 		return err
 	}

@@ -47,11 +47,11 @@ func seedSubagentTranscript(path, subCwd, sessionID, agentID, prompt string, met
 	stamp := newRecordStamp(sessionID, subCwd)
 	stamp.IsSidechain, stamp.AgentID = true, agentID
 	rec := map[string]any{
-		"type":       "user",
-		"uuid":       newRecordUUID(),
-		"parentUuid": nil,
-		"message":    map[string]any{"role": "user", "content": prompt},
+		"type":    "user",
+		"uuid":    newRecordUUID(),
+		"message": map[string]any{"role": "user", "content": prompt},
 	}
+	asOrigin(rec)
 	if line, err := marshalRecord(rec); err == nil {
 		if f, ferr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); ferr == nil {
 			appendToSession(f, stampRecord(line, stamp))

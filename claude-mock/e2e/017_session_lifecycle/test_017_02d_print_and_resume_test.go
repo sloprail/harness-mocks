@@ -44,7 +44,7 @@ func TestT017_16_NoStderrOutput(t *testing.T) {
 // the way claude 2.1.282 fails it: "No conversation found with session ID:
 // <id>" on stderr, an error result frame on stdout, exit 1, no SessionStart,
 // SessionEnd fired, nothing written.
-// staged:proves session-resume-unknown/claude
+// sr:proves session-resume-unknown/claude
 func TestT017_17_UnknownResume(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -116,7 +116,7 @@ func TestT017_22_ForkSessionWithoutResumeIsAPlainStart(t *testing.T) {
 // TestT017_23_MainRecordsCarryRealBookkeeping: every record the session writes
 // carries what every real one does — isSidechain false, userType, entrypoint
 // "sdk-cli" (a `claude -p` run), version, gitBranch in a git repository.
-// staged:proves transcript-record-envelope/claude
+// sr:proves transcript-record-envelope/claude
 func TestT017_23_MainRecordsCarryRealBookkeeping(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

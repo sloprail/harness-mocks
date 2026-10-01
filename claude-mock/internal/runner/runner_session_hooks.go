@@ -47,6 +47,9 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 		HookEventName: hooks.EventSessionStart,
 		Source:        startSource(kind),
 	}
+	if kind == corehooks.StartResumed || kind == corehooks.StartForked {
+		in.ResumeFields = resumeFields(cfg.sessionFile)
+	}
 	ssOut, runs, ferr := inv.FireRuns(ctx, in)
 	writeSessionStartFrames(cfg, in, runs)
 	var blockErr *hooks.BlockError
