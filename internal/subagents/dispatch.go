@@ -14,6 +14,8 @@ var DispatchRequired = []string{"description", "prompt"}
 // the order DispatchRequired gives them. A dispatch that lacks any is refused
 // with the harness's input-validation error before any hook fires, and nothing
 // runs.
+//
+// sr:capability agent-input-validation
 func MissingFromDispatch(input json.RawMessage) []string {
 	return hooks.RejectedInput(input, DispatchRequired)
 }

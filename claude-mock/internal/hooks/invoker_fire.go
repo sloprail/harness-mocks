@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
-	"log/slog"
-	"time"
 )
 
 // Fire invokes every handler configured for the event and matcher and returns
@@ -25,36 +24,17 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	return out, err
 }
 
-// matcherValue is what a hook's matcher is matched against: the compaction
-// trigger ("manual" | "auto") for PreCompact and PostCompact, the agent type for
-// SubagentStart and SubagentStop, the tool name otherwise.
-// sr:docs https://code.claude.com/docs/en/hooks#precompact
-// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
-func matcherValue(in Input) string {
-	switch in.HookEventName {
-	case EventPreCompact, EventPostCompact:
-		return in.Trigger
-	case EventSubagentStart, EventSubagentStop:
-		return in.AgentType
-	}
-	return in.ToolName
-}
-
 // FireRuns is Fire, also handing back each handler's run, for a caller that
 // reports runs itself.
 func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []HandlerRun, error) {
-	if input.TranscriptPath == "" {
-		input.TranscriptPath = inv.transcriptPath
-	}
-	if inv.agentID != "" {
-		if input.AgentID == "" {
-			input.AgentID = inv.agentID
-		}
-		if input.AgentID == inv.agentID && input.AgentType == "" {
-			input.AgentType = inv.agentType
-		}
-	}
-	handlers := inv.settings.EntriesFor(input.HookEventName, matcherValue(input))
+	// sr:provides hook-common-payload/claude
+	common := corehooks.CommonFields(
+		corehooks.Common{TranscriptPath: input.TranscriptPath, Cwd: input.Cwd, Agent: corehooks.Agent{ID: input.AgentID, Type: input.AgentType}},
+		corehooks.Common{TranscriptPath: inv.transcriptPath, Cwd: inv.cwd},
+		corehooks.Agent{ID: inv.agentID, Type: inv.agentType})
+	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
+	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
+	handlers := inv.settings.EntriesFor(input.HookEventName, matcherSubject(input))
 	if len(handlers) == 0 {
 		return Output{}, nil, nil
 	}
@@ -75,15 +55,15 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 		hookCwd = inv.cwd
 	}
 
+	runs, outs := inv.runHandlers(ctx, handlers, input.HookEventName, hookCwd, payload)
 	var merged Output
-	var runs []HandlerRun
 	var firstBlock error
-	for _, h := range handlers {
-		run, blockErr := inv.invoke(ctx, h, input.HookEventName, hookCwd, payload)
-		runs = append(runs, run)
-		if blockErr != nil {
-			if firstBlock == nil {
-				firstBlock = blockErr
+	// sr:provides hooks-all-matching-run/claude
+	acted, blocked := corehooks.ActedBlock(outs, strictExitEvents[input.HookEventName])
+	for i, run := range runs {
+		if run.Blocked {
+			if blocked && i == acted {
+				firstBlock = blockError(run)
 			}
 			continue
 		}
@@ -93,26 +73,6 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 		inv.recorder(input, runs)
 	}
 	return merged, runs, firstBlock
-}
-
-func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, ev EventName, hookCwd string, payload []byte) (HandlerRun, error) {
-	timeout := defaultHookTimeout
-	if h.Timeout > 0 {
-		timeout = time.Duration(h.Timeout) * time.Second
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	switch h.Type {
-	case "command":
-		return inv.invokeCommand(ctx, h, ev, hookCwd, payload)
-	case "http":
-		out, err := inv.invokeHTTP(ctx, h, payload)
-		return HandlerRun{Command: h.URL, Output: out}, err
-	default:
-		slog.Debug("hooks: unsupported handler type", "type", h.Type)
-		return HandlerRun{}, nil
-	}
 }
 
 func mergeOutput(dst *Output, src Output) {
@@ -142,8 +102,12 @@ func mergeOutput(dst *Output, src Output) {
 		// decision wins, with its reason, whatever order they ran in (docs,
 		// "PreToolUse decision control").
 		h := *src.HookSpecificOutput
-		if prev := dst.HookSpecificOutput; prev != nil && corehooks.StrongerPermission(h.PermissionDecision, prev.PermissionDecision) != h.PermissionDecision {
-			h.PermissionDecision, h.PermissionDecisionReason = prev.PermissionDecision, prev.PermissionDecisionReason
+		if prev := dst.HookSpecificOutput; prev != nil {
+			if corehooks.StrongerPermission(h.PermissionDecision, prev.PermissionDecision) != h.PermissionDecision {
+				h.PermissionDecision, h.PermissionDecisionReason = prev.PermissionDecision, prev.PermissionDecisionReason
+			}
+			// Every hook's additionalContext reaches the agent, not the last's.
+			h.AdditionalContext = corehooks.JoinContext(prev.AdditionalContext, h.AdditionalContext)
 		}
 		dst.HookSpecificOutput = &h
 	}

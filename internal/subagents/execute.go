@@ -1,6 +1,9 @@
 package subagents
 
-import "github.com/sloprail/harness-mocks/internal/tasks"
+import (
+	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/turnloop"
+)
 
 // Outcome is how one run of a sub-agent ended.
 type Outcome struct {
@@ -58,7 +61,7 @@ func Execute(h Hooks, blockCap int, run func() Outcome) Outcome {
 		if !blocked {
 			return out
 		}
-		if blockCap > 0 && turn >= blockCap {
+		if !turnloop.AfterBlock(turn+1, blockCap) {
 			if h.OnCap != nil {
 				h.OnCap(blockCap)
 			}

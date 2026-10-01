@@ -32,6 +32,8 @@ func Matches(matcher, value string, aliases ...string) bool {
 // is read as the style says, against the subject and each of its aliases
 // (other names a harness gives the same tool). A matcher that is not a regular
 // expression selects nothing.
+//
+// sr:capability hook-matcher-filter
 func Select(style MatcherStyle, matcher, subject string, aliases ...string) bool {
 	if matcher == "" || matcher == "*" {
 		return true

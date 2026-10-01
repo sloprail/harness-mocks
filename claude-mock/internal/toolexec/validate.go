@@ -3,6 +3,8 @@ package toolexec
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/subagents"
 )
 
 // required is each tool's required parameters, in the order Claude Code
@@ -13,6 +15,10 @@ var required = map[string][]string{
 	"Write": {"file_path", "content"},
 	"Edit":  {"file_path", "old_string", "new_string"},
 	"Glob":  {"pattern"},
+	// a sub-agent dispatch, whichever name it goes by (Task is Agent's old name)
+	// sr:provides agent-input-validation/claude
+	"Agent": subagents.DispatchRequired,
+	"Task":  subagents.DispatchRequired,
 }
 
 // validationIssue is one entry of the issue list the transcript records for

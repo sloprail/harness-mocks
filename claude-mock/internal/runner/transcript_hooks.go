@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 type heldRun struct {
@@ -58,23 +60,6 @@ func (t *transcript) lastUUIDs(n int) []string {
 	return all
 }
 
-// recordedEvents are the events whose hooks leave records in a transcript —
-// the ones there is evidence for (real transcripts and controlled claude
-// 2.1.282 runs; EVIDENCE.md). SessionEnd's output left nothing in a controlled
-// run, PreCompact/PostCompact's is display text only (the 2.1.282 binary), and
-// there is no evidence at all for WorktreeCreate/WorktreeRemove: no record.
-var recordedEvents = map[hooks.EventName]bool{
-	hooks.EventSessionStart:     true,
-	hooks.EventUserPromptSubmit: true,
-	hooks.EventPreToolUse:       true,
-	hooks.EventPostToolUse:      true,
-	// its exit 2: recorded in snapshots/runs/hook-exit-codes (claude 2.1.285)
-	hooks.EventPostToolUseFailure: true,
-	hooks.EventStop:               true,
-	hooks.EventSubagentStart:      true,
-	hooks.EventSubagentStop:       true,
-}
-
 // additionalContext writes the hook_additional_context record that follows a
 // hook's hook_success when its JSON carried additionalContext. SessionStart's
 // is named after the event alone, with the event as its toolUseID — the shape
@@ -108,4 +93,26 @@ func denyReason(out hooks.Output) string {
 		return out.Reason
 	}
 	return "Blocked by hook"
+}
+
+// recordSuccess writes what a hook that exited 0 with output leaves, as core
+// decided (rec): a hook_success, and, when its JSON carried additionalContext,
+// a hook_additional_context. A prompt hook's JSON context leaves only the
+// latter (recorded: snapshots/runs/ctxmulti). It reports whether context was
+// recorded.
+func (t *transcript) recordSuccess(att func(string, map[string]any), in hooks.Input, r hooks.HandlerRun, hookName, toolUseID, ac string, rec corehooks.Record) bool {
+	if rec.Attachment == corehooks.AttachSuccess {
+		content := ""
+		if !r.JSONParsed { // plain text, as the adapter read it
+			content = strings.TrimRight(r.Stdout, "\n")
+		}
+		att("hook_success", map[string]any{
+			"content": content, "stdout": r.Stdout, "stderr": r.Stderr, "exitCode": r.ExitCode,
+			"command": r.Command, "durationMs": r.DurationMs,
+		})
+	}
+	if rec.Context {
+		t.additionalContext(in, hookName, toolUseID, ac)
+	}
+	return rec.Context
 }

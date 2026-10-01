@@ -39,6 +39,7 @@ func runStopScenario(t *testing.T, dir, stopHook string) (int, string) {
 // ends normally (recorded: snapshots/runs/hook-exit-codes, stderr.txt).
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves session-end-hook/claude
 func TestT009_13_SessionEndFailureIsShownToTheUser(t *testing.T) {
 	dir := t.TempDir()
 	hook := writeHook(t, dir, "end.sh", "cat >/dev/null\necho 'session-end stderr on exit 1' >&2\nexit 1")

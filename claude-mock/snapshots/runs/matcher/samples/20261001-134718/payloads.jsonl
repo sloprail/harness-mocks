@@ -1,0 +1,10 @@
+{"matched_group":"start-startup","event":"SessionStart","tool":""}
+{"matched_group":"exact-bash","event":"PreToolUse","tool":"Bash"}
+{"matched_group":"exact-list-bash-read","event":"PreToolUse","tool":"Bash"}
+{"matched_group":"post-no-matcher","event":"PostToolUse","tool":"Bash"}
+{"matched_group":"post-all","event":"PostToolUse","tool":"Bash"}
+{"matched_group":"regex-read","event":"PreToolUse","tool":"Read"}
+{"matched_group":"exact-list-bash-read","event":"PreToolUse","tool":"Read"}
+{"matched_group":"post-no-matcher","event":"PostToolUse","tool":"Read"}
+{"matched_group":"post-all","event":"PostToolUse","tool":"Read"}
+{"matched_group":"post-exact-read","event":"PostToolUse","tool":"Read"}

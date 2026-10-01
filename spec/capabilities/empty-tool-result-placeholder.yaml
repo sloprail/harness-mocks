@@ -1,0 +1,9 @@
+statement: >-
+  A tool result with no content is given to the agent as a placeholder naming
+  the tool, in the stream and the transcript alike.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
+    runs:
+      - claude-mock/snapshots/runs/bashfail

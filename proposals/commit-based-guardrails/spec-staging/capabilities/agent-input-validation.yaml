@@ -1,7 +1,0 @@
-statement: >-
-  A sub-agent dispatch that lacks its required description or prompt is
-  refused with an input-validation error and nothing runs.
-providers:
-  claude:
-    docs: []
-    runs: []

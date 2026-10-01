@@ -235,7 +235,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // carrying the reason — so a reactive agent can read the a10n://check-runs link and act on it.
 // Before this, the mock discarded the Stop hook's output and the reason never reached the
 // conversation, making reactive flows impossible to test.
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT002_06_StopHookBlockReasonSurfacesAsAttachment(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
@@ -294,7 +294,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // loop: a Stop hook that blocks ONCE re-prompts the agent, and the scenario's NEXT turn fires in
 // the SAME run (reacting to the surfaced block) — rather than the run ending at the first result.
 // This is what lets a reactive scenario spawn a resolver after the Stop drain parks a check.
-// staged:proves stop-block-continuation/claude
+// sr:proves stop-block-continuation/claude
 func TestT002_07_StopBlockRePromptsTurnSameRun(t *testing.T) {
 	dir := t.TempDir()
 

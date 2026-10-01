@@ -1,0 +1,12 @@
+statement: >-
+  After a tool call succeeds, a hook fires with the tool's input, its
+  structured response and how long the call took. (What a particular tool's
+  response contains is that tool's own capability's.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#posttooluse
+      - https://code.claude.com/docs/en/hooks#posttooluse-input
+    runs:
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/hookerrors

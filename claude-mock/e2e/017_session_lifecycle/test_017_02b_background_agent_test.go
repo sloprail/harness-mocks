@@ -21,10 +21,10 @@ import (
 // with UserPromptSubmit fired for it; and Stop fires again at that turn's end.
 // sr:proves background-agent/claude
 // sr:proves print-waits-for-background-agents/claude
-// staged:proves stop-hook-payload/claude
+// sr:proves stop-hook-payload/claude
 // sr:proves task-notifications/claude
 // sr:proves task-stream-frames/claude
-// staged:proves user-prompt-submit-hook/claude
+// sr:proves user-prompt-submit-hook/claude
 func TestT017_12_BackgroundAgent(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -151,7 +151,7 @@ func TestT017_12b_BackgroundAgentFailure(t *testing.T) {
 // TestT017_12c_AgentWithoutRequiredInputIsRefused: description and prompt are
 // required by the real Agent input schema; a call without them is refused with
 // an InputValidationError tool_result, and nothing runs.
-// staged:proves agent-input-validation/claude
+// sr:proves agent-input-validation/claude
 func TestT017_12c_AgentWithoutRequiredInputIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

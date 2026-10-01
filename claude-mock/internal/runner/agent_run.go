@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
@@ -47,6 +46,7 @@ type subagentOutcome struct {
 //
 // sr:provides subagent-lifecycle-hooks/claude
 // sr:provides subagent-stop-block-loop/claude
+// sr:provides stop-block-cap/claude
 func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks, prompt string) subagentOutcome {
 	started := time.Now()
 	frames := frameObserver{s.parent}
@@ -75,12 +75,6 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		// last refusal before the cap is on the record too.
 		Stop: func(active bool, last string) (bool, string) {
 			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
-		},
-		OnRerun: func(reason string, turn int) {
-			fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn)
-		},
-		OnCap: func(blockCap int) {
-			fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop still blocked after %d turns (cap) — giving up\n", blockCap)
 		},
 	}, stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
 	final := out.FinalText

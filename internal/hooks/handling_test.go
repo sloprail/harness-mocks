@@ -165,3 +165,20 @@ func TestPluginContributes(t *testing.T) {
 		}
 	}
 }
+
+func TestUnseenAndCapTimeout(t *testing.T) {
+	if got := Unseen([]string{"a", "b"}, []string{"b", "c", "c", "a", "d"}); len(got) != 2 || got[0] != "c" || got[1] != "d" {
+		t.Errorf("Unseen = %v, want [c d]", got)
+	}
+	if got := Unseen[int](nil, nil); got != nil {
+		t.Errorf("Unseen of nothing = %v", got)
+	}
+	for _, tc := range []struct{ in, max, want time.Duration }{
+		{5 * time.Second, 0, 5 * time.Second}, {300 * time.Second, 60 * time.Second, 60 * time.Second},
+		{10 * time.Second, 60 * time.Second, 10 * time.Second}, {0, 60 * time.Second, 0},
+	} {
+		if got := CapTimeout(tc.in, tc.max); got != tc.want {
+			t.Errorf("CapTimeout(%v, %v) = %v, want %v", tc.in, tc.max, got, tc.want)
+		}
+	}
+}
