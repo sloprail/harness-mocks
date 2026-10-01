@@ -1,13 +1,13 @@
 package subagents
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // WorktreeLayout is where a harness puts a sub-agent's isolated worktree and
@@ -52,21 +52,25 @@ func Isolate(parentCwd, id string, l WorktreeLayout, bind func(dir, branch strin
 // BindGit makes dir a real git worktree of parentCwd's HEAD on a new branch. It
 // fails when parentCwd is not a git repository with a commit.
 func BindGit(ctx context.Context, parentCwd string) func(dir, branch string) error {
+	git := func(args ...string) (procexec.Result, error) {
+		res, err := procexec.Run(ctx, procexec.Spec{Argv: append([]string{"git", "-C", parentCwd}, args...)})
+		if err == nil && res.ExitCode != 0 {
+			err = fmt.Errorf("git %s: exit %d: %s", args[0], res.ExitCode, strings.TrimSpace(string(res.Stderr)))
+		}
+		return res, err
+	}
 	return func(dir, branch string) error {
 		if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
 			return fmt.Errorf("mkdir parent: %w", err)
 		}
-		if err := exec.CommandContext(ctx, "git", "-C", parentCwd, "rev-parse", "--is-inside-work-tree").Run(); err != nil {
+		if _, err := git("rev-parse", "--is-inside-work-tree"); err != nil {
 			return fmt.Errorf("not a git repo: %w", err)
 		}
-		if err := exec.CommandContext(ctx, "git", "-C", parentCwd, "rev-parse", "--verify", "HEAD").Run(); err != nil {
+		if _, err := git("rev-parse", "--verify", "HEAD"); err != nil {
 			return fmt.Errorf("no HEAD (no commits yet): %w", err)
 		}
-		add := exec.CommandContext(ctx, "git", "-C", parentCwd, "worktree", "add", "-b", branch, dir, "HEAD")
-		var stderr bytes.Buffer
-		add.Stderr = &stderr
-		if err := add.Run(); err != nil {
-			return fmt.Errorf("git worktree add: %w: %s", err, strings.TrimSpace(stderr.String()))
+		if _, err := git("worktree", "add", "-b", branch, dir, "HEAD"); err != nil {
+			return fmt.Errorf("git worktree add: %w", err)
 		}
 		return nil
 	}

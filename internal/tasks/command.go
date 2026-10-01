@@ -2,11 +2,10 @@ package tasks
 
 import (
 	"context"
-	"errors"
 	"io"
 	"os"
-	"os/exec"
-	"syscall"
+
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // CommandSpec is a shell command to run in the background.
@@ -33,32 +32,21 @@ type CommandSpec struct {
 // the agent works; it has its own process group, so ending it reaches whatever
 // it spawned. t.ExitCode is set when it ends.
 func (r *Registry) StartCommand(t *Task, s CommandSpec) error {
-	cmd := exec.Command(s.Argv[0], s.Argv[1:]...) //nolint:gosec
-	cmd.Dir = s.Dir
-	cmd.Env = s.Env
-	cmd.Stdout, cmd.Stderr = s.Out, s.Out
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if err := cmd.Start(); err != nil {
+	p, err := procexec.Start(procexec.Spec{Argv: s.Argv, Dir: s.Dir, Env: s.Env}, s.Out)
+	if err != nil {
 		s.Out.Close()
 		return err
 	}
 	t.Kind = Command
-	t.kill = func() { killGroup(cmd) }
+	t.kill = p.Kill
 	r.Add(t)
 	if s.Started != nil {
 		s.Started(t)
 	}
 	r.Go(func() {
-		code := 0
-		if err := cmd.Wait(); err != nil {
-			code = 1
-			if cmd.ProcessState != nil && cmd.ProcessState.ExitCode() >= 0 {
-				code = cmd.ProcessState.ExitCode()
-			}
-		}
-		t.ExitCode = code
+		t.ExitCode = p.Wait()
 		if s.Trailer != nil {
-			io.WriteString(s.Out, s.Trailer(code, t.Killed())) //nolint:errcheck
+			io.WriteString(s.Out, s.Trailer(t.ExitCode, t.Killed())) //nolint:errcheck
 		}
 		s.Out.Close()
 		if s.Ended != nil {
@@ -79,14 +67,4 @@ func (r *Registry) StartAgent(t *Task, run func(ctx context.Context)) {
 		run(r.ctx)
 		r.Finish(t)
 	})
-}
-
-// killGroup kills a command's whole process group.
-func killGroup(cmd *exec.Cmd) {
-	if cmd == nil || cmd.Process == nil {
-		return
-	}
-	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
-		_ = cmd.Process.Kill()
-	}
 }
