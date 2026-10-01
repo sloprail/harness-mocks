@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # prepare: one subject per ADR that changed, or that links a rule whose folder
 # changed, as additionalContext.subjects (the engine does not split subjects
-# yet; one judge call reviews them all).
+# yet; one judge call reviews them all). Nothing that can grow is inlined: the
+# ADR and each file of each linked rule are named by project path.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -26,11 +27,11 @@ while IFS= read -r a; do
     [ -d "$dir" ] || continue                        # a dangling link is adr-linked's finding
     for f in "$dir"/*; do
       [ -f "$f" ] || continue
-      rules="$(jq -c --arg r "$l" --arg p ".sloprail/$l/$(basename "$f")" --rawfile t "$f" '. + [{rule: $r, path: $p, text: $t}]' <<<"$rules")"
+      rules="$(jq -c --arg r "$l" --arg p ".sloprail/$l/$(basename "$f")" '. + [{rule: $r, path: $p}]' <<<"$rules")"
     done
   done <<<"$links"
   subjects="$(jq -c --arg id "$id" --argjson a "$a" --argjson r "$rules" \
-    '. + [{id: $id, files: ([$a.path] + [$r[].path]), context: {adr: $a.text, rules: $r}}]' <<<"$subjects")"
+    '. + [{id: $id, adr: $a.path, rules: $r}]' <<<"$subjects")"
 done < <(jq -c '.[]' <<<"$ADRS")
 if [ "$(jq 'length' <<<"$subjects")" -eq 0 ]; then echo '{"skip": true}'; exit 0; fi
 jq -n -c --argjson s "$subjects" '{additionalContext: {subjects: $s}}'
