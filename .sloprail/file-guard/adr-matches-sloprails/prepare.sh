@@ -25,9 +25,11 @@ while IFS= read -r a; do
     [ -n "$l" ] || continue
     dir="$SR_TREE/.sloprail/$l"
     [ -d "$dir" ] || continue                        # a dangling link is adr-linked's finding
+    # the other ADRs this rule enforces: a check one ADR does not decide may be another's
+    others="$(jq -c --arg l "$l" --arg id "$id" '[.[] | select(.id != $id and ((.frontmatter.sloprails // []) | index($l))) | .path]' <<<"$ADRS")"
     for f in "$dir"/*; do
       [ -f "$f" ] || continue
-      rules="$(jq -c --arg r "$l" --arg p ".sloprail/$l/$(basename "$f")" '. + [{rule: $r, path: $p}]' <<<"$rules")"
+      rules="$(jq -c --arg r "$l" --arg p ".sloprail/$l/$(basename "$f")" --argjson o "$others" '. + [{rule: $r, path: $p, others: $o}]' <<<"$rules")"
     done
   done <<<"$links"
   subjects="$(jq -c --arg id "$id" --argjson a "$a" --argjson r "$rules" \
