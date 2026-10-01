@@ -12,6 +12,6 @@ set -- $s
 case "$path" in *.md) as=.md ;; *) as=.yaml ;; esac
 out="$(printf '%s' "$payload" | jq -r '.event.newContent // ""' |
   sr-file validate - --as "$as" --schema "${SR_GUARDRAIL_DIR:-.}/../../schemas/$1" --path "$2" 2>&1)" ||
-  refuse "$path would not match its schema (rules/schemas/$1):
+  refuse "$path would not match its schema (.sloprail/schemas/$1):
 $out"
 exit 0

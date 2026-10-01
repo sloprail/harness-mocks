@@ -14,5 +14,5 @@ for p in $(cs '.changeset.files[] | select(.status != "D") | .path'); do
     problems="${problems}${out//$SR_TREE\//}"$'\n'
 done
 [ -z "$problems" ] && exit 0
-refuse "Files that do not match their schema (rules/schemas/):
+refuse "Files that do not match their schema (.sloprail/schemas/):
 ${problems}"
