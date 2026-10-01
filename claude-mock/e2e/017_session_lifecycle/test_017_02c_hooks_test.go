@@ -261,7 +261,13 @@ echo '{"type":"result","subtype":"success","result":"HELPED"}'
 	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "scap-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
-	assert.Len(t, payloads(t, log), 9)
+	ps := payloads(t, log)
+	assert.Len(t, ps, 9)
 	raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "scap-1"))
 	assert.NotContains(t, string(raw), "informational")
+	// the sub-agent's own file holds the nine blocks (recorded: snapshots/runs/cap-sub)
+	side, err := os.ReadFile(ps[0]["agent_transcript_path"].(string))
+	require.NoError(t, err)
+	assert.Equal(t, 9, strings.Count(string(side), `"type":"hook_blocking_error"`))
+	assert.NotContains(t, string(side), "informational")
 }

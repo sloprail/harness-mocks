@@ -1,7 +1,8 @@
 statement: >-
   Stop hooks that block keep the turn going only a limited number of times in
   a row; once the limit is reached, the next block is overridden and the turn
-  ends.
+  ends. (A stop hook that only gives the agent context, without blocking, is
+  not part of this.)
 providers:
   claude:
     docs:

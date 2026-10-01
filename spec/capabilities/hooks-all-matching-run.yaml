@@ -1,6 +1,9 @@
 statement: >-
   Every hook that matches an event runs, all together, even when one of them
   blocks; when several block, the one that finishes last is the one acted on.
+  The same hook configured in several settings files runs once. (How the
+  decisions and the context of several hooks combine is each decision's and
+  context's own capability.)
 providers:
   claude:
     docs:

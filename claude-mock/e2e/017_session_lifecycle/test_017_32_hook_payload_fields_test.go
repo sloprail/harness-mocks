@@ -135,6 +135,7 @@ exit 0
 // Claude).
 // sr:proves user-prompt-submit-hook/claude
 // sr:proves hook-additional-context/claude
+// sr:proves hooks-all-matching-run/claude
 func TestT017_34_PromptHookOrderAndNoRewrite(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -174,6 +175,7 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 // event (recorded: snapshots/runs/ctxmulti).
 // sr:proves hook-additional-context/claude
 // sr:proves user-prompt-submit-hook/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT017_36_EveryHooksContextIsRecorded(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

@@ -46,6 +46,7 @@ func TestT017_47_HTTPHookAnswers(t *testing.T) {
 		{"2xx json deny", 200, `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"HTTP-DENY"}}`, "", "HTTP-DENY", ""},
 		{"non-2xx with a deny body", 500, `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"HTTP-DENY"}}`, "", "RAN", "HTTP 500"},
 		{"2xx plain text", 200, "not json", "", "RAN", "the response is not a JSON object"},
+		{"2xx json failing the output schema", 200, `{"decision":"maybe"}`, "", "RAN", "*"},
 		{"unreachable", 0, "", closed, "RAN", "connect ECONNREFUSED " + strings.TrimSuffix(strings.TrimPrefix(closed, "http://"), "/hook")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -66,8 +67,10 @@ func TestT017_47_HTTPHookAnswers(t *testing.T) {
 			if tc.url != "" {
 				url = tc.url
 			}
+			ranLog := filepath.Join(dir, "command-hook.log")
+			cmdHook := payloadLogger(t, dir, "cmd.sh", ranLog, "")
 			write(t, filepath.Join(dir, ".claude", "settings.json"),
-				`{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"http","url":"`+url+`"}]}]}}`, 0o644)
+				`{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"http","url":"`+url+`"},{"type":"command","command":"`+cmdHook+`"}]}]}}`, 0o644)
 			sc := script(t, dir, "s", toolUse("b1", "Bash", `{"command":"echo RAN"}`))
 			out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "ht-1",
 				"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
@@ -82,11 +85,14 @@ func TestT017_47_HTTPHookAnswers(t *testing.T) {
 					nonBlocking = append(nonBlocking, r.Attachment)
 				}
 			}
+			assert.Len(t, payloads(t, ranLog), 1, "the command hook beside the endpoint ran whatever the endpoint did")
 			if tc.errMsg == "" {
 				assert.Empty(t, nonBlocking)
 			} else {
 				require.Len(t, nonBlocking, 1)
-				assert.Equal(t, tc.errMsg, nonBlocking[0]["stderr"])
+				if tc.errMsg != "*" { // any message: the schema's complaint is the mock's own wording
+					assert.Equal(t, tc.errMsg, nonBlocking[0]["stderr"])
+				}
 				assert.Equal(t, "PreToolUse:Bash", nonBlocking[0]["hookName"])
 				assert.EqualValues(t, 0, nonBlocking[0]["exitCode"])
 			}

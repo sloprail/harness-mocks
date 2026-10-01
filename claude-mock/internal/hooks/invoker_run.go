@@ -27,7 +27,7 @@ func (inv *Invoker) runHandlers(ctx context.Context, handlers []HandlerSpec, ev 
 				continue
 			}
 			// sr:provides hook-command-handler/claude
-			cmds = append(cmds, corehooks.Command{Line: strings.TrimSpace(h.Command), Timeout: time.Duration(h.Timeout) * time.Second})
+			cmds = append(cmds, corehooks.Command{Line: strings.TrimSpace(h.Command), Timeout: commandTimeout(h, ev), Env: h.env()})
 			at = append(at, i)
 		case "http":
 			wg.Add(1)
@@ -42,11 +42,30 @@ func (inv *Invoker) runHandlers(ctx context.Context, handlers []HandlerSpec, ev 
 	// Mirror the real claude CLI's hook environment (see NewInvoker): the
 	// session's identity, whether or not a session id is known.
 	// sr:provides hook-timeout/claude
-	rt := corehooks.Runtime{Dir: hookCwd, Env: hookEnv(inv.sessionID), DefaultTimeout: defaultTimeout(ev)}
+	rt := corehooks.Runtime{Dir: hookCwd, Env: hookEnv(inv.sessionID, inv.projectDir), DefaultTimeout: defaultTimeout(ev)}
 	for k, o := range corehooks.RunAll(ctx, cmds, payload, rt) {
 		outs[at[k]] = o
 		runs[at[k]] = commandRun(handlers[at[k]], ev, o)
 	}
 	wg.Wait()
 	return runs, outs
+}
+
+// commandTimeout is a handler's own timeout. A session-end hook may raise its
+// limit above the shared budget, but not beyond 60 seconds (docs, Common fields).
+func commandTimeout(h HandlerSpec, ev EventName) time.Duration {
+	secs := h.Timeout
+	if ev == EventSessionEnd && secs > 60 {
+		secs = 60
+	}
+	return time.Duration(secs) * time.Second
+}
+
+// env is what only a plugin's hook is told: where the plugin is installed and
+// where its persistent data lives (docs, Reference scripts by path).
+func (h HandlerSpec) env() []string {
+	if h.PluginRoot == "" {
+		return nil
+	}
+	return []string{"CLAUDE_PLUGIN_ROOT=" + h.PluginRoot, "CLAUDE_PLUGIN_DATA=" + h.PluginData}
 }

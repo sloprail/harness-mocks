@@ -1,6 +1,8 @@
 statement: >-
   When a stop hook blocks, its reason is handed back to the agent, the turn
-  goes on, and the caller sees a single result at the turn's real end.
+  goes on, and the caller sees a single result at the turn's real end. (A stop
+  hook that only gives the agent context, without blocking, is not part of
+  this.)
 providers:
   claude:
     docs:

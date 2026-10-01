@@ -2,6 +2,8 @@ statement: >-
   What hooks do leaves records in the session transcript: a silent success
   leaves nothing, while errors, blocks, cancellations and the context a hook
   adds are recorded, and each stop that ran hooks ends with a summary record.
+  (Where context too long to keep goes is hook-additional-context's, and
+  a stop hook that gives context without blocking is not part of this.)
 providers:
   claude:
     docs:

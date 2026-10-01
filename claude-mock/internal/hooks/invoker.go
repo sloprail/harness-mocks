@@ -23,6 +23,9 @@ type Invoker struct {
 	settings  *Settings
 	cwd       string
 	sessionID string
+	// projectDir is the project root, exported to every command hook as
+	// CLAUDE_PROJECT_DIR.
+	projectDir string
 
 	// transcriptPath is put on every payload that does not name its own. Real
 	// Claude Code sends transcript_path on EVERY hook event (it is one of the
@@ -37,6 +40,11 @@ type Invoker struct {
 
 	agentID, agentType string
 }
+
+// SetProjectDir sets the project root every command hook is told as
+// CLAUDE_PROJECT_DIR (docs, Reference scripts by path).
+// sr:docs https://code.claude.com/docs/en/hooks#reference-scripts-by-path
+func (inv *Invoker) SetProjectDir(dir string) { inv.projectDir = dir }
 
 // SetTranscriptPath sets the transcript_path every payload carries unless the
 // caller names one.

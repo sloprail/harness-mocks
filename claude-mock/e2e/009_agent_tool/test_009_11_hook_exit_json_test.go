@@ -216,6 +216,7 @@ func TestT009_10_18_SessionStartExit2StderrNotSeenByModel(t *testing.T) {
 
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT009_10_19_Exit0MalformedJSONIsNonBlockingError(t *testing.T) {
 	dir := t.TempDir()
 	sess := filepath.Join(dir, "sess")
@@ -241,6 +242,7 @@ const recordedDecisionInvalid = "Hook JSON output validation failed — decision
 
 // sr:docs https://code.claude.com/docs/en/hooks#other-exit-codes
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT009_10_20_Exit1SchemaInvalidJSONIsNonBlockingError(t *testing.T) {
 	dir := t.TempDir()
 	sess := filepath.Join(dir, "sess")
@@ -319,6 +321,7 @@ func TestT009_11_PlainTextLikeStdoutIsHookSuccessContent(t *testing.T) {
 
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT009_11_Exit0SchemaInvalidJSONIsNonBlockingError(t *testing.T) {
 	dir := t.TempDir()
 	sess := filepath.Join(dir, "sess")

@@ -1,7 +1,8 @@
 statement: >-
   Hooks are configured per event with an optional matcher, and a hook runs
   only for events whose subject (for tool events, the tool name) matches it.
-  An event with no subject takes every hook, whatever its matcher.
+  An event with no subject takes every hook, whatever its matcher. (A finer
+  condition on a tool's arguments is not a matcher and is not part of this.)
 providers:
   claude:
     docs:

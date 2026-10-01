@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
@@ -62,16 +61,14 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		// file, where real Claude Code writes a SubagentStop's feedback — before
 		// deciding whether to loop, so the last refusal before the cap is on the
 		// record too.
-		blocked, reason := fireSubagentStop(ctx, s, sideInv, bg, out.lastAssistant, turn > 0)
+		blocked, _ := fireSubagentStop(ctx, s, sideInv, bg, out.lastAssistant, turn > 0)
 		if !blocked {
 			break
 		}
 		// sr:provides stop-block-cap/claude
 		if !turnloop.AfterBlock(turn+1, blockCap) {
-			fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop still blocked after %d turns (cap) — giving up\n", blockCap)
 			break
 		}
-		fmt.Fprintf(s.parent.Stderr, "claude-mock: SubagentStop blocked (%s) — re-running subagent (turn %d)\n", reason, turn+1)
 		next := s.run(ctx, bg, prompt)
 		next.toolUses += out.toolUses
 		out = next
