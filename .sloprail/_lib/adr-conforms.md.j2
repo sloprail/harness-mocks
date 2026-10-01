@@ -26,9 +26,14 @@ that ADR's Decision says. Lines unrelated to any of these concerns pass.
 ## How to decide
 
 For each ADR, go through its `## Decision` bullets and find the changed lines
-that touch each one. Your reasoning, pass or fail, is that list: each ADR and
-bullet, the file and line that touches it (or "not touched"), and whether it
-follows the decision. A pass with no list is not a pass.
+that touch each one. Read each bullet for what it governs, not for the words
+it uses: a line can touch a bullet without carrying the marker or name the
+bullet mentions.
+
+Your reasoning, pass or fail, is that list, one line per bullet, in this form:
+`<adr> #<n>: <file>:<line> follows | <file>:<line> breaks | not touched`.
+Every bullet of every ADR gets its line. A summary per ADR is not the list,
+and a pass without the list is not a pass.
 
 ## Fail
 
