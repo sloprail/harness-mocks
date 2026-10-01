@@ -64,6 +64,8 @@ func TestT017_17_UnknownResume(t *testing.T) {
 	var events []any
 	for _, p := range payloads(t, log) {
 		events = append(events, p["hook_event_name"])
+		assert.Equal(t, "other", p["reason"], "SessionEnd of a failed resume, as recorded")
+		assert.NotEmpty(t, p["session_id"])
 	}
 	assert.Equal(t, []any{"SessionEnd", "SessionEnd"}, events)
 }

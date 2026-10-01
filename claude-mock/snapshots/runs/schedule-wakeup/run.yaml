@@ -1,2 +1,0 @@
-version: 2.1.285
-command: claude -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose

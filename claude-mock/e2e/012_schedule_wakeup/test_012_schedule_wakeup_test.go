@@ -147,9 +147,7 @@ func TestT012_03_TooSmallADelayIsClamped(t *testing.T) {
 }
 
 // TestT012_04_NoopIsRequiredUnlessStop: a call without `noop` (and without `stop`)
-// is refused with the recorded text, "`noop` is required when `stop` is not true."
-// (snapshots/runs/schedule-wakeup, the first call), as an is_error tool_result.
-// sr:proves schedule-wakeup/claude
+// is refused as an is_error tool_result, "`noop` is required when `stop` is not true."
 func TestT012_04_NoopIsRequiredUnlessStop(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "scenario.sh")
@@ -167,8 +165,7 @@ func TestT012_04_NoopIsRequiredUnlessStop(t *testing.T) {
 // (a delay over an hour clamped to 3600); the one pending wake-up is what the Stop
 // hook's session_crons lists ({id, schedule, recurring false, prompt}), a later request
 // replaces it, and stop cancels it, answering "Loop stopped — cancelled N pending
-// wakeup(s)" with stopped and cancelledWakeups (snapshots/runs/schedule-wakeup,
-// schedule-wakeup-limits).
+// wakeup(s)" with stopped and cancelledWakeups (snapshots/runs/schedule-wakeup-limits).
 // sr:proves schedule-wakeup/claude
 func TestT012_05_AcknowledgementAndPendingWakeup(t *testing.T) {
 	dir := t.TempDir()

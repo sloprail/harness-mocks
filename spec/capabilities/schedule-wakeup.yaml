@@ -1,12 +1,12 @@
 statement: >-
-  The agent can ask to be woken after a delay with a prompt; an invalid
-  request is an error result, and a valid one is acknowledged.
+  The agent can ask to be woken after a delay with a prompt; a delay under a
+  minute or over an hour is clamped to those limits, and the request is
+  acknowledged with the time it is set for.
 providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/scheduled-tasks#let-claude-choose-the-interval
     runs:
-      - claude-mock/snapshots/runs/schedule-wakeup
       - claude-mock/snapshots/runs/schedule-wakeup-limits
     deviations:
       - adr: modeled-surface

@@ -1,1 +1,0 @@
-Use the ScheduleWakeup tool exactly once with delaySeconds 120, reason 'check back', and prompt 'resume the check'. Then reply only DONE.
