@@ -8,13 +8,13 @@ func TestHookWorktreePath_LastNonEmptyLineWithoutEscapes(t *testing.T) {
 		"banner\n\x1b[1m/w/two\x1b[0m\n\n": "/w/two",
 		"  /w/three  ":                     "/w/three",
 	} {
-		if got, ok := HookWorktreePath(out); !ok || got != want {
-			t.Fatalf("HookWorktreePath(%q) = %q, %v; want %q", out, got, ok, want)
+		if got, ok := hookWorktreePath(out); !ok || got != want {
+			t.Fatalf("hookWorktreePath(%q) = %q, %v; want %q", out, got, ok, want)
 		}
 	}
 	for _, out := range []string{"", "\n \n", "\x1b[0m"} {
-		if got, ok := HookWorktreePath(out); ok {
-			t.Fatalf("HookWorktreePath(%q) = %q, want no path", out, got)
+		if got, ok := hookWorktreePath(out); ok {
+			t.Fatalf("hookWorktreePath(%q) = %q, want no path", out, got)
 		}
 	}
 }
