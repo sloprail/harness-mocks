@@ -54,7 +54,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			tasks := bg.running()
 			crons := []any{}
 			last := lastText
-			stopOut, stopErr := inv.Fire(ctx, hooks.Input{
+			stopOut, stopRuns, stopErr := inv.FireRuns(ctx, hooks.Input{
 				SessionID:            cfg.SessionID,
 				Cwd:                  cfg.Cwd,
 				HookEventName:        hooks.EventStop,
@@ -63,6 +63,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				BackgroundTasks:      &tasks,
 				SessionCrons:         &crons,
 			})
+			writeStopHookError(cfg, stopRuns)
 			// Its feedback, attachment and stop_hook_summary are written as it
 			// fires (transcript.recordHookRuns).
 			if stopErr != nil || stopOut.Decision == "block" {

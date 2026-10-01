@@ -40,12 +40,14 @@ func fireSessionEnd(ctx context.Context, cfg Config, inv *hooks.Invoker) {
 // non-blocking error.
 // sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, source string) string {
-	ssOut, _ := inv.Fire(ctx, hooks.Input{
+	in := hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventSessionStart,
 		Source:        source,
-	})
+	}
+	ssOut, runs, _ := inv.FireRuns(ctx, in)
+	writeSessionStartFrames(cfg, in, runs)
 	ac := promptContextFrom(ssOut)
 	if ac != "" {
 		emitSystemContext(cfg, "session_start", ac)
