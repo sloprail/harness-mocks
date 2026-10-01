@@ -5,17 +5,7 @@ statement: >-
 providers:
   claude:
     docs:
-      - https://code.claude.com/docs/en/tools-reference#background-commands
       - https://code.claude.com/docs/en/interactive-mode#how-backgrounding-works
     runs:
       - claude-mock/snapshots/runs/bgbash
       - claude-mock/snapshots/runs/midturn
-    deviations:
-      - adr: modeled-surface
-        statement: >-
-          The mock never times a background command out and never moves a command
-          to the background: the 30-minute background time limit (and its timeout
-          parameter and stop notice), a foreground command that moves to the
-          background at its own timeout, and CLAUDE_CODE_DISABLE_BACKGROUND_TASKS
-          are not modeled. A scenario's Bash call runs in the background only when
-          it says run_in_background.
