@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/compaction"
 )
 
 // compact is a compaction, the way real Claude Code performs one. Evidence
@@ -19,10 +18,8 @@ import (
 //  1. PreCompact fires {trigger, custom_instructions: null}; an exit 2 or a
 //     decision:block stops the compaction — nothing is written.
 //  2. For a MANUAL compaction, SubagentStop fires for the summarizer that
-//     wrote the summary: agent_type "", a fresh agent_id, an
-//     agent_transcript_path no file is ever written to, and the summary as
-//     last_assistant_message. (Not measured for an automatic compaction, so
-//     not fired for one.)
+//     wrote the summary (fireSummarizerStop). (Not measured for an automatic
+//     compaction, so not fired for one.)
 //  3. A compact_boundary is APPENDED to the file the session is writing (see
 //     writeCompactBoundary), and the summary (isCompactSummary,
 //     isVisibleInTranscriptOnly) chains to it.
@@ -30,16 +27,18 @@ import (
 //     {trigger, compact_summary}. Neither Pre- nor PostCompact leaves an
 //     attachment; their outcome is display text.
 //  5. A manual compaction is the /compact command, so the three records a
-//     local command leaves follow the summary — the caveat, the command, and
-//     its output "Compacted <what the Pre/PostCompact hooks reported>" — and
+//     local command leaves follow the summary (writeCompactCommand), and
 //     SessionStart:compact's attachments come after them.
 //
-// It returns whether the compaction happened, or an error for a control
-// record that asks for something impossible. The scenario drives it with
+// The order is the compaction capability's (internal/compaction); this supplies
+// each step. It returns whether the compaction happened, or an error for a
+// control record that asks for something impossible. The scenario drives it with
 // {"type":"compact"[,"summary":…][,"trigger":"auto"|"manual"][,"preserve":N]
 // [,"pre_tokens":N][,"post_tokens":N][,"preserved_segment":false][,"tail_offset":K]
 // [,"logical_parent":…][,"id":…]}, or with its own
 // isCompactSummary record, which is used as the summary.
+//
+// sr:provides manual-compaction/claude
 // sr:docs https://code.claude.com/docs/en/hooks#precompact
 // sr:docs https://code.claude.com/docs/en/hooks#postcompact
 func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, rec *cliRecord, line []byte) (bool, error) {
@@ -61,104 +60,62 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	if trigger == "" {
 		trigger = "auto"
 	}
-	manual := trigger == "manual"
-	started := time.Now()
-	var preRuns, postRuns []hooks.HandlerRun
-	preOut, preErr := inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { preRuns = runs }).Fire(ctx, hooks.Input{
-		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPreCompact,
-		Trigger: trigger, CustomInstructions: json.RawMessage("null"),
-	})
-	if preErr != nil || preOut.Decision == "block" {
-		fmt.Fprintf(cfg.Stderr, "claude-mock: PreCompact blocked the compaction\n")
-		return false, nil
-	}
-
-	// The summary: the scenario's own record, or one built from the control
-	// record. Its uuid is minted up front — the boundary names it as anchor.
-	var sum map[string]any
-	if rec.IsCompactSummary {
-		if json.Unmarshal(line, &sum) != nil {
-			return false, nil
-		}
-	} else {
-		text := rec.Summary
-		if text == "" {
-			text = "This session is being continued from a previous conversation that ran out of context."
-		}
-		sum = map[string]any{
-			"type": "user", "isCompactSummary": true,
-			"message": map[string]any{"role": "user", "content": text},
-		}
-		if rec.ID != "" {
-			sum["id"] = rec.ID
-		}
-	}
-	if _, ok := sum["isVisibleInTranscriptOnly"]; !ok {
-		sum["isVisibleInTranscriptOnly"] = true // every one of the 66 real summaries
-	}
-	anchor, _ := sum["uuid"].(string)
-	if anchor == "" {
-		anchor = newRecordUUID()
-		sum["uuid"] = anchor
-	}
-	delete(sum, "parentUuid") // chains to the boundary
-	summaryText := ""
-	if m, ok := sum["message"].(map[string]any); ok {
-		summaryText, _ = m["content"].(string)
-	}
-
-	if manual {
-		summarizer, err := newAgentID()
-		if err == nil {
-			active := false
-			tasks := cfg.bg.running()
-			crons := []any{}
-			sessionFile := cfg.sessionFile
-			if sessionFile == "" {
-				sessionFile = tr.path
-			}
-			_, _ = inv.WithRecorder(nil).Fire(ctx, hooks.Input{
-				SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventSubagentStop,
-				AgentID: summarizer, AgentType: "", StopHookActive: &active,
-				AgentTranscriptPath:  filepath.Join(strings.TrimSuffix(sessionFile, ".jsonl"), "subagents", "agent-"+summarizer+".jsonl"),
-				LastAssistantMessage: &summaryText, BackgroundTasks: &tasks, SessionCrons: &crons,
-			})
-		}
-	}
-
 	preserve := defaultPreserved
 	if rec.Preserve != nil {
 		preserve = *rec.Preserve
 	}
-	writeCompactBoundary(tr, compactionSpec{
-		logicalParent: rec.LogicalParent, preserve: preserve, anchor: anchor, trigger: trigger,
-		preTokens: rec.PreTokens, postTokens: rec.PostTokens, durationMs: time.Since(started).Milliseconds(),
-		withSegment: rec.PreservedSegment == nil || *rec.PreservedSegment, tailOffset: rec.TailOffset,
+	started := time.Now()
+	var preRuns, postRuns []hooks.HandlerRun
+	var sum map[string]any
+	var anchor, summaryText string
+	happened := compaction.Run(trigger == "manual", compaction.Steps{
+		Before: func() bool {
+			preOut, preErr := inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { preRuns = runs }).Fire(ctx, hooks.Input{
+				SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPreCompact,
+				Trigger: trigger, CustomInstructions: json.RawMessage("null"),
+			})
+			if preErr != nil || preOut.Decision == "block" {
+				// For a manual /compact the block's message is shown to the user.
+				if msg := compactBlockMessage(preOut, preErr); trigger == "manual" && msg != "" {
+					fmt.Fprintln(cfg.Stderr, msg)
+				}
+				fmt.Fprintf(cfg.Stderr, "claude-mock: PreCompact blocked the compaction\n")
+				return true
+			}
+			var ok bool
+			sum, anchor, summaryText, ok = compactSummary(rec, line)
+			if ok {
+				writeCompactingStatus(cfg)
+			}
+			return !ok
+		},
+		Summarizer: func() { fireSummarizerStop(ctx, cfg, inv, tr, summaryText) },
+		Boundary: func() {
+			writeCompactBoundary(cfg, tr, compactionSpec{
+				logicalParent: rec.LogicalParent, preserve: preserve, anchor: anchor, trigger: trigger,
+				preTokens: rec.PreTokens, postTokens: rec.PostTokens, durationMs: time.Since(started).Milliseconds(),
+				withSegment: rec.PreservedSegment == nil || *rec.PreservedSegment, tailOffset: rec.TailOffset,
+			})
+		},
+		Summary: func() {
+			sumLine, _ := marshalRecord(sum)
+			writeStreamLine(cfg, sumLine)
+			tr.persist(sumLine)
+		},
+		Resume: func() {
+			ssInv := inv
+			if trigger == "manual" {
+				ssInv = inv.WithRecorder(tr.holdHookRuns)
+			}
+			fireSessionStart(ctx, cfg, ssInv, "compact")
+		},
+		After: func() {
+			_, _ = inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { postRuns = runs }).Fire(ctx, hooks.Input{
+				SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPostCompact,
+				Trigger: trigger, CompactSummary: &summaryText,
+			})
+		},
+		Command: func() { writeCompactCommand(cfg, tr, preRuns, postRuns) },
 	})
-	sumLine, _ := marshalRecord(sum)
-	writeStreamLine(cfg, sumLine)
-	tr.persist(sumLine)
-
-	ssInv := inv
-	if manual {
-		ssInv = inv.WithRecorder(tr.holdHookRuns)
-	}
-	fireSessionStart(ctx, cfg, ssInv, "compact")
-
-	_, _ = inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { postRuns = runs }).Fire(ctx, hooks.Input{
-		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPostCompact,
-		Trigger: trigger, CompactSummary: &summaryText,
-	})
-
-	if manual {
-		lines := append(compactHookLines("PreCompact", preRuns), compactHookLines("PostCompact", postRuns)...)
-		tr.persistMap(map[string]any{"type": "user", "isMeta": true, "message": map[string]any{"role": "user",
-			"content": "<local-command-caveat>Caveat: The messages below were generated by the user while running local commands. DO NOT respond to these messages or otherwise consider them in your response unless the user explicitly asks you to.</local-command-caveat>"}})
-		tr.persistMap(map[string]any{"type": "user", "message": map[string]any{"role": "user",
-			"content": "<command-name>/compact</command-name>\n            <command-message>compact</command-message>\n            <command-args></command-args>"}})
-		tr.persistMap(map[string]any{"type": "user", "message": map[string]any{"role": "user",
-			"content": "<local-command-stdout>Compacted " + strings.Join(lines, "\n") + "</local-command-stdout>"}})
-		tr.flushHookRuns()
-	}
-	return true, nil
+	return happened, nil
 }

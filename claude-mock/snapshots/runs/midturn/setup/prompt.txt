@@ -1,0 +1,1 @@
+Run exactly this Bash command with run_in_background set to true: echo QUICKDONE . Then run exactly this Bash command (not in background): sleep 2 . Then reply only DONE.

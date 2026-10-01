@@ -25,6 +25,17 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	return out, err
 }
 
+// matcherValue is what a hook's matcher is matched against: the compaction
+// trigger ("manual" | "auto") for PreCompact and PostCompact, the tool name
+// otherwise.
+// sr:docs https://code.claude.com/docs/en/hooks#precompact
+func matcherValue(in Input) string {
+	if in.HookEventName == EventPreCompact || in.HookEventName == EventPostCompact {
+		return in.Trigger
+	}
+	return in.ToolName
+}
+
 // FireRuns is Fire, also handing back each handler's run, for a caller that
 // reports runs itself.
 func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []HandlerRun, error) {
@@ -39,7 +50,7 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 			input.AgentType = inv.agentType
 		}
 	}
-	handlers := inv.settings.EntriesFor(input.HookEventName, input.ToolName)
+	handlers := inv.settings.EntriesFor(input.HookEventName, matcherValue(input))
 	if len(handlers) == 0 {
 		return Output{}, nil, nil
 	}
