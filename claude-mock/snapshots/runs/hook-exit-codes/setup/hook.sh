@@ -9,7 +9,9 @@ code=0
 case "$ev" in
   SessionStart) echo "session-start stderr on exit 2" >&2; code=2 ;;
   UserPromptSubmit) echo "The secret word is BANANA." ;;
-  PreToolUse) [ "$tool" = Bash ] && { echo "Blocked: Bash is off in this scenario" >&2; code=2; } ;;
+  PreToolUse) cmd=$(printf '%s' "$IN" | jq -r '.tool_input.command // ""')
+    case "$cmd" in *"echo one"*) echo "Blocked: echo one is off in this scenario" >&2; code=2 ;; esac ;;
+  PostToolUseFailure) echo "post-failure stderr on exit 2" >&2; code=2 ;;
   PostToolUse) echo "post-tool warning on exit 1" >&2; code=1 ;;
   Stop) if [ ! -f "$TMPDIR/stop-blocked-once" ]; then : >"$TMPDIR/stop-blocked-once"; echo "Before finishing, reply with the single word STOPPED-ONCE." >&2; code=2; fi ;;
   SessionEnd) echo "session-end stderr on exit 1" >&2; code=1 ;;
