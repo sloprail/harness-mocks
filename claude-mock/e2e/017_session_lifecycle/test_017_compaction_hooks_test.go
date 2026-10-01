@@ -51,19 +51,33 @@ func TestT017_07f_PreCompactJSONBlockStopsTheCompaction(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "PostCompact fires only when the compaction happens")
 }
 
-// TestT017_07g_PreCompactCannotStopWithContinueFalse: Claude Code discards a
-// PreCompact hook's `continue` and `systemMessage` fields (hooks#precompact), so
-// they neither block nor change the compaction.
+// TestT017_07g_CompactHooksCannotStopWithContinueFalse: Claude Code discards a
+// PreCompact or PostCompact hook's `continue` and `systemMessage` fields
+// (hooks#precompact, hooks#postcompact), so they neither block the compaction nor
+// stop the session, and the message becomes no system message.
 // sr:proves manual-compaction/claude
-func TestT017_07g_PreCompactCannotStopWithContinueFalse(t *testing.T) {
+func TestT017_07g_CompactHooksCannotStopWithContinueFalse(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
-	pre := write(t, filepath.Join(dir, "pre.sh"), "#!/bin/sh\ncat >/dev/null\necho '{\"continue\":false,\"systemMessage\":\"ignored\"}'\n", 0o755)
-	compactSettings(t, dir, map[string][2]string{"PreCompact": {"*", pre}})
-	compactRun(t, dir, cfg, "cmp-g", "manual")
+	hook := write(t, filepath.Join(dir, "hook.sh"), "#!/bin/sh\ncat >/dev/null\necho '{\"continue\":false,\"stopReason\":\"halt\",\"systemMessage\":\"SYSMSG-SHOWN\"}'\n", 0o755)
+	compactSettings(t, dir, map[string][2]string{"PreCompact": {"*", hook}, "PostCompact": {"*", hook}})
+	sc := script(t, dir, "s", `{"type":"compact","summary":"x @MARK@","trigger":"manual"}`, toolUse("b1", "Bash", `{"command":"echo AFTER-COMPACT"}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-g",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
 	raw, err := os.ReadFile(transcriptPath(t, cfg, dir, "cmp-g"))
 	require.NoError(t, err)
-	assert.Contains(t, string(raw), "compact_boundary", "the compaction happens")
+	assert.Contains(t, string(raw), "compact_boundary", "the compaction happens, whatever PreCompact says")
+	assert.Contains(t, string(raw), "AFTER-COMPACT", "the session goes on after PostCompact's continue:false")
+	// The hook's stdout is reported as the command's output ("Compacted <Event> [<cmd>]
+	// completed successfully: <stdout>"), but its systemMessage is never made a system
+	// message of its own, on the stream or in the transcript.
+	for _, l := range strings.Split(out+"\n"+string(raw), "\n") {
+		var m map[string]any
+		if json.Unmarshal([]byte(l), &m) == nil && m["type"] == "system" {
+			assert.NotContains(t, l, "SYSMSG-SHOWN", "a discarded systemMessage surfaces as no system record")
+		}
+	}
 }
 
 // TestT017_07i_ManualCompactionBlockShowsTheMessage: exit 2 from PreCompact blocks
@@ -127,15 +141,18 @@ func TestT017_07j_CompactionStreamsItsFrames(t *testing.T) {
 			}
 			compacting, boundary := at("system", "status"), at("system", "compact_boundary")
 			require.GreaterOrEqual(t, compacting, 0, "status compacting")
-			require.Greater(t, boundary, compacting)
-			ended := frames[compacting+1]
-			assert.Equal(t, "status", ended["subtype"])
-			assert.Nil(t, ended["status"])
-			assert.Equal(t, "success", ended["compact_result"])
-			initFrame := frames[compacting+2]
-			assert.Equal(t, "init", initFrame["subtype"])
-			assert.NotEmpty(t, initFrame["cwd"])
-			assert.Equal(t, boundary, compacting+3, "status, status, init, then the boundary")
+			ended, initAt := -1, at("system", "init")
+			for i, fr := range frames {
+				if fr["subtype"] == "status" && fr["compact_result"] == "success" {
+					ended = i
+					assert.Nil(t, fr["status"])
+				}
+			}
+			require.GreaterOrEqual(t, ended, 0, "status with compact_result success")
+			require.GreaterOrEqual(t, initAt, 0, "system init")
+			assert.NotEmpty(t, frames[initAt]["cwd"])
+			assert.True(t, compacting < ended && ended < initAt && initAt < boundary,
+				"status compacting, the end status, init, then the boundary (the recorded run also streams a rate_limit_event between the statuses): %d %d %d %d", compacting, ended, initAt, boundary)
 			f := frames[boundary]
 			assert.Equal(t, "cmp-j", f["session_id"])
 			meta := f["compact_metadata"].(map[string]any)
