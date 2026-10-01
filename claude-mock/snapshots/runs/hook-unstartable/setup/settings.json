@@ -1,0 +1,5 @@
+{
+  "hooks": {
+    "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "/nonexistent-hook-dir/hook.sh"}]}]
+  }
+}
