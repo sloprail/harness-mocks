@@ -143,6 +143,15 @@ func TestIsolate_FallsBackToAPlainDirectoryThenToTheParent(t *testing.T) {
 	}
 }
 
+func TestHandBack_IndentsTheReportUnderTheFrame(t *testing.T) {
+	if got := HandBack("FRAME", "NONE", "one\r\ntwo\u2028three"); got != "FRAME\n  one\n  two\n  three" {
+		t.Fatalf("report = %q", got)
+	}
+	if got := HandBack("FRAME", "NONE", ""); got != "FRAME\n  NONE" {
+		t.Fatalf("empty = %q", got)
+	}
+}
+
 func TestWorktreeHook(t *testing.T) {
 	boom := errors.New("hook failed")
 	if _, ran, err := WorktreeHook(false, func() (string, bool, error) { return "", true, boom }); !ran || err != boom {
