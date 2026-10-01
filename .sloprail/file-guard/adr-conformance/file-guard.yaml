@@ -13,3 +13,5 @@ match: >-
 checks:
   - prepare: ../../_lib/linked-adrs.sh
     judge: ../../_lib/adr-conforms.md.j2
+    # the diffs are files outside the project (nothing that can grow is inlined)
+    allowed_tools: [Read]
