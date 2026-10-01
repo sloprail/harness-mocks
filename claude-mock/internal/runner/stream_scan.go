@@ -4,13 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
-	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // scanLines reads one script invocation's JSONL output line by line, until a
@@ -82,18 +80,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 					ToolInput:     toolInput,
 				})
 				out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput}
-				var blockErr *hooks.BlockError
-				blocked := errors.As(hookErr, &blockErr)
-				if hookErr != nil && !blocked {
-					return scanResult{}, hookErr
+				if err := decidePreTool(cfg, &out.pending, hookOut, hookErr); err != nil {
+					return scanResult{}, err
 				}
-				blockReason := ""
-				if blocked {
-					fmt.Fprintf(cfg.Stderr, "claude-mock: PreToolUse hook blocked: %v\n", hookErr)
-					blockReason = blockErr.Quoted()
-				}
-				// sr:provides pretooluse-refusal/claude
-				out.pending.Blocked, out.pending.BlockReason = corehooks.PreToolDecision(blocked, blockReason, isDeny(hookOut), denyReason(hookOut))
 				return out, nil
 			}
 		}

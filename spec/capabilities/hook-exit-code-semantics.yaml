@@ -20,6 +20,7 @@ providers:
       - claude-mock/snapshots/runs/prompt-blocked
       - claude-mock/snapshots/runs/prompt-blocked-suppressed
       - claude-mock/snapshots/runs/hook-unstartable
+      - claude-mock/snapshots/runs/hookerrors
     deviations:
       - adr: modeled-surface
         statement: >-

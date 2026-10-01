@@ -8,7 +8,6 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
-	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // runOneTurnSig executes the script once, processes its JSONL output, and
@@ -112,40 +111,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// neither: the tool never ran. Neither leaves a record here.
 	// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
 	took := time.Since(toolStarted).Milliseconds()
-	outcome := corehooks.ToolSucceeded
-	switch {
-	case res.Failed:
-		outcome = corehooks.ToolFailed
-	case res.IsError:
-		outcome = corehooks.ToolErrored
-	}
-	// sr:provides tool-failure-hook/claude
-	switch corehooks.AfterToolHook(outcome) {
-	case corehooks.AfterFailure:
-		notInterrupted := false
-		_, _ = inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventPostToolUseFailure,
-			ToolName:      pending.ToolName,
-			ToolUseID:     pending.ToolUseID,
-			ToolInput:     pending.ToolInput,
-			Error:         res.Output,
-			IsInterrupt:   &notInterrupted,
-			DurationMs:    &took,
-		})
-	case corehooks.AfterSuccess:
-		_, _ = inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventPostToolUse,
-			ToolName:      pending.ToolName,
-			ToolUseID:     pending.ToolUseID,
-			ToolInput:     pending.ToolInput,
-			ToolResponse:  toolResponse(res),
-			DurationMs:    &took,
-		})
-	}
+	firePostTool(ctx, cfg, inv, pending, res, took)
 	if startAgent != nil {
 		startAgent()
 	}
