@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
@@ -55,18 +53,10 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventNa
 	// uninterruptible syscall can outlast it) it caps how long Run may keep
 	// waiting on the inherited pipes. Without it, one unkillable descendant
 	// restores the original unbounded hang.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		// Negative pid = "the whole process group". Signalling the group is why
-		// the grandchildren die; signalling cmd.Process alone is the bug.
-		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
-			if errors.Is(err, syscall.ESRCH) {
-				return os.ErrProcessDone
-			}
-			return err
-		}
-		return nil
-	}
+	procexec.OwnGroup(cmd)
+	// Signalling the group is why the grandchildren die; signalling
+	// cmd.Process alone is the bug.
+	cmd.Cancel = func() error { return procexec.KillGroup(cmd) }
 	cmd.WaitDelay = hookKillGrace
 	cmd.Stdin = bytes.NewReader(payload)
 	// Mirror the real claude CLI's hook environment. CLAUDECODE=1 and
