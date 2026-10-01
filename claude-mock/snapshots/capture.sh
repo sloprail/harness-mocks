@@ -39,14 +39,15 @@ seal() { (cd "$1" && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shas
 # normalize — hook payloads and stream frames into events.jsonl: what a
 # scenario did, without what differs between two captures of the same
 # behaviour (ids, paths, timings, the model's own wording).
-# The run's own session id is kept as <SESSION_ID> wherever it appears (a child's
-# env, a command's output), and the harness's pid as <PID>: which session or
+# The run's own session id is kept as <SESSION_ID> wherever it appears (a
+# payload's session_id, a child's env, a command's output), so that they match
+# is recorded, and the harness's pid as <PID>: which session or
 # process a value names is behaviour, the value itself is not.
 normalize() {
   local cap="$1" sid pid
   sid="$(jq -r 'select(.session_id) | .session_id' "$cap/payloads.jsonl" 2>/dev/null | head -n1)"
   pid="$(jq -r 'select(.hook_env.CLAUDE_PID) | .hook_env.CLAUDE_PID' "$cap/payloads.jsonl" 2>/dev/null | head -n1)"
-  jq -c --arg sid "${sid:-<none>}" --arg pid "${pid:-<none>}" 'walk(if type == "object" then del(.session_id, .transcript_path, .cwd, .agent_id,
+  jq -c --arg sid "${sid:-<none>}" --arg pid "${pid:-<none>}" 'walk(if type == "object" then del(.transcript_path, .cwd, .agent_id,
           .tool_use_id, .prompt_id, .uuid, .parentUuid, .timestamp, .duration_ms, .durationMs, .last_assistant_message)
           elif type == "string" then gsub($sid; "<SESSION_ID>") | gsub("\\b" + $pid + "\\b"; "<PID>") else . end)
          | del(.tool_input.description?) | {event: "hook", hook: .hook_event_name, payload: .}' "$cap/payloads.jsonl" 2>/dev/null || true
