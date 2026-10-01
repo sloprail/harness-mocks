@@ -27,8 +27,6 @@ while IFS= read -r c; do
     printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/MANIFEST.yaml" && hit=1   # a re-frozen doc
     [ "$hit" = 1 ] || continue
     d="$(snap_dir "$h")"
-    docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do
-      docs="$(jq -c --arg r "$ref" --arg t "$(doc_ref_section "$h" "$ref")" '. + [{ref: $r, section: $t}]' <<<"$docs")"; done
     runs="[]"; for r in $(jq -r '.runs[]' <<<"$cell"); do
       # every sample's normalized events, inlined (capped): what the real harness did
       samples="[]"; for s in "$SR_TREE/$r"/samples/*/; do
@@ -39,6 +37,18 @@ while IFS= read -r c; do
         --argjson sm "$samples" '. + [{name: ($r | split("/") | last), dir: $r, run: $y, prompt: $setup, samples: $sm}]' <<<"$runs")"; done
     tests="[]"; for f in $(printf '%s\n' "$proves" | awk -F'\t' -v q="$id/$h" '$2 == q {print $1}' | sort -u); do
       tests="$(jq -c --arg p "$f" --rawfile t "$SR_TREE/$f" '. + [{path: $p, text: $t}]' <<<"$tests")"; done
+    # A section over 20k chars (a page-long table) is cut to its headings and
+    # the lines naming an identifier the runs or tests mention: the rest would
+    # drown the judge.
+    seen="$(jq -r '([.[].samples[].events] | join("\n"))' <<<"$runs"; jq -r '.[].text' <<<"$tests")"
+    docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do
+      t="$(doc_ref_section "$h" "$ref")"
+      if [ "${#t}" -gt 20000 ]; then
+        ids="$(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' <<<"$seen" | sort -u | grep -Fx -f <(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' <<<"$t" | sort -u) | paste -sd'|' -)"
+        t="(section cut to its headings and the lines naming ${ids:-nothing the runs or tests mention})
+$(grep -E "^#${ids:+|$ids}" <<<"$t")"
+      fi
+      docs="$(jq -c --arg r "$ref" --arg t "$t" '. + [{ref: $r, section: $t}]' <<<"$docs")"; done
     subjects="$(jq -c --arg id "$id/$h" --arg st "$(jq -r '.doc.statement' <<<"$c")" --arg h "$h" \
       --argjson docs "$docs" --argjson runs "$runs" --argjson tests "$tests" --arg path "spec/capabilities/$id.yaml" \
       --argjson dev "$(jq -c '.deviations // []' <<<"$cell")" \
