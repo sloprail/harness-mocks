@@ -131,6 +131,28 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 	assert.Contains(t, string(data), "feat/old")
 }
 
+// TestT002_05b_WorktreeRemoveFailsOnAnyNonZeroExit: any non-zero exit of a
+// WorktreeRemove hook fails the removal (docs, "Exit code 2 behavior per event").
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+// sr:proves hook-exit-code-semantics/claude
+func TestT002_05b_WorktreeRemoveFailsOnAnyNonZeroExit(t *testing.T) {
+	dir := t.TempDir()
+	warnHook := writeScript(t, dir, "warn.sh", `#!/bin/sh
+echo "warning" >&2
+exit 1
+`)
+	claudeDir := filepath.Join(dir, ".claude")
+	require.NoError(t, os.MkdirAll(claudeDir, 0o755))
+	s := `{"hooks":{"WorktreeRemove":[{"matcher":"*","hooks":[{"type":"command","command":"` + warnHook + `"}]}]}}`
+	require.NoError(t, os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte(s), 0o644))
+	script := writeScript(t, dir, "s.sh", `#!/bin/sh
+printf '%s\n' '{"type":"worktree_remove","worktree_name":"feat/old"}'
+printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":false}'
+`)
+	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
+	assert.NotEqual(t, 0, code, "an exit 1 WorktreeRemove hook fails the removal")
+}
+
 // TestT002_06_WorktreeRemoveBlockCausesNonZeroExit: WorktreeRemove exit 2 blocks.
 func TestT002_06_WorktreeRemoveBlockCausesNonZeroExit(t *testing.T) {
 	dir := t.TempDir()
