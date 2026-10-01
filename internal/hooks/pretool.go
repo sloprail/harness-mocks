@@ -29,3 +29,13 @@ func StrongerPermission(a, b string) string {
 	}
 	return a
 }
+
+// StrongerDecision is whichever of two hooks' top-level decisions wins: a
+// "block" from any hook stands, and another hook's "approve" does not undo
+// it; otherwise the later decision is kept.
+func StrongerDecision(a, b string) string {
+	if a == "block" || b == "" {
+		return a
+	}
+	return b
+}

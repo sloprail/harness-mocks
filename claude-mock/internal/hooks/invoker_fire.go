@@ -116,10 +116,10 @@ func mergeOutput(dst *Output, src Output) {
 	if src.SystemMessage != "" {
 		dst.SystemMessage = src.SystemMessage
 	}
-	// A block from any hook stands; another hook's "approve" does not undo it.
-	if src.Decision != "" && dst.Decision != "block" {
-		dst.Decision, dst.Reason = src.Decision, src.Reason
-	} else if src.Reason != "" && dst.Reason == "" {
+	// The winning decision brings its reason.
+	if d := corehooks.StrongerDecision(dst.Decision, src.Decision); d != dst.Decision {
+		dst.Decision, dst.Reason = d, src.Reason
+	} else if dst.Reason == "" {
 		dst.Reason = src.Reason
 	}
 	if src.HookSpecificOutput != nil {

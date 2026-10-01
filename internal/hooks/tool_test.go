@@ -58,3 +58,14 @@ func TestRejectedInput(t *testing.T) {
 		t.Errorf("a tool with no required parameters rejected: %v", got)
 	}
 }
+
+func TestStrongerDecision(t *testing.T) {
+	for _, tc := range [][3]string{
+		{"block", "approve", "block"}, {"approve", "block", "block"},
+		{"", "approve", "approve"}, {"approve", "", "approve"}, {"block", "", "block"},
+	} {
+		if got := StrongerDecision(tc[0], tc[1]); got != tc[2] {
+			t.Errorf("StrongerDecision(%q, %q) = %q, want %q", tc[0], tc[1], got, tc[2])
+		}
+	}
+}

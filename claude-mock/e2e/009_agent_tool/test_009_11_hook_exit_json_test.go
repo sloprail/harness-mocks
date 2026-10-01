@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,21 +102,27 @@ func TestT009_10_14b_SubagentStartExit2IsNonBlockingAndHiddenFromModel(t *testin
 	assert.Equal(t, 0, inParent, "and not in the parent session's transcript")
 }
 
-// StopFailure cannot be triggered from a scenario: the mock does not model it
-// (internal/runner/runner.go: "StopFailure, which the mock does not model").
+// PostCompact exit 2 shows its stderr to the user only: a manual compaction
+// reports "PostCompact [<command>] failed: <stderr>" in the /compact command
+// output, and nowhere else.
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
 // sr:proves hook-exit-code-semantics/claude
 func TestT009_10_14c_PostCompactExit2ShowsStderrToUserNotModel(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
-	writeSettings(t, dir, map[string]string{
-		"PostCompact": writeHook(t, dir, "pc.sh", exitHookScript("", "postcompact-secret-stderr", 2)),
-	})
-	script := writeScript(t, dir, "s.sh", "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"compact\",\"summary\":\"sum\"}'\nprintf '%s\\n' '"+resultFrame+"'\n")
+	hook := writeHook(t, dir, "pc.sh", exitHookScript("", "postcompact-secret-stderr", 2))
+	writeSettings(t, dir, map[string]string{"PostCompact": hook})
+	script := writeScript(t, dir, "s.sh", "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"compact\",\"summary\":\"sum\",\"trigger\":\"manual\"}'\nprintf '%s\\n' '"+resultFrame+"'\n")
 	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-14c", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
 	require.Equal(t, 0, code, "output:\n%s", out)
 	assert.Contains(t, allTranscriptText(cfg), "compact_boundary", "the compaction happened")
-	assert.NotContains(t, modelText(allRecords(t, cfg)), "postcompact-secret-stderr", "docs: stderr goes to the user only")
+	assert.Contains(t, allTranscriptText(cfg), "PostCompact ["+hook+"] failed: postcompact-secret-stderr",
+		"the user sees the failure and its stderr in /compact's output")
+	for _, r := range allRecords(t, cfg) {
+		if strings.Contains(fmt.Sprint(r), "postcompact-secret-stderr") {
+			assert.Contains(t, fmt.Sprint(r), "<local-command-stdout>", "the stderr is only in the command output shown to the user")
+		}
+	}
 }
 
 // Recording snapshots/runs/hook-exit-json: an exit-0 hook's stderr IS carried by
