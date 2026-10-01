@@ -95,8 +95,8 @@ capture_run() {
   # redact: the value of every secret-named variable a child saw (the harness
   # hands children e.g. CLAUDE_CODE_MESSAGING_TOKEN) out of everything captured,
   # before anything is sealed or committed
-  { jq -r 'select(.hook_env) | .hook_env | to_entries[] | select(.key | test("TOKEN|SECRET|KEY|PASSWORD")) | .value' "$cap/payloads.jsonl" 2>/dev/null
-    grep -rhoE '[A-Z0-9_]*(TOKEN|SECRET|KEY|PASSWORD)[A-Z0-9_]*=[A-Za-z0-9._/+-]{8,}' "$cap" 2>/dev/null | cut -d= -f2-
+  { jq -r 'select(.hook_env) | .hook_env | to_entries[] | select(.key | test("TOKEN|SECRET|KEY|PASSWORD")) | .value' "$cap/payloads.jsonl" 2>/dev/null || true
+    grep -rhoE '[A-Z0-9_]*(TOKEN|SECRET|KEY|PASSWORD)[A-Z0-9_]*=[A-Za-z0-9._/+-]{8,}' "$cap" 2>/dev/null | cut -d= -f2- || true   # no secret is fine
   } | sort -u | while IFS= read -r secret; do
     [ "${#secret}" -ge 8 ] || continue
     { grep -rlF -e "$secret" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do sed -i '' -e "s#$secret#<REDACTED>#g" "$f"; done
