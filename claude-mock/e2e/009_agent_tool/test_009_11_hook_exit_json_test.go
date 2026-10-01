@@ -370,6 +370,7 @@ func TestT009_11_Exit2JSONReasonBeatsStderr(t *testing.T) {
 // context.
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-additional-context/claude
 func TestT009_11_MalformedJSONOnContextEventsIsNotContext(t *testing.T) {
 	for _, event := range []string{"UserPromptSubmit", "SessionStart"} {
 		t.Run(event, func(t *testing.T) {

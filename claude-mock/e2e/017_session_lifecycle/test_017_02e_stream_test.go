@@ -53,6 +53,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"R"}'
 // sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure-input
 // staged:proves bash-tool-result/claude
 // sr:proves tool-failure-hook/claude
+// sr:proves posttooluse-payload/claude
 func TestT017_29_FailingBash(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
