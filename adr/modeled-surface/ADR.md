@@ -22,8 +22,12 @@ visible and deliberate, not a test nobody wrote.
     harness opens;
   - every tool a mock's tool executor does not implement (for claude-mock,
     each tool name `claude-mock/internal/toolexec` does not handle);
-  - every hook event a mock does not define (for claude-mock, each event not
-    named in `claude-mock/internal/hooks/event.go`).
+  - every hook event a mock does not define or never fires (for claude-mock,
+    each event not named in `claude-mock/internal/hooks/event.go`, and those it
+    names but no code path fires);
+  - the reference text a harness prints inside its own diagnostics (such as
+    the output schema Claude Code appends to a hook validation error): a mock
+    writes the diagnostic's first line and the hook's own output.
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.

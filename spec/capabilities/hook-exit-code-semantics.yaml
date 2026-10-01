@@ -10,15 +10,24 @@ providers:
       - https://code.claude.com/docs/en/hooks#other-exit-codes
     runs:
       - claude-mock/snapshots/runs/hook-exit-codes
+      - claude-mock/snapshots/runs/hook-exit-json
+      - claude-mock/snapshots/runs/prompt-blocked
     deviations:
       - adr: modeled-surface
         statement: >-
           The mock fires SessionStart, UserPromptSubmit, PreToolUse,
-          PostToolUse, PostToolUseFailure, Stop, StopFailure, SubagentStart,
-          SubagentStop, PreCompact, PostCompact, SessionEnd, WorktreeCreate and
-          WorktreeRemove only. The docs' exit-code rows for ConfigChange,
+          PostToolUse, PostToolUseFailure, Stop, SubagentStart, SubagentStop,
+          PreCompact, PostCompact, SessionEnd, WorktreeCreate and
+          WorktreeRemove only. The docs' exit-code rows for StopFailure (which
+          the mock defines but never fires), ConfigChange,
           CwdChanged, DirectoryAdded, Elicitation, ElicitationResult,
           FileChanged, InstructionsLoaded, MessageDisplay, Notification,
           PermissionDenied, PermissionRequest, PostModelSwitch, PostToolBatch,
           PreModelSwitch, Setup, TaskCompleted, TaskCreated, TeammateIdle and
           UserPromptExpansion are not modeled.
+      - adr: modeled-surface
+        statement: >-
+          A hook's JSON that fails Claude Code's output schema is a
+          non-blocking error in the mock too, whose message names the failing
+          field and carries the hook's own stderr, but not the full output
+          schema Claude Code prints after it.
