@@ -1,6 +1,6 @@
 ---
 concern: which packages core and the harness mocks may import
-sloprails: [file-guard/layering]
+sloprails: [file-guard/layering, file-guard/adr-conformance]
 ---
 
 # One shared core; harness mocks depend on it, never on each other
