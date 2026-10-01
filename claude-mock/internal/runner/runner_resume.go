@@ -63,3 +63,37 @@ func resumeFields(transcriptPath string) *hooks.ResumeFields {
 		PromptCacheLikelyExpired: stats.CacheLikelyExpired, EstimatedCacheWriteUSD: stats.EstimatedCacheWriteUSD,
 	}
 }
+
+// writePrompt writes the prompt as the HUMAN turn it is, AFTER SessionStart and
+// after UserPromptSubmit has let it through (a transcript is not even created
+// before then: recorded, snapshots/runs/transcript-at-start; a refused prompt
+// leaves only its warning, snapshots/runs/prompt-blocked):
+//
+//   - FRESH: if SessionStart printed anything its attachment is already the
+//     file's origin and the prompt chains after it; if not, the prompt is the
+//     first record and so the origin itself. Its uuid is the deterministic
+//     `e2e-root-<session>` either way, so a caller can reference the human
+//     message up front.
+//   - RESUME / FORK: the NEXT human turn, chained into the transcript on disk,
+//     never a second parentless root.
+//   - NESTED sub-agent run: nothing. The sub-agent's human-origin record is its
+//     dispatch prompt, seeded into its sidechain file by prepareSubagent; writing
+//     it again would forge a human message the user never sent.
+func writePrompt(tr *transcript, cfg Config, nested bool) {
+	switch {
+	case nested:
+	case cfg.IsResume:
+		appendResumePrompt(tr, cfg.SessionID, cfg.Prompt)
+	default:
+		writeRootPrompt(tr, cfg.SessionID, cfg.Cwd, cfg.Prompt)
+	}
+}
+
+// ErrNoConversation is --resume naming a session that has no transcript. Real
+// Claude Code prints "No conversation found with session ID: <id>" and exits 1
+// (claude 2.1.282; a stream-json run also writes an error result frame).
+type ErrNoConversation struct{ SessionID string }
+
+func (e *ErrNoConversation) Error() string {
+	return "No conversation found with session ID: " + e.SessionID
+}

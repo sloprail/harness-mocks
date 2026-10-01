@@ -77,7 +77,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	// that does not exist (see noConversation), whatever is on disk.
 	// sr:invariant no-resume
 	if isResume && os.Getenv("A10N_MOCK_NO_RESUME") == "1" {
-		noConversation(cmd, sessionID)
+		noConversation(cmd, &runner.ErrNoConversation{SessionID: sessionID})
 	}
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
@@ -125,19 +125,19 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	})
 	var noConv *runner.ErrNoConversation
 	if errors.As(err, &noConv) {
-		noConversation(cmd, noConv.SessionID)
+		noConversation(cmd, noConv)
 	}
 	return err
 }
 
 // noConversation ends the run the way real Claude Code ends `--resume <id>`
-// for a session it has no transcript of (claude 2.1.282): "No conversation
-// found with session ID: <id>" on stderr, an error result frame on stdout when
+// for a session it has no transcript of (claude 2.1.282): the error's message
+// ("No conversation found with session ID: <id>") on stderr, an error result frame on stdout when
 // the output format is stream-json, exit status 1.
 //
 // sr:provides session-resume-unknown/claude
-func noConversation(cmd *cobra.Command, sessionID string) {
-	msg := "No conversation found with session ID: " + sessionID
+func noConversation(cmd *cobra.Command, noConv *runner.ErrNoConversation) {
+	sessionID, msg := noConv.SessionID, noConv.Error()
 	fmt.Fprintln(os.Stderr, msg)
 	if format, _ := cmd.Flags().GetString(flagOutputFormat); format == "stream-json" {
 		frame, _ := json.Marshal(map[string]any{

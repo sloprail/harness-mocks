@@ -23,13 +23,15 @@ import (
 // file it writes lives under the SYMLINK-RESOLVED encoding of --project-dir.
 // sr:proves session-transcript-file/claude
 func TestT003_02_TranscriptPathSymlinkResolved(t *testing.T) {
-	dir := t.TempDir()
+	// The project directory is reached through a symlink of the test's own, on every
+	// machine (a temp directory is a symlink only on some).
+	realDir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(realDir, dir))
 	resolvedDir, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
-	if resolvedDir == dir {
-		t.Skip("dir has no symlink component on this machine — nothing to distinguish")
-	}
-	configDir := filepath.Join(dir, "config")
+	require.NotEqual(t, resolvedDir, dir)
+	configDir := filepath.Join(realDir, "config")
 
 	script := filepath.Join(dir, "root.sh")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
