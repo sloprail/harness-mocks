@@ -29,7 +29,7 @@ func TestT009_06_HookEnvCarriesClaudeCodeVars(t *testing.T) {
 	dumpEnv := func(name, out string) string {
 		return writeHook(t, dir, name,
 			`cat >/dev/null
-{ echo "CLAUDECODE=$CLAUDECODE"; echo "CLAUDE_CODE_ENTRYPOINT=$CLAUDE_CODE_ENTRYPOINT"; echo "CLAUDE_CODE_SESSION_ID=$CLAUDE_CODE_SESSION_ID"; } > "`+out+`"`)
+{ echo "CLAUDECODE=$CLAUDECODE"; echo "CLAUDE_CODE_ENTRYPOINT=$CLAUDE_CODE_ENTRYPOINT"; echo "CLAUDE_CODE_SESSION_ID=$CLAUDE_CODE_SESSION_ID"; echo "CLAUDE_CODE_CHILD_SESSION=$CLAUDE_CODE_CHILD_SESSION"; echo "CLAUDE_CODE_SESSION_ATTENDED=$CLAUDE_CODE_SESSION_ATTENDED"; echo "CLAUDE_PID=$CLAUDE_PID"; } > "`+out+`"`)
 	}
 	stopHook := dumpEnv("root-env.sh", rootEnv)
 	startHook := dumpEnv("sub-env.sh", subEnv)
@@ -58,6 +58,9 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"subagent done","is
 	assert.Contains(t, root, "CLAUDECODE=1", "root hook: CLAUDECODE")
 	assert.Contains(t, root, "CLAUDE_CODE_ENTRYPOINT=sdk-cli", "root hook: CLAUDE_CODE_ENTRYPOINT")
 	assert.Contains(t, root, "CLAUDE_CODE_SESSION_ID=sess-envtest", "root hook: CLAUDE_CODE_SESSION_ID")
+	assert.Contains(t, root, "CLAUDE_CODE_CHILD_SESSION=1", "root hook: CLAUDE_CODE_CHILD_SESSION")
+	assert.Contains(t, root, "CLAUDE_CODE_SESSION_ATTENDED=0", "root hook: CLAUDE_CODE_SESSION_ATTENDED")
+	assert.Regexp(t, `(?m)^CLAUDE_PID=[0-9]+$`, root, "root hook: CLAUDE_PID")
 
 	// Sub-agent SubagentStart hook saw the same harness env (session id shared).
 	subData, err := os.ReadFile(subEnv)
@@ -66,4 +69,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"subagent done","is
 	assert.Contains(t, sub, "CLAUDECODE=1", "sub-agent hook: CLAUDECODE")
 	assert.Contains(t, sub, "CLAUDE_CODE_ENTRYPOINT=sdk-cli", "sub-agent hook: CLAUDE_CODE_ENTRYPOINT")
 	assert.Contains(t, sub, "CLAUDE_CODE_SESSION_ID=sess-envtest", "sub-agent hook: CLAUDE_CODE_SESSION_ID")
+	assert.Contains(t, sub, "CLAUDE_CODE_CHILD_SESSION=1", "sub-agent hook: CLAUDE_CODE_CHILD_SESSION")
+	assert.Contains(t, sub, "CLAUDE_CODE_SESSION_ATTENDED=0", "sub-agent hook: CLAUDE_CODE_SESSION_ATTENDED")
+	assert.Regexp(t, `(?m)^CLAUDE_PID=[0-9]+$`, sub, "sub-agent hook: CLAUDE_PID")
 }

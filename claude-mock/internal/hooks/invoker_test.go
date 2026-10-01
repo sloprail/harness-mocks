@@ -70,8 +70,9 @@ func TestInvokeCommand_ArgsAndEnvRunViaShell(t *testing.T) {
 	assert.Equal(t, "arg1 fromenv\n", string(data))
 }
 
-// Every command hook must see the three Claude-Code environment variables the
-// real CLI sets on each session: CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli
+// Every command hook must see the Claude-Code environment variables the real CLI
+// sets on each session (CLAUDE_CODE_CHILD_SESSION=1,
+// CLAUDE_CODE_SESSION_ATTENDED=0 and CLAUDE_PID too): CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli
 // (unconditional — a tool that detects "am I under a harness" keys off them, e.g.
 // sr-agent's harness detection, which refuses with ErrNoHarness when neither is
 // set) and CLAUDE_CODE_SESSION_ID (the active session id). A hook shelling to such
@@ -92,7 +93,10 @@ func TestInvokeCommand_SetsClaudeCodeEnvOnHook(t *testing.T) {
 		"#!/bin/sh\ncat >/dev/null\n"+
 			"{ echo \"CLAUDECODE=$CLAUDECODE\"; "+
 			"echo \"CLAUDE_CODE_ENTRYPOINT=$CLAUDE_CODE_ENTRYPOINT\"; "+
-			"echo \"CLAUDE_CODE_SESSION_ID=$CLAUDE_CODE_SESSION_ID\"; } > \""+envFile+"\"\n")
+			"echo \"CLAUDE_CODE_SESSION_ID=$CLAUDE_CODE_SESSION_ID\"; "+
+			"echo \"CLAUDE_CODE_CHILD_SESSION=$CLAUDE_CODE_CHILD_SESSION\"; "+
+			"echo \"CLAUDE_CODE_SESSION_ATTENDED=$CLAUDE_CODE_SESSION_ATTENDED\"; "+
+			"echo \"CLAUDE_PID=$CLAUDE_PID\"; } > \""+envFile+"\"\n")
 
 	settings := &Settings{Hooks: map[EventName][]HookEntry{
 		EventStop: {{Matcher: "*", Hooks: []HandlerSpec{
@@ -110,6 +114,9 @@ func TestInvokeCommand_SetsClaudeCodeEnvOnHook(t *testing.T) {
 	assert.Contains(t, got, "CLAUDECODE=1", "CLAUDECODE must reach the hook env")
 	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=sdk-cli", "CLAUDE_CODE_ENTRYPOINT must reach the hook env")
 	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ID=sess-xyz", "CLAUDE_CODE_SESSION_ID must reach the hook env")
+	assert.Contains(t, got, "CLAUDE_CODE_CHILD_SESSION=1", "CLAUDE_CODE_CHILD_SESSION must reach the hook env")
+	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=0", "a print-mode session is unattended")
+	assert.Contains(t, got, "CLAUDE_PID="+strconv.Itoa(os.Getpid())+"\n", "CLAUDE_PID is the harness's own pid")
 }
 
 // CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli are set even when the invoker has NO

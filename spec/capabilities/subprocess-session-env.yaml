@@ -1,7 +1,11 @@
 statement: >-
   Processes the harness spawns for tools and hooks see environment variables
-  that identify the harness and the current session, even when the harness
-  itself runs inside another session.
+  that identify the harness and the current session: that they run under the
+  harness, that the harness itself launched them, how the harness was started,
+  its process id, whether the session is attended, and the session's id. These
+  are this run's values even when the harness itself runs inside another
+  session. (Other variables the harness hands children, such as the project
+  dir or its temp dir, are other capabilities'.)
 providers:
   claude:
     docs:
