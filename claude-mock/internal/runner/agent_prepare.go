@@ -1,22 +1,28 @@
 package runner
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 )
+
+// claudeWorktreeLayout is where Claude Code puts an isolated sub-agent's
+// worktree and what it names its branch.
+//
+// sr:provides subagent-worktree-isolation/claude
+var claudeWorktreeLayout = subagents.WorktreeLayout{Dir: ".claude/worktrees", Prefix: "agent-", BranchPrefix: "worktree-agent-"}
 
 // prepareSubagent validates an Agent call and sets its sub-agent up — its id,
 // its isolated worktree when asked for, its seeded sidechain transcript and
 // .meta.json — without running it. A nil run comes with the tool_result the
 // call is refused with.
-func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr *transcript, background bool) (*subagentRun, agentToolInput, toolexec.Result) {
+func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID string, rawInput json.RawMessage, tr *transcript, background bool) (*subagentRun, agentToolInput, toolexec.Result) {
 	var in agentToolInput
 	var probe map[string]any
 	if err := json.Unmarshal(rawInput, &probe); err != nil {
@@ -33,6 +39,11 @@ func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr 
 		return nil, in, inputValidationError("Agent", missing)
 	}
 
+	// At the spawn limit a sub-agent has no Agent tool to call.
+	if !(subagents.Parent{ID: cfg.AgentID, Depth: cfg.spawnDepth}).CanDispatch(cfg.SpawnLimit) {
+		return nil, in, toolexec.Result{Output: "Error: No such tool available: Agent", IsError: true}
+	}
+
 	agentType := in.SubagentType
 	if agentType == "" {
 		agentType = "general-purpose"
@@ -43,24 +54,34 @@ func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr 
 	}
 
 	// isolation="worktree" — the real claude runs the subagent in a fresh git worktree
-	// at <parent-cwd>/.claude/worktrees/agent-<agentID>, so the subagent's cwd (and
-	// hence its os.Getwd()-derived session coordinates) DIFFERS from the parent while
-	// the session_id stays SHARED (verified against real claude). The mock binds a REAL
-	// directory here — a `git worktree add` when cfg.Cwd is a git repo, a plain mkdir
-	// otherwise — and it is where both the sub-agent's hooks and its tool calls run.
-	// Any other isolation value shares the parent cwd.
-	// sr:docs https://code.claude.com/docs/en/sub-agents
+	// at <parent-cwd>/.claude/worktrees/agent-<agentID> on the branch
+	// worktree-agent-<agentID>, so the subagent's cwd (and hence its
+	// os.Getwd()-derived session coordinates) DIFFERS from the parent while the
+	// session_id stays SHARED (verified against real claude). Where it goes and how
+	// it falls back (a plain directory, then the parent's) is the sub-agent core's
+	// (subagents.Isolate); a REAL directory is bound, and it is where both the
+	// sub-agent's hooks and its tool calls run. Any other isolation value shares
+	// the parent cwd.
 	subCwd := cfg.Cwd
 	branch := ""
+	var cleanup func(context.Context) bool
+	hookMade := false
 	if in.Isolation == "worktree" {
-		subCwd = filepath.Join(cfg.Cwd, ".claude", "worktrees", "agent-"+agentID)
-		branch = "worktree-agent-" + agentID
-		if err := bindWorktree(context.Background(), cfg.Cwd, subCwd, branch); err != nil {
-			branch = ""
-			fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: bind %s: %v (falling back to a plain directory)\n", subCwd, err)
-			if mkErr := os.MkdirAll(subCwd, 0o755); mkErr != nil {
-				fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: mkdir %s: %v — isolation NOT applied, sharing parent cwd\n", subCwd, mkErr)
-				subCwd = cfg.Cwd
+		path, hooked, err := hookedWorktree(ctx, cfg, inv, "agent-"+agentID)
+		if hooked && err != nil {
+			return nil, in, toolexec.Result{Output: "Error: could not create the worktree: " + err.Error(), IsError: true}
+		}
+		if hooked {
+			subCwd, hookMade = path, true
+		} else {
+			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd))
+			subCwd = iso.Cwd
+			cleanup = iso.Cleanup
+			if iso.Worktree != nil {
+				branch = iso.Worktree.Branch
+			}
+			for _, note := range iso.Notes {
+				fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: %s\n", note)
 			}
 		}
 	}
@@ -73,19 +94,20 @@ func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr 
 	if sessionFile == "" {
 		sessionFile = tr.path
 	}
-	sidechain := filepath.Join(strings.TrimSuffix(sessionFile, ".jsonl"), "subagents", "agent-"+agentID+".jsonl")
+	sidechain := claudeSubagentLayout.Path(sessionFile, agentID)
+	place := subagents.Place(subagents.Parent{ID: cfg.AgentID, Depth: cfg.spawnDepth})
 	shape := "foreground"
 	if background {
 		shape = "background"
 	}
 	meta := subagentMeta{
 		AgentType: agentType, Description: in.Description, ToolUseID: toolUseID,
-		ParentAgentID: cfg.AgentID, SpawnDepth: cfg.spawnDepth + 1,
+		ParentAgentID: place.ParentID, SpawnDepth: place.Depth,
 		RequestShape: shape, RequestNonInteractive: true, Model: in.Model,
 	}
 	if subCwd != cfg.Cwd {
 		meta.WorktreePath, meta.WorktreeBranch = subCwd, branch
-		meta.SpawnedWithWorktree = branch != ""
+		meta.SpawnedWithWorktree = branch != "" || hookMade
 	}
 	seedSubagentTranscript(sidechain, subCwd, cfg.SessionID, agentID, in.Prompt, meta)
 
@@ -102,35 +124,6 @@ func prepareSubagent(cfg Config, toolUseID string, rawInput json.RawMessage, tr 
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
 		toolUseID: toolUseID, description: in.Description, outputFile: outFile,
-		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background,
+		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup,
 	}, in, toolexec.Result{}
-}
-
-// bindWorktree makes worktreeDir a REAL, usable directory for isolation="worktree": a genuine
-// `git worktree add` of parentCwd's current HEAD when parentCwd is a git repo with at least one
-// commit (mirroring real claude's own mechanism — a real worktree, same repo, isolated files),
-// or a plain empty directory otherwise (parentCwd isn't a git repo, or has no commits yet — a
-// worktree needs a HEAD to branch from). The caller (runAgentTool) already falls back to a plain
-// mkdir on any error this returns, so this only needs to try the real thing and report failure.
-func bindWorktree(ctx context.Context, parentCwd, worktreeDir, branch string) error {
-	if err := os.MkdirAll(filepath.Dir(worktreeDir), 0o755); err != nil {
-		return fmt.Errorf("mkdir parent: %w", err)
-	}
-	checkGit := exec.CommandContext(ctx, "git", "-C", parentCwd, "rev-parse", "--is-inside-work-tree")
-	if err := checkGit.Run(); err != nil {
-		return fmt.Errorf("not a git repo: %w", err)
-	}
-	checkHead := exec.CommandContext(ctx, "git", "-C", parentCwd, "rev-parse", "--verify", "HEAD")
-	if err := checkHead.Run(); err != nil {
-		return fmt.Errorf("no HEAD (no commits yet): %w", err)
-	}
-	// A worktree on a new branch worktree-agent-<id> at the current HEAD — the branch real
-	// Claude Code creates (every real isolated sub-agent's .meta.json names it).
-	add := exec.CommandContext(ctx, "git", "-C", parentCwd, "worktree", "add", "-b", branch, worktreeDir, "HEAD")
-	var stderr bytes.Buffer
-	add.Stderr = &stderr
-	if err := add.Run(); err != nil {
-		return fmt.Errorf("git worktree add: %w: %s", err, strings.TrimSpace(stderr.String()))
-	}
-	return nil
 }

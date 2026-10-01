@@ -27,6 +27,22 @@ func NewRegistry() *Registry {
 // under it.
 func (r *Registry) Context() context.Context { return r.ctx }
 
+// has reports whether the registry holds an unfinished task with this id; a nil
+// registry holds none.
+func (r *Registry) has(id string) bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, t := range r.tasks {
+		if t.ID == id && !t.Finished() {
+			return true
+		}
+	}
+	return false
+}
+
 // Add registers a task, in launch order.
 func (r *Registry) Add(t *Task) {
 	r.mu.Lock()

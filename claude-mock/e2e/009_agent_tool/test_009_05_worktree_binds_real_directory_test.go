@@ -27,12 +27,12 @@ import (
 //  2. the SubagentStop HOOK's own subprocess `pwd` (via its cmd.Dir, invoker.go) — the part
 //     a downstream a10n-* binary's os.Getwd()-based identity resolution actually depends on.
 //
-// dir must be a REAL git repo with a commit for `git worktree add` to bind (bindWorktree,
+// dir must be a REAL git repo with a commit for `git worktree add` to bind (subagents.BindGit,
 // agent.go) — unlike the OTHER 009 tests, which use a plain (non-git) t.TempDir() and so
 // exercise the plain-mkdir fallback path instead; this test exists specifically to prove the
 // real `git worktree add` path.
 // sr:proves hook-command-handler/claude
-// staged:proves subagent-worktree-isolation/claude
+// sr:proves subagent-worktree-isolation/claude
 func TestT009_05_WorktreeSubagentActuallyRunsThere(t *testing.T) {
 	dir := t.TempDir()
 	runGit(t, dir, "init", "-q")
@@ -52,6 +52,7 @@ func TestT009_05_WorktreeSubagentActuallyRunsThere(t *testing.T) {
 	// direct-side-effect pattern test_009_02 already uses.
 	subScript := writeScript(t, dir, "sub.sh", `#!/bin/sh
 pwd >> "`+subPwdLog+`"
+touch left-behind.txt # work in the worktree: a worktree with work stays after the sub-agent
 printf '%s\n' '{"type":"result","subtype":"success","result":"sub done","is_error":false}'
 `)
 	orch := writeScript(t, dir, "orch.sh", orchestratorScript("Agent", subScript))

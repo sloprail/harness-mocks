@@ -27,12 +27,16 @@ func (r *Registry) stopOwned(owner string) {
 
 // EndOfResponse ends what a foreground sub-agent still has running when it
 // gives its final response: its background commands are terminated.
+//
+// sr:capability foreground-subagent-bash-ends-with-response
 func (r *Registry) EndOfResponse(owner string) { r.stopOwned(owner) }
 
 // ReapAtExit ends what owner still has running when a non-interactive run's
 // other work is done: its background commands are terminated, once grace has
 // passed, so that a command that finishes right after the final result still
 // delivers its output.
+//
+// sr:capability background-bash-reaped-at-exit
 func (r *Registry) ReapAtExit(owner string, grace time.Duration) {
 	if r == nil {
 		return

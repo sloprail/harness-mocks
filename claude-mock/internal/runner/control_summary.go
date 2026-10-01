@@ -56,7 +56,7 @@ func fireSummarizerStop(ctx context.Context, cfg Config, inv *hooks.Invoker, tr 
 	}
 	active := false
 	tasks := cfg.bg.running()
-	crons := []any{}
+	crons := sessionCrons(cfg.wake)
 	sessionFile := cfg.sessionFile
 	if sessionFile == "" {
 		sessionFile = tr.path

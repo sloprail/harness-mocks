@@ -1,0 +1,13 @@
+statement: >-
+  A sub-agent can itself dispatch sub-agents; each records its depth and its
+  parent, and all of a session's sub-agent transcripts sit in one directory.
+  Nesting stops at a depth limit (three layers by default, set by
+  CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH), where a dispatch is an error, and in
+  non-interactive mode a sub-agent does not wait for the background sub-agents
+  it launched.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents
+    runs:
+      - claude-mock/snapshots/runs/meta

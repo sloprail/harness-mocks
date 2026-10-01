@@ -64,6 +64,8 @@ func NewWakeups() *Wakeups { return &Wakeups{} }
 // for that long from now, rounded up to a whole minute, replacing the pending
 // one. A valid request is acknowledged and nothing fires in the mock: the turn
 // goes on as the wake-up having fired.
+//
+// sr:capability schedule-wakeup
 func (w *Wakeups) Schedule(req WakeupRequest, now time.Time, newID func() string) (WakeupResult, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()

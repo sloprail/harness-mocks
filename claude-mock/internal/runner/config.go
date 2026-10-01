@@ -2,6 +2,9 @@ package runner
 
 import (
 	"io"
+	"time"
+
+	coretools "github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // Config holds the runtime parameters for a mock run.
@@ -102,10 +105,21 @@ type Config struct {
 	// backgroundEndsWithFinalResponse).
 	SyncSubagent bool
 
+	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
+	// after its final turn; zero waits without a limit.
+	BgWaitCeiling time.Duration
+	// SpawnLimit is how many layers of sub-agents nest below the main thread;
+	// 0 is the default.
+	SpawnLimit int
+
 	// bg is the session's background-task registry, shared by the root run
 	// and every nested sub-agent run (Stop and SubagentStop list the whole
 	// session's tasks). Nil for the root run, which creates it.
 	bg *backgroundTasks
+
+	// wake is the session's pending ScheduleWakeup, shared by the root run and
+	// every nested run like bg. Nil for the root run, which creates it.
+	wake *coretools.Wakeups
 
 	// stream is the session's output stream, shared with every nested run: a
 	// sub-agent's task frames go to it, not to the sub-agent's own captured

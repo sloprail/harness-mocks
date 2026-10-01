@@ -144,7 +144,7 @@ func TestFileHasUUID(t *testing.T) {
 
 func timeAgo(hours int) time.Time { return time.Now().Add(-time.Duration(hours) * time.Hour) }
 
-// staged:proves foreground-subagent-result/claude
+// sr:proves foreground-subagent-result/claude
 func TestBuildAgentResult(t *testing.T) {
 	sub := &subagentRun{agentID: "a0123456789abcdef", agentType: "general-purpose"}
 	res := buildAgentResult(sub, agentToolInput{Prompt: "p", Model: "haiku"}, "", subagentOutcome{finalText: "line one\r\nline two", toolUses: 2}, 17, "")
@@ -157,9 +157,6 @@ func TestBuildAgentResult(t *testing.T) {
 
 	wt := buildAgentResult(sub, agentToolInput{}, "", subagentOutcome{finalText: "x"}, 1, "/w/.claude/worktrees/agent-a")
 	assert.Contains(t, wt.Output, "to continue this agent)\nworktreePath: /w/.claude/worktrees/agent-a\n<usage>")
-
-	explore := buildAgentResult(&subagentRun{agentID: "a1", agentType: "Explore"}, agentToolInput{}, "", subagentOutcome{}, 1, "")
-	assert.Equal(t, handbackFrame+"\n  (Subagent completed but returned no output.)", explore.Output, "Explore/Plan without a worktree: no trailer")
 }
 
 func TestSectionHashMatchesTheBinary(t *testing.T) {

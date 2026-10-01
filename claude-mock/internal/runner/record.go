@@ -45,6 +45,9 @@ type cliRecord struct {
 	//   {"type":"worktree_remove","worktree_name":"feat/foo"}
 	//   {"type":"subagent_start","agent_type":"claude"}
 	WorktreeName string `json:"worktree_name,omitempty"`
+	// WorktreePath names the directory a worktree_remove record removes; it defaults
+	// to <cwd>/.claude/worktrees/<worktree_name>.
+	WorktreePath string `json:"worktree_path,omitempty"`
 	AgentType    string `json:"agent_type,omitempty"`
 
 	//   {"type":"compact"[,"logical_parent":"<uuid>"|"unwritten"][,"summary":"…"]}

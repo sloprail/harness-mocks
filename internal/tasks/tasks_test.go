@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -148,27 +149,86 @@ func TestAwaitAfterTurn_WaitsForAgentsAndNextTurnSkipsRefused(t *testing.T) {
 	}
 }
 
-type recorder struct{ calls []string }
+type recorder struct {
+	mu    sync.Mutex
+	calls []string
+}
 
-func (r *recorder) Started(t *Task)           { r.calls = append(r.calls, "started") }
-func (r *recorder) Updated(t *Task, s string) { r.calls = append(r.calls, "updated:"+s) }
-func (r *recorder) Notified(t *Task)          { r.calls = append(r.calls, "notified") }
+func (r *recorder) add(c string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, c)
+}
 
-func TestConclude_UpdatesThenNotifiesAndNamesAKilledCommand(t *testing.T) {
+func (r *recorder) Changed(running []*Task) {
+	ids := []string{}
+	for _, t := range running {
+		ids = append(ids, t.ID)
+	}
+	r.add("changed:" + strings.Join(ids, "+"))
+}
+func (r *recorder) Started(t *Task)           { r.add("started") }
+func (r *recorder) Updated(t *Task, s string) { r.add("updated:" + s) }
+func (r *recorder) Notified(t *Task)          { r.add("notified") }
+
+func (r *recorder) got() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return strings.Join(r.calls, ",")
+}
+
+// startObserved starts a command whose start and end are reported to rec the way a
+// harness wires them.
+func startObserved(t *testing.T, r *Registry, rec *recorder, id, script string) *Task {
+	t.Helper()
+	out, err := os.Create(filepath.Join(t.TempDir(), id+".out"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := NewTask(Command, id)
+	if err := r.StartCommand(task, CommandSpec{
+		Argv: []string{"/bin/sh", "-c", script}, Dir: t.TempDir(), Env: os.Environ(), Out: out,
+		Started: func(t *Task) { Announce(r, t, rec) },
+		Ended:   func(t *Task) { Conclude(r, t, rec) },
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return task
+}
+
+func TestAnnounceAndConclude_TheRunningSetThenTheTask(t *testing.T) {
 	r := NewRegistry()
 	defer r.Shutdown()
-	task, _ := startSh(t, r, "k", "", "sleep 30")
 	var rec recorder
-	Announce(task, &rec)
-	r.ReapAtExit("", 0)
-	Conclude(task, &rec)
-	if got := strings.Join(rec.calls, ","); got != "started,updated:killed,notified" {
+	quick := startObserved(t, r, &rec, "q", "sleep 0.3")
+	startObserved(t, r, &rec, "l", "sleep 30")
+	wait(t, quick)
+	if got := rec.got(); got != "changed:q,started,changed:q+l,started,changed:l,updated:completed,notified" {
 		t.Fatalf("calls = %s", got)
 	}
+}
+
+func TestConclude_NamesAKilledCommandAndAForegroundAgentIsNoRunningTask(t *testing.T) {
+	r := NewRegistry()
+	defer r.Shutdown()
+	var rec recorder
+	killed := startObserved(t, r, &rec, "k", "sleep 30")
+	r.ReapAtExit("", 0)
+	wait(t, killed)
+	if got := rec.got(); got != "changed:k,started,changed:,updated:killed,notified" {
+		t.Fatalf("calls = %s", got)
+	}
+	// a foreground sub-agent is no registered task: no running set to report
 	ok := NewTask(Agent, "ok")
 	rec = recorder{}
-	Conclude(ok, &rec)
-	if got := strings.Join(rec.calls, ","); got != "updated:completed,notified" {
+	Announce(r, ok, &rec)
+	Conclude(r, ok, &rec)
+	if got := rec.got(); got != "started,updated:completed,notified" {
+		t.Fatalf("calls = %s", got)
+	}
+	rec = recorder{}
+	Conclude(nil, ok, &rec)
+	if got := rec.got(); got != "updated:completed,notified" {
 		t.Fatalf("calls = %s", got)
 	}
 }

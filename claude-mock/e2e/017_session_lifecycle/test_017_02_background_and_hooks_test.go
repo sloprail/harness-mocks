@@ -66,8 +66,8 @@ func isStopSummary(r rec) bool { return r.Subtype == "stop_hook_summary" }
 // working, the notification is handed over INSIDE the turn — a queued_command
 // attachment (commandMode task-notification) after the next tool result — and
 // UserPromptSubmit fires with it. Stop fires after, at the end of the turn.
-// staged:proves background-bash/claude
-// staged:proves task-notifications/claude
+// sr:proves background-bash/claude
+// sr:proves task-notifications/claude
 // sr:proves user-prompt-submit-hook/claude
 func TestT017_11_BackgroundBashFinishedMidTurn(t *testing.T) {
 	dir := t.TempDir()
@@ -105,6 +105,7 @@ func TestT017_11_BackgroundBashFinishedMidTurn(t *testing.T) {
 	require.Equal(t, "attachment", q.Type, "the notification is handed over right after the tool result it arrived during")
 	assert.Equal(t, "queued_command", q.Attachment["type"])
 	assert.Equal(t, "task-notification", q.Attachment["commandMode"])
+	assert.Equal(t, map[string]any{"kind": "task-notification", "producer": "session-task"}, q.Attachment["origin"])
 	note := "<task-notification>\n<task-id>" + id + "</task-id>\n<tool-use-id>bg1turn-s-a</tool-use-id>\n<output-file>" + outFile +
 		"</output-file>\n<status>completed</status>\n<summary>Background command \"make output\" completed (exit code 0)</summary>\n</task-notification>"
 	assert.Equal(t, note, q.Attachment["prompt"])
@@ -153,7 +154,7 @@ func TestT017_11b_BackgroundBashFailure(t *testing.T) {
 // background_tasks, then killed: its stopped notification goes to the output
 // stream only, never the transcript, and nothing waits for it. A command that
 // changes directory gets the cwd note (claude 2.1.282).
-// staged:proves background-bash-reaped-at-exit/claude
+// sr:proves background-bash-reaped-at-exit/claude
 // sr:proves stop-hook-payload/claude
 func TestT017_11c_BackgroundBashStillRunningIsStopped(t *testing.T) {
 	dir := t.TempDir()
@@ -217,7 +218,7 @@ func framesOf(t *testing.T, out, taskID string) []map[string]any {
 // false, task_type local_bash} and task_notification {status completed,
 // output_file "", summary: its description} (F:bgagent). The root's own
 // foreground Bash streams no task frame.
-// staged:proves task-stream-frames/claude
+// sr:proves task-stream-frames/claude
 func TestT017_12d_BackgroundSubAgentsOwnBash(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

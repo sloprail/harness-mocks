@@ -1,0 +1,10 @@
+statement: >-
+  A background command started inside a foreground sub-agent is terminated
+  when that sub-agent gives its final response, and the command's receipt says
+  so.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#background-commands
+    runs:
+      - claude-mock/snapshots/runs/fg-subagent-bash

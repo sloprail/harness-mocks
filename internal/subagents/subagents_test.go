@@ -143,16 +143,12 @@ func TestIsolate_FallsBackToAPlainDirectoryThenToTheParent(t *testing.T) {
 	}
 }
 
-func TestHandBack_TrailerExceptForReadOnlyTypesWithoutAWorktree(t *testing.T) {
-	skip := []string{"Explore", "Plan"}
-	if HandBack("Explore", "", skip) || HandBack("Plan", "", skip) {
-		t.Fatal("a built-in type without a worktree gets no trailer")
+func TestHandBack_IndentsTheReportUnderTheFrame(t *testing.T) {
+	if got := HandBack("FRAME", "NONE", "one\r\ntwo\u2028three"); got != "FRAME\n  one\n  two\n  three" {
+		t.Fatalf("report = %q", got)
 	}
-	if !HandBack("Explore", "/wt", skip) {
-		t.Fatal("a worktree is named by the trailer")
-	}
-	if !HandBack("general-purpose", "", skip) {
-		t.Fatal("other types get the trailer")
+	if got := HandBack("FRAME", "NONE", ""); got != "FRAME\n  NONE" {
+		t.Fatalf("empty = %q", got)
 	}
 }
 
@@ -172,5 +168,24 @@ func TestWorktreeHook(t *testing.T) {
 	}
 	if path, _, err := WorktreeHook(false, func() (string, bool, error) { return "ignored", true, nil }); err != nil || path != "" {
 		t.Fatalf("path=%q err=%v: a remove hook returns no path", path, err)
+	}
+}
+
+func TestCanDispatch_StopsAtTheLimit(t *testing.T) {
+	for _, c := range []struct {
+		p     Parent
+		limit int
+		want  bool
+	}{
+		{Parent{}, 0, true},
+		{Parent{ID: "b", Depth: 2}, 0, true},
+		{Parent{ID: "c", Depth: 3}, 0, false},
+		{Parent{ID: "a", Depth: 1}, 2, true},
+		{Parent{ID: "b", Depth: 2}, 2, false},
+		{Parent{ID: "a", Depth: 1}, 1, false},
+	} {
+		if got := c.p.CanDispatch(c.limit); got != c.want {
+			t.Errorf("%+v limit %d: %v, want %v", c.p, c.limit, got, c.want)
+		}
 	}
 }

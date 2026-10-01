@@ -114,8 +114,11 @@ type Input struct {
 	// sr:docs https://code.claude.com/docs/en/hooks#subagentstop
 	AgentTranscriptPath string `json:"agent_transcript_path,omitempty"`
 
-	// WorktreeCreate / WorktreeRemove
-	WorktreeName string `json:"worktree_name,omitempty"`
+	// WorktreeCreate carries the new worktree's slug as `name` (recorded:
+	// snapshots/runs/worktree-hooks), WorktreeRemove the directory as `worktree_path`.
+	// sr:docs https://code.claude.com/docs/en/hooks#worktreecreate-input
+	WorktreeName string `json:"name,omitempty"`
+	WorktreePath string `json:"worktree_path,omitempty"`
 
 	// PreCompact / PostCompact: what triggered the compaction ("manual" |
 	// "auto"); PreCompact's custom_instructions (null unless a manual /compact

@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // launchAgent validates a background Agent call, prepares its sub-agent (its
@@ -15,19 +17,17 @@ import (
 // together with start, which runs the sub-agent concurrently. The caller
 // starts it once the receipt's tool_result and PostToolUse are written — real
 // Claude Code returns the receipt first and fires SubagentStart after.
+//
+// sr:provides background-agent/claude
 func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func()) {
-	sub, in, errRes := prepareSubagent(cfg, toolUseID, raw, tr, true)
+	sub, in, errRes := prepareSubagent(b.Context(), cfg, inv, toolUseID, raw, tr, true)
 	if sub == nil {
 		return errRes, nil
 	}
 	outFile := sub.outputFile
 
-	task := &backgroundTask{
-		id: sub.agentID, toolUseID: toolUseID, owner: cfg.AgentID, agent: true,
-		description: in.Description, agentType: sub.agentType, outputFile: outFile,
-		started: time.Now(), done: make(chan struct{}),
-	}
-	b.add(task)
+	task := tasks.NewTask(tasks.Agent, sub.agentID)
+	task.ToolUseID, task.Owner, task.Description, task.AgentType, task.OutputFile = toolUseID, cfg.AgentID, in.Description, sub.agentType, outFile
 
 	model := in.Model
 	if model == "" {
@@ -52,17 +52,15 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 		},
 	}
 	start := func() {
-		b.wg.Add(1)
-		go func() {
-			defer b.wg.Done()
-			out := sub.execute(b.ctx, inv, b, in.Prompt)
-			task.result, task.failure = out.finalText, out.failure
-			task.toolUses, task.durationMs = out.toolUses, time.Since(task.started).Milliseconds()
+		b.StartAgent(task, func(ctx context.Context) {
+			out := sub.execute(ctx, inv, b, in.Prompt)
+			sub.cleanupWorktree(ctx)
+			task.Result, task.Failure = out.finalText, out.failure
+			task.ToolUses, task.DurationMs = out.toolUses, time.Since(task.Started).Milliseconds()
 			if out.failure != "" {
-				task.exitCode = 1
+				task.ExitCode = 1
 			}
-			b.finish(task)
-		}()
+		})
 	}
 	return res, start
 }

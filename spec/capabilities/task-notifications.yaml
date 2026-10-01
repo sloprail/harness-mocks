@@ -1,0 +1,12 @@
+statement: >-
+  When a background task finishes, its owner is told: inside the turn, after
+  the next tool result, if it is still working, otherwise as a new turn of its
+  own.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
+      - https://code.claude.com/docs/en/interactive-mode#how-backgrounding-works
+    runs:
+      - claude-mock/snapshots/runs/midturn
+      - claude-mock/snapshots/runs/bgagent
