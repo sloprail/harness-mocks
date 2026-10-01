@@ -50,3 +50,12 @@ func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	}
 	return extra, false, nil
 }
+
+// fireCompactedStart fires SessionStart for the session continuing after a
+// compaction. Its context is not carried to a next turn here, and no hook
+// stops it.
+//
+// sr:provides session-start-hook/claude
+func fireCompactedStart(ctx context.Context, cfg Config, inv *hooks.Invoker) {
+	_, _ = fireSessionStart(ctx, cfg, inv, corehooks.SessionStartKind(false, false, true))
+}
