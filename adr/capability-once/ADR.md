@@ -1,6 +1,6 @@
 ---
 concern: where a mocked harness capability is implemented, and how it is proven
-sloprails: [file-guard/capability-covered, file-guard/capability-rigor, file-guard/adr-conformance]
+sloprails: [file-guard/shapes, file-guard/capability-covered, file-guard/capability-rigor, file-guard/adr-conformance]
 ---
 
 # Each mocked capability is implemented once, in core
@@ -22,7 +22,8 @@ provide the same capability with different wire formats.
 - A harness mock holds only its adapter: that harness's event names, payload
   encoding and flags for the capability. Adapter code is marked
   `// sr:provides <id>/<harness>`, and exists exactly for the cells that are
-  not `false`.
+  not `false`. Any code under `<harness>-mock/` that affects a capability's
+  behaviour is that capability's adapter, marked or not.
 - An adapter translates and decides nothing: when a hook fires, whether a
   block is honoured, and in what order things happen are the capability's.
 - Behaviour that differs between harnesses is a parameter of the core
