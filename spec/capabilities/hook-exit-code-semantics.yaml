@@ -1,7 +1,13 @@
 statement: >-
-  A hook command's exit status decides its effect: 0 accepts its output, 2
-  blocks with a meaning that differs per event, and any other status is a non-
-  blocking error the agent carries on past.
+  A hook command's exit status, read together with the JSON it prints,
+  classifies its outcome: accepted (0), blocked (2, which JSON cannot
+  override, with the JSON's blocking reason or else the stderr as its
+  message), or a non-blocking error (any other status, a hook that cannot
+  start, or output that looks like JSON and does not parse or validate, unless
+  valid JSON decides instead), and each outcome leaves its notice. What a block
+  does on each event, how accepted output is used (context, decisions,
+  updated input) and hook timeouts are those events' and hook output's own
+  capabilities.
 providers:
   claude:
     docs:
