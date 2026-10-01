@@ -29,6 +29,8 @@ func TestT017_55_BashResults(t *testing.T) {
 	h := payloadLogger(t, dir, "log.sh", log, "")
 	settings(t, dir, map[string]string{"PostToolUse": h, "PostToolUseFailure": h})
 	write(t, filepath.Join(dir, "in.txt"), "alpha\n", 0o644)
+	// rg is not installed everywhere: a stub that finds nothing stands in for it
+	write(t, filepath.Join(dir, "bin", "rg"), "#!/bin/sh\nexit 1\n", 0o755)
 	cmds := []string{
 		`echo hello; echo`,
 		`echo OUT-LINE; echo ERR-LINE >&2; exit 3`,
@@ -48,12 +50,13 @@ func TestT017_55_BashResults(t *testing.T) {
 		`cmp in.txt /dev/null`,
 		`echo false | jq -e .`,
 		`git init -q . && git grep zzznomatch`,
+		`rg zzznomatch in.txt`,
 	}
 	var calls []string
 	for i, c := range cmds {
 		calls = append(calls, toolUse(fmt.Sprintf("c%d", i), "Bash", `{"command":`+fmt.Sprintf("%q", c)+`}`))
 	}
-	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s", calls...), "--session-id", "bt-1",
+	out, code := runInDir(t, dir, []string{"PATH=" + filepath.Join(dir, "bin") + string(os.PathListSeparator) + os.Getenv("PATH")}, "--script", script(t, dir, "s", calls...), "--session-id", "bt-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
 	recs := readRecs(t, transcriptPath(t, cfg, dir, "bt-1"))
@@ -80,6 +83,7 @@ func TestT017_55_BashResults(t *testing.T) {
 		{contains: "Exit code 1\ncmp:", isErr: true}, // cmp: the files differ, still a failure
 		{want: "Exit code 1\nfalse", isErr: true},    // jq -e
 		{want: "(Bash completed with no output)"},    // git grep: no match, status 1
+		{want: "(Bash completed with no output)"},    // rg: no match, status 1
 	} {
 		block, r := toolResultOf(t, recs, fmt.Sprintf("c%dturn-s-%s", i, string(rune('a'+i))))
 		got := fmt.Sprint(block["content"])
@@ -116,7 +120,7 @@ func TestT017_55_BashResults(t *testing.T) {
 	require.GreaterOrEqual(t, len(structured), 6)
 	assert.Equal(t, map[string]any{"stdout": "hello", "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false}, structured[0])
 	assert.Equal(t, "", structured[1]["stdout"], "true: nothing printed")
-	assert.Len(t, structured, 12, "hello, true, the nine valid searches and comparisons: PostToolUse for each")
+	assert.Len(t, structured, 13, "hello, true, the nine valid searches and comparisons: PostToolUse for each")
 }
 
 // TestT017_56_AgentDispatchWithoutRequiredInputIsRefusedBeforeAnyHook: a
