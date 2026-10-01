@@ -1,11 +1,11 @@
 {"event":"hook","hook":"SessionStart","payload":{"hook_event_name":"SessionStart","source":"startup"}}
-{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"1","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
+{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"0","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
 {"event":"hook","hook":"PreToolUse","payload":{"permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo \"SID=$CLAUDE_CODE_SESSION_ID CC=$CLAUDECODE EP=$CLAUDE_CODE_ENTRYPOINT\""}}}
-{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"1","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
+{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"0","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
 {"event":"hook","hook":"PostToolUse","payload":{"permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo \"SID=$CLAUDE_CODE_SESSION_ID CC=$CLAUDECODE EP=$CLAUDE_CODE_ENTRYPOINT\""},"tool_response":{"stdout":"SID=<SESSION_ID> CC=1 EP=sdk-cli","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
-{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"1","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
+{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"0","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
 {"event":"hook","hook":"Stop","payload":{"permission_mode":"bypassPermissions","hook_event_name":"Stop","stop_hook_active":false,"background_tasks":[],"session_crons":[]}}
-{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"1","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
+{"event":"hook","hook":null,"payload":{"hook_env":{"CLAUDE_CODE_SESSION_ID":"<SESSION_ID>","CLAUDECODE":"0","CLAUDE_CODE_ENTRYPOINT":"sdk-cli"}}}
 {"event":"stream","type":"system","subtype":"hook_started"}
 {"event":"stream","type":"system","subtype":"hook_response"}
 {"event":"stream","type":"system","subtype":"init"}
