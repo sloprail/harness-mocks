@@ -1,0 +1,53 @@
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Make every shell command its own separate tool call, never combined with another command or put in a script. Run these eleven shell commands, one at a time, in this order, even if one is refused: echo a, echo b, echo c, echo d, echo e, echo f, echo g, echo i, echo j, echo k, echo h. Then reply with the single word DONE."}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"UserPromptSubmit","command":"","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo a"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo a","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo b"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo b","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo c"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo c","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo d"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo d","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo e"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo e","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo f"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo f","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo g"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo g","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo i"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo i","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo j"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo j","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo k"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo k","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo h"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo h","exit":2}}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"Stop","command":"","exit":1}}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}
