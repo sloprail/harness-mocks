@@ -1,7 +1,8 @@
 statement: >-
   A foreground shell command's result carries its output and a structured form
-  of it; a command that exits non-zero is an error result stating the exit
-  code and the output. (Where a harness knows that exit status 1 only reports
+  of it; a command that exits non-zero is an error result carrying what the
+  command printed and reporting its exit code (a harness may state the exit
+  code only when the command printed nothing). (Where a harness knows that exit status 1 only reports
   no match or a difference (a search, a comparison), output limits, timeouts,
   what a command leaves behind for the next one, and commands run in the
   background are not part of this.)
@@ -20,12 +21,3 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/shell-exit-status
       - cursor-mock/snapshots/runs/tool-failure
-    deviations:
-      - adr: modeled-surface
-        statement: >-
-          Cursor's error result for a non-zero exit states the exit code only
-          when the command printed nothing ("Command failed with exit code N");
-          when it printed anything, the result (and the failure hook's
-          error_message) is just that output, stdout then stderr, without the
-          exit code. The mock reproduces this as recorded, so the exit code
-          and the output are not both stated there.
