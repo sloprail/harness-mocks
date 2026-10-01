@@ -14,3 +14,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/subprocess-session-env
       - claude-mock/snapshots/runs/nested-session-env
+      - claude-mock/snapshots/runs/never-captured
