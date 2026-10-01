@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // fireSessionEnd fires SessionEnd the way a `claude -p` session ends: reason
@@ -21,7 +22,7 @@ func fireSessionEnd(ctx context.Context, cfg Config, inv *hooks.Invoker) {
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventSessionEnd,
-		Reason:        "other",
+		Reason:        endReason(corehooks.SessionEndReason(false, corehooks.EndOther)),
 	})
 	for _, r := range runs {
 		if r.ExitCode != 0 && cfg.Stderr != nil {
@@ -39,45 +40,39 @@ func fireSessionEnd(ctx context.Context, cfg Config, inv *hooks.Invoker) {
 // cannot block (docs), and the handler's attachment records it as a
 // non-blocking error.
 // sr:docs https://code.claude.com/docs/en/hooks#sessionstart
-func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, source string) string {
+func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind corehooks.StartKind) (string, error) {
 	in := hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventSessionStart,
-		Source:        source,
+		Source:        startSource(kind),
 	}
-	if source == "resume" || source == "fork" {
+	if kind == corehooks.StartResumed || kind == corehooks.StartForked {
 		in.ResumeFields = resumeFields(cfg.sessionFile)
 	}
-	ssOut, runs, _ := inv.FireRuns(ctx, in)
+	ssOut, runs, ferr := inv.FireRuns(ctx, in)
 	writeSessionStartFrames(cfg, in, runs)
+	var blockErr *hooks.BlockError
+	if errors.As(ferr, &blockErr) && corehooks.BlocksSessionStart(corehooks.Blocked) {
+		return "", ferr
+	}
 	ac := promptContextFrom(ssOut)
 	if ac != "" {
 		emitSystemContext(cfg, "session_start", ac)
 	}
-	return ac
+	return ac, nil
 }
 
 // additionalContextFrom extracts the additionalContext a hook returned, if any.
 // Real Claude Code appends this to the model's context; the mock forwards it to
 // the script via A10N_MOCK_ADDITIONAL_CONTEXT.
-// addContext joins a hook's context onto what earlier hooks of the run added
-// (SessionStart's, then UserPromptSubmit's): each adds, none replaces.
-func addContext(have, add string) string {
-	if have == "" || add == "" {
-		return have + add
-	}
-	return have + "\n" + add
-}
-
 // promptContextFrom is the context a UserPromptSubmit or SessionStart hook
 // adds: its JSON additionalContext, else its plain-text stdout.
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
+//
+// sr:provides hook-additional-context/claude
 func promptContextFrom(out hooks.Output) string {
-	if ac := additionalContextFrom(out); ac != "" {
-		return ac
-	}
-	return out.PlainText
+	return corehooks.ContextOf(additionalContextFrom(out), out.PlainText, true)
 }
 
 func additionalContextFrom(out hooks.Output) string {

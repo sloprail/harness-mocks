@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh exact-bash" }] },
+      { "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh exact-list-edit-write" }] },
+      { "matcher": "Bash|Read", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh exact-list-bash-read" }] },
+      { "matcher": "Rea", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh exact-rea-prefix" }] },
+      { "matcher": "^Rea.*", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh regex-read" }] },
+      { "matcher": "read", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh exact-lowercase-read" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Read", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh post-exact-read" }] },
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh post-all" }] },
+      { "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh post-no-matcher" }] }
+    ],
+    "SessionStart": [
+      { "matcher": "resume", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh start-resume" }] },
+      { "matcher": "startup", "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh start-startup" }] }
+    ]
+  }
+}

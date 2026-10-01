@@ -21,10 +21,10 @@ import (
 // with UserPromptSubmit fired for it; and Stop fires again at that turn's end.
 // staged:proves background-agent/claude
 // staged:proves print-waits-for-background-agents/claude
-// staged:proves stop-hook-payload/claude
+// sr:proves stop-hook-payload/claude
 // staged:proves task-notifications/claude
 // staged:proves task-stream-frames/claude
-// staged:proves user-prompt-submit-hook/claude
+// sr:proves user-prompt-submit-hook/claude
 func TestT017_12_BackgroundAgent(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

@@ -1,0 +1,1 @@
+Run exactly this Bash command: echo ALLHOOKS . Then reply only DONE.

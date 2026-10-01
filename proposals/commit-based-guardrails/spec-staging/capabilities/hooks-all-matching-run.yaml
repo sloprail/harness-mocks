@@ -1,9 +1,0 @@
-statement: >-
-  Every hook that matches an event runs, even when one of them blocks; the
-  first block is the one acted on.
-providers:
-  claude:
-    docs:
-      - https://code.claude.com/docs/en/hooks#hook-handler-fields
-      - https://code.claude.com/docs/en/hooks-guide#combine-results-from-multiple-hooks
-    runs: []

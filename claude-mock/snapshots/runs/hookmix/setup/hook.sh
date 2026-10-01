@@ -1,0 +1,17 @@
+#!/bin/sh
+# Every event logs its payload. SessionStart and PostToolUse add context by
+# JSON; SubagentStart writes to stderr; SubagentStop blocks once by exit 2,
+# then writes to stderr.
+IN=$(cat)
+printf '%s\n' "$IN" >>"$HOOK_LOG"
+EV=$(printf '%s' "$IN" | jq -r '.hook_event_name')
+case "$EV" in
+  SessionStart) echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"SS-CTX"}}' ;;
+  PostToolUse) echo '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"POST-CTX"}}' ;;
+  SubagentStart) echo "SAS-STDERR" >&2 ;;
+  SubagentStop)
+    M=$(cat "$TMPDIR/sstopn" 2>/dev/null || echo 0); M=$((M + 1)); echo $M >"$TMPDIR/sstopn"
+    if [ $M = 1 ]; then echo "SUB-BLOCK" >&2; exit 2; fi
+    echo "SAST-STDERR" >&2 ;;
+esac
+exit 0

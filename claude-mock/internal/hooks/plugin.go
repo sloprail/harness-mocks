@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // settingsWithPlugins extends the base hook Settings with the two Claude Code
@@ -58,14 +60,18 @@ func loadPluginHooks(dst *Settings, cacheDir string, enabledPlugins map[string]b
 			fmt.Fprintf(os.Stderr, "claude-mock: warn: marketplace %s: %v\n", mpName, err)
 			continue
 		}
-		if root == "" {
+		declared := root != ""
+		if !declared {
 			fmt.Fprintf(os.Stderr, "claude-mock: warn: marketplace %s not declared in extraKnownMarketplaces\n", mpName)
-			continue
 		}
 
 		plugins := byMarketplace[mpName]
 		sort.Strings(plugins)
 		for _, pluginName := range plugins {
+			// sr:provides plugin-hooks/claude
+			if !corehooks.PluginContributes(enabledPlugins[pluginName+"@"+mpName], declared) {
+				continue
+			}
 			// Prefer the manifest's OWN declared source path for this plugin (the general
 			// case — a plugin can live anywhere relative to the marketplace root, e.g.
 			// "./marketplace/plugins/foo" for an in-monorepo marketplace whose manifest sits

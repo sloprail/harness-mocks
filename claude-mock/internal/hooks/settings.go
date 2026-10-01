@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // Settings mirrors the subset of Claude Code settings.json that configures hooks.
@@ -25,6 +27,10 @@ type HandlerSpec struct {
 	URL     string `json:"url,omitempty"`
 	Timeout int    `json:"timeout,omitempty"`
 	Async   bool   `json:"async,omitempty"`
+	// PluginRoot and PluginData are set on a hook a plugin contributed: where
+	// the plugin is installed and where its persistent data lives.
+	PluginRoot string `json:"-"`
+	PluginData string `json:"-"`
 }
 
 // LoadSettings reads hook settings from the standard Claude Code settings files,
@@ -60,7 +66,7 @@ func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) 
 			return nil, err
 		}
 		for evt, entries := range s.Hooks {
-			merged.Hooks[evt] = append(merged.Hooks[evt], entries...)
+			merged.Hooks[evt] = mergeEntries(merged.Hooks[evt], entries)
 		}
 		// Local settings win: later files overwrite earlier per-key values.
 		for key, enabled := range s.EnabledPlugins {
@@ -78,25 +84,48 @@ func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) 
 	return merged, nil
 }
 
-// EntriesFor returns the handler entries configured for the given event,
-// optionally filtered by matcher (e.g. tool name for PreToolUse).
-// A blank or "*" matcher matches everything.
-func (s *Settings) EntriesFor(event EventName, matcher string) []HandlerSpec {
+// EntriesFor returns the handler entries configured for the given event whose
+// matcher selects subject (what the event filters on: see matcherSubject). An
+// event with no subject takes every entry: its matcher is ignored. An event
+// that has one, even an empty one (a sub-agent of no type), is filtered by it.
+func (s *Settings) EntriesFor(event EventName, subject string) []HandlerSpec {
 	var out []HandlerSpec
 	for _, entry := range s.Hooks[event] {
-		if matchesEntry(entry.Matcher, matcher) {
+		// sr:provides hook-matcher-filter/claude
+		if !hasSubject(event) || corehooks.Select(corehooks.MatchExactOrRegexp, entry.Matcher, subject) {
 			out = append(out, entry.Hooks...)
 		}
 	}
 	return out
 }
 
-func matchesEntry(entryMatcher, value string) bool {
-	if entryMatcher == "" || entryMatcher == "*" {
+// hasSubject reports whether an event's matcher filters on something (docs,
+// Matcher patterns); a matcher given to any other event is silently ignored.
+func hasSubject(event EventName) bool {
+	switch event {
+	case EventPreToolUse, EventPostToolUse, EventPostToolUseFailure, EventSessionStart, EventSessionEnd,
+		EventSubagentStart, EventSubagentStop, EventPreCompact, EventPostCompact:
 		return true
 	}
-	if value == "" {
-		return true
+	return false
+}
+
+// matcherSubject is what an event's matcher filters on (docs, "Matcher
+// patterns"): the tool name for a tool event, how the session started or why
+// it ended, the agent type of a sub-agent, what triggered a compaction. Other
+// events have none.
+func matcherSubject(in Input) string {
+	switch in.HookEventName {
+	case EventPreToolUse, EventPostToolUse, EventPostToolUseFailure:
+		return in.ToolName
+	case EventSessionStart:
+		return in.Source
+	case EventSessionEnd:
+		return in.Reason
+	case EventSubagentStart, EventSubagentStop:
+		return in.AgentType
+	case EventPreCompact, EventPostCompact:
+		return in.Trigger
 	}
-	return entryMatcher == value
+	return ""
 }

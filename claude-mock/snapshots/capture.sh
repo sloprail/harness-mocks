@@ -16,6 +16,8 @@
 # A scenario is hand-authored, and only its setup/ is:
 #   runs/<name>/setup/prompt.txt       the prompt
 #   runs/<name>/setup/settings.json    the project's .claude/settings.json (hooks)
+#   runs/<name>/setup/prepare.sh       optional: run in the scratch repo before claude
+#                                      (lays out a plugin marketplace, say)
 #   runs/<name>/setup/hook.sh          optional: the hook every event runs;
 #                                      it appends its stdin to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra claude flags, one per line
@@ -74,6 +76,11 @@ capture_run() {
   ln -s "$HOME/Library/Keychains" "$home/Library/Keychains" 2>/dev/null || true   # keeps the login, nothing else
   cp "$run/setup/settings.json" "$work/repo/.claude/settings.json" 2>/dev/null || true
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
+  # prepare.sh lays out what a scenario needs beyond settings and a hook (a plugin
+  # marketplace, say), in the scratch repo, before claude starts; it may rewrite
+  # .claude/settings.json (it knows the repo's absolute path: $PWD).
+  # It sees the same hermetic home as claude does, never the real one.
+  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" TMPDIR="$work/tmp" CLAUDE_CODE_TMPDIR="$work/tmp" sh "$run/setup/prepare.sh")
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
   # Hermetic: claude starts from an EMPTY environment plus only what it needs to

@@ -79,6 +79,8 @@ func LeavesRecords(m Moment) bool {
 // nothing, and printed output, an error, a block or a cancellation a record
 // of their own. A block continues the turn when it is the end of a turn's, and
 // is then also given back to the agent as feedback.
+//
+// sr:capability hook-output-transcript-records
 func RecordFor(r Ran) Record {
 	if !LeavesRecords(r.Moment) {
 		return Record{}

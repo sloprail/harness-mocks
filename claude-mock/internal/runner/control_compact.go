@@ -107,7 +107,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 			if trigger == "manual" {
 				ssInv = inv.WithRecorder(tr.holdHookRuns)
 			}
-			fireSessionStart(ctx, cfg, ssInv, "compact")
+			fireCompactedStart(ctx, cfg, ssInv)
 		},
 		After: func() {
 			_, _ = inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { postRuns = runs }).Fire(ctx, hooks.Input{

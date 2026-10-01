@@ -15,7 +15,7 @@ import (
 // is recorded as "Failed with non-blocking status code: No stderr output", and
 // its stop_hook_summary lists the error.
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT017_16_NoStderrOutput(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -71,8 +71,8 @@ func TestT017_17_UnknownResume(t *testing.T) {
 // TestT017_18_PrintMode: in raw --print mode Stop carries the output as
 // last_assistant_message, and SessionEnd ends a `claude -p` session with
 // reason "other" (claude 2.1.282).
-// staged:proves session-end-hook/claude
-// staged:proves stop-hook-payload/claude
+// sr:proves session-end-hook/claude
+// sr:proves stop-hook-payload/claude
 func TestT017_18_PrintMode(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

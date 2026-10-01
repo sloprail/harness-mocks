@@ -178,7 +178,7 @@ func seedPluginHooks(t *testing.T, root, plugin, hooksJSON string) string {
 
 // loadPluginHooks resolves a directory-source marketplace, reads each enabled
 // plugin's hooks.json, and appends the expanded hooks to dst.
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestLoadPluginHooks_DirectoryMarketplace(t *testing.T) {
 	mpRoot := t.TempDir()
 	writeMarketplace(t, mpRoot, "a10n-marketplace")
@@ -204,7 +204,7 @@ func TestLoadPluginHooks_DirectoryMarketplace(t *testing.T) {
 
 // A plugin whose marketplace is NOT declared in extraKnownMarketplaces does not
 // resolve — there is no fallback.
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestLoadPluginHooks_NoFallbackWhenMarketplaceUndeclared(t *testing.T) {
 	dst := &Settings{Hooks: map[EventName][]HookEntry{}}
 	loadPluginHooks(dst,
@@ -221,7 +221,7 @@ func TestLoadPluginHooks_NoFallbackWhenMarketplaceUndeclared(t *testing.T) {
 // real regression this covers: a repo root .claude-plugin/marketplace.json with
 // "source": "./marketplace/plugins/foo" must find the plugin under marketplace/plugins/foo,
 // not <root>/plugins/foo (which does not exist in that layout).
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestLoadPluginHooks_HonorsManifestDeclaredSourcePath(t *testing.T) {
 	mpRoot := t.TempDir()
 	writeMarketplaceWithPlugins(t, mpRoot, "a10n-marketplace", map[string]string{
@@ -256,7 +256,7 @@ func TestLoadPluginHooks_HonorsManifestDeclaredSourcePath(t *testing.T) {
 }
 
 // A disabled plugin contributes nothing even when its marketplace is declared.
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestLoadPluginHooks_DisabledPluginSkipped(t *testing.T) {
 	mpRoot := t.TempDir()
 	writeMarketplace(t, mpRoot, "a10n-marketplace")
@@ -284,7 +284,7 @@ func manifestFromJSON(t *testing.T, raw string) marketplaceManifest {
 	return m
 }
 
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestPluginSourceDir_StringSource(t *testing.T) {
 	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":"./plugins/x"}]}`)
 	got, ok, err := m.pluginSourceDir("/root", "x")
@@ -295,7 +295,7 @@ func TestPluginSourceDir_StringSource(t *testing.T) {
 
 // A git-subdir object source (as sloprail pins to a release tag) resolves to its path
 // under the marketplace root, which is assumed to be the same repo.
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestPluginSourceDir_GitSubdirSameRepo(t *testing.T) {
 	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":{"source":"git-subdir","url":"owner/repo","path":"marketplace/plugins/x","ref":"v0.4.0"}}]}`)
 	got, ok, err := m.pluginSourceDir("/root", "x")
@@ -304,7 +304,7 @@ func TestPluginSourceDir_GitSubdirSameRepo(t *testing.T) {
 	assert.Equal(t, "/root/marketplace/plugins/x", got)
 }
 
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestPluginSourceDir_UnknownKindErrors(t *testing.T) {
 	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":{"source":"carrier-pigeon","path":"p"}}]}`)
 	_, ok, err := m.pluginSourceDir("/root", "x")
@@ -313,14 +313,14 @@ func TestPluginSourceDir_UnknownKindErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "carrier-pigeon")
 }
 
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestPluginSourceDir_NonLocalKnownKindErrors(t *testing.T) {
 	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":{"source":"npm","url":"pkg"}}]}`)
 	_, _, err := m.pluginSourceDir("/root", "x")
 	require.Error(t, err)
 }
 
-// staged:proves plugin-hooks/claude
+// sr:proves plugin-hooks/claude
 func TestLoadPluginHooks_GitSubdirObjectSource(t *testing.T) {
 	mpRoot := t.TempDir()
 	dir := filepath.Join(mpRoot, ".claude-plugin")
