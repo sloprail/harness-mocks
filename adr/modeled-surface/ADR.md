@@ -26,3 +26,7 @@ visible and deliberate, not a test nobody wrote.
   part. Its tests prove the rest.
 - Modelling a part that is out takes it out of this list and out of every
   `deviations` entry citing it, in the same change.
+
+## History
+
+We first modeled `/clear` in September 2026, then removed it when the tests stopped driving it; earlier drafts also kept PowerShell.
