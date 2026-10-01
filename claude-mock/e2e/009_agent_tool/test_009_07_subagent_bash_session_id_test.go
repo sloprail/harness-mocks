@@ -13,6 +13,7 @@ import (
 // CLAUDE_CODE_SESSION_ID = the PARENT session id — the same id its SubagentStart/Stop
 // hooks get (real claude shares one session_id across a session's subagents) — and
 // NOT a value inherited from the mock's own environment (planted here as a decoy).
+// No recorded run shows a subagent's Bash yet: the shared id rests on the docs.
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
 // sr:docs https://code.claude.com/docs/en/sub-agents
 // sr:proves subprocess-session-env/claude
