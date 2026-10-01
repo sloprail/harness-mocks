@@ -51,7 +51,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"R"}'
 // instead of PostToolUse; the next Bash, which succeeds, fires PostToolUse
 // only (recorded: snapshots/runs/bashfail, the same two commands).
 // sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure-input
-// staged:proves bash-tool-result/claude
+// sr:proves bash-tool-result/claude
 // sr:proves tool-failure-hook/claude
 func TestT017_29_FailingBash(t *testing.T) {
 	dir := t.TempDir()

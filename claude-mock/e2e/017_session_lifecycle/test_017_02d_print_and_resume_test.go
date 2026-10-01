@@ -146,7 +146,7 @@ func TestT017_23_MainRecordsCarryRealBookkeeping(t *testing.T) {
 // "(<Tool> completed with no output)" — claude 2.1.282 replaces empty result
 // content with it; the real transcripts hold 3,479 such Bash results and no
 // empty one. The structured result keeps the empty stdout.
-// staged:proves empty-tool-result-placeholder/claude
+// sr:proves empty-tool-result-placeholder/claude
 func TestT017_24_EmptyToolResult(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

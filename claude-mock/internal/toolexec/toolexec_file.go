@@ -2,106 +2,54 @@ package toolexec
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // readInput is the argument shape for the Read tool.
-// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
+// sr:docs https://code.claude.com/docs/en/tools-reference#read-tool-behavior
 type readInput struct {
 	FilePath string `json:"file_path"`
 	Offset   int    `json:"offset,omitempty"`
 	Limit    int    `json:"limit,omitempty"`
 }
 
+// executeRead answers a Read the way claude 2.1.285 does (recorded:
+// snapshots/runs/file-tools, tool-errors): the lines numbered, a tab after each
+// number, from line offset for limit lines; the toolUseResult says which
+// lines they are.
+//
+// sr:provides file-tools/claude
 func executeRead(raw json.RawMessage, cwd string) Result {
 	var inp readInput
 	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
 		return Result{Output: "Read: missing or invalid 'file_path' field", IsError: true}
 	}
-
 	path := resolvePath(inp.FilePath, cwd)
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		// claude 2.1.285 (recorded: snapshots/runs/tool-errors)
+	content, err := tools.ReadFile(path)
+	if errors.Is(err, tools.ErrNotFound) {
 		return failed("File does not exist. Note: your current working directory is " + cwd + ".")
 	}
 	if err != nil {
 		return failed(err.Error())
 	}
-
-	lines := strings.Split(string(data), "\n")
-	start := 0
-	if inp.Offset > 0 {
-		start = inp.Offset
+	v := tools.Read(content, inp.Offset, inp.Limit)
+	structured := map[string]any{"type": "text", "file": map[string]any{
+		"filePath": path, "content": v.Content, "numLines": v.NumLines, "startLine": v.StartLine, "totalLines": v.TotalLines,
+	}}
+	switch {
+	case content == "":
+		return Result{Output: "<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>", ToolUseResult: structured}
+	case v.NumLines == 0:
+		return Result{Output: fmt.Sprintf("<system-reminder>Warning: the file exists but is shorter than the provided offset (%d). The file has %d lines.</system-reminder>", v.StartLine, v.TotalLines), ToolUseResult: structured}
 	}
-	if start >= len(lines) {
-		return Result{Output: ""}
+	lines := tools.Lines(v.Content)
+	for i := range lines {
+		lines[i] = strconv.Itoa(v.StartLine+i) + "\t" + lines[i]
 	}
-	end := len(lines)
-	if inp.Limit > 0 && start+inp.Limit < end {
-		end = start + inp.Limit
-	}
-	return Result{Output: strings.Join(lines[start:end], "\n")}
-}
-
-// writeInput is the argument shape for the Write tool.
-// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
-type writeInput struct {
-	FilePath string `json:"file_path"`
-	Content  string `json:"content"`
-}
-
-func executeWrite(raw json.RawMessage, cwd string) Result {
-	var inp writeInput
-	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
-		return Result{Output: "Write: missing or invalid 'file_path' field", IsError: true}
-	}
-
-	path := resolvePath(inp.FilePath, cwd)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return failed(err.Error())
-	}
-	if err := os.WriteFile(path, []byte(inp.Content), 0o644); err != nil {
-		return failed(err.Error())
-	}
-	return Result{Output: fmt.Sprintf("File written successfully to %s", inp.FilePath)}
-}
-
-// editInput is the argument shape for the Edit tool.
-// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
-type editInput struct {
-	FilePath  string `json:"file_path"`
-	OldString string `json:"old_string"`
-	NewString string `json:"new_string"`
-}
-
-func executeEdit(raw json.RawMessage, cwd string) Result {
-	var inp editInput
-	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
-		return Result{Output: "Edit: missing or invalid 'file_path' field", IsError: true}
-	}
-
-	path := resolvePath(inp.FilePath, cwd)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return failed(err.Error())
-	}
-
-	original := string(data)
-	count := strings.Count(original, inp.OldString)
-	if count == 0 {
-		return failed(fmt.Sprintf("Edit: old_string not found in %s", inp.FilePath))
-	}
-	if count > 1 {
-		return failed(fmt.Sprintf("Edit: old_string appears %d times in %s; must be unique", count, inp.FilePath))
-	}
-
-	updated := strings.Replace(original, inp.OldString, inp.NewString, 1)
-	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
-		return failed(err.Error())
-	}
-	return Result{Output: fmt.Sprintf("File %s edited successfully", inp.FilePath)}
+	return Result{Output: strings.Join(lines, "\n"), ToolUseResult: structured}
 }

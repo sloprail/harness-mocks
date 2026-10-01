@@ -1,7 +1,10 @@
 statement: >-
   A foreground shell command's result carries its output and a structured form
   of it; a command that exits non-zero is an error result stating the exit
-  code and the output.
+  code and the output, except where the harness knows that exit status 1 only
+  reports no match or a difference (a search, a comparison). (Output limits,
+  timeouts, what a command leaves behind for the next one, and commands run in
+  the background are not part of this.)
 providers:
   claude:
     docs:

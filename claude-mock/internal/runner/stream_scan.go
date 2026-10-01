@@ -78,6 +78,12 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: &res}
 					return out, nil
 				}
+				// An Edit whose string is not in the file, or is there more than
+				// once, is refused the same way: before any hook.
+				if res, refused := toolexec.CheckInput(toolName, toolInput, cfg.Cwd); refused {
+					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: &res}
+					return out, nil
+				}
 				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
 					AgentID:       cfg.AgentID,

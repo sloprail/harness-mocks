@@ -3,6 +3,7 @@ statement: >-
   the tool, in the stream and the transcript alike.
 providers:
   claude:
-    docs: []
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
     runs:
       - claude-mock/snapshots/runs/bashfail

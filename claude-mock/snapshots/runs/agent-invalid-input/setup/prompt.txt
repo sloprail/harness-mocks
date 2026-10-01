@@ -1,0 +1,1 @@
+This is a test of input validation. Call the Agent tool exactly once with this input object, without a prompt: {"description": "helper", "subagent_type": "general-purpose"}. Do not retry or fix it. Then reply only DONE.

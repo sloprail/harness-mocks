@@ -159,7 +159,7 @@ func TestT017_19_PromptAndSessionEndAttachments(t *testing.T) {
 // tool's structured result, a Bash's {stdout, stderr, interrupted, isImage,
 // noOutputExpected} — never tool_output (docs, PostToolUse input; a claude
 // 2.1.282 payload).
-// staged:proves bash-tool-result/claude
+// sr:proves bash-tool-result/claude
 // staged:proves posttooluse-payload/claude
 func TestT017_20_PostToolUsePayload(t *testing.T) {
 	dir := t.TempDir()

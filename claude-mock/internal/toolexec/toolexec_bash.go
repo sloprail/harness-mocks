@@ -3,14 +3,12 @@ package toolexec
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
 	"github.com/sloprail/harness-mocks/internal/procexec"
+	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // bashInput is the argument shape for the Bash tool.
@@ -26,34 +24,23 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 		return Result{Output: "Bash: missing or invalid 'command' field", IsError: true}
 	}
 
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", inp.Command) //nolint:gosec
-	cmd.Dir = cwd
-	cmd.Env = bashEnv(sessionID, inp.Command)
-	out, err := cmd.CombinedOutput()
-	text := strings.TrimRight(string(out), "\n")
+	ran := tools.Bash(ctx, inp.Command, cwd, bashEnv(sessionID, inp.Command))
+	text, failedRun := ran.Message()
 	// toolUseResult/tool_response: the structured result real Claude Code
 	// records for a foreground Bash ({stdout, stderr, interrupted, isImage,
 	// noOutputExpected} — a claude 2.1.282 PostToolUse payload). The mock runs
 	// the command with one combined stream, so stdout carries it all.
+	// sr:provides bash-tool-result/claude
 	structured := map[string]any{
 		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
 	}
-	if err != nil {
+	if failedRun {
 		// A command that exits non-zero is answered the way claude 2.1.28x
 		// answers it: "Exit code N" then the output, as an error, with
 		// toolUseResult "Error: <that text>" (1,316 real results; a controlled
-		// 2.1.282 run).
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
-			msg := fmt.Sprintf("Exit code %d", exitErr.ExitCode())
-			if text != "" {
-				msg += "\n" + text
-			}
-			return failed(msg)
-		}
-		// The shell could not start: a bare failure message, still a failure
-		// (docs, "PostToolUseFailure input").
-		return failed(strings.TrimPrefix(text+"\n"+err.Error(), "\n"))
+		// 2.1.282 run; snapshots/runs/bashfail). What the text says is core's
+		// (tools.BashResult.Message).
+		return failed(text)
 	}
 	return Result{Output: text, ToolUseResult: structured}
 }
