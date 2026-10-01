@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -92,4 +93,50 @@ func TestT009_12_UnparseableJSONIsNonBlockingOnAnyStatusBut2(t *testing.T) {
 			assert.Equal(t, float64(tc.code), errs[0]["exitCode"])
 		})
 	}
+}
+
+// A UserPromptSubmit exit 2 whose JSON sets suppressOriginalPrompt gets a
+// block message without the "Original prompt:" tail (recorded:
+// snapshots/runs/prompt-blocked-suppressed); the run still ends successfully.
+// sr:docs https://code.claude.com/docs/en/hooks#what-a-blocked-prompt-leaves-behind
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_12_BlockedPromptCanSuppressItsText(t *testing.T) {
+	dir := t.TempDir()
+	writeSettings(t, dir, map[string]string{"UserPromptSubmit": hookWithRaw(t, dir,
+		`{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","suppressOriginalPrompt":true}}`, "prompt refused", 2)})
+	ran := filepath.Join(dir, "ran")
+	script := writeScript(t, dir, "s.sh", "#!/bin/sh\n: > \""+ran+"\"\nprintf '%s\\n' '"+resultFrame+"'\n")
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-sp", "--project-dir", dir, "-p", "the secret prompt")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	assert.False(t, fileExists(ran), "a blocked prompt never reaches the model")
+	assert.Contains(t, out, "UserPromptSubmit operation blocked by hook:")
+	assert.Contains(t, out, "prompt refused")
+	assert.NotContains(t, out, "Original prompt:")
+	assert.NotContains(t, out, "the secret prompt")
+}
+
+// Several hooks on one matcher all run; each failure gets its own notice, in
+// order (recorded: snapshots/runs/hook-unstartable, an unstartable hook then a
+// failing one).
+// sr:docs https://code.claude.com/docs/en/hooks#other-exit-codes
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_12_EachFailingHookOnAMatcherGetsItsNotice(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	missing := filepath.Join(dir, "no-such-dir", "hook.sh")
+	failing := writeHook(t, dir, "fails.sh", "cat >/dev/null\necho 'second hook failed' >&2\nexit 1")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"), []byte(
+		`{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+missing+`"},{"type":"command","command":"`+failing+`"}]}]}}`), 0o644))
+	toolFile := filepath.Join(dir, "tool-ran")
+	script := toolScenario(t, dir, filepath.Join(dir, "runs.log"), filepath.Join(dir, "session.copy"), toolFile)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-2h", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	assert.True(t, fileExists(toolFile), "neither failure blocks the tool")
+	errs := attachmentsOf(allRecords(t, cfg), "hook_non_blocking_error")
+	require.Len(t, errs, 2, "one notice per failing hook")
+	assert.Equal(t, missing, errs[0]["command"])
+	assert.Equal(t, float64(127), errs[0]["exitCode"])
+	assert.Equal(t, failing, errs[1]["command"])
+	assert.Equal(t, "Failed with non-blocking status code: second hook failed", errs[1]["stderr"])
 }

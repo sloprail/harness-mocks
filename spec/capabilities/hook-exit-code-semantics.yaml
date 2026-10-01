@@ -12,6 +12,7 @@ providers:
       - claude-mock/snapshots/runs/hook-exit-codes
       - claude-mock/snapshots/runs/hook-exit-json
       - claude-mock/snapshots/runs/prompt-blocked
+      - claude-mock/snapshots/runs/prompt-blocked-suppressed
       - claude-mock/snapshots/runs/hook-unstartable
     deviations:
       - adr: modeled-surface
