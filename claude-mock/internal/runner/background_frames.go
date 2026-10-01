@@ -15,6 +15,21 @@ import (
 // failure, with its usage.
 type frameObserver struct{ cfg Config }
 
+// Changed streams the background tasks running now (recorded: bgbash, midturn,
+// bgagent, fg-subagent-bash): each as {task_id, task_type, description}, the list
+// empty once the last has ended.
+func (o frameObserver) Changed(running []*tasks.Task) {
+	list := []map[string]any{}
+	for _, t := range running {
+		taskType := "local_bash"
+		if t.Kind == tasks.Agent {
+			taskType = "local_agent"
+		}
+		list = append(list, map[string]any{"task_id": t.ID, "task_type": taskType, "description": t.Description})
+	}
+	writeFrame(o.cfg, map[string]any{"type": "system", "subtype": "background_tasks_changed", "tasks": list})
+}
+
 func (o frameObserver) Started(t *tasks.Task) {
 	if s, ok := t.Meta.(taskStart); ok {
 		writeTaskStarted(o.cfg, s)

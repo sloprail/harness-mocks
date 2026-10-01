@@ -56,7 +56,7 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
 		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
 	}
-	tasks.Announce(task, frames)
+	tasks.Announce(bg.Registry, task, frames)
 	sideInv := s.invoker(inv)
 	out := subagents.Execute(subagents.Hooks{
 		// SubagentStart — cannot block. transcript_path is the SESSION's (the
@@ -89,7 +89,7 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 	}
 	task.Result, task.Failure = final, out.Failure
 	task.ToolUses, task.DurationMs = out.ToolUses, time.Since(started).Milliseconds()
-	tasks.Conclude(task, frames)
+	tasks.Conclude(bg.Registry, task, frames)
 	return subagentOutcome{finalText: final, failure: out.Failure, toolUses: out.ToolUses}
 }
 

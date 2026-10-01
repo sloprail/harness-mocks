@@ -53,17 +53,27 @@ func TestTaskFrames_AKilledCommandIsKilledThenStopped(t *testing.T) {
 	b.launchBash(cfg, "toolu_1", json.RawMessage(`{"command":"sleep 30","description":"long","run_in_background":true}`))
 	b.ReapAtExit("", 0)
 	var kinds, statuses []string
+	var changed []any
 	var last map[string]any
 	for _, l := range strings.Split(strings.TrimSpace(cfg.Out.(*bytes.Buffer).String()), "\n") {
 		var f map[string]any
 		require.NoError(t, json.Unmarshal([]byte(l), &f))
 		kinds = append(kinds, f["subtype"].(string))
-		if f["subtype"] == "task_updated" {
+		switch f["subtype"] {
+		case "task_updated":
 			statuses = append(statuses, f["patch"].(map[string]any)["status"].(string))
+		case "background_tasks_changed":
+			changed = append(changed, f["tasks"])
 		}
 		last = f
 	}
-	assert.Equal(t, []string{"task_started", "task_updated", "task_notification"}, kinds)
+	assert.Equal(t, []string{"background_tasks_changed", "task_started", "background_tasks_changed", "task_updated", "task_notification"}, kinds)
+	require.Len(t, changed, 2)
+	running := changed[0].([]any)
+	require.Len(t, running, 1, "the command is running when it starts")
+	assert.Equal(t, "local_bash", running[0].(map[string]any)["task_type"])
+	assert.Equal(t, "long", running[0].(map[string]any)["description"])
+	assert.Equal(t, []any{}, changed[1], "none once it has ended")
 	assert.Equal(t, []string{"killed"}, statuses)
 	assert.Equal(t, "stopped", last["status"])
 	assert.Equal(t, "long", last["summary"])
