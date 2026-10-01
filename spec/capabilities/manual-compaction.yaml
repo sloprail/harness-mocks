@@ -9,3 +9,14 @@ providers:
     runs:
       - claude-mock/snapshots/runs/compact
       - claude-mock/snapshots/runs/compact-nohooks
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          /compact is a slash command, and no mock parses one: a scenario's compact
+          control record requests the compaction, so PreCompact's custom_instructions
+          is always null and the text a user passes after /compact is not modeled.
+      - adr: modeled-surface
+        statement: >-
+          The recorded run's stream frames around a compaction (system status
+          compacting, system init, compact_boundary and the command's output
+          records) are not streamed; the mock streams the summary.

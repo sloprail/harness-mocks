@@ -1,7 +1,8 @@
 statement: >-
-  Every transcript record carries the bookkeeping a reader relies on: session,
-  working directory, branch, timestamp, version and how the run was launched;
-  a prompt given to a non-interactive run is marked as such.
+  Every conversation record in a transcript (user, assistant, attachment and
+  system records) carries the bookkeeping a reader relies on: session, working
+  directory, branch (inside a repository), timestamp, version and how the run
+  was launched; a prompt given to a non-interactive run is marked as such.
 providers:
   claude:
     docs:
