@@ -1,6 +1,0 @@
-# SAMPLE. The one freeze point for the Claude Code snapshots. Written only by
-# capture.sh (`doc <url>` adds a page with its sha256; `all` moves the version).
-version: 2.1.282
-docs:
-  # page URL → its copy at docs/code.claude.com/docs/en/hooks.md
-  "https://code.claude.com/docs/en/hooks": {version: 2.1.282, sha256: "<written by capture.sh>"}
