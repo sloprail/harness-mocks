@@ -1,7 +1,8 @@
 statement: >-
   A hook command's exit status classifies its outcome: accepted (0), blocked
   (2, with the hook's stderr as its message when it gave no other reason), or a
-  non-blocking error (any other status), after which the action goes on. What a
+  non-blocking error (any other status, except on WorktreeCreate, where any
+  non-zero status fails the creation), after which the action goes on. What a
   block does on each event, how accepted output is used (context, decisions,
   updated input) and hook timeouts are those events' and hook output's own
   capabilities.

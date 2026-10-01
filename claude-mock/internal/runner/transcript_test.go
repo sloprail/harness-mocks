@@ -213,7 +213,7 @@ func TestStampRecord_MainAndSidechain(t *testing.T) {
 	assert.Equal(t, false, m["isSidechain"])
 	assert.Equal(t, "external", m["userType"])
 	assert.Equal(t, "sdk-cli", m["entrypoint"])
-	assert.Equal(t, "2.1.282", m["version"])
+	assert.Equal(t, "2.1.285", m["version"])
 	assert.Equal(t, "b", m["gitBranch"])
 	assert.NotContains(t, m, "agentId")
 	side := stampRecord([]byte(`{"type":"user","isSidechain":true}`), recordStamp{SessionID: "s", IsSidechain: true, AgentID: "a"})

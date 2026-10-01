@@ -135,7 +135,7 @@ func TestT017_23_MainRecordsCarryRealBookkeeping(t *testing.T) {
 		assert.Equal(t, false, m["isSidechain"], r.Raw)
 		assert.Equal(t, "external", m["userType"])
 		assert.Equal(t, "sdk-cli", m["entrypoint"])
-		assert.Equal(t, "2.1.282", m["version"])
+		assert.Equal(t, "2.1.285", m["version"])
 		assert.Equal(t, "feature-x", m["gitBranch"])
 		assert.Equal(t, "bk-1", m["sessionId"])
 		assert.NotEmpty(t, m["timestamp"])
