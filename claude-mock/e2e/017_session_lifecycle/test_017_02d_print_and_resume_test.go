@@ -64,6 +64,8 @@ func TestT017_17_UnknownResume(t *testing.T) {
 	var events []any
 	for _, p := range payloads(t, log) {
 		events = append(events, p["hook_event_name"])
+		assert.Equal(t, "other", p["reason"], "SessionEnd of a failed resume, as recorded")
+		assert.NotEmpty(t, p["session_id"])
 	}
 	assert.Equal(t, []any{"SessionEnd", "SessionEnd"}, events)
 }
@@ -135,7 +137,7 @@ func TestT017_23_MainRecordsCarryRealBookkeeping(t *testing.T) {
 		assert.Equal(t, false, m["isSidechain"], r.Raw)
 		assert.Equal(t, "external", m["userType"])
 		assert.Equal(t, "sdk-cli", m["entrypoint"])
-		assert.Equal(t, "2.1.282", m["version"])
+		assert.Equal(t, "2.1.285", m["version"])
 		assert.Equal(t, "feature-x", m["gitBranch"])
 		assert.Equal(t, "bk-1", m["sessionId"])
 		assert.NotEmpty(t, m["timestamp"])

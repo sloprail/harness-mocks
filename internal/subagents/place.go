@@ -14,14 +14,25 @@ type Layout struct {
 	// SessionExt is the session transcript's extension, which the directory
 	// name drops: <session transcript without ext>/<Dir>/<Prefix><id><Ext>.
 	SessionExt, Dir, Prefix, Ext string
+	// SidecarExt replaces Ext on a sub-agent's transcript path to name the
+	// metadata file that sits beside it.
+	SidecarExt string
 }
 
 // Path is the transcript of sub-agent id for a session whose transcript is
 // sessionFile: a file of its own in the session's sub-agent directory, never
 // the session's. A nested sub-agent's is in the same directory as its parent's,
 // since every sub-agent of a session is recorded there.
+//
+// sr:capability subagent-transcripts
 func (l Layout) Path(sessionFile, id string) string {
 	return filepath.Join(strings.TrimSuffix(sessionFile, l.SessionExt), l.Dir, l.Prefix+id+l.Ext)
+}
+
+// Sidecar is the metadata file beside the sub-agent transcript at path: the
+// same name with the sidecar extension.
+func (l Layout) Sidecar(path string) string {
+	return strings.TrimSuffix(path, l.Ext) + l.SidecarExt
 }
 
 // Parent is the agent that dispatches a sub-agent: the main thread (ID "",
@@ -42,6 +53,23 @@ type Placement struct {
 
 // Place is the placement of a sub-agent dispatched by parent: one deeper, naming
 // the parent. A sub-agent can itself dispatch sub-agents.
+//
+// sr:capability nested-subagents
 func Place(parent Parent) Placement {
 	return Placement{Depth: parent.Depth + 1, ParentID: parent.ID}
+}
+
+// DefaultSpawnLimit is how many layers of sub-agents a session can nest below
+// its main thread when the harness is not told otherwise.
+const DefaultSpawnLimit = 3
+
+// CanDispatch reports whether parent may dispatch a sub-agent when a session
+// nests at most limit layers deep (a limit of 0 is the default, a negative or
+// 1 turns nesting off for sub-agents): the main thread always may, and a
+// sub-agent only while it is above the limit.
+func (p Parent) CanDispatch(limit int) bool {
+	if limit == 0 {
+		limit = DefaultSpawnLimit
+	}
+	return p.Depth < limit
 }

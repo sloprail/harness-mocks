@@ -27,3 +27,18 @@ docs:
   https://code.claude.com/docs/en/headless:
     version: 2.1.285
     sha256: d7fa0cbbe242527efcb44114ad4c1e7242d8326c0f460bf52fa1eb82609a5d2d
+  https://code.claude.com/docs/en/sub-agents:
+    version: 2.1.285
+    sha256: f7a49266d42328f2a24ab778e2c28689d527b57da737e52b8928f6e275ca01e3
+  https://code.claude.com/docs/en/worktrees:
+    version: 2.1.285
+    sha256: 37fb7f8adcadda1897b9fc78540595c7dcd396f17e6efe1e7d2878efe291edf9
+  https://code.claude.com/docs/en/agent-sdk/typescript:
+    version: 2.1.285
+    sha256: 695a0de1702947d9e741109465d121644aa79dd9f092a321ddbafb4dd679e1fa
+  https://code.claude.com/docs/en/interactive-mode:
+    version: 2.1.285
+    sha256: 4fcff02c9ed2a1853c89fecdd9d442fddc77d4920e4114ec66ca85aeafa238d5
+  https://code.claude.com/docs/en/scheduled-tasks:
+    version: 2.1.285
+    sha256: bd61138121e36e5e0b888c7e2ad15df0d65d735cfcdcc46e35b950b0ce80846e

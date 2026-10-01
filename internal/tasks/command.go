@@ -31,6 +31,8 @@ type CommandSpec struct {
 // command is not bound to the turn that started it, so it keeps running while
 // the agent works; it has its own process group, so ending it reaches whatever
 // it spawned. t.ExitCode is set when it ends.
+//
+// sr:capability background-bash
 func (r *Registry) StartCommand(t *Task, s CommandSpec) error {
 	p, err := procexec.Start(procexec.Spec{Argv: s.Argv, Dir: s.Dir, Env: s.Env}, s.Out)
 	if err != nil {
@@ -60,6 +62,8 @@ func (r *Registry) StartCommand(t *Task, s CommandSpec) error {
 // StartAgent registers a background agent t and runs it concurrently with the
 // turn that launched it: run returns when the agent has ended, and the caller
 // has already answered the launch.
+//
+// sr:capability background-agent
 func (r *Registry) StartAgent(t *Task, run func(ctx context.Context)) {
 	t.Kind = Agent
 	r.Add(t)

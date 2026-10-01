@@ -1,6 +1,9 @@
 package subagents
 
-import "github.com/sloprail/harness-mocks/internal/tasks"
+import (
+	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/turnloop"
+)
 
 // Outcome is how one run of a sub-agent ended.
 type Outcome struct {
@@ -36,6 +39,8 @@ type StopFacts struct {
 
 // Stop is the facts of a sub-agent's stop for the hook: its own transcript
 // path and last message, and every background task still running in the session.
+//
+// sr:capability subagent-lifecycle-hooks
 func Stop(transcriptPath, last string, session *tasks.Registry) StopFacts {
 	return StopFacts{TranscriptPath: transcriptPath, LastMessage: last, Tasks: session.Running()}
 }
@@ -44,6 +49,8 @@ func Stop(transcriptPath, last string, session *tasks.Registry) StopFacts {
 // hook blocks: the hook's reason is its feedback, until the hook lets the
 // sub-agent stop or blockCap consecutive blocks have been honoured (0: no cap).
 // It returns how the last run ended, its tool uses summed over every run.
+//
+// sr:capability subagent-stop-block-loop
 func Execute(h Hooks, blockCap int, run func() Outcome) Outcome {
 	if h.Start != nil {
 		h.Start()
@@ -54,7 +61,7 @@ func Execute(h Hooks, blockCap int, run func() Outcome) Outcome {
 		if !blocked {
 			return out
 		}
-		if blockCap > 0 && turn >= blockCap {
+		if !turnloop.AfterBlock(turn+1, blockCap) {
 			if h.OnCap != nil {
 				h.OnCap(blockCap)
 			}
