@@ -8,9 +8,6 @@ import (
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
-// globLimit is how many files a Glob returns (docs, Glob tool behavior).
-const globLimit = 100
-
 // globInput is the argument shape for the Glob tool.
 // sr:docs https://code.claude.com/docs/en/tools-reference#glob-tool-behavior
 type globInput struct {
@@ -37,7 +34,7 @@ func executeGlob(raw json.RawMessage, cwd string) Result {
 		base = resolvePath(inp.Path, cwd)
 	}
 	started := time.Now()
-	found, err := tools.Glob(base, inp.Pattern, globLimit)
+	found, err := tools.Glob(base, inp.Pattern, tools.GlobLimit)
 	if err != nil {
 		return failed(err.Error())
 	}

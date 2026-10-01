@@ -32,15 +32,13 @@ func CheckInput(toolName string, raw json.RawMessage, cwd string) (Result, bool)
 	if err != nil {
 		return Result{}, false
 	}
-	_, n, err := tools.Edit(content, inp.OldString, inp.NewString, inp.ReplaceAll)
-	var msg string
-	switch {
-	case errors.Is(err, tools.ErrNoMatch):
-		msg = "String to replace not found in file.\nString: " + inp.OldString
-	case errors.Is(err, tools.ErrAmbiguous):
-		msg = fmt.Sprintf("Found %d matches of the string to replace, but replace_all is false. To replace all occurrences, set replace_all to true. To replace only one occurrence, please provide more context to uniquely identify the instance.\nString: %s", n, inp.OldString)
-	default:
+	ref, refused := tools.RefusedEdit(content, inp.OldString, inp.ReplaceAll)
+	if !refused {
 		return Result{}, false
+	}
+	msg := "String to replace not found in file.\nString: " + inp.OldString
+	if !ref.Absent {
+		msg = fmt.Sprintf("Found %d matches of the string to replace, but replace_all is false. To replace all occurrences, set replace_all to true. To replace only one occurrence, please provide more context to uniquely identify the instance.\nString: %s", ref.Matches, inp.OldString)
 	}
 	return Result{Output: "<tool_use_error>" + msg + "</tool_use_error>", IsError: true, ToolUseResult: "Error: " + msg}, true
 }

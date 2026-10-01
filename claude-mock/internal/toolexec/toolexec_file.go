@@ -45,10 +45,10 @@ func executeRead(raw json.RawMessage, cwd string) Result {
 	structured := map[string]any{"type": "text", "file": map[string]any{
 		"filePath": path, "content": v.Content, "numLines": v.NumLines, "startLine": v.StartLine, "totalLines": v.TotalLines,
 	}}
-	switch {
-	case content == "":
+	switch v.OutcomeOf(content) {
+	case tools.ReadEmpty:
 		return Result{Output: "<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>", ToolUseResult: structured}
-	case v.NumLines == 0:
+	case tools.ReadPastEnd:
 		return Result{Output: fmt.Sprintf("<system-reminder>Warning: the file exists but is shorter than the provided offset (%d). The file has %d lines.</system-reminder>", v.StartLine, v.TotalLines), ToolUseResult: structured}
 	}
 	lines := tools.Lines(v.Content)

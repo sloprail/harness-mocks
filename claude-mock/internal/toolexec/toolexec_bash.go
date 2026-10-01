@@ -11,12 +11,6 @@ import (
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
-// benignExit1 are the commands Claude Code reads an exit status of 1 from as a
-// valid result, not a failure: they only report no match or a difference
-// (docs, Bash tool behavior).
-// sr:docs https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
-var benignExit1 = []string{"grep", "rg", "egrep", "fgrep", "find", "diff", "test", "[", "git diff", "git grep"}
-
 // bashInput is the argument shape for the Bash tool.
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
 type bashInput struct {
@@ -31,7 +25,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 	}
 
 	ran := tools.Bash(ctx, inp.Command, cwd, bashEnv(sessionID, inp.Command))
-	text, failedRun := ran.MessageFor(inp.Command, benignExit1)
+	text, failedRun := ran.MessageFor(inp.Command, tools.BenignExit1)
 	// toolUseResult/tool_response: the structured result real Claude Code
 	// records for a foreground Bash ({stdout, stderr, interrupted, isImage,
 	// noOutputExpected} — a claude 2.1.282 PostToolUse payload). The mock runs
