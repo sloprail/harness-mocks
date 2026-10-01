@@ -9,13 +9,13 @@ import (
 // The recorded run runs/shell-exit-status: commands exiting 1 with no output,
 // 1 with output, 2 with both streams, and 0.
 
-// TestAShellCommandExitingNonZeroIsAFailureResultWithItsExitCodeAndOutput:
+// TestAShellCommandExitingNonZeroIsAFailureResultWithItsOutputOrExitCode:
 // recorded, whatever the status (a grep that finds nothing exits 1 and fails
 // like any other), the tool's result is a failure, and the failure hook's
 // message is what the command printed (stdout then stderr), or "Command failed
 // with exit code N" when it printed nothing.
 // sr:proves bash-tool-result/cursor
-func TestAShellCommandExitingNonZeroIsAFailureResultWithItsExitCodeAndOutput(t *testing.T) {
+func TestAShellCommandExitingNonZeroIsAFailureResultWithItsOutputOrExitCode(t *testing.T) {
 	got, want := replay(t, "shell-exit-status")
 	conforms(t, got, want)
 
