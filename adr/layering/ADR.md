@@ -17,3 +17,5 @@ Package imports between `internal/` and the per-harness mocks.
 - Code two mocks both need lives in the repo-root `internal/`.
 - A harness's adapter (its wire format, record shapes, CLI) lives in its own
   mock, under `<harness>-mock/internal/`.
+
+This replaced the earlier layout, where adapters lived next to core until October 2026.
