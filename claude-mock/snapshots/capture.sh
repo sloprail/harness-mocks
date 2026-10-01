@@ -19,6 +19,8 @@
 #   runs/<name>/setup/hook.sh          optional: the hook every event runs;
 #                                      it appends its stdin to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra claude flags, one per line
+#   runs/<name>/setup/env              optional: KEY=VALUE lines claude inherits on
+#                                      top of the hermetic env (e.g. an outer session's)
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 manifest="$here/MANIFEST.yaml"
@@ -70,6 +72,7 @@ capture_run() {
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
+  extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
   # Hermetic: claude starts from an EMPTY environment plus only what it needs to
   # run, so nothing of the session that runs this script (CLAUDECODE,
   # CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_ENTRYPOINT, …) can leak into what the
@@ -81,7 +84,7 @@ capture_run() {
   local claude_bin; claude_bin="$(command -v claude)" || die "claude is not on PATH"
   set +e
   (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
-    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" CLAUDE_CODE_TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" \
+    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" CLAUDE_CODE_TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
     "$claude_bin" -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose \
       ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
   echo $? >"$cap/exit.txt"
