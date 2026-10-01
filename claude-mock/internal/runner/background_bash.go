@@ -70,7 +70,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	// spawned.
 	cmd := exec.Command("/bin/sh", "-c", in.Command) //nolint:gosec
 	cmd.Dir = cfg.Cwd
-	cmd.Env = procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID))
+	cmd.Env = procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID), childenv.Defaults())
 	cmd.Stdout = out
 	cmd.Stderr = out
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

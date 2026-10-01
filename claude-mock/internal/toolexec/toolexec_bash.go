@@ -64,5 +64,5 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 // Code session would hand its tool calls the OPERATOR's outer session id. Set
 // only when non-empty, matching the hook invoker (hooks/invoker.go).
 func bashEnv(sessionID string) []string {
-	return procexec.Env(os.Environ(), childenv.Identity(sessionID))
+	return procexec.Env(os.Environ(), childenv.Identity(sessionID), childenv.Defaults())
 }

@@ -66,8 +66,9 @@ func TestT007_03_BashToolCwdIsProjectDir(t *testing.T) {
 
 // TestT007_11_BashToolSeesMockSessionID: a Bash tool subprocess sees the mock's
 // --session-id as CLAUDE_CODE_SESSION_ID, CLAUDECODE=1 and
-// CLAUDE_CODE_ENTRYPOINT=sdk-cli, CLAUDE_CODE_CHILD_SESSION=1,
-// CLAUDE_CODE_SESSION_ATTENDED=0 and the mock's pid as CLAUDE_PID, as the recorded `claude -p` run shows
+// CLAUDE_CODE_CHILD_SESSION=1, CLAUDE_CODE_SESSION_ATTENDED=0 and the mock's pid
+// as CLAUDE_PID, keeping the launcher's CLAUDE_CODE_ENTRYPOINT
+// (runs/nested-session-env), as the recorded `claude -p` run shows
 // (runs/subprocess-session-env: "SID=<SESSION_ID> CC=1 EP=sdk-cli") — even when
 // the mock's own environment carries DIFFERENT values (the operator's outer
 // session, when tests run inside a live Claude Code session). Without it, a command resolving "the current session" from
@@ -89,7 +90,7 @@ func TestT007_11_BashToolSeesMockSessionID(t *testing.T) {
 	got, err := os.ReadFile(logPath)
 	require.NoError(t, err, "bash command must have run; output:\n%s", out)
 	// the mock's own pid is not known here: any pid but the decoy
-	assert.Regexp(t, `^SID=s1 CC=1 EP=sdk-cli CS=1 AT=0 PID=[0-9]+$`, string(got), "Bash tool must see this run's identity, not the inherited decoys")
+	assert.Regexp(t, `^SID=s1 CC=1 EP=decoy CS=1 AT=0 PID=[0-9]+$`, string(got), "Bash tool must see this run's identity, not the inherited decoys")
 }
 
 // --- Read ---

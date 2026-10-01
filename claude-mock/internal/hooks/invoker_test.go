@@ -70,13 +70,13 @@ func TestInvokeCommand_ArgsAndEnvRunViaShell(t *testing.T) {
 	assert.Equal(t, "arg1 fromenv\n", string(data))
 }
 
-// Every command hook must see the Claude-Code environment variables the real CLI
-// sets on each session (CLAUDE_CODE_CHILD_SESSION=1,
-// CLAUDE_CODE_SESSION_ATTENDED=0 and CLAUDE_PID too): CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli
-// (unconditional — a tool that detects "am I under a harness" keys off them, e.g.
-// sr-agent's harness detection, which refuses with ErrNoHarness when neither is
-// set) and CLAUDE_CODE_SESSION_ID (the active session id). A hook shelling to such
-// a tool must find the same env it would under real claude.
+// Every command hook sees this run's identity even when the mock runs inside
+// another session (recorded: runs/nested-session-env, claude launched over
+// decoys): CLAUDECODE=1, CLAUDE_CODE_CHILD_SESSION=1, CLAUDE_CODE_SESSION_ATTENDED=0,
+// the harness's pid as CLAUDE_PID and the active CLAUDE_CODE_SESSION_ID replace
+// whatever was inherited, while an inherited CLAUDE_CODE_ENTRYPOINT (the
+// launcher's) passes through. A tool that detects "am I under a harness" keys off
+// these (sr-agent refuses with ErrNoHarness without them).
 //
 // This exercises the ONE seam every hook passes through — invokeCommand — so it
 // covers the root Stop/PreToolUse hooks AND the sub-agent SubagentStart/SubagentStop
@@ -85,9 +85,14 @@ func TestInvokeCommand_ArgsAndEnvRunViaShell(t *testing.T) {
 // paths reach the hook env through this method, so proving it here proves it for all.
 // sr:proves subprocess-session-env/claude
 func TestInvokeCommand_SetsClaudeCodeEnvOnHook(t *testing.T) {
+	for k, v := range map[string]string{"CLAUDECODE": "decoy", "CLAUDE_CODE_ENTRYPOINT": "decoy-launcher",
+		"CLAUDE_CODE_SESSION_ID": "decoy-outer-session", "CLAUDE_CODE_CHILD_SESSION": "decoy",
+		"CLAUDE_CODE_SESSION_ATTENDED": "decoy", "CLAUDE_PID": "decoy"} {
+		t.Setenv(k, v)
+	}
 	dir := t.TempDir()
 	envFile := filepath.Join(dir, "hookenv.txt")
-	// The hook records the three variables it received, one per line, so the test
+	// The hook records the six variables it received, one per line, so the test
 	// reads back exactly what reached the hook subprocess's environment.
 	script := writeExecScript(t, dir, "env.sh",
 		"#!/bin/sh\ncat >/dev/null\n"+
@@ -111,27 +116,30 @@ func TestInvokeCommand_SetsClaudeCodeEnvOnHook(t *testing.T) {
 	data, readErr := os.ReadFile(envFile)
 	require.NoError(t, readErr, "hook never recorded its environment")
 	got := string(data)
-	assert.Contains(t, got, "CLAUDECODE=1", "CLAUDECODE must reach the hook env")
-	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=sdk-cli", "CLAUDE_CODE_ENTRYPOINT must reach the hook env")
-	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ID=sess-xyz", "CLAUDE_CODE_SESSION_ID must reach the hook env")
-	assert.Contains(t, got, "CLAUDE_CODE_CHILD_SESSION=1", "CLAUDE_CODE_CHILD_SESSION must reach the hook env")
-	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=0", "a print-mode session is unattended")
+	assert.Contains(t, got, "CLAUDECODE=1\n", "CLAUDECODE is this run's")
+	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=decoy-launcher\n", "the launcher's entrypoint passes through")
+	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ID=sess-xyz\n", "CLAUDE_CODE_SESSION_ID is this run's")
+	assert.Contains(t, got, "CLAUDE_CODE_CHILD_SESSION=1\n", "CLAUDE_CODE_CHILD_SESSION is this run's")
+	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=0\n", "a print-mode session is unattended")
 	assert.Contains(t, got, "CLAUDE_PID="+strconv.Itoa(os.Getpid())+"\n", "CLAUDE_PID is the harness's own pid")
 }
 
-// CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli are set even when the invoker has NO
-// session id (the empty-sessionID construction a print-mode or session-less run
-// uses): the harness-detection variables are unconditional, only the session-id
-// variable is gated on being non-empty. Were they gated on the session id too, a
-// session-less run's hook would fail harness detection.
+// CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT are set even when the invoker has NO
+// session id (the empty-sessionID construction a session-less run uses), and
+// with no entrypoint inherited it is sdk-cli (runs/subprocess-session-env). An
+// inherited session id is not passed on in its place: it names another session.
 // sr:proves subprocess-session-env/claude
 func TestInvokeCommand_SetsHarnessEnvWithoutSessionID(t *testing.T) {
+	t.Setenv("CLAUDECODE", "decoy")
+	t.Setenv("CLAUDE_CODE_ENTRYPOINT", "")
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "decoy-outer-session")
 	dir := t.TempDir()
 	envFile := filepath.Join(dir, "hookenv.txt")
 	script := writeExecScript(t, dir, "env.sh",
 		"#!/bin/sh\ncat >/dev/null\n"+
 			"{ echo \"CLAUDECODE=$CLAUDECODE\"; "+
-			"echo \"CLAUDE_CODE_ENTRYPOINT=$CLAUDE_CODE_ENTRYPOINT\"; } > \""+envFile+"\"\n")
+			"echo \"CLAUDE_CODE_ENTRYPOINT=$CLAUDE_CODE_ENTRYPOINT\"; "+
+			"echo \"CLAUDE_CODE_SESSION_ID=$CLAUDE_CODE_SESSION_ID\"; } > \""+envFile+"\"\n")
 
 	settings := &Settings{Hooks: map[EventName][]HookEntry{
 		EventStop: {{Matcher: "*", Hooks: []HandlerSpec{
@@ -146,8 +154,9 @@ func TestInvokeCommand_SetsHarnessEnvWithoutSessionID(t *testing.T) {
 	data, readErr := os.ReadFile(envFile)
 	require.NoError(t, readErr)
 	got := string(data)
-	assert.Contains(t, got, "CLAUDECODE=1")
-	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=sdk-cli")
+	assert.Contains(t, got, "CLAUDECODE=1\n")
+	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=sdk-cli\n")
+	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ID=\n", "the outer session's id must not reach the hook")
 }
 
 // Exit 2 from a command hook is a blocking error surfaced via Fire's error.

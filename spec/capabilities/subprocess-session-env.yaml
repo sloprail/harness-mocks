@@ -12,3 +12,4 @@ providers:
       - https://code.claude.com/docs/en/env-vars#variables
     runs:
       - claude-mock/snapshots/runs/subprocess-session-env
+      - claude-mock/snapshots/runs/nested-session-env
