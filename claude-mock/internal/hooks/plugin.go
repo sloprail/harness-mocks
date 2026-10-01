@@ -71,7 +71,11 @@ func loadPluginHooks(dst *Settings, cacheDir string, enabledPlugins map[string]b
 			// "./marketplace/plugins/foo" for an in-monorepo marketplace whose manifest sits
 			// at the repo root). Fall back to the historical plugins/<name> layout only when
 			// the manifest has no entry for this plugin (e.g. a hand-rolled test fixture).
-			pluginDir, ok := manifest.pluginSourceDir(root, pluginName)
+			pluginDir, ok, err := manifest.pluginSourceDir(root, pluginName)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "claude-mock: error: plugin %s@%s: %v\n", pluginName, mpName, err)
+				continue
+			}
 			if !ok {
 				pluginDir = filepath.Join(root, "plugins", pluginName)
 			}
