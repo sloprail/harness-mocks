@@ -16,14 +16,16 @@ visible and deliberate, not a test nobody wrote.
 
 - A mock models the harness as its tests drive it: a non-interactive session
   (print mode, or a stream of prompts), with the tools those sessions use.
-- Out of the model, for every harness: what exists only in an interactive
-  session (Claude Code's `/clear` and other slash commands, its status line
-  command, the tmux sessions it opens, for example), tools for a platform the mocks do not run on
-  (Claude Code's PowerShell tool), tools no test drives yet (Claude Code's
-  Monitor tool), and hook events the mock does not fire (each capability that
-  touches them names them).
+- Out of the model, for every harness:
+  - what exists only in an interactive session: slash commands (no mock
+    parses one), a status line command, and the terminal sessions (tmux) a
+    harness opens;
+  - every tool a mock's tool executor does not implement (for claude-mock,
+    each tool name `claude-mock/internal/toolexec` does not handle);
+  - every hook event a mock does not define (for claude-mock, each event not
+    named in `claude-mock/internal/hooks/event.go`).
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.
-- Modelling a part that is out takes it out of this list and out of every
-  `deviations` entry citing it, in the same change.
+- Modelling a part (a tool or an event a mock now handles) removes it from
+  every `deviations` entry citing this ADR, in the same change.
