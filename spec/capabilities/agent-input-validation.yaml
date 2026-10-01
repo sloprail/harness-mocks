@@ -8,4 +8,5 @@ providers:
       - https://code.claude.com/docs/en/tools-reference#agent-tool-behavior
     runs:
       - claude-mock/snapshots/runs/agent-invalid-input
+      - claude-mock/snapshots/runs/agent-invalid-description
       - claude-mock/snapshots/runs/tool-invalid-input
