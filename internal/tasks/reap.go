@@ -1,5 +1,7 @@
 package tasks
 
+import "time"
+
 // stopOwned kills the commands owner still has running, marks them handed over
 // (a killed command is reported on the stream only) and waits for them to be
 // gone. Agents are not killed.
@@ -28,8 +30,31 @@ func (r *Registry) stopOwned(owner string) {
 func (r *Registry) EndOfResponse(owner string) { r.stopOwned(owner) }
 
 // ReapAtExit ends what owner still has running when a non-interactive run's
-// other work is done: its background commands are terminated.
-func (r *Registry) ReapAtExit(owner string) { r.stopOwned(owner) }
+// other work is done: its background commands are terminated, once grace has
+// passed, so that a command that finishes right after the final result still
+// delivers its output.
+func (r *Registry) ReapAtExit(owner string, grace time.Duration) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	var running []*Task
+	for _, t := range r.tasks {
+		if t.Owner == owner && t.Kind == Command && !t.Finished() {
+			running = append(running, t)
+		}
+	}
+	r.mu.Unlock()
+	timeout := time.After(grace)
+	for _, t := range running {
+		select {
+		case <-t.done:
+		case <-timeout:
+			r.stopOwned(owner)
+			return
+		}
+	}
+}
 
 // Shutdown ends the whole session's background work when the run returns: it
 // kills every running command, cancels the registry's context (and so running
