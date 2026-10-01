@@ -20,7 +20,7 @@ import (
 // file. When the hook prints something, its hook_success attachment is written
 // after it exits, and is the file's origin; the prompt chains to it.
 // sr:proves hook-output-transcript-records/claude
-// staged:proves session-transcript-file/claude
+// sr:proves session-transcript-file/claude
 func TestT017_01_FreshSessionHasNoRecordAtSessionStart(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -76,7 +76,7 @@ func TestT017_02_SilentSessionStartLeavesThePromptAsOrigin(t *testing.T) {
 // TestT017_03_EveryHookCarriesTranscriptPath: transcript_path is one of the
 // common input fields, on every event. The tool events carry tool_use_id.
 // sr:proves hook-common-payload/claude
-// staged:proves session-transcript-file/claude
+// sr:proves session-transcript-file/claude
 func TestT017_03_EveryHookCarriesTranscriptPath(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -210,7 +210,7 @@ func TestT017_05_SubagentPayloadsAndRecords(t *testing.T) {
 // other than the one it began in keeps appending to its original transcript,
 // while its hooks are told a transcript_path under the NEW directory's project
 // folder — a file that does not exist. Measured on a real SessionStart:resume.
-// staged:proves session-resume/claude
+// sr:proves session-resume/claude
 func TestT017_06_ResumeFromAnotherDirectory(t *testing.T) {
 	root := t.TempDir()
 	cfg := filepath.Join(root, "config")

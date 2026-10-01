@@ -1,11 +1,11 @@
 package runner
 
 import (
-	"bytes"
-	"encoding/json"
 	"os/exec"
 	"strings"
 	"time"
+
+	coretranscript "github.com/sloprail/harness-mocks/internal/transcript"
 )
 
 // recordStamp is what the harness writes on every record it persists, filled
@@ -61,12 +61,4 @@ func nowStamp() string {
 // \u003e and \u0026 by default, so a <task-notification> turn, or a hook's
 // stderr carrying "a && b", would be written as bytes no real transcript
 // contains — and a reader grepping for the real text would not find it.
-func marshalRecord(v any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	return bytes.TrimRight(buf.Bytes(), "\n"), nil
-}
+func marshalRecord(v any) ([]byte, error) { return coretranscript.Marshal(v) }

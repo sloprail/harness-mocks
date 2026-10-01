@@ -33,20 +33,20 @@ func uuidsOf(recs []map[string]any) []any {
 	return out
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkSegment_Uncompacted(t *testing.T) {
 	data := jsonl(t,
 		map[string]any{"type": "custom-title"},
 		map[string]any{"type": "user", "uuid": "u1", "parentUuid": nil},
 		map[string]any{"type": "assistant", "uuid": "u2", "parentUuid": "u1"},
 	)
-	seg := forkSegment(data)
+	seg := forkSegment(data, "new")
 	assert.Equal(t, []any{"u1", "u2"}, uuidsOf(seg), "the whole conversation, bookkeeping dropped")
 	assert.Nil(t, seg[0]["parentUuid"])
 	assert.Equal(t, "u1", seg[1]["parentUuid"], "parents unchanged")
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkSegment_Compacted(t *testing.T) {
 	boundary := map[string]any{
 		"type": "system", "subtype": "compact_boundary", "uuid": "B", "parentUuid": nil, "logicalParentUuid": "p3",
@@ -62,7 +62,7 @@ func TestForkSegment_Compacted(t *testing.T) {
 		map[string]any{"type": "attachment", "uuid": "x", "parentUuid": "S"},
 		map[string]any{"type": "assistant", "uuid": "y", "parentUuid": "x"},
 	)
-	seg := forkSegment(data)
+	seg := forkSegment(data, "new")
 	assert.Equal(t, []any{"B", "i", "S", "p2", "p3", "x", "y"}, uuidsOf(seg),
 		"boundary, what leads to the summary, the summary, the preserved records, then the rest")
 	parents := []any{}
@@ -73,7 +73,7 @@ func TestForkSegment_Compacted(t *testing.T) {
 	assert.Equal(t, "p3", seg[0]["logicalParentUuid"], "the boundary is copied verbatim")
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkSegment_LastBoundaryWins(t *testing.T) {
 	b := func(u string, kept ...any) map[string]any {
 		return map[string]any{"type": "system", "subtype": "compact_boundary", "uuid": u, "parentUuid": nil,
@@ -87,10 +87,10 @@ func TestForkSegment_LastBoundaryWins(t *testing.T) {
 		b("B2", "c"),
 		map[string]any{"type": "user", "uuid": "S2", "parentUuid": "B2", "isCompactSummary": true},
 	)
-	assert.Equal(t, []any{"B2", "S2", "c"}, uuidsOf(forkSegment(data)))
+	assert.Equal(t, []any{"B2", "S2", "c"}, uuidsOf(forkSegment(data, "new")))
 }
 
-// staged:proves session-fork/claude
+// sr:proves session-fork/claude
 func TestForkTranscript_RewritesSessionIDAndLeavesTheSourceAlone(t *testing.T) {
 	cfg := t.TempDir()
 	cwd := t.TempDir()
@@ -127,11 +127,11 @@ func TestFindSessionFile(t *testing.T) {
 		require.NoError(t, os.WriteFile(p, []byte("{}\n"), 0o644))
 	}
 	require.NoError(t, os.Chtimes(a, timeAgo(2), timeAgo(2)))
-	assert.Equal(t, b, findSessionFile(cfg, "s"), "the most recently written wins")
+	assert.Equal(t, b, sessionFilePathIfExists(cfg, t.TempDir(), "s"), "the most recently written wins")
 	require.NoError(t, os.MkdirAll(filepath.Join(cfg, "projects", "c", "d.jsonl"), 0o755))
-	assert.Equal(t, "", findSessionFile(cfg, "d"), "a directory is not a transcript")
+	assert.Equal(t, "", sessionFilePathIfExists(cfg, t.TempDir(), "d"), "a directory is not a transcript")
 	for _, bad := range []string{"", "..", "../x", "a/s"} {
-		assert.Equal(t, "", findSessionFile(cfg, bad), bad)
+		assert.Equal(t, "", sessionFilePathIfExists(cfg, t.TempDir(), bad), bad)
 	}
 }
 

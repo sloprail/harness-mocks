@@ -30,7 +30,7 @@ func captureHook(t *testing.T, dir, logFile, extract string) string {
 // going on, not a sub-agent: real Claude Code fires SessionStart (source
 // resume), UserPromptSubmit, Stop and SessionEnd — no SubagentStart and no
 // SubagentStop (a controlled claude 2.1.282 resume).
-// staged:proves session-resume/claude
+// sr:proves session-resume/claude
 func TestT004_01_NoSubagentHooksOnResume(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

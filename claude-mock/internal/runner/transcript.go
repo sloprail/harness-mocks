@@ -2,7 +2,8 @@ package runner
 
 import (
 	"os"
-	"path/filepath"
+
+	coretranscript "github.com/sloprail/harness-mocks/internal/transcript"
 )
 
 // transcript is one run's handle on the session record it writes — the file,
@@ -18,8 +19,8 @@ import (
 // record) was the attachment recording that very SessionStart hook's result —
 // written after the hook exited. When no SessionStart hook prints anything, no
 // attachment is written and the origin is the user's prompt. So the mock does
-// not create the file until the first record is written, and the first record
-// of a fresh session is whatever the harness writes first.
+// not create the file until the first record is written (coretranscript.Lazy),
+// and the first record of a fresh session is whatever the harness writes first.
 //
 // # Reported path vs actual path
 //
@@ -34,52 +35,46 @@ import (
 type transcript struct {
 	path     string // where records are written
 	reported string // what hook payloads carry as transcript_path
+	lazy     *coretranscript.Lazy
 	f        *os.File
 	sw       *sessionWriter
 	stamp    recordStamp
 
 	// held is hook runs recorded but not written yet (holdHookRuns).
 	held []heldRun
-
-	// fresh marks a transcript this run is opening for the first time, so the
-	// preamble real Claude Code opens a file with is written ahead of the first
-	// record.
-	fresh bool
 }
 
 // openTranscript returns a handle on path. The file is opened now when it
 // already exists (a resume, a nested sub-agent run, a caller that pre-seeded it)
 // and on the first write otherwise.
+//
+// sr:provides session-transcript-file/claude
 func openTranscript(path, reported string, stamp recordStamp) (*transcript, error) {
-	t := &transcript{path: path, reported: reported, stamp: stamp}
-	if t.reported == "" {
-		t.reported = path
+	lz, err := coretranscript.NewLazy(path, reported)
+	if err != nil {
+		return nil, err
 	}
-	if _, err := os.Stat(path); err == nil {
-		if err := t.open(); err != nil {
-			return nil, err
-		}
-	} else {
-		t.fresh = true
+	t := &transcript{path: lz.Path, reported: lz.Reported, lazy: lz, stamp: stamp}
+	if lz.Exists() {
+		t.attach()
 	}
 	return t, nil
 }
 
-func (t *transcript) open() error {
-	if t.f != nil {
-		return nil
+// attach opens the file for writing. A file this run creates opens with the
+// preamble real Claude Code opens a main transcript with (not a sidechain's).
+func (t *transcript) attach() {
+	t.f = t.lazy.File(func() [][]byte {
+		if t.stamp.IsSidechain {
+			return nil
+		}
+		return mockPreambleRecords(t.stamp.SessionID)
+	})
+	if t.f == nil {
+		return
 	}
-	if err := os.MkdirAll(filepath.Dir(t.path), 0o755); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(t.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	t.f = f
-	t.sw = newSessionWriter(f)
+	t.sw = newSessionWriter(t.f)
 	t.sw.stamp = t.stamp
-	return nil
 }
 
 // ensure opens the file for writing, writing the preamble first when this run
@@ -88,14 +83,7 @@ func (t *transcript) ensure() {
 	if t == nil || t.f != nil {
 		return
 	}
-	if err := t.open(); err != nil {
-		return
-	}
-	if t.fresh && !t.stamp.IsSidechain {
-		for _, line := range mockPreambleRecords(t.stamp.SessionID) {
-			appendToSession(t.f, line)
-		}
-	}
+	t.attach()
 }
 
 // file is the open file, opening it if needed — for code that still speaks in
@@ -107,16 +95,13 @@ func (t *transcript) file() *os.File {
 
 // Close closes the file if it was ever opened.
 func (t *transcript) Close() {
-	if t != nil && t.f != nil {
-		t.f.Close()
+	if t != nil {
+		t.lazy.Close()
 	}
 }
 
 // exists reports whether the file has been written.
-func (t *transcript) exists() bool {
-	_, err := os.Stat(t.path)
-	return err == nil
-}
+func (t *transcript) exists() bool { return t.lazy.Exists() }
 
 // persist writes one record, chained after the one before it.
 func (t *transcript) persist(line []byte) {

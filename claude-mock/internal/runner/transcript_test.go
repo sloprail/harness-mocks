@@ -205,7 +205,7 @@ func TestRecordHookRuns_PreToolUseDenyLeavesNothing(t *testing.T) {
 	assert.Equal(t, "Blocked by hook", denyReason(hooks.Output{Decision: "block"}))
 }
 
-// staged:proves transcript-record-envelope/claude
+// sr:proves transcript-record-envelope/claude
 func TestStampRecord_MainAndSidechain(t *testing.T) {
 	main := stampRecord([]byte(`{"type":"user"}`), recordStamp{SessionID: "s", Cwd: "/w", GitBranch: "b"})
 	var m map[string]any

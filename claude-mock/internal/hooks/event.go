@@ -55,7 +55,9 @@ type Input struct {
 	// run fires SessionStart with source "fork" (docs: SessionStart input).
 	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	Source string `json:"source,omitempty"`
-	Model  string `json:"model,omitempty"`
+	// ResumeFields are a resumed session's: what the resume costs and how stale it is.
+	*ResumeFields
+	Model string `json:"model,omitempty"`
 
 	// SessionEnd: Reason is why the session ended. A `claude -p` run ends with
 	// reason "other" (verified against claude 2.1.282; see EVIDENCE.md).

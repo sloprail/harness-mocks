@@ -6,6 +6,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/scenario"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -21,6 +22,9 @@ import (
 // A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
 // the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
 // own background commands end with its final response.
+// The run streams one result, at its real end (internal/scenario's Result).
+//
+// sr:provides noninteractive-run/claude
 // sr:invariant turn-loop
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
 	// Every FILE record persisted below goes through tr, which chains it from the
@@ -38,6 +42,8 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var repeats int
 	var stopBlocks int
 	var lastText string
+	var final scenario.Result // the run's one result frame, held until its turn really ends
+	finish := func() { final.Finish(func(line []byte) { writeStreamLine(cfg, line) }) }
 	blockCap := stopHookBlockCap()
 	for {
 		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
@@ -48,8 +54,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			lastText = turn.lastText
 		}
 		if turn.done {
+			final.Hold(turn.resultLine)
 			if nested {
-				writeStreamLine(cfg, turn.resultLine)
+				finish()
 				bg.stopOwned(cfg)
 				return nil
 			}
@@ -81,6 +88,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 					// (claude 2.1.282 streamed a single result across 8
 					// continuations).
 					lastSig, repeats = "", 0
+					final.Continue()
 					continue
 				}
 				// The block cap: real Claude Code lets a Stop block the turn
@@ -91,10 +99,10 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				writeCapOverride(tr, stopBlocks)
 				// The overridden turn's result carries no text: claude
 				// 2.1.282 streamed "result":"" after the override.
-				turn.resultLine = withEmptyResult(turn.resultLine)
+				final.Hold(withEmptyResult(turn.resultLine))
 			}
 			stopBlocks = 0
-			writeStreamLine(cfg, turn.resultLine)
+			finish()
 			// The turn is over. Hand over what finished in the background, one
 			// new turn per task, waiting while a background agent still runs.
 			delivered := false

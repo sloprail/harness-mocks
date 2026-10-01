@@ -84,9 +84,12 @@ func endReason(corehooks.EndReason) string { return "other" }
 // blocked it: the run ends with err, what promptBlocked leaves behind.
 //
 // sr:provides user-prompt-submit-hook/claude
-func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, src corehooks.PromptSource) (extra string, refused bool, err error) {
+func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, src corehooks.PromptSource, held bool) (extra string, refused bool, err error) {
 	if cfg.Prompt == "" || !corehooks.PromptHookFires(src) {
 		return "", false, nil
+	}
+	if held { // what the hooks leave follows the prompt once it is written
+		inv = inv.WithRecorder(tr.holdHookRuns)
 	}
 	out, ferr := inv.Fire(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
@@ -98,6 +101,9 @@ func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	if refused {
 		if ferr == nil { // an exit-0 hook that blocked by its JSON decision (recorded: snapshots/runs/prompt-blocked-json)
 			ferr = &hooks.BlockError{Reason: out.Reason, SuppressPrompt: out.HookSpecificOutput != nil && out.HookSpecificOutput.SuppressOriginalPrompt}
+		}
+		if held {
+			tr.dropHeldHookRuns() // a refused prompt leaves only its warning
 		}
 		return "", true, promptBlocked(cfg, tr, ferr)
 	}

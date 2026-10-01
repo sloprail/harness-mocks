@@ -15,3 +15,15 @@ docs:
   https://code.claude.com/docs/en/plugin-marketplaces:
     version: 2.1.285
     sha256: b624040340b1aa58cba1f31f70ba356d9ded06842128b533614c1ea2b33c44cd
+  https://code.claude.com/docs/en/agent-sdk/sessions:
+    version: 2.1.285
+    sha256: 8ef5a7629ad2c0069ff75255e9a0dec3de29aba30241a9f41af60b17495d5025
+  https://code.claude.com/docs/en/claude-directory:
+    version: 2.1.285
+    sha256: 68cc92fa7d6f0ad0feb59470efb20eb694b3f6b664823898ab1fa1acba288d67
+  https://code.claude.com/docs/en/cli-reference:
+    version: 2.1.285
+    sha256: 7ae06c04372724043d560d2d37a9c132262849035611df9eeb29cf9786811252
+  https://code.claude.com/docs/en/headless:
+    version: 2.1.285
+    sha256: d7fa0cbbe242527efcb44114ad4c1e7242d8326c0f460bf52fa1eb82609a5d2d
