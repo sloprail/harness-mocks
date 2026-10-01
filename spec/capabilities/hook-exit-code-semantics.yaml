@@ -1,0 +1,49 @@
+statement: >-
+  A hook command's exit status, read together with the JSON it prints,
+  classifies its outcome: accepted (0), blocked (2, which JSON cannot
+  override, with the JSON's blocking reason or else the stderr as its
+  message), or a non-blocking error (any other status, a hook that cannot
+  start, or output that looks like JSON and does not parse or validate, unless
+  valid JSON decides instead), and each outcome leaves its notice. What a block
+  does on each event, how accepted output is used (context, decisions,
+  updated input) and hook timeouts are those events' and hook output's own
+  capabilities.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#exit-code-output
+      - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+      - https://code.claude.com/docs/en/hooks#other-exit-codes
+    runs:
+      - claude-mock/snapshots/runs/hook-exit-codes
+      - claude-mock/snapshots/runs/hook-exit-json
+      - claude-mock/snapshots/runs/prompt-blocked
+      - claude-mock/snapshots/runs/prompt-blocked-suppressed
+      - claude-mock/snapshots/runs/hook-unstartable
+      - claude-mock/snapshots/runs/hookerrors
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock fires SessionStart, UserPromptSubmit, PreToolUse,
+          PostToolUse, PostToolUseFailure, Stop, SubagentStart, SubagentStop,
+          PreCompact, PostCompact, SessionEnd, WorktreeCreate and
+          WorktreeRemove, and no others. The docs' exit-code rows for StopFailure (which
+          the mock defines but never fires), ConfigChange,
+          CwdChanged, DirectoryAdded, Elicitation, ElicitationResult,
+          FileChanged, InstructionsLoaded, MessageDisplay, Notification,
+          PermissionDenied, PermissionRequest, PostModelSwitch, PostToolBatch,
+          PreModelSwitch, Setup, TaskCompleted, TaskCreated, TeammateIdle and
+          UserPromptExpansion are not modeled.
+      - adr: modeled-surface
+        statement: >-
+          A hook's JSON that fails Claude Code's output schema is a
+          non-blocking error in the mock too, whose message names the failing
+          field and carries the hook's own stderr, but not the full output
+          schema Claude Code prints after it. Only an invalid decision gives
+          Claude Code's recorded wording; any other field's complaint is the
+          mock's own.
+      - adr: modeled-surface
+        statement: >-
+          WorktreeRemove fails on a non-zero hook exit only if the worktree's
+          directory still exists afterward. The mock's worktree_remove manages
+          no directory, so any non-zero exit fails it.

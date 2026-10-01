@@ -1,0 +1,16 @@
+statement: >-
+  A machine-readable run stream announces each background task and sub-agent
+  when it starts, updates its status, and reports its end with a notification.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/agent-sdk/typescript#sdktaskstartedmessage
+      - https://code.claude.com/docs/en/agent-sdk/typescript#sdktaskupdatedmessage
+      - https://code.claude.com/docs/en/agent-sdk/typescript#sdktasknotificationmessage
+    runs:
+      - claude-mock/snapshots/runs/bgbash
+      - claude-mock/snapshots/runs/midturn
+      - claude-mock/snapshots/runs/bgagent
+      - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/cap-sub

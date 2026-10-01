@@ -1,0 +1,13 @@
+statement: >-
+  Each session's transcript is a file under the configuration directory, keyed
+  by the working directory with symlinks resolved and by the session id; a
+  fresh session's file does not exist yet when the start hook runs.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/claude-directory#application-data
+      - https://code.claude.com/docs/en/env-vars#variables
+    runs:
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/forkresume
+      - claude-mock/snapshots/runs/hookerrors

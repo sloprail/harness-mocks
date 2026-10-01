@@ -1,0 +1,6 @@
+# Enforces adr/child-processes, deterministic half: only internal/procexec
+# starts a child process or sets its environment. Whether code builds a
+# process some other way is adr-conformance's judge.
+match: path endsWith ".go" and (path startsWith "internal/" or path matches "^[a-z0-9]+-mock/")
+checks:
+  - script: ./spawn-via-procexec.sh

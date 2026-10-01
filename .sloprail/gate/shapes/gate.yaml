@@ -1,0 +1,11 @@
+# A structured file must match its CUE schema before the write lands [gate].
+# Snapshot files are left out: only capture.sh writes them, and
+# gate/snapshots-read-only already refuses anything else. file-guard/shapes
+# re-checks everything at the commit.
+on:
+  - event: PreFileWrite
+    match: >-
+      event.path startsWith "spec/invariants/" or event.path startsWith "spec/capabilities/"
+      or event.path matches "^adr/[^/]+/ADR\\.md$" or event.path endsWith "/module.yaml"
+checks:
+  - script: ./validate-pending.sh

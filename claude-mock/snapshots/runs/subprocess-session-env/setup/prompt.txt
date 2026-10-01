@@ -1,0 +1,1 @@
+Run exactly this Bash command, once, and nothing else: env | grep '^CLAUDE' | sort. Then reply with the single word DONE.

@@ -1,0 +1,16 @@
+statement: >-
+  Stop hooks that block keep the turn going only a limited number of times in
+  a row; once the limit is reached, the next block is overridden and the turn
+  ends.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#stop-input
+      - https://code.claude.com/docs/en/hooks#stop-decision-control
+      - https://code.claude.com/docs/en/hooks#subagentstop-input
+      - https://code.claude.com/docs/en/hooks-guide#stop-hook-hits-the-block-cap
+      - https://code.claude.com/docs/en/env-vars#variables
+    runs:
+      - claude-mock/snapshots/runs/cap
+      - claude-mock/snapshots/runs/cap-sub
+  # a harness whose Stop hook cannot block: `cursor: false`

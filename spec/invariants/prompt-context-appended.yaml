@@ -1,0 +1,3 @@
+statement: >-
+  Additional context from a UserPromptSubmit hook reaches the scenario script in
+  A10N_MOCK_ADDITIONAL_CONTEXT, and never replaces the prompt.

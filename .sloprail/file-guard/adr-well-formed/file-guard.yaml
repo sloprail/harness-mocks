@@ -1,0 +1,11 @@
+# An ADR is a decision rules can enforce and people can apply [judge]. One
+# judge call reviews every ADR whose ADR.md changed (prepare.sh lists them as
+# subjects; the engine does not split subjects yet). The format itself
+# (frontmatter, sections, links) is adr-linked's deterministic check; this
+# judges the content.
+match: path matches "^adr/[a-z0-9-]+/ADR\\.md$"
+checks:
+  - prepare: ./prepare.sh
+    judge: ./decision-is-sound.md.j2
+    # each diff is a file outside the project
+    allowed_tools: [Read]

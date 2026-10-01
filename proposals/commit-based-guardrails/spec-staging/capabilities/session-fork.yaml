@@ -1,0 +1,11 @@
+statement: >-
+  A session can be forked when resumed: the fork continues the conversation
+  under a new session id in a new transcript that carries the history, and the
+  original is left untouched.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/cli-reference#cli-flags
+      - https://code.claude.com/docs/en/agent-sdk/sessions#fork-to-explore-alternatives
+    runs:
+      - claude-mock/snapshots/runs/forkresume

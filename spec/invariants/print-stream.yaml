@@ -1,0 +1,3 @@
+statement: >-
+  With A10N_MOCK_PRINT_STREAM=1, print mode runs the scenario script through
+  the same turn loop.

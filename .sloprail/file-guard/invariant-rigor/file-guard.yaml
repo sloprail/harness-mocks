@@ -1,0 +1,11 @@
+# The tests of an invariant, together, rigorously prove it [judge]. One judge
+# call reviews every invariant touched (its spec file, a test proving it, or
+# code upholding it changed; prepare.sh lists them as subjects, the engine does
+# not split subjects yet), seeing each statement and EVERY test that proves it.
+match: >-
+  path startsWith "spec/invariants/"
+  or any(markers, .kind == "invariant" or .kind == "proves")
+  or any(oldMarkers, .kind == "invariant" or .kind == "proves")
+checks:
+  - prepare: ./prepare.sh
+    judge: ./tests-prove-statement.md.j2

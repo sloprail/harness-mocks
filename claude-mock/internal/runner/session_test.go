@@ -17,6 +17,7 @@ import (
 // passed agentID. This mirrors the REAL Claude Code subagent transcript layout
 // and is what the parallel-subagent task-id attribution path
 // (locate-task-id --agent-id) reads, so mock-based harnesses must exercise it.
+// staged:proves subagent-transcripts/claude
 func TestSeedSubagentTranscriptCarriesAgentId(t *testing.T) {
 	configDir := t.TempDir()
 	const (

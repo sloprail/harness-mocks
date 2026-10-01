@@ -1,0 +1,23 @@
+# No architectural choice is made silently [judge]. One judge per changeset,
+# over its changed Go files (tests included: test infrastructure is a choice
+# others copy too) under internal/ or a mock. It fails a line that makes the first
+# instance of a choice the next author will copy or contradict, when no ADR
+# decides it; the user then decides (a new ADR, or the ADR it falls under).
+# Where a decided concern lives is module-leaks' job; whether code follows a
+# decision is each ADR's own rules'. The rubric teaches the test, not a list:
+# new kinds of choice cannot be enumerated in advance.
+# It gets an index of the ADRs (id, one-line concern), not their text, so the
+# prompt stays small as ADRs grow; it may read the project to see whether the
+# same choice is already made elsewhere.
+match: >-
+  path endsWith ".go" and (path startsWith "internal/" or path matches "^[a-z0-9]+-mock/")
+checks:
+  - prepare: ./adr-index.sh
+    judge: ./classify.md.j2
+    # size-xl resolves to Opus under Claude Code (sr-agent's size table). This
+    # is a judgement about what the next author will copy, over a whole
+    # changeset, with the project to read: the largest reasoning rung short of
+    # size-xxl.
+    model: size-xl
+    # the diffs are files outside the project (nothing that can grow is inlined)
+    allowed_tools: [Read]

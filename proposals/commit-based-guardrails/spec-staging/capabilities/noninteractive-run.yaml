@@ -1,0 +1,12 @@
+statement: >-
+  A single prompt can be run to completion without interaction, streaming one
+  machine-readable event per record and ending with one result.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/cli-reference#cli-flags
+      - https://code.claude.com/docs/en/headless#basic-usage
+      - https://code.claude.com/docs/en/headless#stream-responses
+    runs:
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/bashfail

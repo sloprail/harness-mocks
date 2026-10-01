@@ -1,0 +1,20 @@
+# The mock's e2e tests match the real harness [judge]. For each harness
+# providing a capability, the tests marked `sr:proves <capability>/<harness>`
+# are compared with what the real harness actually did: the recorded runs the
+# capability cites (their normalized events, inlined) and its cited doc
+# sections. The tests must drive the mock into the recorded situation and
+# assert what the real harness produced (or a declared deviation). This is
+# the real-vs-mock comparison: the mock is proven by e2e tests, and the tests
+# are held to the recordings. Each (capability × harness) touched is one
+# subject; until the engine splits subjects itself, prepare.sh lists them and
+# one judge call reviews them all, failing if any one fails.
+match: >-
+  path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/"
+  or any(markers, .kind == "capability" or .kind == "provides" or .kind == "proves")
+  or any(oldMarkers, .kind == "capability" or .kind == "provides" or .kind == "proves")
+checks:
+  - script: ./inputs-ready.sh   # its inputs exist, else no model call
+  - prepare: ./prepare.sh
+    judge: ./tests-prove-as-documented.md.j2
+    # the frozen doc pages live in a cache under the git dir, outside the project
+    allowed_tools: [Read]

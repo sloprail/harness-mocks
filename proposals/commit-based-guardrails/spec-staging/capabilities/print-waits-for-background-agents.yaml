@@ -1,0 +1,9 @@
+statement: >-
+  In a non-interactive run, the session stays open until its background sub-
+  agents finish, and each one's completion starts a further turn.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/headless#background-tasks-at-exit
+    runs:
+      - claude-mock/snapshots/runs/bgagent

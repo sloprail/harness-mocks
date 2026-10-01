@@ -1,0 +1,3 @@
+statement: >-
+  A scenario script that emits the same tool_use 5 turns in a row makes the
+  run abort with an error, so a stuck scenario cannot loop forever.

@@ -1,0 +1,4 @@
+# Enforces adr/file-size (limits and exceptions are read from it): Go files stay small; exceptions may not grow.
+match: path endsWith ".go"
+checks:
+  - script: ./size.sh

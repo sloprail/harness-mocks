@@ -15,12 +15,8 @@ package toolexec
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // Result is the output of a tool execution.
@@ -34,8 +30,9 @@ type Result struct {
 	// tool has one — a background launch's backgroundTaskId, an async agent's
 	// agentId. Nil for the tools that do not need it here.
 	ToolUseResult any
-	// Failed marks a tool that ran and failed (a Bash that exited non-zero),
-	// for which real Claude Code fires PostToolUseFailure.
+	// Failed marks a tool that ran and failed (a Bash that exited non-zero, a
+	// file tool's error), for which real Claude Code fires PostToolUseFailure;
+	// input the tool could not take is an error that did not run.
 	Failed bool
 	// ContentAsBlocks writes the tool_result content as a list of text blocks
 	// rather than a string — the shape real Claude Code gives some tools'
@@ -69,189 +66,16 @@ func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd, s
 	}
 }
 
-// bashInput is the argument shape for the Bash tool.
-// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
-type bashInput struct {
-	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
-}
-
-func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string) Result {
-	var inp bashInput
-	if err := json.Unmarshal(raw, &inp); err != nil || inp.Command == "" {
-		return Result{Output: "Bash: missing or invalid 'command' field", IsError: true}
-	}
-
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", inp.Command) //nolint:gosec
-	cmd.Dir = cwd
-	cmd.Env = bashEnv(sessionID)
-	out, err := cmd.CombinedOutput()
-	text := strings.TrimRight(string(out), "\n")
-	// toolUseResult/tool_response: the structured result real Claude Code
-	// records for a foreground Bash ({stdout, stderr, interrupted, isImage,
-	// noOutputExpected} — a claude 2.1.282 PostToolUse payload). The mock runs
-	// the command with one combined stream, so stdout carries it all.
-	structured := map[string]any{
-		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
-	}
-	if err != nil {
-		// A command that exits non-zero is answered the way claude 2.1.28x
-		// answers it: "Exit code N" then the output, as an error, with
-		// toolUseResult "Error: <that text>" (1,316 real results; a controlled
-		// 2.1.282 run).
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && exitErr.ExitCode() > 0 {
-			msg := fmt.Sprintf("Exit code %d", exitErr.ExitCode())
-			if text != "" {
-				msg += "\n" + text
-			}
-			return Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}
-		}
-		return Result{Output: text + "\n" + err.Error(), IsError: true}
-	}
-	return Result{Output: text, ToolUseResult: structured}
-}
-
-// bashEnv is the environment a Bash tool subprocess runs with: the mock's own
-// environment plus CLAUDE_CODE_SESSION_ID, which real Claude Code exports into
-// every Bash tool subprocess so a command can resolve "the current session"
-// (e.g. `sr-session trajectory cite`). The override is appended LAST so it wins
-// over any inherited value — without it, a mock run nested inside a live Claude
-// Code session would hand its tool calls the OPERATOR's outer session id. Set
-// only when non-empty, matching the hook invoker (hooks/invoker.go).
-func bashEnv(sessionID string) []string {
-	env := os.Environ()
-	if sessionID != "" {
-		// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
-		env = append(env, "CLAUDE_CODE_SESSION_ID="+sessionID)
-	}
-	return env
-}
-
-// readInput is the argument shape for the Read tool.
-// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
-type readInput struct {
-	FilePath string `json:"file_path"`
-	Offset   int    `json:"offset,omitempty"`
-	Limit    int    `json:"limit,omitempty"`
-}
-
-func executeRead(raw json.RawMessage, cwd string) Result {
-	var inp readInput
-	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
-		return Result{Output: "Read: missing or invalid 'file_path' field", IsError: true}
-	}
-
-	path := resolvePath(inp.FilePath, cwd)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return Result{Output: err.Error(), IsError: true}
-	}
-
-	lines := strings.Split(string(data), "\n")
-	start := 0
-	if inp.Offset > 0 {
-		start = inp.Offset
-	}
-	if start >= len(lines) {
-		return Result{Output: ""}
-	}
-	end := len(lines)
-	if inp.Limit > 0 && start+inp.Limit < end {
-		end = start + inp.Limit
-	}
-	return Result{Output: strings.Join(lines[start:end], "\n")}
-}
-
-// writeInput is the argument shape for the Write tool.
-// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
-type writeInput struct {
-	FilePath string `json:"file_path"`
-	Content  string `json:"content"`
-}
-
-func executeWrite(raw json.RawMessage, cwd string) Result {
-	var inp writeInput
-	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
-		return Result{Output: "Write: missing or invalid 'file_path' field", IsError: true}
-	}
-
-	path := resolvePath(inp.FilePath, cwd)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return Result{Output: err.Error(), IsError: true}
-	}
-	if err := os.WriteFile(path, []byte(inp.Content), 0o644); err != nil {
-		return Result{Output: err.Error(), IsError: true}
-	}
-	return Result{Output: fmt.Sprintf("File written successfully to %s", inp.FilePath)}
-}
-
-// editInput is the argument shape for the Edit tool.
-// sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
-type editInput struct {
-	FilePath  string `json:"file_path"`
-	OldString string `json:"old_string"`
-	NewString string `json:"new_string"`
-}
-
-func executeEdit(raw json.RawMessage, cwd string) Result {
-	var inp editInput
-	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
-		return Result{Output: "Edit: missing or invalid 'file_path' field", IsError: true}
-	}
-
-	path := resolvePath(inp.FilePath, cwd)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return Result{Output: err.Error(), IsError: true}
-	}
-
-	original := string(data)
-	count := strings.Count(original, inp.OldString)
-	if count == 0 {
-		return Result{Output: fmt.Sprintf("Edit: old_string not found in %s", inp.FilePath), IsError: true}
-	}
-	if count > 1 {
-		return Result{Output: fmt.Sprintf("Edit: old_string appears %d times in %s; must be unique", count, inp.FilePath), IsError: true}
-	}
-
-	updated := strings.Replace(original, inp.OldString, inp.NewString, 1)
-	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
-		return Result{Output: err.Error(), IsError: true}
-	}
-	return Result{Output: fmt.Sprintf("File %s edited successfully", inp.FilePath)}
-}
-
-// globInput is the argument shape for the Glob tool.
-type globInput struct {
-	Pattern string `json:"pattern"`
-	Path    string `json:"path,omitempty"`
-}
-
-func executeGlob(raw json.RawMessage, cwd string) Result {
-	var inp globInput
-	if err := json.Unmarshal(raw, &inp); err != nil || inp.Pattern == "" {
-		return Result{Output: "Glob: missing or invalid 'pattern' field", IsError: true}
-	}
-
-	base := cwd
-	if inp.Path != "" {
-		base = resolvePath(inp.Path, cwd)
-	}
-
-	matches, err := filepath.Glob(filepath.Join(base, inp.Pattern))
-	if err != nil {
-		return Result{Output: err.Error(), IsError: true}
-	}
-	if len(matches) == 0 {
-		return Result{Output: "No files found"}
-	}
-	return Result{Output: strings.Join(matches, "\n")}
-}
-
 func resolvePath(p, cwd string) string {
 	if filepath.IsAbs(p) {
 		return p
 	}
 	return filepath.Join(cwd, p)
+}
+
+// failed is the result of a tool that ran and failed: the error is the text
+// the agent gets, and the transcript records it as "Error: <text>" (claude
+// 2.1.285, recorded: snapshots/runs/bashfail, tool-errors).
+func failed(msg string) Result {
+	return Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}
 }

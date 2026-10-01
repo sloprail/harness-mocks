@@ -1,0 +1,18 @@
+# Snapshots of the real harness are captured, never written [gate, before the
+# write]. A Write, an Edit, or a shell write sloprail can see, to anything
+# under <harness>-mock/snapshots/ is refused, except what a person authors: a
+# scenario's setup/ and the capture script itself. The capture script's own
+# writes are not predicted per file, so running it is how snapshots change.
+# snapshots-current's seal check is the backstop at commit time.
+on:
+  - event: PreFileWrite
+    match: >-
+      event.path matches "^[a-z0-9]+-mock/snapshots/"
+      and not (event.path matches "^[a-z0-9]+-mock/snapshots/runs/[a-z0-9-]+/setup/")
+      and not (event.path matches "^[a-z0-9]+-mock/snapshots/capture\\.sh$")
+  - event: PreFileDelete
+    match: >-
+      event.path matches "^[a-z0-9]+-mock/snapshots/"
+      and not (event.path matches "^[a-z0-9]+-mock/snapshots/runs/[a-z0-9-]+/setup/")
+checks:
+  - script: ./refuse.sh

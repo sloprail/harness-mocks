@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# prepare: steps 1 and 2 of module-leaks. Emits {"skip": true} when nothing is
+# left to judge, else the leftover candidates grouped by module, with the
+# module's own concern (module.yaml: one line). The leftover candidates are
+# written, one path:line:snippet per line, to a file outside the project (under a
+# temp dir) that the judge reads; nothing that can grow is put in the prompt.
+set -uo pipefail
+payload="$(cat)"
+. "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
+. "${SR_GUARDRAIL_DIR:-.}/../../_lib/modules.sh"
+. "${SR_GUARDRAIL_DIR:-.}/../../_lib/adr.sh"
+load_modules; load_adrs
+added="$(added_lines | awk -F'\t' 'NF >= 2 {print $1 ":" $2}')"      # path:line of every added line
+changed="$(cs '.changeset.files[].path')"
+work="$(mktemp -d "${TMPDIR:-/tmp}/module-leaks.XXXXXX")"; trap 'rm -rf "$work"' EXIT
+
+groups="[]"
+out="$(mktemp -d "${TMPDIR:-/tmp}/sr-judge-module-leaks.XXXXXX")" || refuse "cannot make a directory for the judge's matches"
+while IFS= read -r m; do
+  [ -n "$m" ] || continue
+  dir="$(jq -r '.dir' <<<"$m")"
+  [ -x "$SR_TREE/$dir/candidates.sh" ] || continue
+  home=(); while IFS= read -r g; do home+=("$g"); done < <(jq -r '.home[]' <<<"$m")
+  # 1. the module's own search
+  (cd "$SR_TREE" && "./$dir/candidates.sh") >"$work/cand" 2>"$work/err" ||
+    refuse "$dir/candidates.sh failed, so leaks of that module cannot be found: $(head -c 300 "$work/err")"
+  # 2. scope to the range, then drop the expected places
+  whole=0; printf '%s\n' "$changed" | grep -Fxq -e "$dir/module.yaml" -e "$dir/candidates.sh" && whole=1
+  exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")"
+  left="[]"
+  while IFS= read -r c; do
+    [[ "$c" =~ ^(.+):([0-9]+):(.*)$ ]] || refuse "$dir/candidates.sh printed '$c', not path:line:snippet"
+    p="${BASH_REMATCH[1]}"; l="${BASH_REMATCH[2]}"; t="${BASH_REMATCH[3]}"
+    [ "$whole" = 1 ] || printf '%s\n' "$added" | grep -Fxq -- "$p:$l" || continue
+    case "$p" in *_test.go) continue ;; esac
+    in_globs "$p" "${home[@]}" && continue
+    printf '%s\n' "$exc" | grep -Fxq -- "$p" && continue
+    left="$(jq -c --arg p "$p" --argjson l "$l" --arg t "$t" '. + [{path: $p, line: $l, text: $t}]' <<<"$left")"
+  done < <(grep -v '^[[:space:]]*$' "$work/cand")
+  [ "$(jq 'length' <<<"$left")" -gt 0 ] || continue
+  mfile="$out/$(printf '%s' "$dir" | tr '/' '_').matches"
+  jq -r '.[] | "\(.path):\(.line):\(.text)"' <<<"$left" >"$mfile"
+  groups="$(jq -c --arg d "$dir" --argjson m "$m" --arg f "$mfile" --argjson n "$(jq 'length' <<<"$left")" \
+    '. + [{module: $d, concern: $m.concern, home: $m.home, api: $m.api, matches: $f, count: $n}]' <<<"$groups")"
+done < <(jq -c '.[]' <<<"$MODULES")
+[ "$(jq 'length' <<<"$groups")" -gt 0 ] || { jq -n '{skip: true}'; exit 0; }
+jq -n -c --argjson g "$groups" '{additionalContext: {modules: $g}}'

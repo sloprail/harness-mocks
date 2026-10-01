@@ -1,0 +1,20 @@
+# A capability states what each harness providing it documents or, where its
+# docs are silent, what its recorded runs show [judge]. The statement is
+# abstract (harness-neutral); each provider's cited doc sections and runs must
+# support it, and a run never outweighs a doc that contradicts it. What is
+# mocked is the user's choice: adding or dropping a capability, changing its
+# statement or a cell's deviations needs their words (Sloprail-Cites-User,
+# added-or-removed.sh); a change to its citations alone does not
+# (adr/capability-grounding). One judge call reviews every capability
+# touched (its file, or a doc page it cites; prepare.sh lists them as subjects,
+# the engine does not split subjects yet).
+match: path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$"
+deletions: include
+require:
+  - citation: {source_types: [user]}
+    when: ./added-or-removed.sh
+checks:
+  - prepare: ./prepare.sh
+    judge: ./docs-support-statement.md.j2
+    # the frozen doc pages live in a cache under the git dir, outside the project
+    allowed_tools: [Read]

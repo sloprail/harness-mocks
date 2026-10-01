@@ -1,0 +1,13 @@
+statement: >-
+  A session can be resumed by id: it continues in its existing transcript,
+  even when resumed from another working directory, and a top-level resume
+  fires session hooks but no sub-agent hooks.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/cli-reference#cli-flags
+      - https://code.claude.com/docs/en/agent-sdk/sessions#resume-by-id
+      - https://code.claude.com/docs/en/headless#continue-conversations
+    runs:
+      - claude-mock/snapshots/runs/forkresume
+      - claude-mock/snapshots/runs/compact

@@ -1,0 +1,14 @@
+statement: >-
+  A hook fires when a session begins and says how it began: fresh, resumed,
+  forked, or continuing after a compaction. The hook cannot stop the session
+  from starting.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#sessionstart-input
+      - https://code.claude.com/docs/en/hooks#sessionstart-decision-control
+      - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+    runs:
+      - claude-mock/snapshots/runs/forkresume
+      - claude-mock/snapshots/runs/compact
+      - claude-mock/snapshots/runs/hookerrors

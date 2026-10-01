@@ -1,0 +1,19 @@
+# A module's logic lives only in its home [deterministic, then judge]:
+#   1. each module's candidates.sh owns the search for its logic and prints
+#      every `path:line:snippet` that looks like it, anywhere in the tree;
+#   2. [D] keep only candidates on lines this range ADDS (moved code is added
+#      at its new path), or all of them when the module's module.yaml or
+#      candidates.sh changed; then drop those inside the module's home, in
+#      tests, and in paths the module's ADRs list under `exceptions`;
+#   3. [P] judge only what is left: the module's logic outside it (a leak), or
+#      a use of it (calling its API, a log line)?
+# Nothing left: no judge call. Code outside the range was judged when its own
+# range passed (the per-rule watermark), so it never reaches the judge again.
+match: >-
+  (path endsWith ".go" and not (path endsWith "_test.go"))
+  or path endsWith "/module.yaml" or path endsWith "/candidates.sh"
+checks:
+  - prepare: ./find-leaks.sh
+    judge: ./leak-or-use.md.j2
+    # the matches are a file outside the project
+    allowed_tools: [Read]

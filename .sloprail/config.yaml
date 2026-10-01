@@ -1,0 +1,3 @@
+# Rules switched off for now, with why. A rule here stays in its folder,
+# loaded and reviewable; it is just not run.
+disabled: []

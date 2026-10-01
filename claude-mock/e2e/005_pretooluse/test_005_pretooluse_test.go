@@ -62,6 +62,8 @@ printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
 // the refusal is the tool_result "PreToolUse:<Tool> hook error:
 // [<command>]: <stderr>" (is_error), after which the turn continues. Claude
 // 2.1.282 did exactly this in a controlled run; no attachment is written.
+// sr:proves hook-exit-code-semantics/claude
+// sr:proves pretooluse-refusal/claude
 func TestT005_02_PreToolUseExit2RefusesTheCallAndTheTurnGoesOn(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "cfg")
@@ -104,6 +106,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"went on","is_error
 }
 
 // TestT005_03_PreToolUseMatcherFiltersToolName: hook with specific matcher only fires for that tool.
+// staged:proves hook-matcher-filter/claude
 func TestT005_03_PreToolUseMatcherFiltersToolName(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -140,6 +143,7 @@ printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
 // tool_result (is_error + the deny reason) in the session and RETRIES with another
 // Bash tool_use, which is allowed and executed. The final result proves the run did
 // not abort.
+// sr:proves pretooluse-refusal/claude
 func TestT005_05_PreToolUseDenyBlocksAndAgentRetries(t *testing.T) {
 	dir := t.TempDir()
 	cntFile := filepath.Join(dir, "deny_count")
@@ -197,6 +201,7 @@ func readFileOr(p string) string {
 }
 
 // TestT005_04_PreToolUseReceivesToolInput: hook stdin contains tool_input JSON.
+// staged:proves hook-command-handler/claude
 func TestT005_04_PreToolUseReceivesToolInput(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

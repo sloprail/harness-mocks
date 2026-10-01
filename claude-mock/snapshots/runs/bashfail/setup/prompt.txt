@@ -1,0 +1,1 @@
+Run exactly this Bash command (not in background): echo OUT-LINE; echo ERR-LINE >&2; exit 3 . Then run exactly this Bash command: true . Then reply only DONE.

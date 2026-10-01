@@ -1,0 +1,3 @@
+statement: >-
+  The scenario script can read the session transcript so far through
+  A10N_MOCK_SESSION_FILE, so it can vary its output per turn.

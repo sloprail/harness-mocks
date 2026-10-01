@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "PreToolUse": [{"matcher": "*", "hooks": [
+      {"type": "command", "command": "/nonexistent-hook-dir/hook.sh"},
+      {"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh"}
+    ]}]
+  }
+}

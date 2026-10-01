@@ -178,6 +178,7 @@ func seedPluginHooks(t *testing.T, root, plugin, hooksJSON string) string {
 
 // loadPluginHooks resolves a directory-source marketplace, reads each enabled
 // plugin's hooks.json, and appends the expanded hooks to dst.
+// staged:proves plugin-hooks/claude
 func TestLoadPluginHooks_DirectoryMarketplace(t *testing.T) {
 	mpRoot := t.TempDir()
 	writeMarketplace(t, mpRoot, "a10n-marketplace")
@@ -203,6 +204,7 @@ func TestLoadPluginHooks_DirectoryMarketplace(t *testing.T) {
 
 // A plugin whose marketplace is NOT declared in extraKnownMarketplaces does not
 // resolve — there is no fallback.
+// staged:proves plugin-hooks/claude
 func TestLoadPluginHooks_NoFallbackWhenMarketplaceUndeclared(t *testing.T) {
 	dst := &Settings{Hooks: map[EventName][]HookEntry{}}
 	loadPluginHooks(dst,
@@ -219,6 +221,7 @@ func TestLoadPluginHooks_NoFallbackWhenMarketplaceUndeclared(t *testing.T) {
 // real regression this covers: a repo root .claude-plugin/marketplace.json with
 // "source": "./marketplace/plugins/foo" must find the plugin under marketplace/plugins/foo,
 // not <root>/plugins/foo (which does not exist in that layout).
+// staged:proves plugin-hooks/claude
 func TestLoadPluginHooks_HonorsManifestDeclaredSourcePath(t *testing.T) {
 	mpRoot := t.TempDir()
 	writeMarketplaceWithPlugins(t, mpRoot, "a10n-marketplace", map[string]string{
@@ -253,6 +256,7 @@ func TestLoadPluginHooks_HonorsManifestDeclaredSourcePath(t *testing.T) {
 }
 
 // A disabled plugin contributes nothing even when its marketplace is declared.
+// staged:proves plugin-hooks/claude
 func TestLoadPluginHooks_DisabledPluginSkipped(t *testing.T) {
 	mpRoot := t.TempDir()
 	writeMarketplace(t, mpRoot, "a10n-marketplace")

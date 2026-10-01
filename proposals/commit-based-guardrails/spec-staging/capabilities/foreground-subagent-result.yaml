@@ -1,0 +1,13 @@
+statement: >-
+  A foreground sub-agent blocks its parent until it finishes, then hands its
+  final report back as the tool's result with a trailer naming the sub-agent
+  and its usage.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
+      - https://code.claude.com/docs/en/tools-reference#agent-tool-behavior
+    runs:
+      - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/hookmix

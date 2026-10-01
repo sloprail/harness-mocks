@@ -65,27 +65,38 @@ func TestT007_03_BashToolCwdIsProjectDir(t *testing.T) {
 }
 
 // TestT007_11_BashToolSeesMockSessionID: a Bash tool subprocess sees the mock's
-// --session-id as CLAUDE_CODE_SESSION_ID, as real Claude Code exports it into every
-// Bash tool subprocess — even when the mock's own environment carries a DIFFERENT
-// value (the operator's outer session, when tests run inside a live Claude Code
-// session). Without it, a command resolving "the current session" from
+// --session-id as CLAUDE_CODE_SESSION_ID, CLAUDECODE=1 and
+// CLAUDE_CODE_CHILD_SESSION=1, CLAUDE_CODE_SESSION_ATTENDED=0 and the mock's pid
+// as CLAUDE_PID, keeping the launcher's CLAUDE_CODE_ENTRYPOINT
+// (runs/nested-session-env), as the recorded `claude -p` run shows
+// (runs/subprocess-session-env: "SID=<SESSION_ID> CC=1 EP=sdk-cli") — even when
+// the mock's own environment carries DIFFERENT values (the operator's outer
+// session, when tests run inside a live Claude Code session). Without it, a command resolving "the current session" from
 // CLAUDE_CODE_SESSION_ID (e.g. `sr-session trajectory cite`) finds no transcript in
 // CI, or silently resolves against the operator's session.
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
+// sr:proves subprocess-session-env/claude
 func TestT007_11_BashToolSeesMockSessionID(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "decoy-outer-session")
+	t.Setenv("CLAUDECODE", "decoy")
+	t.Setenv("CLAUDE_CODE_ENTRYPOINT", "decoy")
+	t.Setenv("CLAUDE_CODE_CHILD_SESSION", "decoy")
+	t.Setenv("CLAUDE_CODE_SESSION_ATTENDED", "decoy")
+	t.Setenv("CLAUDE_PID", "decoy")
 	logPath := filepath.Join(dir, "sid.log")
-	out, code := runTool(t, dir, "Bash", `{"command":"printf %s \"$CLAUDE_CODE_SESSION_ID\" > `+logPath+`"}`)
+	out, code := runTool(t, dir, "Bash", `{"command":"printf %s \"SID=$CLAUDE_CODE_SESSION_ID CC=$CLAUDECODE EP=$CLAUDE_CODE_ENTRYPOINT CS=$CLAUDE_CODE_CHILD_SESSION AT=$CLAUDE_CODE_SESSION_ATTENDED PID=$CLAUDE_PID\" > `+logPath+`"}`)
 	require.Equal(t, 0, code, "output:\n%s", out)
 	got, err := os.ReadFile(logPath)
 	require.NoError(t, err, "bash command must have run; output:\n%s", out)
-	assert.Equal(t, "s1", string(got), "Bash tool must see the mock's --session-id, not the inherited decoy")
+	// the mock's own pid is not known here: any pid but the decoy
+	assert.Regexp(t, `^SID=s1 CC=1 EP=decoy CS=1 AT=0 PID=[0-9]+$`, string(got), "Bash tool must see this run's identity, not the inherited decoys")
 }
 
 // --- Read ---
 
 // TestT007_04_ReadToolReturnsFileContent: Read returns the file contents.
+// staged:proves file-tools/claude
 func TestT007_04_ReadToolReturnsFileContent(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "hello.txt")
@@ -97,6 +108,7 @@ func TestT007_04_ReadToolReturnsFileContent(t *testing.T) {
 }
 
 // TestT007_05_ReadToolMissingFileIsError: Read on non-existent file sets is_error=true.
+// staged:proves file-tools/claude
 func TestT007_05_ReadToolMissingFileIsError(t *testing.T) {
 	dir := t.TempDir()
 	out, code := runTool(t, dir, "Read", `{"file_path":"/nonexistent/file.txt"}`)
@@ -107,6 +119,7 @@ func TestT007_05_ReadToolMissingFileIsError(t *testing.T) {
 // --- Write ---
 
 // TestT007_06_WriteToolCreatesFile: Write creates the file with correct content.
+// staged:proves file-tools/claude
 func TestT007_06_WriteToolCreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "out.txt")
@@ -118,6 +131,7 @@ func TestT007_06_WriteToolCreatesFile(t *testing.T) {
 }
 
 // TestT007_07_WriteToolCreatesParentDirs: Write creates missing parent directories.
+// staged:proves file-tools/claude
 func TestT007_07_WriteToolCreatesParentDirs(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "a", "b", "c.txt")
@@ -131,6 +145,7 @@ func TestT007_07_WriteToolCreatesParentDirs(t *testing.T) {
 // --- Edit ---
 
 // TestT007_08_EditToolReplacesContent: Edit replaces old_string with new_string.
+// staged:proves file-tools/claude
 func TestT007_08_EditToolReplacesContent(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "edit.txt")
@@ -143,6 +158,7 @@ func TestT007_08_EditToolReplacesContent(t *testing.T) {
 }
 
 // TestT007_09_EditToolOldStringNotFoundIsError: Edit returns is_error when old_string not found.
+// staged:proves file-tools/claude
 func TestT007_09_EditToolOldStringNotFoundIsError(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "edit.txt")

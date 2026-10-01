@@ -1,0 +1,11 @@
+statement: >-
+  The session can be compacted on request; hooks fire before and after the
+  compaction, and the hook before it can stop it.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#precompact
+      - https://code.claude.com/docs/en/hooks#postcompact
+    runs:
+      - claude-mock/snapshots/runs/compact
+      - claude-mock/snapshots/runs/compact-nohooks

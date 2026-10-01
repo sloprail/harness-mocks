@@ -11,6 +11,7 @@ import (
 
 // TestT001_01_ScriptJSONLPassthrough verifies that JSONL lines emitted by the
 // script are written to stdout verbatim and in order.
+// staged:proves noninteractive-run/claude
 func TestT001_01_ScriptJSONLPassthrough(t *testing.T) {
 	script := `#!/bin/sh
 printf '%s\n' '{"type":"system","subtype":"init","session_id":"test-session-001","tools":[]}'
@@ -105,6 +106,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach h
 }
 
 // TestT001_06_ResumeProbeEnv is the actual env-driven resume-probe test.
+// sr:proves no-resume
 func TestT001_06_ResumeProbeEnv(t *testing.T) {
 	script := writeScript(t, `#!/bin/sh
 printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach here","is_error":false}'

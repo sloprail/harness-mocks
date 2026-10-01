@@ -1,0 +1,10 @@
+# A judge case: needs the engine (sr-agent) to run. Verified by hand:
+# the deterministic half: this ADR PASSES adr-linked (its format is valid), so
+# the history in it is caught by nothing but adr-well-formed's judge.
+rule: file-guard/adr-well-formed
+input: ADR.md          # judged as an added adr/history-in-adr/ADR.md
+verdict: fail
+because:
+  - '"Today five files build it five different ways" describes the code as it is now (history), not the decision'
+  - '"commit 0a093af" is a commit reference'
+  - '"We will migrate the remaining call sites later" is a plan; legacy code belongs only under exceptions'

@@ -1,0 +1,11 @@
+statement: >-
+  Resuming a session that does not exist fails with a no-conversation message
+  and a non-zero exit, after the end-of-session hook has fired and without a
+  start hook.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/cli-reference#cli-flags
+      - https://code.claude.com/docs/en/agent-sdk/sessions#resume-by-id
+    runs:
+      - claude-mock/snapshots/runs/resume-unknown

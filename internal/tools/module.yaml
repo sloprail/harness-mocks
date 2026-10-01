@@ -1,0 +1,5 @@
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# No core yet (internal/tools): the code lives in the claude-mock files below, until it moves.
+concern: "executing the built-in tools (Bash, Read, Write, Edit, Glob)"
+home: ["internal/tools/**", "claude-mock/internal/toolexec/**", "claude-mock/internal/runner/schedulewakeup.go"]   # everything about the concern lives here
+api: ["internal/tools", "claude-mock/internal/toolexec"]       # the only packages others may import

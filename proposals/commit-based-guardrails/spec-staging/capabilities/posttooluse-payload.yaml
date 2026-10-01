@@ -1,0 +1,11 @@
+statement: >-
+  After a tool call succeeds, a hook fires with the tool's input, its
+  structured response and how long the call took.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#posttooluse
+      - https://code.claude.com/docs/en/hooks#posttooluse-input
+    runs:
+      - claude-mock/snapshots/runs/bgbash
+      - claude-mock/snapshots/runs/bgagent

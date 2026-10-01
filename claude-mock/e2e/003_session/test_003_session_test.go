@@ -44,6 +44,7 @@ func writeScenario(t *testing.T, dir, content string) string {
 // The real Claude Code SessionStart payload carries "source"
 // ("startup"|"resume"|"clear"|"compact") — verified empirically against claude 2.x;
 // it is NOT "trigger". The mock mirrors this — hooks must read the "source" field.
+// staged:proves session-start-hook/claude
 func TestT003_01_SessionStartFiresOnNewSession(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -62,6 +63,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 }
 
 // TestT003_02_SessionStartSourceResumeOnResume: source must be "resume" for --resume.
+// staged:proves session-start-hook/claude
 func TestT003_02_SessionStartSourceResumeOnResume(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -84,6 +86,9 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // exit 2 is recorded as a non-blocking error — stderr quoted as
 // "[<command>]: <stderr>" — and the session runs (docs, "Exit code 2 behavior
 // per event"; a controlled claude 2.1.282 run).
+// sr:proves hook-exit-code-semantics/claude
+// staged:proves hook-output-transcript-records/claude
+// staged:proves session-start-hook/claude
 func TestT003_03_SessionStartExit2DoesNotBlock(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -127,6 +132,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // included), last_assistant_message, background_tasks and session_crons — and
 // no stop_reason, which real Claude Code does not send (docs, Stop input; a
 // claude 2.1.282 payload).
+// staged:proves stop-hook-payload/claude
 func TestT003_04_StopPayloadIsTheRealOne(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

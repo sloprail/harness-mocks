@@ -93,6 +93,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 
 // TestT003_03_WriteToolCreatesFile verifies that the Write tool creates a file
 // in the working directory and the script can observe it via A10N_MOCK_SESSION_FILE.
+// staged:proves file-tools/claude
 func TestT003_03_WriteToolCreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	targetFile := filepath.Join(dir, "output.txt")

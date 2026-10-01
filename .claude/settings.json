@@ -9,5 +9,19 @@
   },
   "enabledPlugins": {
     "sloprail@sloprail-marketplace": true
+  },
+  "autoMemoryEnabled": false,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__ccd_session__spawn_task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"Do not suggest a background task. File it instead as a GitHub issue in the repository the problem belongs to (gh issue create --repo <owner>/<repo>), with anonymized data: no emails, account or organization ids, usernames, or home-directory paths.\" >&2; exit 2"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -61,6 +61,7 @@ fi
 // success tool_result and RESUMES the turn (the runner re-runs the scenario), with NO
 // compaction event and NO SessionStart source=compact. ScheduleWakeup is a plain
 // resume tool — compaction is a separate, script-emitted event (see 013_compaction).
+// staged:proves schedule-wakeup/claude
 func TestT012_01_ScheduleWakeupResumesScript(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")
@@ -96,6 +97,7 @@ func TestT012_01_ScheduleWakeupResumesScript(t *testing.T) {
 // TestT012_02_InvalidArgsProduceToolError: a ScheduleWakeup missing the required
 // delaySeconds arg must produce an is_error tool_result (and, as for any tool, must
 // not compact).
+// staged:proves schedule-wakeup/claude
 func TestT012_02_InvalidArgsProduceToolError(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")
@@ -124,6 +126,7 @@ func TestT012_02_InvalidArgsProduceToolError(t *testing.T) {
 }
 
 // TestT012_03_NegativeDelayRejected: a negative delaySeconds is rejected as an error.
+// staged:proves schedule-wakeup/claude
 func TestT012_03_NegativeDelayRejected(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")

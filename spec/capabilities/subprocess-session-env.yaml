@@ -1,0 +1,24 @@
+statement: >-
+  Processes the harness spawns to run tool commands and hooks see environment variables
+  that identify the harness and the current session: that they run under the
+  harness, that the harness itself launched them, how the harness was started,
+  its process id, whether the session is attended, and the session's id. When
+  the harness itself runs inside another session, these are this run's values,
+  except how the harness was started, which passes through from the outer
+  session when it set one. (Other variables the harness hands children, such as the project
+  dir, its temp dir or the path of its own executable, and the environment of
+  the long-lived servers it starts (MCP servers), are other capabilities'.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/env-vars#variables
+    runs:
+      - claude-mock/snapshots/runs/subprocess-session-env
+      - claude-mock/snapshots/runs/nested-session-env
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no interactive session (no /clear, status line command
+          or tmux sessions), no PowerShell tool and no Monitor tool, so the
+          docs' session id updated on /clear and the variables set for status
+          line, tmux, PowerShell and Monitor children are not modeled.

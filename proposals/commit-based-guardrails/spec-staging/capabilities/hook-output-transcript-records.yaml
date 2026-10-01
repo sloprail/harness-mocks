@@ -1,0 +1,12 @@
+statement: >-
+  What hooks print leaves records in the session transcript: a silent success
+  leaves nothing, while printed output, errors and blocks are recorded, and
+  each stop that ran hooks ends with a summary record.
+providers:
+  claude:
+    docs: []
+    runs:
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/bgbash

@@ -1,0 +1,1 @@
+Step 1: run the Bash command: echo DENYME . Step 2: whatever happens, run the Bash command: echo EXIT2ME . Step 3: run the Bash command: echo FINE . Then reply only DONE. If you are told to continue after that, just reply DONE2.

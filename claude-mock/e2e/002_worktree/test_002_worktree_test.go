@@ -40,6 +40,7 @@ func writeScript(t *testing.T, dir, name, content string) string {
 // --- WorktreeCreate ---
 
 // TestT002_01_WorktreeCreateHookFires: positive — hook fires and receives worktree_name.
+// staged:proves worktree-hooks/claude
 func TestT002_01_WorktreeCreateHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -69,6 +70,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 }
 
 // TestT002_03_WorktreeCreateBlockCausesNonZeroExit: hook exit 2 must block the run.
+// staged:proves worktree-hooks/claude
 func TestT002_03_WorktreeCreateBlockCausesNonZeroExit(t *testing.T) {
 	dir := t.TempDir()
 	blockHook := writeScript(t, dir, "block.sh", `#!/bin/sh
@@ -83,12 +85,19 @@ exit 2
 printf '%s\n' '{"type":"worktree_create","worktree_name":"feat/blocked"}'
 printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach","is_error":false}'
 `)
-	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
 	assert.NotEqual(t, 0, code, "blocking hook must cause non-zero exit")
+	assert.Contains(t, out, "claude-mock: WorktreeCreate hook blocked", "the mock names the event")
+	assert.Contains(t, out, "blocked", "and carries the hook's stderr")
+	assert.NotContains(t, out, `should not reach`, "the scenario's result line is never reached")
 }
 
-// TestT002_04_WorktreeCreateNonBlockingHookErrorIsIgnored: hook exit 1 (not 2) is non-blocking.
-func TestT002_04_WorktreeCreateNonBlockingHookErrorIsIgnored(t *testing.T) {
+// TestT002_04_WorktreeCreateFailsOnAnyNonZeroExit: unlike most events, where
+// only exit 2 blocks, any non-zero exit of a WorktreeCreate hook fails the
+// worktree's creation (docs, "Exit code 2 behavior per event").
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+// sr:proves hook-exit-code-semantics/claude
+func TestT002_04_WorktreeCreateFailsOnAnyNonZeroExit(t *testing.T) {
 	dir := t.TempDir()
 	warnHook := writeScript(t, dir, "warn.sh", `#!/bin/sh
 echo "warning" >&2
@@ -102,13 +111,17 @@ exit 1
 printf '%s\n' '{"type":"worktree_create","worktree_name":"feat/warn"}'
 printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":false}'
 `)
-	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
-	assert.Equal(t, 0, code, "exit 1 hook must be non-blocking")
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
+	assert.NotEqual(t, 0, code, "an exit 1 WorktreeCreate hook fails the creation")
+	assert.Contains(t, out, "claude-mock: WorktreeCreate hook blocked", "the mock names the event")
+	assert.Contains(t, out, "warning", "and carries the hook's stderr")
+	assert.NotContains(t, out, `"result":"ok"`, "the scenario's result line is never reached")
 }
 
 // --- WorktreeRemove ---
 
 // TestT002_05_WorktreeRemoveHookFires: positive — WorktreeRemove hook fires.
+// staged:proves worktree-hooks/claude
 func TestT002_05_WorktreeRemoveHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -124,10 +137,35 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 	assert.Contains(t, string(data), "feat/old")
 }
 
+// TestT002_05b_WorktreeRemoveFailsOnAnyNonZeroExit: any non-zero exit of a
+// WorktreeRemove hook fails the removal (docs, "Exit code 2 behavior per event").
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+// sr:proves hook-exit-code-semantics/claude
+func TestT002_05b_WorktreeRemoveFailsOnAnyNonZeroExit(t *testing.T) {
+	dir := t.TempDir()
+	warnHook := writeScript(t, dir, "warn.sh", `#!/bin/sh
+echo "warning" >&2
+exit 1
+`)
+	claudeDir := filepath.Join(dir, ".claude")
+	require.NoError(t, os.MkdirAll(claudeDir, 0o755))
+	s := `{"hooks":{"WorktreeRemove":[{"matcher":"*","hooks":[{"type":"command","command":"` + warnHook + `"}]}]}}`
+	require.NoError(t, os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte(s), 0o644))
+	script := writeScript(t, dir, "s.sh", `#!/bin/sh
+printf '%s\n' '{"type":"worktree_remove","worktree_name":"feat/old"}'
+printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":false}'
+`)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
+	assert.NotEqual(t, 0, code, "an exit 1 WorktreeRemove hook fails the removal")
+	assert.Contains(t, out, "claude-mock: WorktreeRemove hook blocked", "the mock names the event")
+	assert.Contains(t, out, "warning", "and carries the hook's stderr")
+	assert.NotContains(t, out, `"result":"ok"`, "the scenario's result line is never reached")
+}
+
 // TestT002_06_WorktreeRemoveBlockCausesNonZeroExit: WorktreeRemove exit 2 blocks.
 func TestT002_06_WorktreeRemoveBlockCausesNonZeroExit(t *testing.T) {
 	dir := t.TempDir()
-	blockHook := writeScript(t, dir, "block.sh", "#!/bin/sh\nexit 2\n")
+	blockHook := writeScript(t, dir, "block.sh", "#!/bin/sh\necho block-reason >&2\nexit 2\n")
 	claudeDir := filepath.Join(dir, ".claude")
 	require.NoError(t, os.MkdirAll(claudeDir, 0o755))
 	s := `{"hooks":{"WorktreeRemove":[{"matcher":"*","hooks":[{"type":"command","command":"` + blockHook + `"}]}]}}`
@@ -136,11 +174,16 @@ func TestT002_06_WorktreeRemoveBlockCausesNonZeroExit(t *testing.T) {
 printf '%s\n' '{"type":"worktree_remove","worktree_name":"feat/blocked"}'
 printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":false}'
 `)
-	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
 	assert.NotEqual(t, 0, code)
+	assert.Contains(t, out, "claude-mock: WorktreeRemove hook blocked", "the mock names the event")
+	assert.Contains(t, out, "block-reason", "and carries the hook's stderr")
+	assert.NotContains(t, out, `"result":"ok"`, "the scenario's result line is never reached")
 }
 
 // TestT002_07_BothWorktreeEventsDistinct: WorktreeCreate and WorktreeRemove fire separately.
+// staged:proves worktree-hooks/claude
+// sr:proves control-records
 func TestT002_07_BothWorktreeEventsDistinct(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

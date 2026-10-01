@@ -1,0 +1,36 @@
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Run these eleven Bash commands, one at a time, in this order, even if one is refused: echo a, echo b, echo c, echo d, echo e, echo f, echo g, echo i, echo j, echo k, echo h. Then reply with the single word DONE."}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"UserPromptSubmit","command":"","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo a"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo a","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo b"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo b","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo c"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo c","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo d"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo d","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo e"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo e","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo f"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo f","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo g"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo g","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo i"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo i","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo j"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo j","exit":0}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo k"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo k","exit":1}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo h"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","command":"echo h","exit":2}}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"Stop","stop_hook_active":false,"background_tasks":[],"session_crons":[]}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"Stop","command":"","exit":1}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"notification"}
+{"event":"stream","type":"result","subtype":"success"}

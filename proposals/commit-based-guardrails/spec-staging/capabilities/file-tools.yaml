@@ -1,0 +1,11 @@
+statement: >-
+  The agent can read, write, edit and glob files in its working directory, and
+  a failure surfaces as an error result.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#read-tool-behavior
+      - https://code.claude.com/docs/en/tools-reference#write-tool-behavior
+      - https://code.claude.com/docs/en/tools-reference#edit-tool-behavior
+      - https://code.claude.com/docs/en/tools-reference#glob-tool-behavior
+    runs: []

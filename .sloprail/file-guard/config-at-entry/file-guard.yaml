@@ -1,0 +1,5 @@
+# Enforces adr/mock-config, deterministic half: only a mock's entrypoint
+# package (<harness>-mock/*.go) reads or writes the process environment.
+match: path endsWith ".go" and (path startsWith "internal/" or path matches "^[a-z0-9]+-mock/")
+checks:
+  - script: ./env-at-entry.sh

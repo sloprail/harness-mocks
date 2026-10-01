@@ -1,0 +1,12 @@
+# Every structured file matches its CUE schema [deterministic], on the
+# committed bytes: invariants, capabilities, ADR frontmatter, module.yaml,
+# snapshot MANIFEST.yaml and run.yaml (rules/schemas/, mapped in
+# _lib/shape.sh). The other rules check what spans files (links, cells,
+# seals) and trust these shapes. gate/shapes refuses a bad shape before the
+# write; this is the backstop for writes it cannot predict.
+match: >-
+  path startsWith "spec/invariants/" or path startsWith "spec/capabilities/"
+  or path matches "^adr/[^/]+/ADR\\.md$" or path endsWith "/module.yaml"
+  or path matches "-mock/snapshots/(MANIFEST\\.yaml|runs/[^/]+/run\\.yaml)$"
+checks:
+  - script: ./validate.sh

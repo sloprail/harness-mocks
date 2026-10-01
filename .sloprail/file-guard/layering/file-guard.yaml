@@ -1,0 +1,4 @@
+# Enforces adr/layering: imports point from mocks to core, never back, never across.
+match: path endsWith ".go" or path == "go.mod"
+checks:
+  - script: ./imports.sh

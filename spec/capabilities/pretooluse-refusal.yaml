@@ -1,0 +1,21 @@
+statement: >-
+  A PreToolUse hook can refuse a tool call before it runs, by denying it in
+  its output or by blocking it with its exit status; the refusal reaches the
+  agent as the tool's error result, the tool does not run, and the turn goes
+  on. When several hooks decide one call, a deny wins over any other
+  decision. (What exit statuses mean is hook-exit-code-semantics'; changing
+  the tool's input or adding context are other capabilities'.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#pretooluse-decision-control
+      - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
+    runs:
+      - claude-mock/snapshots/runs/stops
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock models a non-interactive run that no SDK host resumes, so a hook's "ask" (a permission prompt) and "defer" (pausing
+          the call to resume later) decide nothing in the mock; they only rank
+          below deny when several hooks decide one call. Permission rules
+          evaluated beside the hook are not modeled.

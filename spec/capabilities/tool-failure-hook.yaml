@@ -1,0 +1,35 @@
+statement: >-
+  When a tool that ran fails (a command exiting non-zero, a file tool's
+  error), a failure hook fires instead of the success
+  hook, carrying the error text the agent received, whether it was an
+  interrupt, and how long the call took. A call that a hook refused fires
+  neither; a call whose input the tool cannot take is answered with a
+  validation error before any hook fires, PreToolUse included.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#posttoolusefailure
+      - https://code.claude.com/docs/en/hooks#posttoolusefailure-input
+    runs:
+      - claude-mock/snapshots/runs/bashfail
+      - claude-mock/snapshots/runs/tool-errors
+      - claude-mock/snapshots/runs/tool-invalid-input
+      - claude-mock/snapshots/runs/stops
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no MCP tools and never aborts a running tool, so an
+          MCP tool's error result and an interrupt (is_interrupt true) are not
+          modeled, nor are the truncation marker and timeout lines Claude Code
+          adds to a long or timed-out command's error. Only a missing file's
+          Read error is worded as Claude Code words it; other file tools'
+          errors are the mock's own text.
+      - adr: modeled-surface
+        statement: >-
+          A Bash whose shell cannot start (a bare failure message with no
+          "Exit code N" line) is not modeled: the mock's Bash always runs
+          /bin/sh, and Claude Code falls back to another shell when
+          CLAUDE_CODE_SHELL names one that does not work, so neither side
+          can produce it. Of input validation, only a missing required
+          parameter is modeled; a parameter of the wrong type or an unknown
+          tool name is not.

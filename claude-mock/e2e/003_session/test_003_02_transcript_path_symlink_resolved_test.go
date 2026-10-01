@@ -21,6 +21,7 @@ import (
 //
 // This drives the mock directly (no plugin/hooks needed) and asserts the session transcript
 // file it writes lives under the SYMLINK-RESOLVED encoding of --project-dir.
+// staged:proves session-transcript-file/claude
 func TestT003_02_TranscriptPathSymlinkResolved(t *testing.T) {
 	dir := t.TempDir()
 	resolvedDir, err := filepath.EvalSymlinks(dir)

@@ -1,0 +1,9 @@
+statement: >-
+  A sub-agent can be dispatched in the background: the agent gets a receipt at
+  once, and the sub-agent runs concurrently with the turn that launched it.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
+    runs:
+      - claude-mock/snapshots/runs/bgagent

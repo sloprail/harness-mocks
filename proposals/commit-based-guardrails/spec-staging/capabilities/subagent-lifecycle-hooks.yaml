@@ -1,0 +1,16 @@
+statement: >-
+  Hooks fire when a sub-agent starts and when it stops. The start hook cannot
+  block it; the stop hook's payload carries the sub-agent's own transcript
+  path and last message, and lists the session's background tasks.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#subagentstart
+      - https://code.claude.com/docs/en/hooks#subagentstart-input
+      - https://code.claude.com/docs/en/hooks#subagentstop
+      - https://code.claude.com/docs/en/hooks#subagentstop-input
+    runs:
+      - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/bgagent

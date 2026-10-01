@@ -1,0 +1,11 @@
+statement: >-
+  A command hook runs through the shell in the event's working directory with
+  the event payload as JSON on its standard input.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#command-hook-fields
+      - https://code.claude.com/docs/en/hooks#hook-input-and-output
+    runs:
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/hookerrors

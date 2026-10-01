@@ -31,6 +31,8 @@ import (
 // agent.go) — unlike the OTHER 009 tests, which use a plain (non-git) t.TempDir() and so
 // exercise the plain-mkdir fallback path instead; this test exists specifically to prove the
 // real `git worktree add` path.
+// staged:proves hook-command-handler/claude
+// staged:proves subagent-worktree-isolation/claude
 func TestT009_05_WorktreeSubagentActuallyRunsThere(t *testing.T) {
 	dir := t.TempDir()
 	runGit(t, dir, "init", "-q")
