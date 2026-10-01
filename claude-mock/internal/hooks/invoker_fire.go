@@ -20,6 +20,13 @@ import (
 // behavior per event"), PreToolUse refuses the tool call, Stop re-prompts.
 // sr:docs https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
 func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
+	out, _, err := inv.FireRuns(ctx, input)
+	return out, err
+}
+
+// FireRuns is Fire, also handing back each handler's run, for a caller that
+// reports runs itself.
+func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []HandlerRun, error) {
 	if input.TranscriptPath == "" {
 		input.TranscriptPath = inv.transcriptPath
 	}
@@ -33,12 +40,12 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	}
 	handlers := inv.settings.EntriesFor(input.HookEventName, input.ToolName)
 	if len(handlers) == 0 {
-		return Output{}, nil
+		return Output{}, nil, nil
 	}
 
 	payload, err := json.Marshal(input)
 	if err != nil {
-		return Output{}, fmt.Errorf("hooks: marshal input: %w", err)
+		return Output{}, nil, fmt.Errorf("hooks: marshal input: %w", err)
 	}
 
 	// The hook subprocess's OWN working directory must be THIS event's cwd, not the
@@ -69,7 +76,7 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 	if inv.recorder != nil && len(runs) > 0 {
 		inv.recorder(input, runs)
 	}
-	return merged, firstBlock
+	return merged, runs, firstBlock
 }
 
 func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, ev EventName, hookCwd string, payload []byte) (HandlerRun, error) {

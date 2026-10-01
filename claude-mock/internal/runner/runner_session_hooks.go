@@ -5,21 +5,29 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
 
 // fireSessionEnd fires SessionEnd the way a `claude -p` session ends: reason
 // "other" (claude 2.1.282). Its output is not recorded — a SessionEnd hook
-// that printed left nothing in the real transcript.
+// that printed left nothing in the real transcript. A handler that fails is
+// shown to the user only, on the harness's stderr (recorded:
+// snapshots/runs/hook-exit-codes).
 // sr:docs https://code.claude.com/docs/en/hooks#sessionend
 func fireSessionEnd(ctx context.Context, cfg Config, inv *hooks.Invoker) {
-	_, _ = inv.Fire(ctx, hooks.Input{
+	_, runs, _ := inv.FireRuns(ctx, hooks.Input{
 		SessionID:     cfg.SessionID,
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventSessionEnd,
 		Reason:        "other",
 	})
+	for _, r := range runs {
+		if r.ExitCode != 0 && cfg.Stderr != nil {
+			fmt.Fprintf(cfg.Stderr, "SessionEnd hook [%s] failed: %s\n", r.Command, strings.TrimSpace(r.Stderr))
+		}
+	}
 }
 
 // fireSessionStart fires the SessionStart hook with the given source
