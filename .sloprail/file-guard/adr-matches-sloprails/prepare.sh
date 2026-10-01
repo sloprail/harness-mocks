@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# One subject per ADR that changed, or that links a rule whose folder changed.
+# prepare: one subject per ADR that changed, or that links a rule whose folder
+# changed, as additionalContext.subjects (the engine does not split subjects
+# yet; one judge call reviews them all).
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -30,4 +32,5 @@ while IFS= read -r a; do
   subjects="$(jq -c --arg id "$id" --argjson a "$a" --argjson r "$rules" \
     '. + [{id: $id, files: ([$a.path] + [$r[].path]), context: {adr: $a.text, rules: $r}}]' <<<"$subjects")"
 done < <(jq -c '.[]' <<<"$ADRS")
-jq -n -c --argjson s "$subjects" '{subjects: $s}'
+if [ "$(jq 'length' <<<"$subjects")" -eq 0 ]; then echo '{"skip": true}'; exit 0; fi
+jq -n -c --argjson s "$subjects" '{additionalContext: {subjects: $s}}'
