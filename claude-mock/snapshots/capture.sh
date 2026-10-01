@@ -37,11 +37,15 @@ seal() { (cd "$1" && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shas
 # normalize — hook payloads and stream frames into events.jsonl: what a
 # scenario did, without what differs between two captures of the same
 # behaviour (ids, paths, timings, the model's own wording).
+# The run's own session id is kept as <SESSION_ID> wherever it appears (a child's
+# env, a command's output): which session an id names is behaviour, its value is not.
 normalize() {
-  local cap="$1"
-  jq -c 'walk(if type == "object" then del(.session_id, .transcript_path, .cwd, .agent_id, .tool_use_id,
-          .uuid, .parentUuid, .timestamp, .duration_ms, .durationMs, .last_assistant_message) else . end)
-         | {event: "hook", hook: .hook_event_name, payload: .}' "$cap/payloads.jsonl" 2>/dev/null || true
+  local cap="$1" sid
+  sid="$(jq -r 'select(.session_id) | .session_id' "$cap/payloads.jsonl" 2>/dev/null | head -n1)"
+  jq -c --arg sid "${sid:-<none>}" 'walk(if type == "object" then del(.session_id, .transcript_path, .cwd, .agent_id,
+          .tool_use_id, .prompt_id, .uuid, .parentUuid, .timestamp, .duration_ms, .durationMs, .last_assistant_message)
+          elif type == "string" then gsub($sid; "<SESSION_ID>") else . end)
+         | del(.tool_input.description?) | {event: "hook", hook: .hook_event_name, payload: .}' "$cap/payloads.jsonl" 2>/dev/null || true
   jq -c 'select(.type != "assistant" and .type != "user")
          | {event: "stream", type, subtype: (.subtype // null)}' "$cap/stream.jsonl" 2>/dev/null || true
 }
@@ -57,7 +61,8 @@ capture_run() {
   work="$(mktemp -d)"; home="$work/home"
   # a capture that fails part-way leaves nothing behind: no half-written sample
   trap 'rm -rf "$work"; [ -f "$cap/SEAL" ] || rm -rf "$cap"' EXIT
-  mkdir -p "$work/repo/.claude" "$work/tmp" "$home/Library" "$cap"
+  mkdir -p "$work/repo/.claude" "$home/Library" "$cap"
+  mkdir -m 700 "$work/tmp"   # private: claude refuses a shared temp root for its per-uid dir
   ln -s "$HOME/Library/Keychains" "$home/Library/Keychains" 2>/dev/null || true   # keeps the login, nothing else
   cp "$run/setup/settings.json" "$work/repo/.claude/settings.json" 2>/dev/null || true
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
@@ -67,11 +72,14 @@ capture_run() {
   # run, so nothing of the session that runs this script (CLAUDECODE,
   # CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_ENTRYPOINT, …) can leak into what the
   # capture records as the harness's own behaviour. stdin is closed so a -p run
-  # does not wait for it.
+  # does not wait for it. CLAUDE_CODE_TMPDIR too: on macOS claude ignores TMPDIR
+  # for its own per-uid dir (/tmp/claude-<uid>), which the session running this
+  # script shares; left there, a capture could see that session's scratchpad.
+  # (A literal /tmp path stays shared: only a sandbox could stop that.)
   local claude_bin; claude_bin="$(command -v claude)" || die "claude is not on PATH"
   set +e
   (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
-    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" \
+    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" CLAUDE_CODE_TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" \
     "$claude_bin" -p --model haiku --dangerously-skip-permissions --output-format stream-json --verbose \
       ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
   echo $? >"$cap/exit.txt"
