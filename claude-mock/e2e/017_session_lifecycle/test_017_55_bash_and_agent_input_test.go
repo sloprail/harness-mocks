@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,14 @@ func TestT017_55_BashResults(t *testing.T) {
 		`test -f nothing.txt`,
 		`sh -c 'exit 1'`,
 		`grep nomatch missing-file.txt`,
+		`egrep nomatch in.txt`,
+		`fgrep nomatch in.txt`,
+		`find . -maxdepth 0 -exec false {} +`,
+		`[ 1 = 2 ]`,
+		`git diff --no-index --quiet in.txt /dev/null`,
+		`pgrep -x zzz-no-such-process-name`,
+		`cmp in.txt /dev/null`,
+		`echo false | jq -e .`,
 	}
 	var calls []string
 	for i, c := range cmds {
@@ -61,6 +70,14 @@ func TestT017_55_BashResults(t *testing.T) {
 		{want: "(Bash completed with no output)"}, // test
 		{want: "Exit code 1", isErr: true},        // sh is no search: exit 1 is a failure
 		{want: "Exit code 2\ngrep: missing-file.txt: No such file or directory", isErr: true},
+		{want: "(Bash completed with no output)"},    // egrep
+		{want: "(Bash completed with no output)"},    // fgrep
+		{want: "(Bash completed with no output)"},    // find
+		{want: "(Bash completed with no output)"},    // [
+		{want: "(Bash completed with no output)"},    // git diff
+		{want: "Exit code 1", isErr: true},           // pgrep: no match is still a failure
+		{contains: "Exit code 1\ncmp:", isErr: true}, // cmp: the files differ, still a failure
+		{want: "Exit code 1\nfalse", isErr: true},    // jq -e
 	} {
 		block, r := toolResultOf(t, recs, fmt.Sprintf("c%dturn-s-%s", i, string(rune('a'+i))))
 		got := fmt.Sprint(block["content"])
@@ -70,11 +87,17 @@ func TestT017_55_BashResults(t *testing.T) {
 			assert.Equal(t, tc.want, got, cmds[i])
 		}
 		assert.Equal(t, tc.isErr, block["is_error"] == true, cmds[i])
-		if tc.isErr {
+		if tc.isErr && tc.want != "" {
 			want, _ := json.Marshal("Error: " + tc.want)
 			assert.Contains(t, r.Raw, `"toolUseResult":`+string(want), "the transcript records the error as text")
 		}
 	}
+	// the stream carries the same results, with the same is_error
+	frames := toolResultFrames(out)
+	require.Len(t, frames, len(cmds))
+	assert.Equal(t, "Exit code 3\nOUT-LINE\nERR-LINE", frames[1]["content"])
+	assert.Equal(t, true, frames[1]["is_error"])
+	assert.Equal(t, false, frames[3]["is_error"], "grep finding nothing is a valid result in the stream too")
 	var failures []string
 	var structured []map[string]any
 	for _, p := range payloads(t, log) {
@@ -84,11 +107,14 @@ func TestT017_55_BashResults(t *testing.T) {
 			structured = append(structured, p["tool_response"].(map[string]any))
 		}
 	}
-	assert.Equal(t, []string{"Exit code 3\nOUT-LINE\nERR-LINE", "Exit code 1", "Exit code 2\ngrep: missing-file.txt: No such file or directory"}, failures)
+	require.Len(t, failures, 6)
+	assert.Equal(t, []string{"Exit code 3\nOUT-LINE\nERR-LINE", "Exit code 1", "Exit code 2\ngrep: missing-file.txt: No such file or directory", "Exit code 1"}, failures[:4])
+	assert.Contains(t, failures[4], "Exit code 1\ncmp:")
+	assert.Equal(t, "Exit code 1\nfalse", failures[5])
 	require.GreaterOrEqual(t, len(structured), 6)
 	assert.Equal(t, map[string]any{"stdout": "hello", "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false}, structured[0])
 	assert.Equal(t, "", structured[1]["stdout"], "true: nothing printed")
-	assert.Len(t, structured, 6, "hello, true, grep, grep, diff, test ran successfully: PostToolUse for each")
+	assert.Len(t, structured, 11, "hello, true, the nine valid searches and comparisons: PostToolUse for each")
 }
 
 // TestT017_56_AgentDispatchWithoutRequiredInputIsRefusedBeforeAnyHook: a
@@ -114,6 +140,7 @@ func TestT017_56_AgentDispatchWithoutRequiredInputIsRefusedBeforeAnyHook(t *test
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "ai-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
+	frames := toolResultFrames(out)
 	recs := readRecs(t, transcriptPath(t, cfg, dir, "ai-1"))
 	for i, want := range []string{
 		"<tool_use_error>InputValidationError: Agent failed due to the following issue:\nThe required parameter `prompt` is missing</tool_use_error>",
@@ -123,6 +150,8 @@ func TestT017_56_AgentDispatchWithoutRequiredInputIsRefusedBeforeAnyHook(t *test
 		block, r := toolResultOf(t, recs, fmt.Sprintf("a%dturn-s-%s", i, string(rune('a'+i))))
 		assert.Equal(t, want, block["content"])
 		assert.Equal(t, true, block["is_error"])
+		assert.Equal(t, want, frames[i]["content"], "the stream carries the refusal too")
+		assert.Equal(t, true, frames[i]["is_error"])
 		assert.Contains(t, r.Raw, `"toolUseResult":"InputValidationError: [`, "the issue list is recorded")
 		assert.Contains(t, r.Raw, `invalid_type`)
 	}
@@ -136,4 +165,21 @@ func TestT017_56_AgentDispatchWithoutRequiredInputIsRefusedBeforeAnyHook(t *test
 	data, err := os.ReadFile(ran)
 	require.NoError(t, err)
 	assert.Equal(t, "ran\n", string(data), "the sub-agent ran once: for the complete dispatch only")
+}
+
+// toolResultFrames are the tool_result blocks of a run's output stream, in order.
+func toolResultFrames(out string) []map[string]any {
+	var frames []map[string]any
+	for _, l := range strings.Split(out, "\n") {
+		var f struct {
+			Type    string `json:"type"`
+			Message struct {
+				Content []map[string]any `json:"content"`
+			} `json:"message"`
+		}
+		if json.Unmarshal([]byte(l), &f) == nil && f.Type == "user" && len(f.Message.Content) > 0 && f.Message.Content[0]["type"] == "tool_result" {
+			frames = append(frames, f.Message.Content[0])
+		}
+	}
+	return frames
 }

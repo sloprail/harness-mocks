@@ -6,9 +6,9 @@ statement: >-
   and is refused before any hook runs when the string is absent or ambiguous;
   a glob lists the files that match, sorted by modification time, at most a
   hundred of them; a call that fails surfaces as an error result. (What a
-  read does with images, PDFs and notebooks, the rules that make a file be
-  read before it is changed, and the ignore settings of a glob are not part of
-  this.)
+  read does with images, PDFs and notebooks, with a file too large for the
+  token limit, the rules that make a file be read before it is changed, and
+  the ignore settings of a glob are not part of this.)
 providers:
   claude:
     docs:

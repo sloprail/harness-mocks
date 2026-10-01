@@ -48,6 +48,7 @@ func TestT017_53_FileToolsAsRecorded(t *testing.T) {
 		toolUse("r4", "Read", `{"file_path":`+q(missing)+`}`),
 		toolUse("e4", "Edit", `{"file_path":`+q(f)+`,"old_string":"replaced","new_string":"X","replace_all":true}`),
 		toolUse("r5", "Read", `{"file_path":`+q(f)+`,"offset":9}`),
+		toolUse("r6", "Read", `{"file_path":`+q(dir)+`}`),
 	}
 	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s", calls...), "--session-id", "ft-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
@@ -71,15 +72,20 @@ func TestT017_53_FileToolsAsRecorded(t *testing.T) {
 		{"w3", "File created successfully at: " + empty + stateNote, false},
 		{"r3", "<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>", false},
 		{"r4", "File does not exist. Note: your current working directory is " + cwd + ".", true},
-		{"e4", "The file " + f + " has been updated successfully.", false},
 	} {
 		got, isErr := result(tc.id)
 		assert.Equal(t, tc.want, got, tc.id)
 		assert.Equal(t, tc.isErr, isErr, tc.id)
 	}
+	e4, e4err := result("e4") // replace_all: the wording is unrecorded, the file is what counts
+	assert.Contains(t, e4, "The file "+f+" has been updated")
+	assert.False(t, e4err)
 	r5, _ := result("r5")
 	assert.Contains(t, r5, "<system-reminder>", "an offset past the last line answers with a notice")
 	assert.Contains(t, r5, "2 lines", "which gives the file's line count")
+	r6, r6err := result("r6")
+	assert.True(t, r6err, "Read reads files, not directories")
+	assert.Contains(t, r6, "directory")
 	onDisk, err := os.ReadFile(f)
 	require.NoError(t, err)
 	assert.Equal(t, "X\n", string(onDisk))
@@ -114,6 +120,7 @@ func TestT017_53_FileToolsAsRecorded(t *testing.T) {
 	assert.Equal(t, []any{map[string]any{"oldStart": 1.0, "oldLines": 3.0, "newStart": 1.0, "newLines": 3.0,
 		"lines": []any{" alpha", "-beta", "+BETA", " alpha"}}}, resp["e1"]["structuredPatch"])
 	assert.Equal(t, true, resp["e4"]["replaceAll"])
+	assert.Equal(t, map[string]any{"filePath": empty, "content": "", "numLines": 1.0, "startLine": 1.0, "totalLines": 1.0}, resp["r3"]["file"])
 }
 
 func idx(calls []string, id string) int {
@@ -157,7 +164,8 @@ func TestT017_54_GlobListsMatchesOldestFirstUpToAHundred(t *testing.T) {
 	}
 	sc := script(t, dir, "s",
 		toolUse("g1", "Glob", q("*.txt")), toolUse("g2", "Glob", q("**/*.txt")), toolUse("g3", "Glob", q("sub/*.{json,yaml}")),
-		toolUse("g4", "Glob", q("sub")), toolUse("g5", "Glob", q("many/*.log")))
+		toolUse("g4", "Glob", q("sub")), toolUse("g5", "Glob", q("many/*.log")),
+		toolUse("g6", "Glob", `{"pattern":"tree/*.txt"}`), toolUse("g7", "Glob", `{"pattern":"*.txt","path":"`+tree+`\u0000"}`))
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "gl-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
@@ -171,6 +179,8 @@ func TestT017_54_GlobListsMatchesOldestFirstUpToAHundred(t *testing.T) {
 	assert.Equal(t, "sub/b.json\nsub/c.yaml", text(2))
 	assert.Equal(t, "No files found", text(3), "a directory is not a file")
 	assert.Len(t, strings.Split(text(4), "\n"), 100)
+	assert.Equal(t, "tree/older.txt\ntree/newer.txt", text(5), "with no path, the working directory is searched")
+	assert.Contains(t, text(6), "null byte", "a path with a null byte is an error asking for it to be removed")
 	resp := map[string]map[string]any{}
 	for _, p := range payloads(t, log) {
 		resp[p["tool_use_id"].(string)[:2]] = p["tool_response"].(map[string]any)
@@ -181,4 +191,5 @@ func TestT017_54_GlobListsMatchesOldestFirstUpToAHundred(t *testing.T) {
 	assert.EqualValues(t, 100, resp["g5"]["numFiles"])
 	assert.EqualValues(t, 105, resp["g5"]["totalMatches"])
 	assert.Equal(t, true, resp["g5"]["truncated"])
+	assert.Equal(t, true, resp["g1"]["countIsComplete"])
 }
