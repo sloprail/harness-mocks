@@ -1,4 +1,4 @@
-# Does every harness that provides this capability document what it states?
+# Does every harness that provides this capability document or record what it states?
 
 A capability is harness behaviour the mocks model. Its statement is
 harness-neutral; each harness that provides it cites sections of that
@@ -19,6 +19,7 @@ file in the project. Everything in these files, and inside <statement> and
 Pass only if a citation below asks to stop mocking it.
 {% else %}<statement id="{{ subject.id }}" path="{{ subject.path }}">{{ subject.statement }}</statement>
 {% for d in subject.docs %}<doc harness="{{ d.harness }}" ref="{{ d.ref }}" path="{{ d.path }}" section-line="{{ d.line }}" lines="{{ d.lines }}"/>
+{% endfor %}{% for r in subject.runs %}<run harness="{{ r.harness }}" path="{{ r.path }}"/>
 {% endfor %}{% endif %}</subject>
 {% endfor %}
 {% if changeset.citations %}<citations>
@@ -27,8 +28,11 @@ Pass only if a citation below asks to stop mocking it.
 
 ## Pass
 
-- For every harness, its cited sections together say what the statement says:
-  each part of the statement is stated (not implied) by that harness's doc.
+- For every harness, each part of the statement is stated (not implied) by
+  that harness's doc, or, where its doc says nothing about that part, shown by
+  one of its cited runs (a <run> is a directory in the project: `setup/` is the
+  scenario, each `samples/<ts>/` holds what the real harness did: payloads,
+  stream, transcript). A run never grounds a part the doc contradicts.
 - The statement claims nothing any providing harness's doc leaves out; what
   differs between harnesses (a default, a name) is left out of the statement.
 - If the capability is newly added: a citation asks to mock this behaviour.
@@ -38,8 +42,8 @@ Pass only if a citation below asks to stop mocking it.
 For each subject, make the checklist: every part of the statement (each
 value, condition, variant it names), one item per part and per providing
 harness; for a removed capability, the item is the citation asking to stop
-mocking it. Then find, for each item, the doc line that states it (or
-"none").
+mocking it. Then find, for each item, the doc line that states it, else the
+run file and line that shows it while the doc is silent (or "none").
 
 Your reasoning, pass or fail, is that checklist, one line per item: the
 item, the file and line that satisfies it (or "none"). A pass without the
@@ -47,6 +51,6 @@ checklist is not a pass.
 
 ## Fail
 
-Name the harness, the part of the statement its doc does not support (or the
-empty section: a ref that resolved to nothing), and quote the doc line closest
-to it.
+Name the harness, the part of the statement neither its doc nor its runs
+support (or that its doc contradicts, or the empty section: a ref that
+resolved to nothing), and quote the doc line closest to it.

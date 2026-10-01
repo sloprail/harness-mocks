@@ -1,6 +1,6 @@
 ---
 concern: which parts of a real harness a mock models, and how a capability states what it leaves out
-sloprails: [file-guard/capability-rigor, file-guard/adr-conformance]
+sloprails: [file-guard/capability-rigor, file-guard/adr-conformance, file-guard/capability-grounded]
 ---
 
 # A mock models the non-interactive harness its tests drive
@@ -35,6 +35,9 @@ visible and deliberate, not a test nobody wrote.
   - the reference text a harness prints inside its own diagnostics (such as
     the output schema Claude Code appends to a hook validation error): a mock
     writes the diagnostic's first line and the hook's own output.
+- A mock models what the real harness does, not only what its docs say: a
+  behaviour its docs leave unsaid is grounded by a recorded run that shows it.
+  A recording never grounds a statement its harness's docs contradict.
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.

@@ -1,6 +1,7 @@
-# A capability states what each harness providing it documents [judge]. The
-# statement is abstract (harness-neutral); each provider's cited doc sections
-# must support it. Adding or dropping a capability is the user's choice of what
+# A capability states what each harness providing it documents or, where its
+# docs are silent, what its recorded runs show [judge]. The statement is
+# abstract (harness-neutral); each provider's cited doc sections and runs must
+# support it, and a run never outweighs a doc that contradicts it. Adding or dropping a capability is the user's choice of what
 # to mock, so it needs their words (Sloprail-Cites-User); a change to the
 # statement or its citations does not. One judge call reviews every capability
 # touched (its file, or a doc page it cites; prepare.sh lists them as subjects,
