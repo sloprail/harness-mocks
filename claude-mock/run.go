@@ -28,9 +28,7 @@ const (
 
 // rootRunE implements the root command's RunE — the primary entrypoint when the
 // binary is used as a drop-in for 'claude -p --output-format stream-json ...'.
-//
-// --resume <id> continues the session, --resume <id> --fork-session continues it
-// under a fresh (or --session-id) session id, and -p runs one prompt to its result.
+// --resume continues a session, --fork-session forks it, -p runs one prompt.
 //
 // sr:provides session-resume/claude
 // sr:provides session-fork/claude
