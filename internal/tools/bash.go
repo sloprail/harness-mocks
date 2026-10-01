@@ -10,6 +10,8 @@ import (
 
 // BashResult is what a shell command left.
 type BashResult struct {
+	// Stdout and Stderr are what it printed on each.
+	Stdout, Stderr string
 	// Output is its stdout followed by its stderr.
 	Output string
 	// ExitCode is its exit status; -1 when it did not exit by itself (the
@@ -28,5 +30,5 @@ func Bash(ctx context.Context, command, dir string, env []string) BashResult {
 	if err != nil {
 		return BashResult{Output: err.Error(), ExitCode: -1}
 	}
-	return BashResult{Output: string(res.Stdout) + string(res.Stderr), ExitCode: res.ExitCode}
+	return BashResult{Stdout: string(res.Stdout), Stderr: string(res.Stderr), Output: string(res.Stdout) + string(res.Stderr), ExitCode: res.ExitCode}
 }

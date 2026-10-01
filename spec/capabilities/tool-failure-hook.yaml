@@ -32,3 +32,17 @@ providers:
           parameter is modeled; a parameter of the wrong type or an unknown
           tool name is not.
   codex: false
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#posttoolusefailure
+      - https://cursor.com/docs/hooks#posttooluse
+    runs:
+      - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/file-tools
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock runs the Shell, Read and Write tools only, and never aborts
+          a running tool, so the failures of the other tools (MCP tools, Delete,
+          Grep, Task), a timeout (failure_type "timeout") and an interrupt
+          (is_interrupt true) are not modeled.

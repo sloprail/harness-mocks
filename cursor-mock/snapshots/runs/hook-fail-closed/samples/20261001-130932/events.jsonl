@@ -1,0 +1,30 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionStart","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT1ME","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo EXIT1ME","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":1}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT1ME","timeout":30000},"error_message":"Command execution was blocked by a hook: Tool blocked because this hook is configured to fail closed (block when it fails). Hook \".cursor/hooks/hook.sh\" failed with exit code 1: SHELL-EXIT1-MSG\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT3ME","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo EXIT3ME","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":3}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT3ME","timeout":30000},"error_message":"Command execution was blocked by a hook: Tool blocked because this hook is configured to fail closed (block when it fails). Hook \".cursor/hooks/hook.sh\" failed with exit code 3: SHELL-EXIT3-MSG\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo FINE","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"error_message":"Command execution was blocked by a hook: Tool blocked because this hook is configured to fail closed (block when it fails). Hook \".cursor/hooks/hook.sh\" returned no output.\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","exit":0}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"result","subtype":"success"}

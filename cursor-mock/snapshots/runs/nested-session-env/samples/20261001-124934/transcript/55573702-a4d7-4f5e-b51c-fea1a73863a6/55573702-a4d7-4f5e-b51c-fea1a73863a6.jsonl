@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as two separate shell tool calls, in order, each exactly as written: 1) env | grep -E '^(CURSOR|CLAUDE)' | cut -d= -f1 | sort 2) env | grep -E '^(CURSOR_AGENT|CURSOR_CONVERSATION_ID|CURSOR_INVOKED_AS|CURSOR_PROJECT_DIR|CURSOR_VERSION|CLAUDE_PROJECT_DIR)=' | sort. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll run those two shell commands in order, then reply DONE."},{"type":"tool_use","name":"Shell","input":{"command":"env | grep -E '^(CURSOR|CLAUDE)' | cut -d= -f1 | sort","description":"List CURSOR/CLAUDE env var names"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"env | grep -E '^(CURSOR_AGENT|CURSOR_CONVERSATION_ID|CURSOR_INVOKED_AS|CURSOR_PROJECT_DIR|CURSOR_VERSION|CLAUDE_PROJECT_DIR)=' | sort","description":"Filter specific CURSOR/CLAUDE env vars"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

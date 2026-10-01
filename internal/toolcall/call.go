@@ -73,11 +73,16 @@ type Options struct {
 	// fires instead of the success hook; without one, the success hook fires
 	// for a failed call too.
 	SeparateFailureHook bool
+	// FailureOnRefusal: a call a before-tool hook refused fires the failure
+	// hook (SeparateFailureHook), reporting the refusal as a failed call;
+	// without it, a refused call fires no after-tool hook.
+	FailureOnRefusal bool
 }
 
 // Run carries out one call. A call to a tool the harness lacks, and one whose
 // input lacks required parameters, end before any hook. A call a before-tool
-// hook refuses does not run and fires no after-tool hook. A call that ran
+// hook refuses does not run and fires no after-tool hook (but the failure
+// hook, with Options.FailureOnRefusal). A call that ran
 // fires the after-tool hook its outcome calls for; a hook that blocks it
 // replaces the result the agent sees, and the call has run.
 func Run(ctx context.Context, h Host, c Call, o Options) {
@@ -91,6 +96,9 @@ func Run(ctx context.Context, h Host, c Call, o Options) {
 		return
 	}
 	if refused, reason := h.Before(ctx, c); refused {
+		if o.FailureOnRefusal && o.SeparateFailureHook {
+			h.After(ctx, c, Result{Output: reason, Failed: true}, hooks.AfterFailure)
+		}
 		h.Answer(c, Answer{Kind: Refused, Reason: reason})
 		return
 	}

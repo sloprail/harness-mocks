@@ -17,3 +17,9 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/prompt-blocked
+  cursor:
+    docs:
+      - https://cursor.com/docs/cli/headless#how-it-works
+      - https://cursor.com/docs/cli/headless#real-time-progress-tracking
+    runs:
+      - cursor-mock/snapshots/runs/pretool-refusal

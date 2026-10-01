@@ -17,3 +17,8 @@ providers:
       - https://developers.openai.com/codex/hooks#config-shape
     runs:
       - codex-mock/snapshots/runs/hook-timeout
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#per-script-configuration-options
+    runs:
+      - cursor-mock/snapshots/runs/hook-timeout

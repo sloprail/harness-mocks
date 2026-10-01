@@ -29,3 +29,4 @@ providers:
       - adr: modeled-surface
         statement: >-
           The mock never resumes, forks or compacts a session, so a session start is always the fresh one, source startup.
+  cursor: false
