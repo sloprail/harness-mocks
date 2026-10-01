@@ -21,6 +21,13 @@ type custom struct {
 
 func runCustom(t *testing.T, hooksJSON string, scripts map[string]string, commands ...string) custom {
 	t.Helper()
+	return runCustomAt(t, false, hooksJSON, scripts, commands...)
+}
+
+// runCustomAt is runCustom, optionally started from a symlink to the
+// workspace (c.ws is still the workspace's real path).
+func runCustomAt(t *testing.T, symlinked bool, hooksJSON string, scripts map[string]string, commands ...string) custom {
+	t.Helper()
 	ws, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	scratch, home := t.TempDir(), t.TempDir()
@@ -39,6 +46,11 @@ func runCustom(t *testing.T, hooksJSON string, scripts map[string]string, comman
 	logPath := filepath.Join(scratch, "log.txt")
 	cmd := exec.Command(binary, "-p", "--output-format", "stream-json", "--script", script, "go")
 	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + logPath}
+	if symlinked {
+		link := filepath.Join(t.TempDir(), "link")
+		require.NoError(t, os.Symlink(ws, link))
+		cmd.Dir, cmd.Env = link, append(cmd.Env, "PWD="+link)
+	}
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 	return custom{ws: ws, home: home, log: logPath, stdout: string(out)}
