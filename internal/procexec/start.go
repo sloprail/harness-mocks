@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"os/exec"
-	"syscall"
 )
 
 // Proc is a child process started in the background.
@@ -24,7 +23,7 @@ func Start(s Spec, out io.Writer) (*Proc, error) {
 	cmd.Dir = s.Dir
 	cmd.Env = s.Env
 	cmd.Stdout, cmd.Stderr = out, out
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	OwnGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -43,12 +42,9 @@ func (p *Proc) Wait() int {
 	return 0
 }
 
-// Kill kills the child's whole process group.
+// Kill kills the child's whole process group (see KillGroup).
 func (p *Proc) Kill() {
-	if p == nil || p.cmd.Process == nil {
-		return
-	}
-	if err := syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
-		_ = p.cmd.Process.Kill()
+	if p != nil {
+		_ = KillGroup(p.cmd)
 	}
 }

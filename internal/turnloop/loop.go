@@ -26,6 +26,9 @@ type Host interface {
 	// Continue records the reason a block gave, as the prompt that continues
 	// the turn.
 	Continue(reason string)
+	// CapOverridden records that a block was overridden: blocks in a row had
+	// already continued the turn as often as the cap allows, so it ends.
+	CapOverridden(blocks int)
 	// SessionFile is the path of the session record so far.
 	SessionFile() string
 }
@@ -36,6 +39,9 @@ type Params struct {
 	Dir     string
 	Environ []string
 	Prompt  string
+	// BlockCap is how many blocks in a row may continue the turn; zero is no
+	// limit.
+	BlockCap int
 }
 
 // LoopLimit is how many turns in a row a script may ask for the same call.
@@ -53,13 +59,19 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 		return "", nil
 	}
 	continuing := false
+	blocks := 0
 	for {
 		last, err := agent(ctx, h, p, extra)
 		if err != nil {
 			return "", err
 		}
-		reason, again := h.EndOfTurn(ctx, last, continuing)
-		if !again {
+		reason, blocked := h.EndOfTurn(ctx, last, continuing)
+		if !Continues(blocked, false) {
+			return last, nil
+		}
+		blocks++
+		if !AfterBlock(blocks, p.BlockCap) {
+			h.CapOverridden(blocks)
 			return last, nil
 		}
 		h.Continue(reason)
