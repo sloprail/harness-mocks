@@ -174,3 +174,22 @@ func TestWorktreeHook(t *testing.T) {
 		t.Fatalf("path=%q err=%v: a remove hook returns no path", path, err)
 	}
 }
+
+func TestCanDispatch_StopsAtTheLimit(t *testing.T) {
+	for _, c := range []struct {
+		p     Parent
+		limit int
+		want  bool
+	}{
+		{Parent{}, 0, true},
+		{Parent{ID: "b", Depth: 2}, 0, true},
+		{Parent{ID: "c", Depth: 3}, 0, false},
+		{Parent{ID: "a", Depth: 1}, 2, true},
+		{Parent{ID: "b", Depth: 2}, 2, false},
+		{Parent{ID: "a", Depth: 1}, 1, false},
+	} {
+		if got := c.p.CanDispatch(c.limit); got != c.want {
+			t.Errorf("%+v limit %d: %v, want %v", c.p, c.limit, got, c.want)
+		}
+	}
+}

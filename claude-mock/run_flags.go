@@ -21,6 +21,17 @@ func printWaitCeiling() time.Duration {
 	return tasks.DefaultWaitCeiling
 }
 
+// spawnLimit is how many layers of sub-agents nest below the main conversation:
+// CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, else 0 for the default of three. Read
+// once here, with the rest of the configuration.
+// sr:docs https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents
+func spawnLimit() int {
+	if n, err := strconv.Atoi(os.Getenv("CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH")); err == nil && n > 0 {
+		return n
+	}
+	return 0
+}
+
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
 // a10n:blueprint:ignore
 func addRunFlags(cmd *cobra.Command) {

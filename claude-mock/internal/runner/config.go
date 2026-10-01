@@ -108,6 +108,9 @@ type Config struct {
 	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
 	// after its final turn; zero waits without a limit.
 	BgWaitCeiling time.Duration
+	// SpawnLimit is how many layers of sub-agents nest below the main thread;
+	// 0 is the default.
+	SpawnLimit int
 
 	// bg is the session's background-task registry, shared by the root run
 	// and every nested sub-agent run (Stop and SubagentStop list the whole
