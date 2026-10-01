@@ -1,5 +1,5 @@
 ---
-concern: what grounds a capability's statement, and who decides what is mocked
+concern: what grounds a capability: the real harness for what it does, the user for what is mocked
 sloprails: [file-guard/capability-grounded]
 ---
 
@@ -8,8 +8,11 @@ sloprails: [file-guard/capability-grounded]
 ## Concern
 
 A capability's statement is what every mock providing it claims about the real
-harness. A claim nothing grounds is a mock inventing behaviour; a claim only
-one harness makes, stated as everyone's, is a mock copying another's quirks.
+harness. It has two grounds: the real harness, for what it does (its docs and
+recorded runs), and the user, for which of that is mocked and where a mock
+knowingly differs. A claim neither grounds is a mock inventing behaviour; a
+claim only one harness makes, stated as everyone's, is a mock copying another's
+quirks.
 
 ## Decision
 
@@ -23,6 +26,6 @@ one harness makes, stated as everyone's, is a mock copying another's quirks.
   (`providers.<harness>.runs`: `<harness>-mock/snapshots/runs/<name>/`, whose
   `samples/<ts>/` hold the real harness's payloads, stream and transcript).
 - A run never grounds a part its harness's docs contradict.
-- Adding or removing a capability, or changing a cell's `deviations`, carries
-  the user's words on its commit (`Sloprail-Cites-User`): what is mocked, and
-  where a mock knowingly differs, is the user's choice.
+- Adding or removing a capability, changing its `statement`, or changing any
+  line of a cell's `deviations` carries the user's words on its commit
+  (`Sloprail-Cites-User`).
