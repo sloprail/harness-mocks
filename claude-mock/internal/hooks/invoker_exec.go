@@ -68,7 +68,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	cmd.WaitDelay = hookKillGrace
 	cmd.Stdin = bytes.NewReader(payload)
 	// Mirror the real claude CLI's hook environment. CLAUDECODE=1 and
-	// CLAUDE_CODE_ENTRYPOINT=cli are set unconditionally: the real CLI stamps both
+	// CLAUDE_CODE_ENTRYPOINT=sdk-cli are set unconditionally: the real CLI stamps both
 	// on every session (both confirmed present in a live session), and a tool the
 	// hook shells to that detects "am I under a harness" keys off them — sr-agent's
 	// harness detection recognises Claude Code by exactly these two and REFUSES with

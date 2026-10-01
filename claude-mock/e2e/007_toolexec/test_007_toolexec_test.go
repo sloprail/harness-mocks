@@ -65,10 +65,11 @@ func TestT007_03_BashToolCwdIsProjectDir(t *testing.T) {
 }
 
 // TestT007_11_BashToolSeesMockSessionID: a Bash tool subprocess sees the mock's
-// --session-id as CLAUDE_CODE_SESSION_ID, as real Claude Code exports it into every
-// Bash tool subprocess — even when the mock's own environment carries a DIFFERENT
-// value (the operator's outer session, when tests run inside a live Claude Code
-// session). Without it, a command resolving "the current session" from
+// --session-id as CLAUDE_CODE_SESSION_ID, CLAUDECODE=1 and
+// CLAUDE_CODE_ENTRYPOINT=sdk-cli, as the recorded `claude -p` run shows
+// (runs/subprocess-session-env: "SID=<SESSION_ID> CC=1 EP=sdk-cli") — even when
+// the mock's own environment carries DIFFERENT values (the operator's outer
+// session, when tests run inside a live Claude Code session). Without it, a command resolving "the current session" from
 // CLAUDE_CODE_SESSION_ID (e.g. `sr-session trajectory cite`) finds no transcript in
 // CI, or silently resolves against the operator's session.
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
@@ -76,12 +77,14 @@ func TestT007_03_BashToolCwdIsProjectDir(t *testing.T) {
 func TestT007_11_BashToolSeesMockSessionID(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "decoy-outer-session")
+	t.Setenv("CLAUDECODE", "decoy")
+	t.Setenv("CLAUDE_CODE_ENTRYPOINT", "decoy")
 	logPath := filepath.Join(dir, "sid.log")
-	out, code := runTool(t, dir, "Bash", `{"command":"printf %s \"$CLAUDE_CODE_SESSION_ID\" > `+logPath+`"}`)
+	out, code := runTool(t, dir, "Bash", `{"command":"printf %s \"SID=$CLAUDE_CODE_SESSION_ID CC=$CLAUDECODE EP=$CLAUDE_CODE_ENTRYPOINT\" > `+logPath+`"}`)
 	require.Equal(t, 0, code, "output:\n%s", out)
 	got, err := os.ReadFile(logPath)
 	require.NoError(t, err, "bash command must have run; output:\n%s", out)
-	assert.Equal(t, "s1", string(got), "Bash tool must see the mock's --session-id, not the inherited decoy")
+	assert.Equal(t, "SID=s1 CC=1 EP=sdk-cli", string(got), "Bash tool must see this run's identity, not the inherited decoys")
 }
 
 // --- Read ---

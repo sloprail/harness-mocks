@@ -71,7 +71,7 @@ func TestInvokeCommand_ArgsAndEnvRunViaShell(t *testing.T) {
 }
 
 // Every command hook must see the three Claude-Code environment variables the
-// real CLI sets on each session: CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=cli
+// real CLI sets on each session: CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli
 // (unconditional — a tool that detects "am I under a harness" keys off them, e.g.
 // sr-agent's harness detection, which refuses with ErrNoHarness when neither is
 // set) and CLAUDE_CODE_SESSION_ID (the active session id). A hook shelling to such
@@ -108,11 +108,11 @@ func TestInvokeCommand_SetsClaudeCodeEnvOnHook(t *testing.T) {
 	require.NoError(t, readErr, "hook never recorded its environment")
 	got := string(data)
 	assert.Contains(t, got, "CLAUDECODE=1", "CLAUDECODE must reach the hook env")
-	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=cli", "CLAUDE_CODE_ENTRYPOINT must reach the hook env")
+	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=sdk-cli", "CLAUDE_CODE_ENTRYPOINT must reach the hook env")
 	assert.Contains(t, got, "CLAUDE_CODE_SESSION_ID=sess-xyz", "CLAUDE_CODE_SESSION_ID must reach the hook env")
 }
 
-// CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=cli are set even when the invoker has NO
+// CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli are set even when the invoker has NO
 // session id (the empty-sessionID construction a print-mode or session-less run
 // uses): the harness-detection variables are unconditional, only the session-id
 // variable is gated on being non-empty. Were they gated on the session id too, a
@@ -140,7 +140,7 @@ func TestInvokeCommand_SetsHarnessEnvWithoutSessionID(t *testing.T) {
 	require.NoError(t, readErr)
 	got := string(data)
 	assert.Contains(t, got, "CLAUDECODE=1")
-	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=cli")
+	assert.Contains(t, got, "CLAUDE_CODE_ENTRYPOINT=sdk-cli")
 }
 
 // Exit 2 from a command hook is a blocking error surfaced via Fire's error.

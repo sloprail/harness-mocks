@@ -80,7 +80,7 @@ type HandlerRun struct {
 //     a tool like `a10n-task-executor session autopilot` reads to resolve "the
 //     current session" without an explicit flag. Verified against claude 2.x:
 //     SessionStart/UserPromptSubmit/PreToolUse all see it. Set only when non-empty.
-//   - CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=cli — the two variables the real CLI
+//   - CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli — the two variables the real CLI
 //     stamps on every session (both confirmed present in a live session). A tool
 //     that detects "am I running under a harness" keys off them (sr-agent's harness
 //     detection recognises Claude Code by exactly these two and REFUSES with

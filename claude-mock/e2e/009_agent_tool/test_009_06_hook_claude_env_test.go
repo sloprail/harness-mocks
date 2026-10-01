@@ -11,7 +11,7 @@ import (
 
 // TestT009_06_HookEnvCarriesClaudeCodeVars proves the mock presents the three
 // Claude-Code environment variables the real CLI sets on every session — CLAUDECODE=1,
-// CLAUDE_CODE_ENTRYPOINT=cli, and CLAUDE_CODE_SESSION_ID — to BOTH the root hook path
+// CLAUDE_CODE_ENTRYPOINT=sdk-cli, and CLAUDE_CODE_SESSION_ID — to BOTH the root hook path
 // (Stop) AND the sub-agent hook path (SubagentStart, fired by the Agent-tool layer).
 //
 // This is the integration-level counterpart to the unit test in internal/hooks: a
@@ -45,7 +45,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"subagent done","is
 
 	// Run the mock with CLAUDECODE / CLAUDE_CODE_ENTRYPOINT explicitly BLANK in its
 	// own process env (they are appended empty, overriding whatever the ambient dev
-	// or CI shell carries). This proves the =1 / =cli the hooks observe is the value
+	// or CI shell carries). This proves the =1 / =sdk-cli the hooks observe is the value
 	// the MOCK sets, not one forwarded from the surrounding environment.
 	out, code := runInDir(t, dir, []string{"CLAUDECODE=", "CLAUDE_CODE_ENTRYPOINT="},
 		"--script", orch, "--session-id", "sess-envtest", "--project-dir", dir, "-p", "go")
@@ -56,7 +56,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"subagent done","is
 	require.NoError(t, err, "root Stop hook must fire")
 	root := string(rootData)
 	assert.Contains(t, root, "CLAUDECODE=1", "root hook: CLAUDECODE")
-	assert.Contains(t, root, "CLAUDE_CODE_ENTRYPOINT=cli", "root hook: CLAUDE_CODE_ENTRYPOINT")
+	assert.Contains(t, root, "CLAUDE_CODE_ENTRYPOINT=sdk-cli", "root hook: CLAUDE_CODE_ENTRYPOINT")
 	assert.Contains(t, root, "CLAUDE_CODE_SESSION_ID=sess-envtest", "root hook: CLAUDE_CODE_SESSION_ID")
 
 	// Sub-agent SubagentStart hook saw the same harness env (session id shared).
@@ -64,6 +64,6 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"subagent done","is
 	require.NoError(t, err, "SubagentStart hook must fire")
 	sub := string(subData)
 	assert.Contains(t, sub, "CLAUDECODE=1", "sub-agent hook: CLAUDECODE")
-	assert.Contains(t, sub, "CLAUDE_CODE_ENTRYPOINT=cli", "sub-agent hook: CLAUDE_CODE_ENTRYPOINT")
+	assert.Contains(t, sub, "CLAUDE_CODE_ENTRYPOINT=sdk-cli", "sub-agent hook: CLAUDE_CODE_ENTRYPOINT")
 	assert.Contains(t, sub, "CLAUDE_CODE_SESSION_ID=sess-envtest", "sub-agent hook: CLAUDE_CODE_SESSION_ID")
 }
