@@ -1,4 +1,4 @@
-// Package procexec starts every child process a mock runs.
+// Package procexec is how a mock starts its child processes.
 package procexec
 
 import (
