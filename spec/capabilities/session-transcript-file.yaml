@@ -12,3 +12,4 @@ providers:
       - claude-mock/snapshots/runs/forkresume
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/symlinked-cwd
+      - claude-mock/snapshots/runs/transcript-at-start

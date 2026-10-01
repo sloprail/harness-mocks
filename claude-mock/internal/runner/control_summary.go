@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"strings"
 
@@ -83,13 +84,15 @@ func writeCompactCommand(tr *transcript, preRuns, postRuns []hooks.HandlerRun) {
 	tr.flushHookRuns()
 }
 
-// compactBlockMessage is what a PreCompact block tells the user: the stderr of
-// the handler that exited 2, else the decision's reason.
-func compactBlockMessage(out hooks.Output, runs []hooks.HandlerRun) string {
-	for _, r := range runs {
-		if r.ExitCode == 2 {
-			return strings.TrimSpace(r.Stderr)
+// compactBlockMessage is what a PreCompact block tells the user: the blocking
+// handler's reason or stderr, else the decision's reason.
+func compactBlockMessage(out hooks.Output, err error) string {
+	var be *hooks.BlockError
+	if errors.As(err, &be) {
+		if be.Reason != "" {
+			return be.Reason
 		}
+		return strings.TrimSpace(be.Stderr)
 	}
 	return strings.TrimSpace(out.Reason)
 }

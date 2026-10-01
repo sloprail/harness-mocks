@@ -76,7 +76,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 			})
 			if preErr != nil || preOut.Decision == "block" {
 				// For a manual /compact the block's message is shown to the user.
-				if msg := compactBlockMessage(preOut, preRuns); trigger == "manual" && msg != "" {
+				if msg := compactBlockMessage(preOut, preErr); trigger == "manual" && msg != "" {
 					fmt.Fprintln(cfg.Stderr, msg)
 				}
 				fmt.Fprintf(cfg.Stderr, "claude-mock: PreCompact blocked the compaction\n")
