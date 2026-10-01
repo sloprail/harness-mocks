@@ -5,11 +5,13 @@
 # sections. The tests must drive the mock into the recorded situation and
 # assert what the real harness produced (or a declared deviation). This is
 # the real-vs-mock comparison: the mock is proven by e2e tests, and the tests
-# are held to the recordings. One judge per (capability × harness) touched.
+# are held to the recordings. Each (capability × harness) touched is one
+# subject; until the engine splits subjects itself, prepare.sh lists them and
+# one judge call reviews them all, failing if any one fails.
 match: >-
   path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/"
   or any(markers, .kind == "capability" or .kind == "provides" or .kind == "proves")
   or any(oldMarkers, .kind == "capability" or .kind == "provides" or .kind == "proves")
-subjects: ./subjects.sh
 checks:
-  - judge: ./tests-prove-as-documented.md.j2
+  - prepare: ./prepare.sh
+    judge: ./tests-prove-as-documented.md.j2

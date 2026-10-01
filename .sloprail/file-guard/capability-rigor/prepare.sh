@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# (capability, harness) pairs touched: the capability file changed (every
+# prepare: the (capability, harness) pairs touched, as additionalContext.subjects: the capability file changed (every
 # providing harness); a marker naming it changed (sr:capability → every
 # harness; sr:provides/sr:proves <id>/<h> → that harness); or a snapshot it
 # cites for <h> changed. Context: statement, cited doc sections, cited runs
@@ -45,4 +45,6 @@ while IFS= read -r c; do
       '. + [{id: $id, files: ([$path] + [$tests[].path]), context: {harness: $h, statement: $st, docs: $docs, runs: $runs, deviations: $dev, tests: $tests}}]' <<<"$subjects")"
   done
 done < <(jq -c '.[]' <<<"$caps")
-jq -n -c --argjson s "$subjects" '{subjects: $s}'
+# nothing touched: skip the model
+if [ "$(jq 'length' <<<"$subjects")" -eq 0 ]; then echo '{"skip": true}'; exit 0; fi
+jq -n -c --argjson s "$subjects" '{additionalContext: {subjects: $s}}'
