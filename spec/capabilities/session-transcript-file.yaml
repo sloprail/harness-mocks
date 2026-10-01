@@ -19,3 +19,4 @@ providers:
       - https://cursor.com/docs/hooks#common-schema
     runs:
       - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/symlinked-cwd

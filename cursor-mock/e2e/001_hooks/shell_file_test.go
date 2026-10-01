@@ -31,6 +31,16 @@ func TestAShellCommandExitingNonZeroIsAFailureResultWithItsOutputOrExitCode(t *t
 	}
 	require.Equal(t, []string{"tool_call/started/shellToolCall/", "tool_call/completed/shellToolCall/failure"}, got.frames[:2])
 	require.Equal(t, "tool_call/completed/shellToolCall/success", got.frames[len(got.frames)-2], "echo FINE")
+
+	// a command that succeeds has the structured result the recording shows:
+	// its output and exit code, as the postToolUse hook's tool_output
+	var fine string
+	for _, h := range got.raw {
+		if h["hook_event_name"] == "postToolUse" && h["tool_input"].(map[string]any)["command"] == "echo FINE" {
+			fine, _ = h["tool_output"].(string)
+		}
+	}
+	require.JSONEq(t, `{"output":"FINE\n","exitCode":0}`, fine)
 }
 
 // TestAFileReadReturnsItsContentAndAWriteReplacesItWhole: recorded, a write
@@ -54,6 +64,16 @@ func TestAFileReadReturnsItsContentAndAWriteReplacesItWhole(t *testing.T) {
 	require.Equal(t, []any{"hi\n", "bye\n"}, written)
 	require.Len(t, edits, 2)
 	require.Contains(t, got.frames, "tool_call/completed/readToolCall/success")
+	// a read's structured result is its file and the length of the content it
+	// returned, as the postToolUse hook's tool_output
+	var reads int
+	for _, h := range got.raw {
+		if h["hook_event_name"] == "postToolUse" && h["tool_name"] == "Read" {
+			reads++
+			require.JSONEq(t, `{"file_path":"`+got.ws+`/note.txt","content_length":3}`, h["tool_output"].(string))
+		}
+	}
+	require.NotZero(t, reads, "a read has its result as the postToolUse hook's tool_output")
 }
 
 // TestAReadOfAFileThatIsNotThereIsAnErrorResult: recorded, the Read of a

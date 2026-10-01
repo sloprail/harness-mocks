@@ -73,7 +73,7 @@ acquire() { local n=0; until mkdir "$lock" 2>/dev/null; do n=$((n + 1)); [ "$n" 
 
 capture_run() {
   local name="$1" run="$here/runs/$1" v ts home
-  work="" cap=""   # global: the EXIT trap below reads them
+  work="" cap="" lname=""   # global: the EXIT trap below reads them
   [ -f "$run/setup/prompt.txt" ] || die "runs/$name/setup/prompt.txt is missing: author the scenario first"
   v="$(version)"; [ "$(installed)" = "$v" ] || die "installed cursor-agent is $(installed), MANIFEST.version is $v: run 'capture.sh all' to move to it"
   acquire
@@ -98,7 +98,11 @@ capture_run() {
   # could stop that.)
   local bin; bin="$(command -v cursor-agent)" || die "cursor-agent is not on PATH"
   set +e
-  (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+  # A scenario's `symlink` file names a symlink to the repo ("<name>"): the run
+  # starts from it, so cursor-agent's working directory is a symlinked path.
+  cwd="$work/repo"
+  if [ -f "$run/setup/symlink" ]; then read -r lname <"$run/setup/symlink"; ln -s "$work/repo" "$work/$lname"; cwd="$work/$lname"; fi
+  (cd "$cwd" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
     TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
     "$bin" -p --force --trust --model auto --output-format stream-json \
       ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
@@ -125,8 +129,9 @@ capture_run() {
   # sanitize: the machine's paths out of everything captured, and the run dir as
   # cursor-agent encodes it into a folder name (every non-alphanumeric as -)
   local enc; enc="$(printf '%s' "${work#/}/repo" | sed 's#[^A-Za-z0-9]#-#g')"
-  { grep -rlF -e "$work" -e "$HOME" -e "$enc" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do
-    sed -i '' -e "s#$work/repo#<RUN>#g" -e "s#$work#<TMP>#g" -e "s#$HOME#<HOME>#g" -e "s#$enc#<RUN_DIRNAME>#g" "$f"
+  local lenc="${enc%-repo}-${lname:-link}"   # the symlink's own encoded name (a scenario's `symlink` file)
+  { grep -rlF -e "$work" -e "$HOME" -e "$enc" -e "$lenc" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do
+    sed -i '' -e "s#$work/repo#<RUN>#g" -e "s#$lenc#<LINK_DIRNAME>#g" -e "s#$work#<TMP>#g" -e "s#$HOME#<HOME>#g" -e "s#$enc#<RUN_DIRNAME>#g" "$f"
   done
   normalize "$cap" >"$cap/events.jsonl"
   # a sample never carries an email address but Anthropic's attribution one
