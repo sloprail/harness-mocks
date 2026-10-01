@@ -5,4 +5,4 @@ on:
   - event: PreFileWrite
     match: event.path endsWith ".go"
 checks:
-  - script: ../../file-guard/file-size/size.sh
+  - script: ./size.sh

@@ -1,58 +1,41 @@
 #!/usr/bin/env bash
-# adr/file-size's deterministic check. It runs in two places:
-#   - as this file-guard, on a Changeset (every changed .go file, committed bytes);
-#   - as gate/file-size, on a PreFileCreate/PreFileUpdate (one file,
-#     before the write).
+# The file-guard half of adr/file-size: every changed Go file in the committed
+# changeset stays within its limit or its legacy ceiling (size-lib.sh holds the
+# rule). Follows the skill's check-template.sh: anything but a readable Changeset
+# is a refusal, never a pass.
 set -uo pipefail
+
 payload="$(cat)"
-refuse() { jq -n --arg r "$1" '{reason: $r}'; exit 1; }
-. "${SR_GUARDRAIL_DIR:-.}/../../_lib/adr.sh"
 
-# Limits and per-file ceilings come from the ADR(s) that link this rule, so the
-# decision and its check cannot disagree. Both the gate and the file-guard of
-# this name are linked from adr/file-size. A ceiling is an absolute number, not
-# "no bigger than before": a legacy file a move-only split CREATED has no
-# "before", and must still be held to its size.
-load_adrs "$(rule_qname)"
-fm="$(jq -c '[.[] | .frontmatter | select(.limits)][0] // empty' <<<"$ADRS")"
-[ -n "$fm" ] || refuse "no ADR linking $(rule_qname) declares limits, so file sizes cannot be checked"
-lim_go="$(jq -r '.limits.go' <<<"$fm")"
-lim_test="$(jq -r '.limits.go_test' <<<"$fm")"
-ceilings="$(jq -c '[.[] | .frontmatter.ceilings // {}] | add // {}' <<<"$ADRS")"
-
-lines() { if [ -z "$1" ]; then echo 0; else printf '%s\n' "$1" | awk 'END { print NR }'; fi; }
-
-# check PATH NEW — prints a problem, or nothing.
-check() {
-  local path="$1" new="$2" limit n c
-  case "$path" in *_test.go) limit="$lim_test" ;; *.go) limit="$lim_go" ;; *) return 0 ;; esac
-  n="$(lines "$new")"
-  c="$(jq -r --arg p "$path" '.[$p] // empty' <<<"$ceilings")"
-  if [ -n "$c" ]; then
-    [ "$n" -le "$c" ] || echo "$path holds $n lines, over its legacy ceiling of $c: split it with a move-only refactor instead of growing it"
-    return 0
-  fi
-  [ "$n" -le "$limit" ] || echo "$path would be $n lines, over the limit of $limit: split it by responsibility into smaller files"
+refuse() {
+  jq -n --arg r "$1" '{reason: $r}'
+  exit 1
 }
 
-kind="$(jq -r '.event.kind // ""' <<<"$payload")"
+[ "$(printf '%s' "$payload" | jq -r '.event.kind // ""')" = "Changeset" ] ||
+  refuse "expected a Changeset event, so the changed files could not be checked"
+printf '%s' "$payload" | jq -e '.changeset.files | type == "array"' >/dev/null 2>&1 ||
+  refuse "the changeset's files could not be read, so they could not be checked"
+count="$(printf '%s' "$payload" | jq -r '.changeset.files | length')" || count=""
+case "$count" in '' | *[!0-9]*) refuse "the changeset's files could not be read, so they could not be checked" ;; esac
+
+. "${SR_GUARDRAIL_DIR:-.}/size-lib.sh"
+size_load
+
 problems=""
-case "$kind" in
-  Changeset)
-    while IFS= read -r f; do
-      [ -n "$f" ] || continue
-      p="$(check "$(jq -r '.path' <<<"$f")" "$(jq -r '.newContent // ""' <<<"$f")")"
-      [ -z "$p" ] || problems="${problems}- $p"$'\n'
-    done < <(jq -c '.changeset.files[] | select(.status != "D")' <<<"$payload")
-    ;;
-  PreFileCreate | PreFileUpdate)
-    # An edit whose result cannot be predicted is left to the commit check.
-    [ "$(jq -r '.event.resultKnown' <<<"$payload")" = "true" ] || exit 0
-    p="$(check "$(jq -r '.event.path' <<<"$payload")" "$(jq -r '.event.newContent // ""' <<<"$payload")")"
-    [ -z "$p" ] || problems="- $p"$'\n'
-    ;;
-  *) refuse "the file-size ADR's size check got an unexpected event kind '$kind'" ;;
-esac
+i=0
+while [ "$i" -lt "$count" ]; do
+  path="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].path')" ||
+    refuse "could not read file $i of the changeset, so it could not be checked"
+  status="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].status')" ||
+    refuse "could not read $path from the changeset, so it could not be checked"
+  content="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].newContent // ""')" ||
+    refuse "could not read $path from the changeset, so it could not be checked"
+  i=$((i + 1))
+  [ "$status" = "D" ] && continue
+  p="$(size_problem "$path" "$content")"
+  [ -z "$p" ] || problems="${problems}- $p"$'\n'
+done
 [ -z "$problems" ] && exit 0
 refuse "adr/file-size (Go files stay small):
 ${problems}"
