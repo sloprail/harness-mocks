@@ -5,7 +5,7 @@ statement: >-
 providers:
   claude:
     docs:
-      - https://code.claude.com/docs/en/interactive-mode#how-backgrounding-works
+      - https://code.claude.com/docs/en/tools-reference#background-commands
     runs:
       - claude-mock/snapshots/runs/bgbash
       - claude-mock/snapshots/runs/midturn
