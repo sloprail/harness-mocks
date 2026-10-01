@@ -17,11 +17,6 @@ providers:
           is always null and the text a user passes after /compact is not modeled.
       - adr: modeled-surface
         statement: >-
-          The recorded run's stream frames around a compaction (system status
-          compacting, system init, compact_boundary and the command's output
-          records) are not streamed; the mock streams the summary.
-      - adr: modeled-surface
-        statement: >-
           The mock has no API and no context window, so it never compacts by
           itself and never meets a context-limit error: an automatic compaction is
           requested by a scenario, and the variant where blocking an automatic

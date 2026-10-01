@@ -84,11 +84,14 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 			}
 			var ok bool
 			sum, anchor, summaryText, ok = compactSummary(rec, line)
+			if ok {
+				writeCompactingStatus(cfg)
+			}
 			return !ok
 		},
 		Summarizer: func() { fireSummarizerStop(ctx, cfg, inv, tr, summaryText) },
 		Boundary: func() {
-			writeCompactBoundary(tr, compactionSpec{
+			writeCompactBoundary(cfg, tr, compactionSpec{
 				logicalParent: rec.LogicalParent, preserve: preserve, anchor: anchor, trigger: trigger,
 				preTokens: rec.PreTokens, postTokens: rec.PostTokens, durationMs: time.Since(started).Milliseconds(),
 				withSegment: rec.PreservedSegment == nil || *rec.PreservedSegment, tailOffset: rec.TailOffset,
@@ -112,7 +115,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 				Trigger: trigger, CompactSummary: &summaryText,
 			})
 		},
-		Command: func() { writeCompactCommand(tr, preRuns, postRuns) },
+		Command: func() { writeCompactCommand(cfg, tr, preRuns, postRuns) },
 	})
 	return happened, nil
 }

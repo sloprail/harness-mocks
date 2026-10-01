@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,6 +89,85 @@ func TestT017_07i_ManualCompactionBlockShowsTheMessage(t *testing.T) {
 			}
 			raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "cmp-i"))
 			assert.NotContains(t, string(raw), "compact_boundary")
+		})
+	}
+}
+
+// TestT017_07j_CompactionStreamsItsFrames: a compaction streams, as the recorded
+// manual /compact run did, system/status "compacting", then status with
+// compact_result "success", a system/init, the system/compact_boundary frame (the
+// boundary's metadata in snake_case, the transcript boundary's logical parent and
+// kept records), the summary, and for a manual compaction the command's output.
+// sr:proves manual-compaction/claude
+// sr:proves compaction-transcript-continuity/claude
+func TestT017_07j_CompactionStreamsItsFrames(t *testing.T) {
+	for _, trigger := range []string{"manual", "auto"} {
+		t.Run(trigger, func(t *testing.T) {
+			dir := t.TempDir()
+			cfg := filepath.Join(dir, "config")
+			sc := script(t, dir, "s", toolUse("b1", "Bash", `{"command":"true"}`),
+				`{"type":"compact","summary":"the summary @MARK@","trigger":"`+trigger+`","pre_tokens":900,"post_tokens":100}`)
+			out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-j",
+				"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+			require.Equal(t, 0, code, out)
+			var frames []map[string]any
+			for _, l := range strings.Split(out, "\n") {
+				var f map[string]any
+				if json.Unmarshal([]byte(l), &f) == nil && f != nil {
+					frames = append(frames, f)
+				}
+			}
+			var at = func(typ, subtype string) int {
+				for i, f := range frames {
+					if f["type"] == typ && f["subtype"] == subtype && (subtype != "status" || f["status"] == "compacting") {
+						return i
+					}
+				}
+				return -1
+			}
+			compacting, boundary := at("system", "status"), at("system", "compact_boundary")
+			require.GreaterOrEqual(t, compacting, 0, "status compacting")
+			require.Greater(t, boundary, compacting)
+			ended := frames[compacting+1]
+			assert.Equal(t, "status", ended["subtype"])
+			assert.Nil(t, ended["status"])
+			assert.Equal(t, "success", ended["compact_result"])
+			initFrame := frames[compacting+2]
+			assert.Equal(t, "init", initFrame["subtype"])
+			assert.NotEmpty(t, initFrame["cwd"])
+			assert.Equal(t, boundary, compacting+3, "status, status, init, then the boundary")
+			f := frames[boundary]
+			assert.Equal(t, "cmp-j", f["session_id"])
+			meta := f["compact_metadata"].(map[string]any)
+			assert.Equal(t, trigger, meta["trigger"])
+			assert.EqualValues(t, 900, meta["pre_tokens"])
+			assert.EqualValues(t, 100, meta["post_tokens"])
+			assert.EqualValues(t, 800, meta["cumulative_dropped_tokens"])
+			recs := readRecs(t, transcriptPath(t, cfg, dir, "cmp-j"))
+			for _, r := range recs {
+				if r.Subtype != "compact_boundary" {
+					continue
+				}
+				assert.Equal(t, r.LogicalParentUUID, f["logical_parent_uuid"], "the frame names the transcript boundary's logical parent")
+				var full map[string]any
+				require.NoError(t, json.Unmarshal([]byte(r.Raw), &full))
+				kept := full["compactMetadata"].(map[string]any)["preservedMessages"].(map[string]any)["uuids"]
+				assert.Equal(t, kept, meta["preserved_messages"].(map[string]any)["uuids"])
+				assert.Contains(t, meta["preserved_segment"], "tail_uuid")
+			}
+			summary, command := false, false
+			for _, fr := range frames[boundary+1:] {
+				if fr["isCompactSummary"] == true {
+					summary = true
+				}
+				if msg, _ := fr["message"].(map[string]any); msg != nil {
+					if c, _ := msg["content"].(string); strings.HasPrefix(c, "<local-command-stdout>Compacted") {
+						command = true
+					}
+				}
+			}
+			assert.True(t, summary, "the summary follows the boundary")
+			assert.Equal(t, trigger == "manual", command, "only a manual compaction is the /compact command, whose output streams")
 		})
 	}
 }

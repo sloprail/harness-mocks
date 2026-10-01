@@ -27,7 +27,7 @@ import (
 //   - without one (F:compact-nohooks; 1 of 65): neither field.
 //
 // sr:provides compaction-transcript-continuity/claude
-func writeCompactBoundary(tr *transcript, spec compactionSpec) {
+func writeCompactBoundary(cfg Config, tr *transcript, spec compactionSpec) {
 	plan := compaction.PlanBoundary(compaction.PlanInput{
 		WithSegment: spec.withSegment, Preserve: spec.preserve, TailOffset: spec.tailOffset,
 		LogicalParent: spec.logicalParent,
@@ -64,6 +64,7 @@ func writeCompactBoundary(tr *transcript, spec compactionSpec) {
 		"level":             "info",
 		"compactMetadata":   meta,
 	})
+	writeCompactedFrames(cfg, meta, plan.LogicalParent)
 }
 
 // lastCumulativeDropped is the cumulativeDroppedTokens of the last compact
