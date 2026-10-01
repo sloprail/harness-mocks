@@ -58,13 +58,15 @@ func TestT017_57_BackgroundBashPayloadAndReceipt(t *testing.T) {
 // response: the PostToolUse payload (with the sub-agent's agent_id) adds
 // backgroundEndsWithFinalResponse: true, and the receipt is the full recorded
 // text warning that it is terminated when the sub-agent gives its final
-// response (recorded: snapshots/runs/fg-subagent-bash).
+// response (recorded: snapshots/runs/fg-subagent-bash); the sub-agent's SubagentStop
+// payload lists that command as the running task.
 // sr:proves foreground-subagent-bash-ends-with-response/claude
 func TestT017_58_BackgroundBashInAForegroundSubagent(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
-	settings(t, dir, map[string]string{"PostToolUse": payloadLogger(t, dir, "log.sh", log, "")})
+	h := payloadLogger(t, dir, "log.sh", log, "")
+	settings(t, dir, map[string]string{"PostToolUse": h, "SubagentStop": h, "Stop": h})
 	sub := script(t, dir, "sub", toolUse("sb", "Bash", `{"command":"sleep 30; echo SUBBG","description":"bgsleep","run_in_background":true}`))
 	root := script(t, dir, "root", toolUse("ag", "Agent", `{"description":"bgrunner","prompt":"go","subagent_type":"general-purpose","script":"`+sub+`"}`))
 	out, code := runInDir(t, dir, nil, "--script", root, "--session-id", "bgp-2", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
@@ -82,6 +84,18 @@ func TestT017_58_BackgroundBashInAForegroundSubagent(t *testing.T) {
 	// the sub-agent's own tool results are in its transcript, not the main stream
 	files, _ := filepath.Glob(filepath.Join(cfg, "projects", "*", "bgp-2", "subagents", "agent-*.jsonl"))
 	require.Len(t, files, 1)
+	// SubagentStop lists the command still running, before it is killed with the
+	// sub-agent; the main thread's Stop lists none.
+	for _, p := range payloads(t, log) {
+		switch p["hook_event_name"] {
+		case "SubagentStop":
+			assert.Equal(t, []any{map[string]any{"id": id, "type": "shell", "status": "running", "description": "bgsleep", "command": "sleep 30; echo SUBBG"}},
+				p["background_tasks"])
+		case "Stop":
+			assert.Empty(t, p["background_tasks"])
+		}
+	}
+
 	var receipt string
 	for _, r := range readRecs(t, files[0]) {
 		var m struct {
