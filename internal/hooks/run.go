@@ -46,6 +46,9 @@ type Runtime struct {
 	Env []string
 	// DefaultTimeout applies to a command with none of its own.
 	DefaultTimeout time.Duration
+	// NewSession runs each command in a session of its own, with no
+	// controlling terminal (a harness whose hooks cannot open /dev/tty).
+	NewSession bool
 }
 
 // RunAll runs the commands of the hooks that matched one event, all at once,
@@ -74,6 +77,7 @@ func runOne(ctx context.Context, c Command, stdin []byte, rt Runtime) Outcome {
 	start := time.Now()
 	res, err := procexec.Run(ctx, procexec.Spec{
 		Argv: []string{"/bin/sh", "-c", c.Line}, Dir: rt.Dir, Stdin: stdin, Env: append(append([]string{}, rt.Env...), c.Env...), Timeout: timeout,
+		NewSession: rt.NewSession,
 	})
 	return Outcome{Command: c.Line, Exit: res.ExitCode, Started: err == nil && res.Started, TimedOut: res.TimedOut,
 		Stdout: string(res.Stdout), Stderr: string(res.Stderr), Took: time.Since(start), Timeout: timeout}

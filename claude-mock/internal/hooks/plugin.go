@@ -99,7 +99,7 @@ func loadPluginHooks(dst *Settings, cacheDir string, enabledPlugins map[string]b
 				continue
 			}
 			for evt, entries := range ph.Hooks {
-				dst.Hooks[evt] = append(dst.Hooks[evt], expandPluginRoot(entries, pluginDir)...)
+				dst.Hooks[evt] = append(dst.Hooks[evt], expandPluginRoot(entries, pluginDir, cacheDir)...)
 			}
 		}
 	}
