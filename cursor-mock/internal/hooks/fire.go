@@ -11,8 +11,8 @@ type Hooks struct {
 	Config Config
 	// Dir is where project hooks run: the project root.
 	Dir string
-	// Env is the environment a hook command starts with.
-	Env []string
+	// Env is the environment a hook command starts with, at the time of the event.
+	Env func() []string
 	// Common builds the fields every payload carries, at the time of the event.
 	Common func() Common
 }
@@ -43,7 +43,7 @@ func (h *Hooks) Fire(ctx context.Context, e Event, subject string, own map[strin
 	if len(cmds) == 0 {
 		return nil
 	}
-	outs := corehooks.RunAll(ctx, cmds, h.Common().Payload(e, own), corehooks.Runtime{Dir: h.Dir, Env: h.Env})
+	outs := corehooks.RunAll(ctx, cmds, h.Common().Payload(e, own), corehooks.Runtime{Dir: h.Dir, Env: h.Env()})
 	ds := make([]Decision, len(outs))
 	for i, o := range outs {
 		ds[i] = Interpret(e, entries[i], o)

@@ -22,7 +22,8 @@ func TestShellFailureAndErrorMessage(t *testing.T) {
 		{"echo fine", false, ""},
 		{"false", true, "Command failed with exit code 1"},
 		{"echo OOPS >&2; exit 3", true, "OOPS"},
-		{"echo out; exit 3", true, "Command failed with exit code 3"},
+		{"echo out; exit 3", true, "out"},
+		{"exit 3", true, "Command failed with exit code 3"},
 	} {
 		r := Execute(context.Background(), call("shellToolCall", map[string]any{"command": tc.command}), dir, env)
 		if r.Failed != tc.failed || r.ErrorMessage != tc.message {

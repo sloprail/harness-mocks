@@ -30,7 +30,9 @@ type observed struct {
 	frames  []string
 	// raw are the payloads as the hooks read them, and ws and home the
 	// workspace and the home the run used (set on the mock's side only).
-	raw      []map[string]any
+	raw []map[string]any
+	// envs are the environments the hook scripts logged of themselves.
+	envs     []map[string]any
 	ws, home string
 }
 
@@ -168,6 +170,8 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 			// events the mock does not fire (adr/modeled-surface)
 		case e["hook"] != nil:
 			rec.hooks = append(rec.hooks, unmodeledEnv(p).(map[string]any))
+		case p["hook_env"] != nil:
+			rec.envs = append(rec.envs, hookEnv(p["hook_env"], ""))
 		case p["hook_result"] != nil || p["hook_ran"] != nil:
 			if n := resultName(p); n != "" {
 				rec.results = append(rec.results, n)
@@ -258,6 +262,8 @@ func replay(t *testing.T, run string) (got, want observed) {
 		case m["hook_event_name"] != nil && m["hook_event_name"] != "afterAgentThought":
 			got.hooks = append(got.hooks, normalize(m, sid, ws).(map[string]any))
 			got.raw = append(got.raw, m)
+		case m["hook_env"] != nil:
+			got.envs = append(got.envs, hookEnv(m["hook_env"], ws))
 		case m["hook_result"] != nil || m["hook_ran"] != nil:
 			if n := resultName(m); n != "" {
 				got.results = append(got.results, n)
@@ -324,6 +330,29 @@ func scriptCall(t *testing.T, frame string, writes []string) (string, []string) 
 	require.NotEmpty(t, name, "a started frame naming no tool the mock runs: %s", frame)
 	return jsonString(map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "content": []any{
 		map[string]any{"type": "tool_use", "id": id, "name": name, "input": input}}}}), writes
+}
+
+// hookEnv is what a hook logged of its environment, as the recording shows it:
+// the workspace as <RUN>, without the path of cursor-agent's ripgrep, which the
+// mock does not set, and without the transcript path, which cursor-agent hands
+// a hook or not depending on a race (the last hook always has it).
+func hookEnv(v any, ws string) map[string]any {
+	out := map[string]any{}
+	for k, e := range v.(map[string]any) {
+		s, _ := e.(string)
+		switch k {
+		case "CURSOR_RIPGREP_PATH":
+			continue
+		case "CURSOR_TRANSCRIPT_PATH":
+			continue // whether the file is named yet when a hook starts is a race in cursor-agent
+		default:
+			if ws != "" {
+				s = strings.ReplaceAll(s, ws, "<RUN>")
+			}
+		}
+		out[k] = s
+	}
+	return out
 }
 
 func itoa(i int) string { return strings.TrimSpace(jsonString(i)) }

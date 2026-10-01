@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -59,4 +60,44 @@ func TestInsideAnotherSessionTheSessionIdIsThisRuns(t *testing.T) {
 	require.Contains(t, values, "CURSOR_CONVERSATION_ID=<SESSION_ID>\n", "this run's session, not decoy-conversation")
 	require.Contains(t, values, "CURSOR_INVOKED_AS=cursor-agent\n")
 	require.Contains(t, values, "CURSOR_AGENT=decoy-agent\n")
+}
+
+// TestAHookCommandSeesTheProjectTheVersionAndHowItWasStarted: recorded, a hook
+// process sees CURSOR_PROJECT_DIR, CLAUDE_PROJECT_DIR (the workspace),
+// CURSOR_VERSION and CURSOR_INVOKED_AS=cursor-agent, and CURSOR_TRANSCRIPT_PATH
+// once the transcript is named in the payloads.
+// sr:proves subprocess-session-env/cursor
+func TestAHookCommandSeesTheProjectTheVersionAndHowItWasStarted(t *testing.T) {
+	got, want := replay(t, "subprocess-session-env")
+	conforms(t, got, want)
+	require.Equal(t, want.envs, got.envs)
+	require.NotEmpty(t, got.envs)
+	first := got.envs[0]
+	require.Equal(t, "<RUN>", first["CURSOR_PROJECT_DIR"])
+	require.Equal(t, "<RUN>", first["CLAUDE_PROJECT_DIR"])
+	require.Equal(t, "cursor-agent", first["CURSOR_INVOKED_AS"])
+
+	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat >/dev/null; echo \"[$CURSOR_TRANSCRIPT_PATH]\" > \"$HOOK_LOG.start\""}],"sessionEnd":[{"command":"cat >/dev/null; echo \"$CURSOR_TRANSCRIPT_PATH\" > \"$HOOK_LOG.end\""}]}}`, nil, "echo hi")
+	start, _ := os.ReadFile(c.log + ".start")
+	require.Equal(t, "[]", strings.TrimSpace(string(start)), "no transcript path yet at sessionStart")
+	end, _ := os.ReadFile(c.log + ".end")
+	path, _ := c.transcript(t)
+	require.Equal(t, path, strings.TrimSpace(string(end)), "the transcript file, once the conversation has one")
+}
+
+// TestInsideAnotherSessionAHookKeepsWhatItInheritedButHowItWasStarted:
+// recorded, over decoys the hook's CURSOR_INVOKED_AS is this run's, and its
+// CURSOR_PROJECT_DIR, CURSOR_VERSION, CURSOR_CONVERSATION_ID and CURSOR_AGENT
+// are the inherited ones.
+// sr:proves subprocess-session-env/cursor
+func TestInsideAnotherSessionAHookKeepsWhatItInheritedButHowItWasStarted(t *testing.T) {
+	got, want := replay(t, "nested-session-env")
+	conforms(t, got, want)
+	require.Equal(t, want.envs, got.envs)
+	e := got.envs[0]
+	require.Equal(t, "cursor-agent", e["CURSOR_INVOKED_AS"])
+	require.Equal(t, "decoy-project", e["CURSOR_PROJECT_DIR"])
+	require.Equal(t, "decoy-version", e["CURSOR_VERSION"])
+	require.Equal(t, "decoy-conversation", e["CURSOR_CONVERSATION_ID"])
+	require.Equal(t, "decoy-agent", e["CURSOR_AGENT"])
 }

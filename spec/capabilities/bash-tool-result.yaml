@@ -1,10 +1,10 @@
 statement: >-
   A foreground shell command's result carries its output and a structured form
   of it; a command that exits non-zero is an error result stating the exit
-  code and the output, except where the harness knows that exit status 1 only
-  reports no match or a difference (a search, a comparison). (Output limits,
-  timeouts, what a command leaves behind for the next one, and commands run in
-  the background are not part of this.)
+  code and the output. (Where a harness knows that exit status 1 only reports
+  no match or a difference (a search, a comparison), output limits, timeouts,
+  what a command leaves behind for the next one, and commands run in the
+  background are not part of this.)
 providers:
   claude:
     docs:
@@ -12,4 +12,10 @@ providers:
     runs:
       - claude-mock/snapshots/runs/bashfail
       - claude-mock/snapshots/runs/stops
-  cursor: false
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#aftershellexecution
+      - https://cursor.com/docs/hooks#posttoolusefailure
+    runs:
+      - cursor-mock/snapshots/runs/shell-exit-status
+      - cursor-mock/snapshots/runs/tool-failure

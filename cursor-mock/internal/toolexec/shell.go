@@ -9,9 +9,14 @@ import (
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
-// shell runs a Shell call. A command exiting non-zero failed: the failure
-// hook's error_message is what it wrote on stderr, or else "Command failed
-// with exit code N" (recorded: runs/tool-failure).
+// shell runs a Shell call. A command exiting non-zero failed, whatever its
+// status (grep finding nothing is a failure too): the result is a failure
+// carrying the exit code and both streams, and the failure hook's
+// error_message is what the command printed, or else "Command failed with
+// exit code N" (recorded: runs/tool-failure, runs/shell-exit-status).
+//
+// sr:provides bash-tool-result/cursor
+// sr:docs https://cursor.com/docs/hooks#aftershellexecution
 func shell(ctx context.Context, c Call, dir string, env []string) Result {
 	cwd := dir
 	if wd := c.str("workingDirectory"); wd != "" {
@@ -34,7 +39,7 @@ func shell(ctx context.Context, c Call, dir string, env []string) Result {
 	}
 	body["aborted"] = false
 	r.Failed, r.Frame = true, map[string]any{"failure": body, "isBackground": false}
-	r.ErrorMessage = strings.TrimSpace(res.Stderr)
+	r.ErrorMessage = strings.TrimSpace(res.Output)
 	if r.ErrorMessage == "" {
 		r.ErrorMessage = fmt.Sprintf("Command failed with exit code %d", res.ExitCode)
 	}

@@ -20,9 +20,12 @@ func failed(message, frameMessage string) Result {
 	return Result{Failed: true, ErrorMessage: message, Frame: map[string]any{"error": map[string]any{"errorMessage": frameMessage}}}
 }
 
-// read runs a Read call. A file that does not exist fails the call: the
-// failure hook's error_message is "File not found: <path>" (recorded:
-// runs/tool-failure).
+// read runs a Read call: the file's content is the result. A file that does
+// not exist fails the call: the failure hook's error_message is "File not
+// found: <path>" (recorded: runs/tool-failure).
+//
+// sr:provides file-tools/cursor
+// sr:docs https://cursor.com/docs/hooks#beforereadfile
 func read(c Call, dir string) Result {
 	path := c.Path(dir)
 	content, err := tools.ReadFile(path)
@@ -46,10 +49,13 @@ func read(c Call, dir string) Result {
 	}
 }
 
-// write runs a Write (edit) call: the file takes the call's content. What
-// afterFileEdit reports as the edit is the change with the text the old and
-// new contents share, at the start and the end, left out (recorded:
-// runs/file-tools).
+// write runs a Write (edit) call: the file is created, or replaced whole, with
+// the call's content. What afterFileEdit reports as the edit is the change with
+// the text the old and new contents share, at the start and the end, left out
+// (recorded: runs/file-tools).
+//
+// sr:provides file-tools/cursor
+// sr:docs https://cursor.com/docs/hooks#afterfileedit
 func write(c Call, dir string) Result {
 	path, content := c.Path(dir), c.str("streamContent")
 	old, _, err := tools.WriteFile(path, content)

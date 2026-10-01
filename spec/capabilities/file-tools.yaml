@@ -1,14 +1,11 @@
 statement: >-
-  The agent can read, write, edit and glob files in its working directory. A
-  read returns the file's lines, numbered from line 1, starting at an offset
-  for a limit; a write creates a file or replaces one whole; an edit replaces
-  an exact string that appears exactly once (or every occurrence, when asked)
-  and is refused before any hook runs when the string is absent or ambiguous;
-  a glob lists the files that match, sorted by modification time, at most a
-  hundred of them; a call that fails surfaces as an error result. (What a
-  read does with images, PDFs and notebooks, with a file too large for the
-  token limit, the rules that make a file be read before it is changed, and
-  the ignore settings of a glob are not part of this.)
+  The agent can read and write files in its working directory: a read returns
+  the file's content, a write creates a file or replaces one whole, and a call
+  that fails (a file that is not there) surfaces as an error result. (Numbered
+  lines, offsets and limits, edits of an exact string, globs, images, PDFs and
+  notebooks, files too large for the token limit, the rules that make a file be
+  read before it is changed, and the ignore settings of a glob are not part of
+  this.)
 providers:
   claude:
     docs:
@@ -19,4 +16,10 @@ providers:
     runs:
       - claude-mock/snapshots/runs/file-tools
       - claude-mock/snapshots/runs/tool-errors
-  cursor: false
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#afterfileedit
+      - https://cursor.com/docs/hooks#beforereadfile
+    runs:
+      - cursor-mock/snapshots/runs/file-tools
+      - cursor-mock/snapshots/runs/tool-failure
