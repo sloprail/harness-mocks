@@ -39,10 +39,9 @@ type subagentOutcome struct {
 // SubagentStop blocks) and returns how it ended.
 func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks, prompt string) subagentOutcome {
 	started := time.Now()
-	writeFrame(s.parent, map[string]any{
-		"type": "system", "subtype": "task_started", "task_id": s.agentID, "tool_use_id": s.toolUseID,
-		"description": s.description, "subagent_type": s.agentType, "is_backgrounded": s.background,
-		"spawn_depth": s.spawnDepth, "task_type": "local_agent", "prompt": prompt,
+	writeTaskStarted(s.parent, taskStart{
+		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
+		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
 	})
 	sideInv := s.invoker(inv)
 	// SubagentStart — cannot block. transcript_path is the SESSION's (the
@@ -83,14 +82,10 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 	if out.failure != "" {
 		status, summary = "failed", out.failure
 	}
-	writeFrame(s.parent, map[string]any{
-		"type": "system", "subtype": "task_updated", "task_id": s.agentID,
-		"patch": map[string]any{"status": status, "end_time": time.Now().UnixMilli()},
-	})
-	writeFrame(s.parent, map[string]any{
-		"type": "system", "subtype": "task_notification", "task_id": s.agentID, "tool_use_id": s.toolUseID,
-		"status": status, "output_file": s.outputFile, "summary": summary,
-		"usage": map[string]any{"total_tokens": 0, "tool_uses": out.toolUses, "duration_ms": time.Since(started).Milliseconds()},
+	writeTaskUpdated(s.parent, s.agentID, status)
+	writeTaskNotification(s.parent, taskNote{
+		ID: s.agentID, ToolUseID: s.toolUseID, Status: status, OutputFile: s.outputFile, Summary: summary,
+		Usage: map[string]any{"total_tokens": 0, "tool_uses": out.toolUses, "duration_ms": time.Since(started).Milliseconds()},
 	})
 	return subagentOutcome{finalText: final, failure: out.failure, toolUses: out.toolUses}
 }

@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
@@ -53,14 +52,8 @@ func writeTaskEndFrames(cfg Config, t *backgroundTask) {
 	if t.killed.Load() {
 		updated, summary = "killed", t.description
 	}
-	writeFrame(cfg, map[string]any{
-		"type": "system", "subtype": "task_updated", "task_id": t.id,
-		"patch": map[string]any{"status": updated, "end_time": time.Now().UnixMilli()},
-	})
-	writeFrame(cfg, map[string]any{
-		"type": "system", "subtype": "task_notification", "task_id": t.id, "tool_use_id": t.toolUseID,
-		"status": t.status(), "output_file": t.outputFile, "summary": summary,
-	})
+	writeTaskUpdated(cfg, t.id, updated)
+	writeTaskNotification(cfg, taskNote{ID: t.id, ToolUseID: t.toolUseID, Status: t.status(), OutputFile: t.outputFile, Summary: summary})
 }
 
 // writeFrame writes a system frame to the session's output stream, stamped

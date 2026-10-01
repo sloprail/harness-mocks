@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"os"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 )
 
 // ownedBashFrames streams the frames real Claude Code streams for a
@@ -30,19 +31,13 @@ func ownedBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
 		desc = in.Command
 	}
 	id := "b" + randomID(8)
-	writeFrame(cfg, map[string]any{
-		"type": "system", "subtype": "task_started", "task_id": id, "owned_by_subagent": true,
-		"tool_use_id": call.ToolUseID, "description": desc, "is_backgrounded": false, "task_type": "local_bash",
-	})
+	writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: call.ToolUseID, Description: desc, TaskType: "local_bash", OwnedBySubagent: true})
 	return func(res toolexec.Result) {
 		status := "completed"
 		if res.IsError {
 			status = "failed"
 		}
-		writeFrame(cfg, map[string]any{
-			"type": "system", "subtype": "task_notification", "task_id": id, "tool_use_id": call.ToolUseID,
-			"status": status, "output_file": "", "summary": desc,
-		})
+		writeTaskNotification(cfg, taskNote{ID: id, ToolUseID: call.ToolUseID, Status: status, Summary: desc})
 	}
 }
 

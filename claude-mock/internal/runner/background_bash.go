@@ -80,10 +80,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	}
 	task.cmd = cmd
 	b.add(task)
-	writeFrame(cfg, map[string]any{
-		"type": "system", "subtype": "task_started", "task_id": id, "tool_use_id": toolUseID,
-		"description": desc, "is_backgrounded": true, "task_type": "local_bash",
-	})
+	writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true})
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
