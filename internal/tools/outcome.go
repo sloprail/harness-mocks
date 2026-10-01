@@ -1,6 +1,9 @@
 package tools
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 // GlobLimit is how many files a Glob returns (docs, Glob tool behavior).
 const GlobLimit = 100
@@ -51,4 +54,10 @@ func RefusedEdit(content, old string, replaceAll bool) (Refusal, bool) {
 		return Refusal{Matches: n}, true
 	}
 	return Refusal{}, false
+}
+
+// GlobInputRefused is whether a Glob's pattern or path cannot be searched at
+// all: either holds a null byte.
+func GlobInputRefused(pattern, path string) bool {
+	return strings.ContainsRune(pattern, 0) || strings.ContainsRune(path, 0)
 }

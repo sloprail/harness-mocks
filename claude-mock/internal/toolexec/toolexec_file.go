@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -31,10 +30,10 @@ func executeRead(raw json.RawMessage, cwd string) Result {
 		return Result{Output: "Read: missing or invalid 'file_path' field", IsError: true}
 	}
 	path := resolvePath(inp.FilePath, cwd)
-	if st, serr := os.Stat(path); serr == nil && st.IsDir() { // Read reads files, not directories (docs, Read tool behavior)
+	content, err := tools.ReadFile(path)
+	if errors.Is(err, tools.ErrIsDir) { // Read reads files, not directories (docs, Read tool behavior)
 		return failed("EISDIR: illegal operation on a directory, read")
 	}
-	content, err := tools.ReadFile(path)
 	if errors.Is(err, tools.ErrNotFound) {
 		return failed("File does not exist. Note: your current working directory is " + cwd + ".")
 	}

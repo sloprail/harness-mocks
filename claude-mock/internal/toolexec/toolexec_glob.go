@@ -26,7 +26,7 @@ func executeGlob(raw json.RawMessage, cwd string) Result {
 	if err := json.Unmarshal(raw, &inp); err != nil || inp.Pattern == "" {
 		return Result{Output: "Glob: missing or invalid 'pattern' field", IsError: true}
 	}
-	if strings.ContainsRune(inp.Pattern, 0) || strings.ContainsRune(inp.Path, 0) {
+	if tools.GlobInputRefused(inp.Pattern, inp.Path) {
 		return failed("Glob: the pattern and the path must not contain a null byte; remove it")
 	}
 	base := cwd

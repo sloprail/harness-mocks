@@ -24,3 +24,14 @@ func TestRefusedEdit(t *testing.T) {
 	_, ok = RefusedEdit("ab", "a", false)
 	assert.False(t, ok)
 }
+
+func TestReadFileOfADirectory(t *testing.T) {
+	_, err := ReadFile(t.TempDir())
+	assert.ErrorIs(t, err, ErrIsDir)
+}
+
+func TestGlobInputRefused(t *testing.T) {
+	assert.True(t, GlobInputRefused("a\x00b", ""))
+	assert.True(t, GlobInputRefused("*", "d\x00"))
+	assert.False(t, GlobInputRefused("*.go", "src"))
+}
