@@ -45,8 +45,8 @@ seal() { (cd "$1" && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shas
 # process a value names is behaviour, the value itself is not.
 normalize() {
   local cap="$1" sid pid
-  sid="$(jq -r 'select(.session_id) | .session_id' "$cap/payloads.jsonl" 2>/dev/null | head -n1)"
-  pid="$(jq -r 'select(.hook_env.CLAUDE_PID) | .hook_env.CLAUDE_PID' "$cap/payloads.jsonl" 2>/dev/null | head -n1)"
+  sid="$(jq -r 'select(.session_id) | .session_id' "$cap/payloads.jsonl" 2>/dev/null | head -n1 || true)"
+  pid="$(jq -r 'select(.hook_env.CLAUDE_PID) | .hook_env.CLAUDE_PID' "$cap/payloads.jsonl" 2>/dev/null | head -n1 || true)"
   jq -c --arg sid "${sid:-<none>}" --arg pid "${pid:-<none>}" 'walk(if type == "object" then del(.transcript_path, .cwd, .agent_id,
           .tool_use_id, .prompt_id, .uuid, .parentUuid, .timestamp, .duration_ms, .durationMs, .last_assistant_message)
           elif type == "string" then gsub($sid; "<SESSION_ID>") | gsub("\\b" + $pid + "\\b"; "<PID>") else . end)
