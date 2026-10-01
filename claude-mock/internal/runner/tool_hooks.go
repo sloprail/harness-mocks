@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -27,6 +28,22 @@ func decidePreTool(cfg Config, pending *pendingToolUse, hookOut hooks.Output, ho
 	}
 	// sr:provides pretooluse-refusal/claude
 	pending.Blocked, pending.BlockReason = corehooks.PreToolDecision(blocked, blockReason, isDeny(hookOut), denyReason(hookOut))
+	return nil
+}
+
+// invalidCall is the refusal of a call that cannot be acted on, answered before
+// any hook sees it: input lacking required parameters (a sub-agent dispatch's
+// among them), or an Edit whose string is absent or ambiguous. Nil when the call
+// may go ahead.
+func invalidCall(toolName string, input json.RawMessage, cwd string) *toolexec.Result {
+	// sr:provides tool-failure-hook/claude
+	if missing := corehooks.RejectedInput(input, toolexec.Required(toolName)); len(missing) > 0 {
+		res := toolexec.ValidationError(toolName, missing)
+		return &res
+	}
+	if res, refused := toolexec.CheckInput(toolName, input, cwd); refused {
+		return &res
+	}
 	return nil
 }
 

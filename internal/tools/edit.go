@@ -18,6 +18,8 @@ var (
 // must appear in content; unless replaceAll it must appear exactly once, and
 // matches is how many times it did. With replaceAll every occurrence is
 // replaced.
+//
+// sr:capability file-tools
 func Edit(content, old, new string, replaceAll bool) (updated string, matches int, err error) {
 	if old != "" {
 		matches = strings.Count(content, old)

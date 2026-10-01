@@ -151,7 +151,7 @@ func TestT017_12b_BackgroundAgentFailure(t *testing.T) {
 // TestT017_12c_AgentWithoutRequiredInputIsRefused: description and prompt are
 // required by the real Agent input schema; a call without them is refused with
 // an InputValidationError tool_result, and nothing runs.
-// staged:proves agent-input-validation/claude
+// sr:proves agent-input-validation/claude
 func TestT017_12c_AgentWithoutRequiredInputIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

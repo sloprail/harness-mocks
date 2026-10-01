@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
 // ownedBashFrames streams the frames real Claude Code streams for a
@@ -70,9 +70,8 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 	// no output)" — claude 2.1.282 replaces any empty or whitespace-only tool
 	// result content with it (3,479 "(Bash completed with no output)" results
 	// in the real transcripts, 0 empty ones).
-	if strings.TrimSpace(res.Output) == "" {
-		res.Output = "(" + call.ToolName + " completed with no output)"
-	}
+	// sr:provides empty-tool-result-placeholder/claude
+	res.Output = toolcall.ResultText(call.ToolName, res.Output)
 	var content any = res.Output
 	if res.ContentAsBlocks {
 		content = []map[string]any{{"type": "text", "text": res.Output}}
