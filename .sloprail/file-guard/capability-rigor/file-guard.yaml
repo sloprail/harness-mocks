@@ -13,6 +13,7 @@ match: >-
   or any(markers, .kind == "capability" or .kind == "provides" or .kind == "proves")
   or any(oldMarkers, .kind == "capability" or .kind == "provides" or .kind == "proves")
 checks:
+  - script: ./inputs-ready.sh   # its inputs exist, else no model call
   - prepare: ./prepare.sh
     judge: ./tests-prove-as-documented.md.j2
     # the frozen doc pages live in a cache under the git dir, outside the project
