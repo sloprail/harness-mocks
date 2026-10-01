@@ -19,8 +19,9 @@ visible and deliberate, not a test nobody wrote.
 - Out of the model, for every harness: what exists only in an interactive
   session (Claude Code's `/clear` and other slash commands, its status line
   command, the tmux sessions it opens, for example), tools for a platform the mocks do not run on
-  (Claude Code's PowerShell tool), and tools no test drives yet (Claude Code's
-  Monitor tool).
+  (Claude Code's PowerShell tool), tools no test drives yet (Claude Code's
+  Monitor tool), and hook events the mock does not fire (each capability that
+  touches them names them).
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.
