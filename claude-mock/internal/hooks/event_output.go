@@ -20,6 +20,9 @@ type BackgroundTask struct {
 // Output is the JSON response a hook handler may write to stdout.
 // All fields are optional; unset fields have no effect.
 type Output struct {
+	// PlainText is stdout that is not JSON (see internal/hooks.IsJSONOutput):
+	// UserPromptSubmit and SessionStart take it as context.
+	PlainText     string `json:"-"`
 	Continue      *bool  `json:"continue,omitempty"`
 	StopReason    string `json:"stopReason,omitempty"`
 	SystemMessage string `json:"systemMessage,omitempty"`

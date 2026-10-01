@@ -36,7 +36,7 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, sourc
 		HookEventName: hooks.EventSessionStart,
 		Source:        source,
 	})
-	ac := additionalContextFrom(ssOut)
+	ac := promptContextFrom(ssOut)
 	if ac != "" {
 		emitSystemContext(cfg, "session_start", ac)
 	}
@@ -46,6 +46,25 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, sourc
 // additionalContextFrom extracts the additionalContext a hook returned, if any.
 // Real Claude Code appends this to the model's context; the mock forwards it to
 // the script via A10N_MOCK_ADDITIONAL_CONTEXT.
+// addContext joins a hook's context onto what earlier hooks of the run added
+// (SessionStart's, then UserPromptSubmit's): each adds, none replaces.
+func addContext(have, add string) string {
+	if have == "" || add == "" {
+		return have + add
+	}
+	return have + "\n" + add
+}
+
+// promptContextFrom is the context a UserPromptSubmit or SessionStart hook
+// adds: its JSON additionalContext, else its plain-text stdout.
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
+func promptContextFrom(out hooks.Output) string {
+	if ac := additionalContextFrom(out); ac != "" {
+		return ac
+	}
+	return out.PlainText
+}
+
 func additionalContextFrom(out hooks.Output) string {
 	if out.HookSpecificOutput != nil {
 		return out.HookSpecificOutput.AdditionalContext

@@ -35,7 +35,7 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 		if err != nil {
 			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
 		}
-		cfg.AdditionalContext = additionalContextFrom(promptOut)
+		cfg.AdditionalContext = addContext(cfg.AdditionalContext, promptContextFrom(promptOut))
 	}
 
 	// Opt-in: drive the script through the streaming turn loop so it can emit

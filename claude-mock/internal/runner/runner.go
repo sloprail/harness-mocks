@@ -160,7 +160,7 @@ func Run(ctx context.Context, cfg Config) error {
 		if err != nil {
 			return fmt.Errorf("claude-mock: UserPromptSubmit hook blocked: %w", err)
 		}
-		cfg.AdditionalContext = additionalContextFrom(promptOut)
+		cfg.AdditionalContext = addContext(cfg.AdditionalContext, promptContextFrom(promptOut))
 	}
 
 	// streamAndHook owns the turn lifecycle: Stop at every end of turn, the

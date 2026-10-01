@@ -9,3 +9,11 @@ func TestVerdictOf(t *testing.T) {
 		}
 	}
 }
+
+func TestIsJSONOutput(t *testing.T) {
+	for in, want := range map[string]bool{`{"a":1}`: true, "  {}\n": true, "The secret word is BANANA.": false, `{"a":1`: false, `["x"]`: false, `"q"`: false, "": false} {
+		if got := IsJSONOutput(in); got != want {
+			t.Errorf("IsJSONOutput(%q) = %v, want %v", in, got, want)
+		}
+	}
+}

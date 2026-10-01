@@ -93,6 +93,12 @@ func (inv *Invoker) invoke(ctx context.Context, h HandlerSpec, hookCwd string, p
 }
 
 func mergeOutput(dst *Output, src Output) {
+	if src.PlainText != "" {
+		if dst.PlainText != "" {
+			dst.PlainText += "\n"
+		}
+		dst.PlainText += src.PlainText
+	}
 	if src.Continue != nil {
 		dst.Continue = src.Continue
 	}

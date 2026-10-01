@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
 	"github.com/sloprail/harness-mocks/internal/procexec"
@@ -107,7 +108,9 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, hookCwd st
 	}
 
 	if stdout.Len() > 0 {
-		if err := json.Unmarshal(stdout.Bytes(), &run.Output); err != nil {
+		if !corehooks.IsJSONOutput(stdout.String()) {
+			run.Output.PlainText = strings.TrimSpace(stdout.String())
+		} else if err := json.Unmarshal(stdout.Bytes(), &run.Output); err != nil {
 			slog.Debug("hooks: command output not valid JSON", "cmd", h.Command, "err", err)
 		}
 	}
