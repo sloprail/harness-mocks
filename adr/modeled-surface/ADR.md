@@ -28,6 +28,10 @@ visible and deliberate, not a test nobody wrote.
   - the file-system effects a mock's scripted control record only announces
     (for claude-mock, the worktree directory behind `worktree_create` and
     `worktree_remove`: they fire the hooks, and no directory exists);
+  - aborting a running tool: a mock never interrupts one, so what a harness
+    reports for an abort (an interrupted result, `is_interrupt`) is out;
+  - failures a mock's own runtime cannot produce (for claude-mock, a Bash
+    whose shell will not start: it always runs `/bin/sh`);
   - the reference text a harness prints inside its own diagnostics (such as
     the output schema Claude Code appends to a hook validation error): a mock
     writes the diagnostic's first line and the hook's own output.

@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
-# Its core is to come (internal/compaction); today it lives in the claude-mock files below.
+# No core yet (internal/compaction): the code lives in the claude-mock files below, until it moves.
 concern: "the compaction sequence and what it preserves"
 home: ["internal/compaction/**", "claude-mock/internal/runner/control*.go"]   # everything about the concern lives here
 api: ["internal/compaction"]       # the only packages others may import

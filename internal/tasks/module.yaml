@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
-# Its core is to come (internal/tasks); today it lives in the claude-mock files below.
+# No core yet (internal/tasks): the code lives in the claude-mock files below, until it moves.
 concern: "background tasks: launching, tracking, delivering their notifications and killing them"
 home: ["internal/tasks/**", "claude-mock/internal/runner/background*.go"]   # everything about the concern lives here
 api: ["internal/tasks"]       # the only packages others may import
