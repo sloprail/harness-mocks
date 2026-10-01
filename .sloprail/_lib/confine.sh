@@ -31,7 +31,7 @@ confine() {
   total() {   # REV
     # the rules' own scope: the shared internal/ and every harness mock
     git -C "$SR_TREE" grep -c -E "$re" "$1" -- ':(glob)internal/**/*.go' ':(glob)*-mock/**/*.go' ':!*_test.go' 2>/dev/null |
-      sed "s#^$1:##" | grep -Ev "^(${allowed#^})" | awk -F: '{s += $NF} END {print s + 0}'
+      sed "s#^$1:##" | awk -F: -v re="$allowed" '$1 !~ re {s += $NF} END {print s + 0}'
   }
   if [ -n "$base" ] && [ -n "$head" ]; then
     local tb th
