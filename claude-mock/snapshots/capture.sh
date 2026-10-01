@@ -38,13 +38,15 @@ seal() { (cd "$1" && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shas
 # scenario did, without what differs between two captures of the same
 # behaviour (ids, paths, timings, the model's own wording).
 # The run's own session id is kept as <SESSION_ID> wherever it appears (a child's
-# env, a command's output): which session an id names is behaviour, its value is not.
+# env, a command's output), and the harness's pid as <PID>: which session or
+# process a value names is behaviour, the value itself is not.
 normalize() {
-  local cap="$1" sid
+  local cap="$1" sid pid
   sid="$(jq -r 'select(.session_id) | .session_id' "$cap/payloads.jsonl" 2>/dev/null | head -n1)"
-  jq -c --arg sid "${sid:-<none>}" 'walk(if type == "object" then del(.session_id, .transcript_path, .cwd, .agent_id,
+  pid="$(jq -r 'select(.hook_env.CLAUDE_PID) | .hook_env.CLAUDE_PID' "$cap/payloads.jsonl" 2>/dev/null | head -n1)"
+  jq -c --arg sid "${sid:-<none>}" --arg pid "${pid:-<none>}" 'walk(if type == "object" then del(.session_id, .transcript_path, .cwd, .agent_id,
           .tool_use_id, .prompt_id, .uuid, .parentUuid, .timestamp, .duration_ms, .durationMs, .last_assistant_message)
-          elif type == "string" then gsub($sid; "<SESSION_ID>") else . end)
+          elif type == "string" then gsub($sid; "<SESSION_ID>") | gsub("\\b" + $pid + "\\b"; "<PID>") else . end)
          | del(.tool_input.description?) | {event: "hook", hook: .hook_event_name, payload: .}' "$cap/payloads.jsonl" 2>/dev/null || true
   jq -c 'select(.type != "assistant" and .type != "user")
          | {event: "stream", type, subtype: (.subtype // null)}' "$cap/stream.jsonl" 2>/dev/null || true
@@ -58,7 +60,7 @@ capture_run() {
   ts="$(date -u +%Y%m%d-%H%M%S)"
   cap="$run/samples/$ts"
   [ ! -e "$cap" ] || die "a sample named $ts already exists; re-run in a second"
-  work="$(mktemp -d)"; home="$work/home"
+  work="$(cd "$(mktemp -d)" && pwd -P)"; home="$work/home"   # canonical (/private/var/…), so sanitizing matches the paths claude records
   # a capture that fails part-way leaves nothing behind: no half-written sample
   trap 'rm -rf "$work"; [ -f "$cap/SEAL" ] || rm -rf "$cap"' EXIT
   mkdir -p "$work/repo/.claude" "$home/Library" "$cap"
@@ -86,9 +88,20 @@ capture_run() {
   set -e
   mkdir -p "$cap/transcript"
   cp -R "$home/.claude/projects/"*/* "$cap/transcript/" 2>/dev/null || true
-  # sanitize: the machine's paths out of everything captured
-  { grep -rlF -e "$work" -e "$HOME" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do
-    sed -i '' -e "s#$work/repo#<RUN>#g" -e "s#$work#<TMP>#g" -e "s#$HOME#<HOME>#g" "$f"
+  # redact: the value of every secret-named variable a child saw (the harness
+  # hands children e.g. CLAUDE_CODE_MESSAGING_TOKEN) out of everything captured,
+  # before anything is sealed or committed
+  { jq -r 'select(.hook_env) | .hook_env | to_entries[] | select(.key | test("TOKEN|SECRET|KEY|PASSWORD")) | .value' "$cap/payloads.jsonl" 2>/dev/null
+    grep -rhoE '[A-Z0-9_]*(TOKEN|SECRET|KEY|PASSWORD)[A-Z0-9_]*=[A-Za-z0-9._/+-]{8,}' "$cap" 2>/dev/null | cut -d= -f2-
+  } | sort -u | while IFS= read -r secret; do
+    [ "${#secret}" -ge 8 ] || continue
+    { grep -rlF -e "$secret" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do sed -i '' -e "s#$secret#<REDACTED>#g" "$f"; done
+  done
+  # sanitize: the machine's paths out of everything captured, and the run dir as
+  # claude encodes it into a folder name (every non-alphanumeric as -)
+  local enc; enc="$(printf '%s' "$work/repo" | sed 's#[^A-Za-z0-9]#-#g')"
+  { grep -rlF -e "$work" -e "$HOME" -e "$enc" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do
+    sed -i '' -e "s#$work/repo#<RUN>#g" -e "s#$work#<TMP>#g" -e "s#$HOME#<HOME>#g" -e "s#$enc#<RUN_DIRNAME>#g" "$f"
   done
   normalize "$cap" >"$cap/events.jsonl"
   # a re-capture with the same events adds nothing
