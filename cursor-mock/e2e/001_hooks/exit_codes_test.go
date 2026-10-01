@@ -86,3 +86,19 @@ func TestOutputThatIsNotJSONBlocksAPermissionHook(t *testing.T) {
 	require.Contains(t, msg, `returned invalid JSON. The command was blocked for safety.`)
 	require.Equal(t, "preToolUse beforeShellExecution afterShellExecution postToolUse", joined(eventsOf(got, "echo FINE")), "a hook with no output allows")
 }
+
+// TestAHookCommandThatCannotRunFailsOpenUnlessItFailsClosed: not recorded; the
+// docs' failClosed row says a hook that crashes blocks the action when
+// failClosed is true, and that other failures fail open. A hook command that
+// is not there makes the shell exit 127, the case the mock can run: the
+// command goes on by default, and is blocked with failClosed.
+// sr:proves hook-exit-code-semantics/cursor
+func TestAHookCommandThatCannotRunFailsOpenUnlessItFailsClosed(t *testing.T) {
+	open := runCustom(t, `{"version":1,"hooks":{"beforeShellExecution":[{"command":".cursor/hooks/missing.sh"}]}}`, nil, "echo RAN")
+	require.Contains(t, open.stdout, "RAN", "the command ran")
+	require.NotContains(t, open.stdout, "blocked")
+
+	closed := runCustom(t, `{"version":1,"hooks":{"beforeShellExecution":[{"command":".cursor/hooks/missing.sh","failClosed":true}]}}`, nil, "echo RAN")
+	require.Contains(t, closed.stdout, "configured to fail closed")
+	require.Contains(t, closed.stdout, "failed with exit code 127")
+}

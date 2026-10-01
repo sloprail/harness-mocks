@@ -29,6 +29,7 @@ func TestADenyInPreToolUseOutputRefusesTheCall(t *testing.T) {
 // TestAnExit2InPreToolUseRefusesTheCall: recorded, a preToolUse hook exiting 2
 // refuses the call the same way, with its stderr as the message.
 // sr:proves pretooluse-refusal/cursor
+// sr:proves hook-exit-code-semantics/cursor
 func TestAnExit2InPreToolUseRefusesTheCall(t *testing.T) {
 	got, want := replay(t, "pretool-refusal")
 	conforms(t, got, want)

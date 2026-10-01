@@ -49,3 +49,10 @@ providers:
           hooks the mock fires are preToolUse and beforeShellExecution;
           beforeMCPExecution, beforeReadFile and subagentStart, which refuse
           too, are not modeled.
+      - adr: modeled-surface
+        statement: >-
+          A deny's agent_message, which the docs say is fed back to the agent as
+          the refusal, is not read: the mock has no model to receive it, and the
+          recorded stream shows the agent's side of a refusal only as the
+          rejected tool call, so only the hook's user_message (the failure
+          hook's error_message) is modeled.
