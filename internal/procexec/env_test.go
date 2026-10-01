@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// sr:proves ghost-capability/claude
 func TestEnvReplacesInheritedIdentity(t *testing.T) {
 	inherited := []string{"PATH=/bin", "SID=outer", "MODE=x"}
 	got := Env(inherited, map[string]string{"SID": "inner", "MODE": "", "NEW": "1"})
