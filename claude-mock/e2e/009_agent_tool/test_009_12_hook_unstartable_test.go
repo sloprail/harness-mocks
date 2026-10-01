@@ -60,3 +60,36 @@ func TestT009_12_NonBlockingNoticeKeepsWholeStderr(t *testing.T) {
 	require.Len(t, errs, 1)
 	assert.Equal(t, "Failed with non-blocking status code: first line of stderr\nsecond line of stderr", errs[0]["stderr"])
 }
+
+// Stdout tried as JSON that does not parse is a non-blocking error on every
+// exit status but 2, and the tool runs (recorded: snapshots/runs/hook-exit-json,
+// echo j and echo k): JSON lines one of which sets an output field are such
+// stdout, and on a non-zero status the hook's own stderr follows the message.
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_12_UnparseableJSONIsNonBlockingOnAnyStatusBut2(t *testing.T) {
+	for _, tc := range []struct {
+		name, stdout, stderr, wantTail string
+		code                           int
+	}{
+		{"lines one of which sets a field, exit 0", `{"x": 1}` + "\n" + `{"decision": "block"}`, "", "", 0},
+		{"malformed, exit 1", "{not json on exit 1}", "malformed on exit 1", "\n\nHook exited 1 with stderr:\nmalformed on exit 1", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cfg := filepath.Join(dir, "config")
+			writeSettings(t, dir, map[string]string{"PreToolUse": hookWithRaw(t, dir, tc.stdout, tc.stderr, tc.code)})
+			toolFile := filepath.Join(dir, "tool-ran")
+			script := toolScenario(t, dir, filepath.Join(dir, "runs.log"), filepath.Join(dir, "session.copy"), toolFile)
+			out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-uj", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
+			require.Equal(t, 0, code, "output:\n%s", out)
+			assert.True(t, fileExists(toolFile), "a non-blocking error lets the tool run")
+			errs := attachmentsOf(allRecords(t, cfg), "hook_non_blocking_error")
+			require.Len(t, errs, 1)
+			stderr, _ := errs[0]["stderr"].(string)
+			assert.True(t, strings.HasPrefix(stderr, "Hook output looks like a JSON object but is not valid JSON"), stderr)
+			assert.True(t, strings.HasSuffix(stderr, tc.wantTail), stderr)
+			assert.Equal(t, float64(tc.code), errs[0]["exitCode"])
+		})
+	}
+}
