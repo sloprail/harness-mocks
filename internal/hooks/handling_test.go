@@ -71,6 +71,9 @@ func TestATimedOutCommandRendersNoDecision(t *testing.T) {
 	if _, ok := ActedBlock(out, false); ok {
 		t.Error("a command that timed out blocked")
 	}
+	if out[0].Timeout != 200*time.Millisecond || out[0].Took < 200*time.Millisecond || out[0].Took > 4*time.Second {
+		t.Errorf("timed-out command: Timeout=%v Took=%v", out[0].Timeout, out[0].Took)
+	}
 	if got := DefaultTimeout(0, 9*time.Second); got != 9*time.Second {
 		t.Errorf("default = %v", got)
 	}
