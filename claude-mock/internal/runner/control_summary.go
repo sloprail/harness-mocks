@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"path/filepath"
 	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
@@ -40,7 +39,7 @@ func compactSummary(rec *cliRecord, line []byte) (sum map[string]any, anchor, te
 		anchor = newRecordUUID()
 		sum["uuid"] = anchor
 	}
-	delete(sum, "parentUuid") // chains to the boundary
+	chainsFromPrevious(sum) // chains to the boundary
 	if m, isMap := sum["message"].(map[string]any); isMap {
 		text, _ = m["content"].(string)
 	}
@@ -65,7 +64,7 @@ func fireSummarizerStop(ctx context.Context, cfg Config, inv *hooks.Invoker, tr 
 	_, _ = inv.WithRecorder(nil).Fire(ctx, hooks.Input{
 		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventSubagentStop,
 		AgentID: summarizer, AgentType: "", StopHookActive: &active,
-		AgentTranscriptPath:  filepath.Join(strings.TrimSuffix(sessionFile, ".jsonl"), "subagents", "agent-"+summarizer+".jsonl"),
+		AgentTranscriptPath:  claudeSubagentLayout.Path(sessionFile, summarizer),
 		LastAssistantMessage: &summaryText, BackgroundTasks: &tasks, SessionCrons: &crons,
 	})
 }

@@ -54,16 +54,17 @@ func writeCompactBoundary(cfg Config, tr *transcript, spec compactionSpec) {
 	// 23138-2308 = 20830, 22932-2334 = 20598). 2.1.282 always writes it; 13
 	// of the 66 real boundaries, from older versions, lack it.
 	meta["cumulativeDroppedTokens"] = lastCumulativeDropped(tr.path) + spec.preTokens - spec.postTokens
-	tr.persistMap(map[string]any{
-		"parentUuid":        nil,
-		"logicalParentUuid": plan.LogicalParent,
-		"type":              "system",
-		"subtype":           "compact_boundary",
-		"content":           "Conversation compacted",
-		"isMeta":            false,
-		"level":             "info",
-		"compactMetadata":   meta,
-	})
+	boundary := map[string]any{
+		"type":            "system",
+		"subtype":         "compact_boundary",
+		"content":         "Conversation compacted",
+		"isMeta":          false,
+		"level":           "info",
+		"compactMetadata": meta,
+	}
+	asOrigin(boundary)
+	continuesFrom(boundary, plan.LogicalParent)
+	tr.persistMap(boundary)
 	writeCompactedFrames(cfg, meta, plan.LogicalParent)
 }
 

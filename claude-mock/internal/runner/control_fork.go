@@ -6,7 +6,7 @@ import "github.com/sloprail/harness-mocks/internal/session"
 // compact_boundary system record, the isCompactSummary user record after it,
 // and the uuids the boundary's compactMetadata lists as preserved.
 var claudeForkSchema = session.ForkSchema{
-	UUID: "uuid", Parent: "parentUuid", SessionKey: "sessionId",
+	UUID: chainUUID, Parent: chainParent, SessionKey: "sessionId",
 	IsBoundary: func(rec session.Record) bool {
 		return rec["type"] == "system" && rec["subtype"] == "compact_boundary"
 	},
@@ -20,7 +20,7 @@ var claudeForkSchema = session.ForkSchema{
 // forkSegment is the records of a transcript a fork carries, under session id
 // newID (see forkTranscript).
 func forkSegment(data []byte, newID string) []map[string]any {
-	return session.Fork(session.ParseRecords(data, "uuid"), newID, claudeForkSchema)
+	return session.Fork(session.ParseRecords(data, chainUUID), newID, claudeForkSchema)
 }
 
 // preservedUUIDs is the list of records a compact_boundary says the

@@ -10,8 +10,28 @@ import coretranscript "github.com/sloprail/harness-mocks/internal/transcript"
 // trajectory, and only the identity/link fields are the mock's to complete. An
 // explicit null parentUuid (the root) is left as the origin marker.
 func chainRecord(line []byte, parent string) (out []byte, uuid string) {
-	return coretranscript.Chain(line, parent, "uuid", "parentUuid", newRecordUUID)
+	return coretranscript.Chain(line, parent, chainUUID, chainParent, newRecordUUID)
 }
+
+// The fields that chain a Claude Code transcript: each record's own uuid, the
+// uuid of the record before it, and the boundary of a compaction's logical parent.
+const (
+	chainUUID          = "uuid"
+	chainParent        = "parentUuid"
+	chainLogicalParent = "logicalParentUuid"
+)
+
+// asOrigin makes rec parentless — the origin of a chain, which chainRecord leaves
+// alone — as a session's root, a sub-agent's dispatch prompt and a compaction
+// boundary are.
+func asOrigin(rec map[string]any) { rec[chainParent] = nil }
+
+// chainsFromPrevious clears rec's parent, so the record chains from the one
+// written before it (the summary after its compaction boundary).
+func chainsFromPrevious(rec map[string]any) { delete(rec, chainParent) }
+
+// continuesFrom names the record a parentless boundary continues the chain from.
+func continuesFrom(rec map[string]any, uuid string) { rec[chainLogicalParent] = uuid }
 
 // envelope is the bookkeeping Claude Code writes on every record: sessionId,
 // cwd, timestamp, isSidechain (and agentId for a sub-agent's), userType,
