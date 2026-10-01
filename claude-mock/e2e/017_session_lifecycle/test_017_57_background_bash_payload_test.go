@@ -115,3 +115,41 @@ func TestT017_58_BackgroundBashInAForegroundSubagent(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`^Command running in background with ID: `+id+`\. Output is being written to: \S+/tasks/`+id+`\.output\. If it exits while you are still working you will be notified, but it is terminated when you give your final response and no notification can follow that — so do not end your turn to wait for it; if you need its result, wait for it before giving your final response\. To check interim output, use Read on that file path\.$`),
 		receipt, "the whole recorded receipt")
 }
+
+// TestT017_59_ReapedBackgroundBashEndsTheStreamInTheRecordedOrder: in a `-p`
+// session a background command still running at the end is stopped after the
+// turn's result, and the stream says so in the recorded order: the result
+// first, then background_tasks_changed with no tasks, task_updated with the
+// status killed, and task_notification with the status stopped (recorded:
+// snapshots/runs/bgbash).
+// sr:proves background-bash-reaped-at-exit/claude
+func TestT017_59_ReapedBackgroundBashEndsTheStreamInTheRecordedOrder(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	root := script(t, dir, "root", toolUse("bg", "Bash", `{"command":"sleep 8; echo BGDONE","description":"long sleep","run_in_background":true}`))
+	out, code := runInDir(t, dir, nil, "--script", root, "--session-id", "bgp-3", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
+	require.Equal(t, 0, code, out)
+
+	var kinds []string
+	var after []map[string]any // the frames after the result
+	sawResult := false
+	for _, l := range strings.Split(out, "\n") {
+		var f map[string]any
+		if json.Unmarshal([]byte(l), &f) != nil {
+			continue
+		}
+		if f["type"] == "result" {
+			sawResult = true
+			continue
+		}
+		if sawResult {
+			after = append(after, f)
+			kinds = append(kinds, f["subtype"].(string))
+		}
+	}
+	require.True(t, sawResult)
+	require.Equal(t, []string{"background_tasks_changed", "task_updated", "task_notification"}, kinds, "all of it after the result, in this order")
+	assert.Empty(t, after[0]["tasks"], "no task is left")
+	assert.Equal(t, "killed", after[1]["patch"].(map[string]any)["status"])
+	assert.Equal(t, "stopped", after[2]["status"])
+}
