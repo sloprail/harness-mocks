@@ -6,9 +6,11 @@
 # api) is architecture too, and is grounded the same way.
 match: path matches "^adr/[a-z0-9-]+/" or path endsWith "/module.yaml"
 deletions: include
-subjects: ./subjects.sh
 require:
   - citation: {source_types: [user]}
     when: ./needs-words.sh
 checks:
-  - judge: ./words-ask-for-adr.md.j2
+  - prepare: ./prepare.sh
+    judge: ./words-ask-for-adr.md.j2
+    # the ADR before and the diffs are files outside the project
+    allowed_tools: [Read]

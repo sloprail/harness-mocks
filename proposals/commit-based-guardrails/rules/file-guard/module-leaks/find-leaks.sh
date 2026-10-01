@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # prepare: steps 1 and 2 of module-leaks. Emits {"skip": true} when nothing is
 # left to judge, else the leftover candidates grouped by module, with the
-# module's own concern (module.yaml), and the exceptions of the ADRs whose
-# decisions cover it.
+# module's own concern (module.yaml: one line). The leftover candidates are
+# written, one path:line:snippet per line, to a file outside the project (under a
+# temp dir) that the judge reads; nothing that can grow is put in the prompt.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -14,6 +15,7 @@ changed="$(cs '.changeset.files[].path')"
 work="$(mktemp -d "${TMPDIR:-/tmp}/module-leaks.XXXXXX")"; trap 'rm -rf "$work"' EXIT
 
 groups="[]"
+out="$(mktemp -d "${TMPDIR:-/tmp}/sr-judge-module-leaks.XXXXXX")" || refuse "cannot make a directory for the judge's matches"
 while IFS= read -r m; do
   [ -n "$m" ] || continue
   dir="$(jq -r '.dir' <<<"$m")"
@@ -36,8 +38,10 @@ while IFS= read -r m; do
     left="$(jq -c --arg p "$p" --argjson l "$l" --arg t "$t" '. + [{path: $p, line: $l, text: $t}]' <<<"$left")"
   done < <(grep -v '^[[:space:]]*$' "$work/cand")
   [ "$(jq 'length' <<<"$left")" -gt 0 ] || continue
-  groups="$(jq -c --arg d "$dir" --argjson m "$m" --argjson left "$left" \
-    '. + [{module: $d, concern: $m.concern, home: $m.home, api: $m.api, matches: $left}]' <<<"$groups")"
+  mfile="$out/$(printf '%s' "$dir" | tr '/' '_').matches"
+  jq -r '.[] | "\(.path):\(.line):\(.text)"' <<<"$left" >"$mfile"
+  groups="$(jq -c --arg d "$dir" --argjson m "$m" --arg f "$mfile" --argjson n "$(jq 'length' <<<"$left")" \
+    '. + [{module: $d, concern: $m.concern, home: $m.home, api: $m.api, matches: $f, count: $n}]' <<<"$groups")"
 done < <(jq -c '.[]' <<<"$MODULES")
 [ "$(jq 'length' <<<"$groups")" -gt 0 ] || { jq -n '{skip: true}'; exit 0; }
 jq -n -c --argjson g "$groups" '{additionalContext: {modules: $g}}'

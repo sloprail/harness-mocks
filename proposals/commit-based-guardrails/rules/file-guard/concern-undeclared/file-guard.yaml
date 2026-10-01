@@ -19,3 +19,5 @@ checks:
     # changeset, with the project to read: the largest reasoning rung short of
     # size-xxl.
     model: size-xl
+    # the diffs are files outside the project (nothing that can grow is inlined)
+    allowed_tools: [Read]

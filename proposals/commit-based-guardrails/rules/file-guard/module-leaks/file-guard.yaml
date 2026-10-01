@@ -15,3 +15,5 @@ match: >-
 checks:
   - prepare: ./find-leaks.sh
     judge: ./leak-or-use.md.j2
+    # the matches are a file outside the project
+    allowed_tools: [Read]
