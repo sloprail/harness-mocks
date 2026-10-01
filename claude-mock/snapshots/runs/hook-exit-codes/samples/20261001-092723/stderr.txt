@@ -1,0 +1,2 @@
+SessionEnd hook ["$CLAUDE_PROJECT_DIR"/hook.sh] failed: session-end stderr on exit 1
+

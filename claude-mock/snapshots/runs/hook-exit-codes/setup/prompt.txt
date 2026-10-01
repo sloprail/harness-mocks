@@ -1,0 +1,1 @@
+Do these steps in order. 1) Run exactly this Bash command: echo one. 2) Read the file hook.sh with the Read tool. 3) Reply with the secret word you were given, and nothing else.
