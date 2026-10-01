@@ -177,7 +177,7 @@ func TestT012_05_AcknowledgementAndPendingWakeup(t *testing.T) {
 	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat >> "+log+"\necho >> "+log+"\n"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"),
-		[]byte(`{"hooks":{"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
+		[]byte(`{"hooks":{"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}],"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
 	script := filepath.Join(dir, "scenario.sh")
 	call := func(id, input string) string {
 		return `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"` + id + `","name":"ScheduleWakeup","input":` + input + `}]}}`
@@ -192,7 +192,9 @@ func TestT012_05_AcknowledgementAndPendingWakeup(t *testing.T) {
 	}
 	body += `printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'` + "\n"
 	require.NoError(t, os.WriteFile(script, []byte(body), 0o755))
+	start := time.Now()
 	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-wake6", "--project-dir", dir, "-p", "go")
+	end := time.Now()
 	require.Equal(t, 0, code, out)
 
 	assert.Contains(t, out, "(clamped to 3600s from your requested value)")
@@ -212,8 +214,9 @@ func TestT012_05_AcknowledgementAndPendingWakeup(t *testing.T) {
 		ms, err := strconv.ParseInt(m[1], 10, 64)
 		require.NoError(t, err)
 		assert.Zero(t, ms%60000, "scheduledFor %d is a whole minute", ms)
-		min := []time.Duration{3600 * time.Second, 300 * time.Second}[i]
-		assert.GreaterOrEqual(t, ms, time.Now().Add(min).Add(-time.Minute).UnixMilli())
+		delay := []time.Duration{3600 * time.Second, 300 * time.Second}[i]
+		assert.GreaterOrEqual(t, ms, start.Add(delay).UnixMilli(), "rounded up, not down")
+		assert.Less(t, ms, end.Add(delay).Add(time.Minute).UnixMilli(), "by less than a minute")
 	}
 	assert.Contains(t, string(recorded), `"wasClamped":true`)
 	assert.Contains(t, string(recorded), `"clampedDelaySeconds":3600`)
@@ -221,6 +224,8 @@ func TestT012_05_AcknowledgementAndPendingWakeup(t *testing.T) {
 	assert.Contains(t, string(recorded), `"stopped":true`)
 	data, err := os.ReadFile(log)
 	require.NoError(t, err)
+	assert.Regexp(t, `"hook_event_name":"PostToolUse","tool_name":"ScheduleWakeup".*"tool_response":\{"clampedDelaySeconds":3600,"scheduledFor":[0-9]+,"wasClamped":true\}`, string(data), "PostToolUse carries the result")
+	assert.Contains(t, string(data), `"tool_response":{"cancelledWakeups":1,"clampedDelaySeconds":0,"scheduledFor":0,"stopped":true,"wasClamped":false}`)
 	assert.Contains(t, string(data), `"session_crons":[]`, "stopped, nothing is pending at the end of the turn")
 }
 
