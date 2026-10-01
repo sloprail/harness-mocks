@@ -89,7 +89,7 @@ func TestReapAtExit_KillsTheMainThreadsCommand(t *testing.T) {
 	r := NewRegistry()
 	defer r.Shutdown()
 	task, _ := startSh(t, r, "b", "", "sleep 30")
-	r.ReapAtExit("")
+	r.ReapAtExit("", 0)
 	if !task.Finished() || task.Status() != Stopped {
 		t.Fatalf("finished=%v status=%s", task.Finished(), task.Status())
 	}
@@ -160,7 +160,7 @@ func TestConclude_UpdatesThenNotifiesAndNamesAKilledCommand(t *testing.T) {
 	task, _ := startSh(t, r, "k", "", "sleep 30")
 	var rec recorder
 	Announce(task, &rec)
-	r.ReapAtExit("")
+	r.ReapAtExit("", 0)
 	Conclude(task, &rec)
 	if got := strings.Join(rec.calls, ","); got != "started,updated:killed,notified" {
 		t.Fatalf("calls = %s", got)
@@ -197,5 +197,40 @@ func TestShutdown_KillsRunningCommandsAndCancelsAgents(t *testing.T) {
 	r.Shutdown()
 	if !task.Finished() || !ag.Finished() {
 		t.Fatalf("command finished=%v agent finished=%v", task.Finished(), ag.Finished())
+	}
+}
+
+func TestReapAtExit_GraceLetsAQuickCommandFinishAndEndsASlowOne(t *testing.T) {
+	r := NewRegistry()
+	defer r.Shutdown()
+	quick, _ := startSh(t, r, "quick", "", "sleep 0.3")
+	slow, _ := startSh(t, r, "slow", "", "sleep 30")
+	started := time.Now()
+	r.ReapAtExit("", 1500*time.Millisecond)
+	if quick.Status() != Completed {
+		t.Fatalf("quick = %s: a command that ends within the grace is left to", quick.Status())
+	}
+	if !slow.Finished() || slow.Status() != Stopped {
+		t.Fatalf("slow finished=%v status=%s", slow.Finished(), slow.Status())
+	}
+	if took := time.Since(started); took < time.Second || took > 8*time.Second {
+		t.Fatalf("took %v, want about the grace", took)
+	}
+}
+
+func TestWaitCeiling(t *testing.T) {
+	ctx, cancel := WaitCeiling(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	select {
+	case <-ctx.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the ceiling did not end the wait")
+	}
+	none, cancelNone := WaitCeiling(context.Background(), 0)
+	defer cancelNone()
+	select {
+	case <-none.Done():
+		t.Fatal("no ceiling ended")
+	case <-time.After(100 * time.Millisecond):
 	}
 }
