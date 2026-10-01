@@ -107,7 +107,7 @@ func writeMarketplaceWithPlugins(t *testing.T, root, name string, nameSources ma
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	var plugins []marketplaceManifestItem
 	for n, src := range nameSources {
-		plugins = append(plugins, marketplaceManifestItem{Name: n, Source: src})
+		plugins = append(plugins, marketplaceManifestItem{Name: n, Source: pluginSource{Path: src, hasSrc: true}})
 	}
 	data, err := json.Marshal(marketplaceManifest{Name: name, Plugins: plugins})
 	require.NoError(t, err)
@@ -275,4 +275,67 @@ func trimQuotes(s string) string {
 		return s[1 : len(s)-1]
 	}
 	return s
+}
+
+func manifestFromJSON(t *testing.T, raw string) marketplaceManifest {
+	t.Helper()
+	var m marketplaceManifest
+	require.NoError(t, json.Unmarshal([]byte(raw), &m))
+	return m
+}
+
+// staged:proves plugin-hooks/claude
+func TestPluginSourceDir_StringSource(t *testing.T) {
+	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":"./plugins/x"}]}`)
+	got, ok, err := m.pluginSourceDir("/root", "x")
+	require.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "/root/plugins/x", got)
+}
+
+// A git-subdir object source (as sloprail pins to a release tag) resolves to its path
+// under the marketplace root, which is assumed to be the same repo.
+// staged:proves plugin-hooks/claude
+func TestPluginSourceDir_GitSubdirSameRepo(t *testing.T) {
+	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":{"source":"git-subdir","url":"owner/repo","path":"marketplace/plugins/x","ref":"v0.4.0"}}]}`)
+	got, ok, err := m.pluginSourceDir("/root", "x")
+	require.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "/root/marketplace/plugins/x", got)
+}
+
+// staged:proves plugin-hooks/claude
+func TestPluginSourceDir_UnknownKindErrors(t *testing.T) {
+	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":{"source":"carrier-pigeon","path":"p"}}]}`)
+	_, ok, err := m.pluginSourceDir("/root", "x")
+	require.Error(t, err)
+	assert.False(t, ok)
+	assert.Contains(t, err.Error(), "carrier-pigeon")
+}
+
+// staged:proves plugin-hooks/claude
+func TestPluginSourceDir_NonLocalKnownKindErrors(t *testing.T) {
+	m := manifestFromJSON(t, `{"name":"mp","plugins":[{"name":"x","source":{"source":"npm","url":"pkg"}}]}`)
+	_, _, err := m.pluginSourceDir("/root", "x")
+	require.Error(t, err)
+}
+
+// staged:proves plugin-hooks/claude
+func TestLoadPluginHooks_GitSubdirObjectSource(t *testing.T) {
+	mpRoot := t.TempDir()
+	dir := filepath.Join(mpRoot, ".claude-plugin")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "marketplace.json"), []byte(
+		`{"name":"mp","plugins":[{"name":"x","source":{"source":"git-subdir","url":"owner/repo","path":"marketplace/plugins/x","ref":"v0.4.0"}}]}`), 0o644))
+	pluginDir := filepath.Join(mpRoot, "marketplace", "plugins", "x")
+	require.NoError(t, os.MkdirAll(filepath.Join(pluginDir, "hooks"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "hooks", "hooks.json"), []byte(
+		`{"hooks":{"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh"}]}]}}`), 0o644))
+
+	dst := &Settings{Hooks: map[EventName][]HookEntry{}}
+	loadPluginHooks(dst, t.TempDir(), map[string]bool{"x@mp": true},
+		map[string]marketplaceCfg{"k": {Source: marketplaceSource{Source: "directory", Path: mpRoot}}})
+	got := dst.EntriesFor(EventStop, "")
+	require.Len(t, got, 1)
+	assert.Equal(t, filepath.Join(pluginDir, "hooks", "stop.sh"), trimQuotes(got[0].Command))
 }
