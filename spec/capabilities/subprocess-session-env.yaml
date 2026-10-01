@@ -17,6 +17,7 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock has no /clear, PowerShell tool or Monitor tool, so the
-          docs' session id updated on /clear and the variables set for
-          PowerShell and Monitor children are not modeled.
+          The mock has no interactive session (no /clear, status line command
+          or tmux sessions), no PowerShell tool and no Monitor tool, so the
+          docs' session id updated on /clear and the variables set for status
+          line, tmux, PowerShell and Monitor children are not modeled.
