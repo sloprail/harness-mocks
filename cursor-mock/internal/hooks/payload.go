@@ -26,6 +26,7 @@ type Tool struct {
 // Payload is the JSON a hook of the event reads on stdin: the common fields,
 // then the event's own. The account's email is never known to the mock.
 //
+// sr:provides hook-common-payload/cursor
 // sr:docs https://cursor.com/docs/hooks#common-schema
 func (c Common) Payload(e Event, own map[string]any) []byte {
 	p := map[string]any{

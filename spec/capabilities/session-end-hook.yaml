@@ -18,3 +18,15 @@ providers:
           interactive session (/clear, /resume, a logout, an exit from the
           prompt). The mock models none, so every session ends with the
           generic reason.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#sessionend
+    runs:
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no interactive session, and models a run that ends by its
+          script's result, so the sessionEnd reasons window_close, user_close, aborted
+          and error, and the error message that goes with a reason of error, are not
+          modeled: it always says completed.

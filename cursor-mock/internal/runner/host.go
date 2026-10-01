@@ -26,6 +26,10 @@ func (s *session) EndOfTurn(context.Context, string, bool) (string, bool) { retu
 // Continue is never asked for: no end-of-turn hook blocks.
 func (s *session) Continue(string) {}
 
+// CapOverridden is never asked for: no end-of-turn hook blocks, so there is no
+// cap to reach.
+func (s *session) CapOverridden(int) {}
+
 // SessionFile is the conversation's transcript so far.
 func (s *session) SessionFile() string { return s.tr.path }
 

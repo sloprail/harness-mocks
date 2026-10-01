@@ -12,3 +12,4 @@ providers:
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/ctxmulti
+  cursor: false

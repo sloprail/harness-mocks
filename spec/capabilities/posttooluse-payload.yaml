@@ -10,3 +10,15 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/hookerrors
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#posttooluse
+    runs:
+      - cursor-mock/snapshots/runs/file-tools
+      - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock runs the Shell, Read and Write tools only, so what the MCP tools'
+          and the other tools' successful calls report to postToolUse is not modeled.

@@ -12,3 +12,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/bashfail
       - claude-mock/snapshots/runs/stops
+  cursor: false

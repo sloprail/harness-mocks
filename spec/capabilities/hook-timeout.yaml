@@ -12,3 +12,8 @@ providers:
       - https://code.claude.com/docs/en/hooks#common-fields
     runs:
       - claude-mock/snapshots/runs/hook-timeout
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#per-script-configuration-options
+    runs:
+      - cursor-mock/snapshots/runs/hook-timeout

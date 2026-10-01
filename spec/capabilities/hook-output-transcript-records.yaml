@@ -16,3 +16,4 @@ providers:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bgbash
       - claude-mock/snapshots/runs/hook-timeout
+  cursor: false

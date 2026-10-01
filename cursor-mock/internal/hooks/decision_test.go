@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
@@ -92,7 +93,7 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, ".cursor"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	conf := `{"version":1,"hooks":{"preToolUse":[{"command":"a.sh"},{"command":"b.sh","failClosed":true,"matcher":"Shell"}],"stop":[{"command":"c.sh"}]}}`
+	conf := `{"version":1,"hooks":{"preToolUse":[{"command":"a.sh"},{"command":"b.sh","failClosed":true,"matcher":"Shell","timeout":1.5}],"stop":[{"command":"c.sh"}]}}`
 	if err := os.WriteFile(filepath.Join(dir, ".cursor", "hooks.json"), []byte(conf), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := c.Entries(PreToolUse); len(got) != 2 || got[0] != (Entry{"a.sh", false}) || got[1] != (Entry{"b.sh", true}) {
+	if got := c.Entries(PreToolUse); len(got) != 2 || got[0] != (Entry{Command: "a.sh"}) || got[1] != (Entry{Command: "b.sh", FailClosed: true, Matcher: "Shell", Timeout: 1500 * time.Millisecond}) {
 		t.Errorf("preToolUse entries = %v, want [a.sh, b.sh failClosed]", got)
 	}
 	if got := c.Entries(SessionStart); len(got) != 0 {
@@ -108,6 +109,19 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	}
 	if empty, err := Load(t.TempDir()); err != nil || len(empty.Entries(PreToolUse)) != 0 {
 		t.Errorf("no hooks.json is no hooks: %v %v", empty, err)
+	}
+}
+
+// sr:proves hook-timeout/cursor
+func TestAHookThatTimedOutIsIgnoredUnlessItFailsClosed(t *testing.T) {
+	timedOut := corehooks.Outcome{Started: true, Exit: -1, TimedOut: true, Stdout: `{"permission":"deny"}`}
+	if got := Interpret(BeforeShellExecution, Entry{Command: "h.sh", Timeout: time.Second}, timedOut); got != (Decision{}) {
+		t.Errorf("a timed-out hook decides nothing, whatever it printed: %+v", got)
+	}
+	got := Interpret(BeforeShellExecution, Entry{Command: "h.sh", Timeout: time.Second, FailClosed: true}, timedOut)
+	want := Decision{Permission: "deny", Blocked: true, Message: `Tool blocked because this hook is configured to fail closed (block when it fails). Hook "h.sh" execution failed: Hook script timed out after 1000ms`}
+	if got != want {
+		t.Errorf("fail closed: %+v, want %+v", got, want)
 	}
 }
 

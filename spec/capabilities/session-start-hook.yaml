@@ -18,3 +18,4 @@ providers:
           A session cleared with /clear starts again with source "clear" in
           Claude Code. The mock parses no slash command, so it never reports
           that source.
+  cursor: false

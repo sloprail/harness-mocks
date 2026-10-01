@@ -17,20 +17,31 @@ type Hooks struct {
 	Common func() Common
 }
 
-// Fire runs every command configured for the event, all at once (Cursor runs
-// an event's hooks side by side), with the event's payload on stdin, and
-// returns what each decided, in the order configured. A project hook runs from
-// the project root.
+// NoSubject is the subject of an event that has none (sessionStart and
+// sessionEnd): every hook of the event runs, whatever its matcher.
+const NoSubject = "\x00"
+
+// Fire runs the commands configured for the event whose matcher selects its
+// subject (the tool's name for a tool event, the command line for a shell
+// event, "Write" for a file edit; an event with NoSubject takes every hook),
+// all at once (Cursor runs an event's hooks side by side), each bounded by its
+// timeout, with the event's payload on stdin. It returns what each decided, in
+// the order configured. A project hook runs from the project root.
 //
+// sr:provides hook-command-handler/cursor
+// sr:provides hook-matcher-filter/cursor
 // sr:docs https://cursor.com/docs/hooks#configuration
-func (h *Hooks) Fire(ctx context.Context, e Event, own map[string]any) []Decision {
-	entries := h.Config.Entries(e)
-	if len(entries) == 0 {
-		return nil
+func (h *Hooks) Fire(ctx context.Context, e Event, subject string, own map[string]any) []Decision {
+	var entries []Entry
+	var cmds []corehooks.Command
+	for _, entry := range h.Config.Entries(e) {
+		if subject == NoSubject || corehooks.Matches(entry.Matcher, subject) {
+			entries = append(entries, entry)
+			cmds = append(cmds, corehooks.Command{Line: entry.Command, Timeout: entry.Timeout})
+		}
 	}
-	cmds := make([]corehooks.Command, len(entries))
-	for i, entry := range entries {
-		cmds[i] = corehooks.Command{Line: entry.Command}
+	if len(cmds) == 0 {
+		return nil
 	}
 	outs := corehooks.RunAll(ctx, cmds, h.Common().Payload(e, own), corehooks.Runtime{Dir: h.Dir, Env: h.Env})
 	ds := make([]Decision, len(outs))

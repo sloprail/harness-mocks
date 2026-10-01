@@ -3,3 +3,6 @@ docs:
   https://cursor.com/docs/hooks:
     version: 2026.09.28
     sha256: 7294a2d63b19d79a5283c948afe174cba8b06a7585563d34a2c41b90f5df0d39
+  https://cursor.com/docs/cli/headless:
+    version: 2026.09.28
+    sha256: d767966f4e86012bce9e358c80c8a8e056d4ad0c8e73d74fd036d5acdf32a7af

@@ -43,14 +43,14 @@ func (h *toolHost) Tool(name string) ([]string, bool) { return toolexec.Required
 func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	h.call = toolexec.FromScript(c.Name, c.Input)
 	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: c.ID}
-	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, hooks.ToolFields(h.tool))); refused {
+	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
 		h.failure, h.result = hooks.PreToolRefusal(msg)
 		h.refused = true
 		return true, h.result
 	}
 	if h.call.Kind == "shellToolCall" {
 		own := map[string]any{"command": h.call.Command(), "cwd": "", "sandbox": false}
-		if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.BeforeShellExecution, own)); refused {
+		if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.BeforeShellExecution, h.call.Command(), own)); refused {
 			h.failure, h.result = hooks.ShellRefusal(msg)
 			h.refused = true
 			return true, h.result
@@ -75,29 +75,30 @@ func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result
 // agent is told.
 //
 // sr:provides tool-failure-hook/cursor
+// sr:provides posttooluse-payload/cursor
 // sr:docs https://cursor.com/docs/hooks#posttoolusefailure
 func (h *toolHost) After(ctx context.Context, _ toolcall.Call, _ toolcall.Result, kind corehooks.AfterTool) (string, bool) {
 	own := hooks.ToolFields(h.tool)
 	own["duration"] = ms(h.res.Took)
 	if h.refused {
 		own["error_message"], own["failure_type"], own["is_interrupt"] = h.failure, "permission_denied", false
-		h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, own)
+		h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own)
 		return "", false
 	}
 	switch {
 	case h.call.Kind == "shellToolCall":
-		h.s.hooks.Fire(ctx, hooks.AfterShellExecution, map[string]any{
+		h.s.hooks.Fire(ctx, hooks.AfterShellExecution, h.call.Command(), map[string]any{
 			"command": h.call.Command(), "output": h.res.Output, "duration": ms(h.res.Took), "sandbox": false})
 	case h.call.Kind == "editToolCall" && !h.res.Failed:
-		h.s.hooks.Fire(ctx, hooks.AfterFileEdit, map[string]any{"file_path": h.call.Path(h.s.cfg.Dir), "edits": h.res.Edits})
+		h.s.hooks.Fire(ctx, hooks.AfterFileEdit, "Write", map[string]any{"file_path": h.call.Path(h.s.cfg.Dir), "edits": h.res.Edits})
 	}
 	switch kind {
 	case corehooks.AfterSuccess:
 		own["tool_output"] = h.res.ToolOutput
-		h.s.hooks.Fire(ctx, hooks.PostToolUse, own)
+		h.s.hooks.Fire(ctx, hooks.PostToolUse, h.tool.Name, own)
 	case corehooks.AfterFailure:
 		own["error_message"], own["failure_type"], own["is_interrupt"] = h.res.ErrorMessage, "error", false
-		h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, own)
+		h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own)
 	}
 	return "", false
 }

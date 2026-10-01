@@ -12,3 +12,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bgbash
+  cursor: false

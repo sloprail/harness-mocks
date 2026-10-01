@@ -10,3 +10,9 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bashfail
+  cursor:
+    docs:
+      - https://cursor.com/docs/cli/headless#how-it-works
+      - https://cursor.com/docs/cli/headless#real-time-progress-tracking
+    runs:
+      - cursor-mock/snapshots/runs/pretool-refusal

@@ -15,3 +15,4 @@ providers:
       - claude-mock/snapshots/runs/prompt-blocked
       - claude-mock/snapshots/runs/prompt-blocked-json
       - claude-mock/snapshots/runs/midturn
+  cursor: false

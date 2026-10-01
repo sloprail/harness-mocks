@@ -11,3 +11,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/cap
+  cursor: false

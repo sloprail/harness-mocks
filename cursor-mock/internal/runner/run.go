@@ -24,7 +24,14 @@ type session struct {
 
 // Run plays one run: the stream's opening frames, the sessionStart hooks, the
 // script's turns until its result, the sessionEnd hooks, and then the result
-// frame, last on the stream.
+// frame, last on the stream. A single prompt runs to completion without
+// interaction, streaming one record per line and ending with one result. The
+// sessionEnd hook says the session completed: a non-interactive run has no
+// other reason to report.
+//
+// sr:provides noninteractive-run/cursor
+// sr:provides session-end-hook/cursor
+// sr:docs https://cursor.com/docs/hooks#sessionend
 func Run(ctx context.Context, cfg Config) error {
 	s := &session{cfg: cfg, id: newID(), started: time.Now()}
 	var err error
@@ -36,12 +43,12 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
 	s.hooks = &hooks.Hooks{Config: conf, Dir: cfg.Dir, Env: procexec.Env(cfg.Environ, nil, nil), Common: s.common}
-	s.tr.user(cfg.Prompt)
 	s.forward(initFrame(s.id, cfg.Dir))
 	s.forward(userFrame(s.id, cfg.Prompt))
-	s.hooks.Fire(ctx, hooks.SessionStart, map[string]any{"is_background_agent": false})
+	s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false})
+	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
 	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt})
-	s.hooks.Fire(ctx, hooks.SessionEnd, map[string]any{
+	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
 		"is_background_agent": false, "final_status": "completed",
 	})

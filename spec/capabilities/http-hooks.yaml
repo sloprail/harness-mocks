@@ -13,3 +13,4 @@ providers:
       - https://code.claude.com/docs/en/hooks#http-response-handling
     runs:
       - claude-mock/snapshots/runs/http-hook
+  cursor: false

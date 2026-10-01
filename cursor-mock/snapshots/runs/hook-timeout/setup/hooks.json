@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      { "command": ".cursor/hooks/slow.sh SLOWOPEN", "timeout": 1, "matcher": "SLOWOPEN" },
+      { "command": ".cursor/hooks/slow.sh SLOWCLOSED", "timeout": 1, "failClosed": true, "matcher": "SLOWCLOSED" }
+    ],
+    "afterShellExecution": [{ "command": ".cursor/hooks/log.sh" }],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/log.sh" }]
+  }
+}

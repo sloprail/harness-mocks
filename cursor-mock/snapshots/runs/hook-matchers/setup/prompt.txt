@@ -1,0 +1,1 @@
+Do these as separate tool calls, one per call, in order: 1) the shell command: echo MATCH-ME 2) the shell command: echo OTHER 3) create the file note.txt containing the word hi with your file edit/write tool, not the shell 4) read the file note.txt with your Read tool. Then reply only DONE.

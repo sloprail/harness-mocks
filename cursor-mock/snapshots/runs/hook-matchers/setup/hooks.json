@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/ran.sh nomatch-session-start", "matcher": "zzz-never" }],
+    "preToolUse": [
+      { "command": ".cursor/hooks/ran.sh pre-Shell", "matcher": "Shell" },
+      { "command": ".cursor/hooks/ran.sh pre-Read", "matcher": "Read" },
+      { "command": ".cursor/hooks/ran.sh pre-Write", "matcher": "Write" },
+      { "command": ".cursor/hooks/ran.sh pre-regex", "matcher": "Sh.*|Rea" },
+      { "command": ".cursor/hooks/ran.sh pre-star", "matcher": "*" },
+      { "command": ".cursor/hooks/ran.sh pre-none" }
+    ],
+    "beforeShellExecution": [
+      { "command": ".cursor/hooks/ran.sh shell-MATCH", "matcher": "echo MATCH" },
+      { "command": ".cursor/hooks/ran.sh shell-OTHER", "matcher": "nomatch" }
+    ],
+    "postToolUse": [{ "command": ".cursor/hooks/ran.sh post-Shell", "matcher": "Shell" }, { "command": ".cursor/hooks/ran.sh post-Read", "matcher": "Read" }],
+    "afterFileEdit": [{ "command": ".cursor/hooks/ran.sh edit-Write", "matcher": "Write" }, { "command": ".cursor/hooks/ran.sh edit-Shell", "matcher": "Shell" }]
+  }
+}

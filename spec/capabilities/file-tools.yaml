@@ -19,3 +19,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/file-tools
       - claude-mock/snapshots/runs/tool-errors
+  cursor: false

@@ -9,3 +9,10 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/hookerrors
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#command-based-hooks
+      - https://cursor.com/docs/hooks#configuration
+    runs:
+      - cursor-mock/snapshots/runs/hook-exit-codes
+      - cursor-mock/snapshots/runs/hook-matchers

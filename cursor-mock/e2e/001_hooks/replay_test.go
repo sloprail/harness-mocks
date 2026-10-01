@@ -28,6 +28,10 @@ type observed struct {
 	hooks   []map[string]any
 	results []string
 	frames  []string
+	// raw are the payloads as the hooks read them, and ws and home the
+	// workspace and the home the run used (set on the mock's side only).
+	raw      []map[string]any
+	ws, home string
 }
 
 // dropped are the fields a capture's normalizer removes (capture.sh): what
@@ -128,6 +132,9 @@ func frameName(f map[string]any) string {
 // and the exit status it gave (afterAgentThought, which the mock does not
 // fire, is left out).
 func resultName(m map[string]any) string {
+	if _, ok := m["hook_ran"]; ok {
+		return fmt.Sprintf("ran:%v:%v:%v:%v:%v", m["hook_ran"], m["event"], m["tool"], m["command"], m["phase"])
+	}
 	r, ok := m["hook_result"].(map[string]any)
 	if !ok || r["event"] == "afterAgentThought" {
 		return ""
@@ -161,7 +168,7 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 			// events the mock does not fire (adr/modeled-surface)
 		case e["hook"] != nil:
 			rec.hooks = append(rec.hooks, unmodeledEnv(p).(map[string]any))
-		case p["hook_result"] != nil:
+		case p["hook_result"] != nil || p["hook_ran"] != nil:
 			if n := resultName(p); n != "" {
 				rec.results = append(rec.results, n)
 			}
@@ -226,7 +233,8 @@ func replay(t *testing.T, run string) (got, want observed) {
 	script := filepath.Join(scratch, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nn=$(grep -c '\"type\":\"tool_use\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\nn=${n:-0}\nf=\""+scratch+"/$n.json\"\n[ -f \"$f\" ] || f=\""+scratch+"/end.json\"\ncat \"$f\"\n"), 0o755))
 	logPath := filepath.Join(scratch, "payloads.jsonl")
-	env := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "HOOK_LOG=" + logPath, "TMPDIR=" + scratch, "A10N_MOCK_SCRIPT=" + script}
+	home := t.TempDir()
+	env := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + logPath, "TMPDIR=" + scratch, "A10N_MOCK_SCRIPT=" + script}
 	if b, err := os.ReadFile(filepath.Join(setup, "env")); err == nil {
 		for _, l := range strings.Split(string(b), "\n") {
 			if l != "" {
@@ -249,13 +257,15 @@ func replay(t *testing.T, run string) (got, want observed) {
 		switch {
 		case m["hook_event_name"] != nil && m["hook_event_name"] != "afterAgentThought":
 			got.hooks = append(got.hooks, normalize(m, sid, ws).(map[string]any))
-		case m["hook_result"] != nil:
+			got.raw = append(got.raw, m)
+		case m["hook_result"] != nil || m["hook_ran"] != nil:
 			if n := resultName(m); n != "" {
 				got.results = append(got.results, n)
 			}
 		}
 	}
 	sort.Strings(got.results)
+	got.ws, got.home = ws, home
 	for _, l := range strings.Split(string(out), "\n") {
 		var f map[string]any
 		if json.Unmarshal([]byte(l), &f) == nil {

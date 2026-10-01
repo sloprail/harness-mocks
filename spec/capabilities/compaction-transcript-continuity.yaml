@@ -9,3 +9,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/compact
       - claude-mock/snapshots/runs/compact-nohooks
+  cursor: false

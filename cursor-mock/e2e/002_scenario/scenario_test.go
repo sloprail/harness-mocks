@@ -43,6 +43,7 @@ const (
 // script plays the agent; each tool call ends its turn, the mock runs the tool
 // and runs the script again, and the result ends the run.
 // sr:proves turn-loop
+// sr:proves noninteractive-run/cursor
 func TestTheScriptRunsOncePerTurnAToolCallEndsTheTurnAndAResultEndsTheRun(t *testing.T) {
 	out, _, code := run(t, `#!/bin/sh
 printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"on it"}]}}'

@@ -35,6 +35,16 @@ const failClosedNote = "Tool blocked because this hook is configured to fail clo
 // sr:provides hook-exit-code-semantics/cursor
 // sr:docs https://cursor.com/docs/hooks#command-based-hooks
 func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
+	if o.TimedOut {
+		// The hook and its children were killed at the timeout, and whatever it
+		// printed is discarded: the action goes on, unless the hook fails closed.
+		// sr:provides hook-timeout/cursor
+		// sr:docs https://cursor.com/docs/hooks#per-script-configuration-options
+		if h.FailClosed {
+			return Decision{Permission: "deny", Blocked: true, Message: fmt.Sprintf("%sHook %q execution failed: Hook script timed out after %dms", failClosedNote, h.Command, h.Timeout.Milliseconds())}
+		}
+		return Decision{}
+	}
 	verdict := corehooks.NonBlockingError
 	if o.Started && o.Exit >= 0 {
 		verdict = corehooks.VerdictOf(o.Exit, h.FailClosed)

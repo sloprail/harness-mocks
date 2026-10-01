@@ -17,9 +17,13 @@ type transcript struct{ path string }
 
 var nonAlnum = regexp.MustCompile(`[^A-Za-z0-9]`)
 
-// newTranscript creates the file under <home>/.cursor/projects/<project>/
-// agent-transcripts/<session>/, where <project> is the workspace path with
-// every non-alphanumeric character as "-".
+// newTranscript names the session's file under <home>/.cursor/projects/<project>/
+// agent-transcripts/<session>/, where <project> is the workspace path (symlinks
+// resolved by the entrypoint) with every non-alphanumeric character as "-". The
+// file itself is written with the first record, after the start hook has run.
+//
+// sr:provides session-transcript-file/cursor
+// sr:docs https://cursor.com/docs/hooks#common-schema
 func newTranscript(home, dir, session string) (*transcript, error) {
 	project := nonAlnum.ReplaceAllString(strings.TrimPrefix(dir, "/"), "-")
 	d := filepath.Join(home, ".cursor", "projects", project, "agent-transcripts", session)

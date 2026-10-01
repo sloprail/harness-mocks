@@ -9,3 +9,15 @@ providers:
     runs:
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/stops
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#common-schema
+    runs:
+      - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no sub-agents (no Task tool and no subagentStart or
+          subagentStop event), so the payload fields that name a sub-agent are not
+          modeled.
