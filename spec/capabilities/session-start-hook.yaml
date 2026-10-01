@@ -18,4 +18,15 @@ providers:
           A session cleared with /clear starts again with source "clear" in
           Claude Code. The mock parses no slash command, so it never reports
           that source.
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#sessionstart
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/hook-matchers
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock never resumes, forks or compacts a session, so a session start is always the fresh one, source startup.
   cursor: false

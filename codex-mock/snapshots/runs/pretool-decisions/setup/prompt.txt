@@ -1,0 +1,1 @@
+Make every shell command its own separate tool call, never combined with another command or put in a script. Run these shell commands one at a time, in this order, even if one is refused: echo ONLYALLOW, echo ALLOWDENY, echo ASKME. Then reply with the single word DONE.

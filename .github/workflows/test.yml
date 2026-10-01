@@ -38,6 +38,28 @@ jobs:
 
       - run: make -C claude-mock test-e2e
 
+  codex-unit:
+    name: codex-mock unit tests (with the shared core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make -C codex-mock test-unit
+
+  codex-e2e:
+    name: codex-mock e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make -C codex-mock test-e2e
+
   cursor-unit:
     name: cursor-mock unit tests
     runs-on: ubuntu-latest

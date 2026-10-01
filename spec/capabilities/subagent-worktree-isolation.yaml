@@ -10,4 +10,5 @@ providers:
     runs:
       - claude-mock/snapshots/runs/meta
       - claude-mock/snapshots/runs/isolated-worktree
+  codex: false
   cursor: false

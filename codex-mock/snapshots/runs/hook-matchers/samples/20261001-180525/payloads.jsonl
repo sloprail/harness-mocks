@@ -1,0 +1,7 @@
+{"ran":"session-startup","event":"SessionStart","tool":""}
+{"ran":"prompt-ignored-matcher","event":"UserPromptSubmit","tool":""}
+{"ran":"pre-star","event":"PreToolUse","tool":"Bash"}
+{"ran":"pre-bash","event":"PreToolUse","tool":"Bash"}
+{"ran":"pre-empty","event":"PreToolUse","tool":"Bash"}
+{"ran":"post-bash","event":"PostToolUse","tool":"Bash"}
+{"ran":"stop-ignored-matcher","event":"Stop","tool":""}

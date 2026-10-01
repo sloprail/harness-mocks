@@ -17,4 +17,5 @@ providers:
           the jitter the recorded wake-up times show beyond rounding up to a whole
           minute, are not modeled. A self-paced /loop (a slash command, interactive
           surface) is what Claude calls this tool for; no mock parses one.
+  codex: false
   cursor: false

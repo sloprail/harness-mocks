@@ -1,0 +1,8 @@
+version: "0.159.3"
+docs:
+  https://developers.openai.com/codex/hooks:
+    version: 0.159.3
+    sha256: 724881d81f1a9fdb35ea42d4851a11b1f6606bbc6e9d2d05c1e8c466fc25c630
+  https://developers.openai.com/codex/noninteractive:
+    version: 0.159.3
+    sha256: c83fe9259825a206d1d4f7a0ac669e5697d270ce2bebd28c5d36ad829c9a2a08

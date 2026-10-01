@@ -31,6 +31,7 @@ providers:
           can produce it. Of input validation, only a missing required
           parameter is modeled; a parameter of the wrong type or an unknown
           tool name is not.
+  codex: false
   cursor:
     docs:
       - https://cursor.com/docs/hooks#posttoolusefailure

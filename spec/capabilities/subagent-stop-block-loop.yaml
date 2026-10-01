@@ -11,4 +11,5 @@ providers:
     runs:
       - claude-mock/snapshots/runs/cap-sub
       - claude-mock/snapshots/runs/hookmix
+  codex: false
   cursor: false

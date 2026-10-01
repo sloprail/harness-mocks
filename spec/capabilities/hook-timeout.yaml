@@ -12,6 +12,11 @@ providers:
       - https://code.claude.com/docs/en/hooks#common-fields
     runs:
       - claude-mock/snapshots/runs/hook-timeout
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#config-shape
+    runs:
+      - codex-mock/snapshots/runs/hook-timeout
   cursor:
     docs:
       - https://cursor.com/docs/hooks#per-script-configuration-options

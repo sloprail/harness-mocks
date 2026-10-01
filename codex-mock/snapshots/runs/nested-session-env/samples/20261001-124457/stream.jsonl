@@ -1,0 +1,8 @@
+{"type":"thread.started","thread_id":"01a0f77f-1dcf-7f90-97b6-121a9dc8f07a"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc \"env | grep '\"'^CODEX'\"' | sort\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc \"env | grep '\"'^CODEX'\"' | sort\"","aggregated_output":"CODEX_CI=decoy\nCODEX_HOME=<TMP>/home/.codex\nCODEX_MANAGED_BY_NPM=1\nCODEX_MANAGED_PACKAGE_ROOT=<HOME>/.nvm/versions/node/v22.13.1/lib/node_modules/@openai/codex\nCODEX_SANDBOX=decoy\nCODEX_SESSION_ID=01a0f77f-1dcf-7f90-97b6-121a9dc8f07a\nCODEX_THREAD_ID=01a0f77f-1dcf-7f90-97b6-121a9dc8f07a\nCODEX_VERSION=0.159.3\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"DONE"}}
+{"type":"turn.completed","usage":{"input_tokens":23847,"cached_input_tokens":19968,"cache_write_input_tokens":0,"output_tokens":119,"reasoning_output_tokens":25}}

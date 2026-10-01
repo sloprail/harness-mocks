@@ -14,4 +14,5 @@ providers:
       - claude-mock/snapshots/runs/meta
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/cap-sub
+  codex: false
   cursor: false

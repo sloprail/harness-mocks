@@ -25,4 +25,5 @@ providers:
           counterpart in the mock, and neither do the path screening of a hook's
           returned path (a path through a symlink, or with . or .. segments, is
           refused) and the .worktreeinclude copy that the default creation does.
+  codex: false
   cursor: false

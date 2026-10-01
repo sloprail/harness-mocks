@@ -11,4 +11,5 @@ providers:
     runs:
       - claude-mock/snapshots/runs/forkresume
       - claude-mock/snapshots/runs/compact
+  codex: false
   cursor: false

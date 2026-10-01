@@ -11,4 +11,5 @@ providers:
       - claude-mock/snapshots/runs/meta
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/hookmix
+  codex: false
   cursor: false

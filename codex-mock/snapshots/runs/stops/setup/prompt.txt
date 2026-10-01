@@ -1,0 +1,1 @@
+Make every shell command its own separate tool call, never combined with another command or put in a script. Step 1: run the shell command: echo DENYME . Step 2: whatever happens, run the shell command: echo EXIT2ME . Step 3: run the shell command: echo FINE . Then reply only DONE. If you are told to continue after that, just reply DONE2.

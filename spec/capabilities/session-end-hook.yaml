@@ -18,6 +18,11 @@ providers:
           interactive session (/clear, /resume, a logout, an exit from the
           prompt). The mock models none, so every session ends with the
           generic reason.
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#sessionend
+    runs:
+      - codex-mock/snapshots/runs/session-end
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionend

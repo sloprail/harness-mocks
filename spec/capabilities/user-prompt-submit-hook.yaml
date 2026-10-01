@@ -15,4 +15,10 @@ providers:
       - claude-mock/snapshots/runs/prompt-blocked
       - claude-mock/snapshots/runs/prompt-blocked-json
       - claude-mock/snapshots/runs/midturn
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#userpromptsubmit
+    runs:
+      - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/prompt-blocked
   cursor: false

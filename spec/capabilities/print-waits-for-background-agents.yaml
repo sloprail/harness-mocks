@@ -7,4 +7,5 @@ providers:
       - https://code.claude.com/docs/en/headless#background-tasks-at-exit
     runs:
       - claude-mock/snapshots/runs/bgagent
+  codex: false
   cursor: false

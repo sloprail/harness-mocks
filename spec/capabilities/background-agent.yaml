@@ -7,4 +7,5 @@ providers:
       - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
     runs:
       - claude-mock/snapshots/runs/bgagent
+  codex: false
   cursor: false

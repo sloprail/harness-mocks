@@ -1,0 +1,7 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"startup"}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Make every shell command its own separate tool call, never combined with another command or put in a script. Run the shell command: echo SHOULDNOTRUN. Then reply only DONE."}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"turn.completed","subtype":null}

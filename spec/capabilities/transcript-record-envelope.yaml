@@ -11,4 +11,5 @@ providers:
       - claude-mock/snapshots/runs/bgbash
       - claude-mock/snapshots/runs/midturn
       - claude-mock/snapshots/runs/bgagent
+  codex: false
   cursor: false

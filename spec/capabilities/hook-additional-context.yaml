@@ -12,4 +12,13 @@ providers:
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/ctxmulti
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#sessionstart
+      - https://developers.openai.com/codex/hooks#userpromptsubmit
+      - https://developers.openai.com/codex/hooks#posttooluse
+      - https://developers.openai.com/codex/hooks#large-hook-output
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/hook-exit-codes
   cursor: false

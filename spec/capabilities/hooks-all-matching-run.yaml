@@ -12,4 +12,5 @@ providers:
     runs:
       - claude-mock/snapshots/runs/all-hooks
       - claude-mock/snapshots/runs/all-hooks-slow-first
+  codex: false
   cursor: false
