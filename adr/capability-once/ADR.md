@@ -27,7 +27,7 @@ provide the same capability with different wire formats.
   block is honoured, and in what order things happen are the capability's.
 - Behaviour that differs between harnesses is a parameter of the core
   capability, never a copy of it.
-- Every cell that is not `false` is proven by tests, in `*_test.go`, marked
-  `// sr:proves <id>/<harness>`; the marker sits on tests only. Those tests
-  assert what the cell's recorded runs and docs show the real harness doing,
-  or the cell's declared deviation where the mock differs.
+- Every cell that is not `false` has tests, in `*_test.go`, marked
+  `// sr:proves <id>/<harness>`; the marker sits on tests only.
+- Those tests assert what the cell's recorded runs and docs show the real
+  harness doing, or the cell's declared deviation where the mock differs.
