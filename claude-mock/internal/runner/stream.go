@@ -114,7 +114,9 @@ func buildEnv(cfg Config, tr *transcript) []string {
 		// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID)
 		"CLAUDE_CODE_SESSION_ID="+cfg.SessionID,
 		"A10N_MOCK_SESSION_ID="+cfg.SessionID,
+		// sr:invariant scenario-prompt-env
 		"A10N_MOCK_PROMPT="+cfg.Prompt,
+		// sr:invariant prompt-context-appended
 		"A10N_MOCK_ADDITIONAL_CONTEXT="+cfg.AdditionalContext,
 		"A10N_MOCK_IS_RESUME="+boolStr(cfg.IsResume),
 		"A10N_MOCK_SESSION_FILE="+sessionPath,
