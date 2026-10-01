@@ -18,7 +18,7 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock has no MCP tools and no way to abort a running tool, so an
+          The mock has no MCP tools and never aborts a running tool, so an
           MCP tool's error result and an interrupt (is_interrupt true) are not
           modeled, nor are the truncation marker and timeout lines Claude Code
           adds to a long or timed-out command's error. Only a missing file's

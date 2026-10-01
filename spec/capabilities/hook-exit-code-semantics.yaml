@@ -27,7 +27,7 @@ providers:
           The mock fires SessionStart, UserPromptSubmit, PreToolUse,
           PostToolUse, PostToolUseFailure, Stop, SubagentStart, SubagentStop,
           PreCompact, PostCompact, SessionEnd, WorktreeCreate and
-          WorktreeRemove only. The docs' exit-code rows for StopFailure (which
+          WorktreeRemove, and no others. The docs' exit-code rows for StopFailure (which
           the mock defines but never fires), ConfigChange,
           CwdChanged, DirectoryAdded, Elicitation, ElicitationResult,
           FileChanged, InstructionsLoaded, MessageDisplay, Notification,

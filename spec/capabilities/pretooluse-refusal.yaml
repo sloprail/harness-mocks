@@ -15,8 +15,7 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock's runs are non-interactive and never resumed by an SDK
-          host, so a hook's "ask" (a permission prompt) and "defer" (pausing
+          The mock models a non-interactive run that no SDK host resumes, so a hook's "ask" (a permission prompt) and "defer" (pausing
           the call to resume later) decide nothing in the mock; they only rank
           below deny when several hooks decide one call. Permission rules
           evaluated beside the hook are not modeled.
