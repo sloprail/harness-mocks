@@ -8,6 +8,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // runOneTurnSig executes the script once, processes its JSONL output, and
@@ -104,18 +105,23 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	}
 
 	// PostToolUse for the synthesised result; PostToolUseFailure instead when
-	// the tool failed, with the text the model got as error — as claude
-	// 2.1.282 fires them (a controlled run: a failing Bash fired
-	// PostToolUseFailure {error, is_interrupt, duration_ms}). tool_response is
-	// the tool's structured result where it has one, else the text the model
-	// got. PostToolUseFailure fires only for a tool that ran and failed — a
-	// Bash that exited non-zero, the one failure measured (F:bashfail); for
-	// other errors (invalid input, a failing Read or Edit, the mock's own
-	// failures) neither hook fires, as that is not measured. Neither leaves a
-	// record here (no evidence for PostToolUseFailure's).
-	// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
+	// the tool ran and failed (a Bash exiting non-zero, a file tool's error),
+	// with the text the agent got as error (recorded: snapshots/runs/bashfail,
+	// tool-errors). tool_response is the tool's structured result where it has
+	// one, else the text the agent got. Input the tool could not take fires
+	// neither: the tool never ran. Neither leaves a record here.
+	// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
 	took := time.Since(toolStarted).Milliseconds()
-	if res.Failed {
+	outcome := corehooks.ToolSucceeded
+	switch {
+	case res.Failed:
+		outcome = corehooks.ToolFailed
+	case res.IsError:
+		outcome = corehooks.ToolErrored
+	}
+	// sr:provides tool-failure-hook/claude
+	switch corehooks.AfterToolHook(outcome) {
+	case corehooks.AfterFailure:
 		notInterrupted := false
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
@@ -128,7 +134,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			IsInterrupt:   &notInterrupted,
 			DurationMs:    &took,
 		})
-	} else if !res.IsError {
+	case corehooks.AfterSuccess:
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,

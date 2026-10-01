@@ -24,8 +24,12 @@ func executeRead(raw json.RawMessage, cwd string) Result {
 
 	path := resolvePath(inp.FilePath, cwd)
 	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		// claude 2.1.285 (recorded: snapshots/runs/tool-errors)
+		return failed("File does not exist. Note: your current working directory is " + cwd + ".")
+	}
 	if err != nil {
-		return Result{Output: err.Error(), IsError: true}
+		return failed(err.Error())
 	}
 
 	lines := strings.Split(string(data), "\n")
@@ -58,10 +62,10 @@ func executeWrite(raw json.RawMessage, cwd string) Result {
 
 	path := resolvePath(inp.FilePath, cwd)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return Result{Output: err.Error(), IsError: true}
+		return failed(err.Error())
 	}
 	if err := os.WriteFile(path, []byte(inp.Content), 0o644); err != nil {
-		return Result{Output: err.Error(), IsError: true}
+		return failed(err.Error())
 	}
 	return Result{Output: fmt.Sprintf("File written successfully to %s", inp.FilePath)}
 }
@@ -83,21 +87,21 @@ func executeEdit(raw json.RawMessage, cwd string) Result {
 	path := resolvePath(inp.FilePath, cwd)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Result{Output: err.Error(), IsError: true}
+		return failed(err.Error())
 	}
 
 	original := string(data)
 	count := strings.Count(original, inp.OldString)
 	if count == 0 {
-		return Result{Output: fmt.Sprintf("Edit: old_string not found in %s", inp.FilePath), IsError: true}
+		return failed(fmt.Sprintf("Edit: old_string not found in %s", inp.FilePath))
 	}
 	if count > 1 {
-		return Result{Output: fmt.Sprintf("Edit: old_string appears %d times in %s; must be unique", count, inp.FilePath), IsError: true}
+		return failed(fmt.Sprintf("Edit: old_string appears %d times in %s; must be unique", count, inp.FilePath))
 	}
 
 	updated := strings.Replace(original, inp.OldString, inp.NewString, 1)
 	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
-		return Result{Output: err.Error(), IsError: true}
+		return failed(err.Error())
 	}
 	return Result{Output: fmt.Sprintf("File %s edited successfully", inp.FilePath)}
 }

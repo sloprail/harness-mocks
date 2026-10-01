@@ -49,9 +49,11 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 			if text != "" {
 				msg += "\n" + text
 			}
-			return Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}
+			return failed(msg)
 		}
-		return Result{Output: text + "\n" + err.Error(), IsError: true}
+		// The shell could not start: a bare failure message, still a failure
+		// (docs, "PostToolUseFailure input").
+		return failed(strings.TrimPrefix(text+"\n"+err.Error(), "\n"))
 	}
 	return Result{Output: text, ToolUseResult: structured}
 }

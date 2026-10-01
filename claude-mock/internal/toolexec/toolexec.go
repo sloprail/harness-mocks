@@ -30,8 +30,9 @@ type Result struct {
 	// tool has one — a background launch's backgroundTaskId, an async agent's
 	// agentId. Nil for the tools that do not need it here.
 	ToolUseResult any
-	// Failed marks a tool that ran and failed (a Bash that exited non-zero),
-	// for which real Claude Code fires PostToolUseFailure.
+	// Failed marks a tool that ran and failed (a Bash that exited non-zero, a
+	// file tool's error), for which real Claude Code fires PostToolUseFailure;
+	// input the tool could not take is an error that did not run.
 	Failed bool
 	// ContentAsBlocks writes the tool_result content as a list of text blocks
 	// rather than a string — the shape real Claude Code gives some tools'
@@ -70,4 +71,11 @@ func resolvePath(p, cwd string) string {
 		return p
 	}
 	return filepath.Join(cwd, p)
+}
+
+// failed is the result of a tool that ran and failed: the error is the text
+// the agent gets, and the transcript records it as "Error: <text>" (claude
+// 2.1.285, recorded: snapshots/runs/bashfail, tool-errors).
+func failed(msg string) Result {
+	return Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}
 }

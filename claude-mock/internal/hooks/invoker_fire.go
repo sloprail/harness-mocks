@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"log/slog"
 	"time"
 )
@@ -122,6 +123,13 @@ func mergeOutput(dst *Output, src Output) {
 		dst.Reason = src.Reason
 	}
 	if src.HookSpecificOutput != nil {
-		dst.HookSpecificOutput = src.HookSpecificOutput
+		// Several hooks deciding one tool call: the stronger permission
+		// decision wins, with its reason, whatever order they ran in (docs,
+		// "PreToolUse decision control").
+		h := *src.HookSpecificOutput
+		if prev := dst.HookSpecificOutput; prev != nil && corehooks.StrongerPermission(h.PermissionDecision, prev.PermissionDecision) != h.PermissionDecision {
+			h.PermissionDecision, h.PermissionDecisionReason = prev.PermissionDecision, prev.PermissionDecisionReason
+		}
+		dst.HookSpecificOutput = &h
 	}
 }

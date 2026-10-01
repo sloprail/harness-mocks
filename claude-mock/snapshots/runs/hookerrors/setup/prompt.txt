@@ -1,0 +1,1 @@
+Use the Agent tool (not in background) with subagent_type general-purpose, description 'helper', prompt 'Reply with the single word HELPED'. Then reply with only the word DONE.

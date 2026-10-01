@@ -25,7 +25,7 @@ func executeGlob(raw json.RawMessage, cwd string) Result {
 
 	matches, err := filepath.Glob(filepath.Join(base, inp.Pattern))
 	if err != nil {
-		return Result{Output: err.Error(), IsError: true}
+		return failed(err.Error())
 	}
 	if len(matches) == 0 {
 		return Result{Output: "No files found"}

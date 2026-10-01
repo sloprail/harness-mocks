@@ -95,8 +95,8 @@ capture_run() {
   # drop what the login injects, which is the account's, not the harness's
   # behaviour, and private: the user's email and organization, the account's
   # skills, agents and MCP instructions, its commit/PR attribution
-  for f in "$cap"/transcript/*.jsonl; do
-    [ -f "$f" ] || continue
+  # (a sub-agent's transcript too, under <session>/subagents/)
+  find "$cap/transcript" -name '*.jsonl' -type f | while IFS= read -r f; do
     jq -c 'select((.attachment.type // "") | test("^(session_context|credential_org|skill_listing|agent_listing_delta|mcp_instructions_delta|remote_session_change)$") | not)' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
   done
   # redact: the value of every secret-named variable a child saw (the harness
@@ -117,7 +117,8 @@ capture_run() {
   normalize "$cap" >"$cap/events.jsonl"
   # a sample never carries an email address but Anthropic's attribution one
   if grep -rhoE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}' "$cap" | grep -vxq 'noreply@anthropic.com'; then
-    die "the capture holds an email address; not sealing it (see what reached it under $cap)"
+    grep -rlE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}' "$cap" | sed "s#^$cap/#  #" >&2
+    die "the capture holds an email address in the files above; not sealed, and removed"
   fi
   # a re-capture with the same events adds nothing
   for other in "$run"/samples/*/; do

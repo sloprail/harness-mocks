@@ -46,34 +46,69 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"R"}'
 }
 
 // TestT017_29_FailingBash: a foreground Bash that exits non-zero is answered
-// "Exit code N\n<output>" (is_error) with toolUseResult "Error: <that>", and
-// fires PostToolUseFailure {error, is_interrupt, duration_ms} instead of
-// PostToolUse — claude 2.1.282 in a controlled run (fixture
-// evidence/bashfail).
+// "Exit code N\n<stdout>\n<stderr>" (is_error) with toolUseResult "Error:
+// <that>", and fires PostToolUseFailure {error, is_interrupt, duration_ms}
+// instead of PostToolUse; the next Bash, which succeeds, fires PostToolUse
+// only (recorded: snapshots/runs/bashfail, the same two commands).
+// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure-input
 // staged:proves bash-tool-result/claude
-// staged:proves tool-failure-hook/claude
+// sr:proves tool-failure-hook/claude
 func TestT017_29_FailingBash(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
 	h := payloadLogger(t, dir, "log.sh", log, "")
 	settings(t, dir, map[string]string{"PostToolUse": h, "PostToolUseFailure": h})
-	sc := script(t, dir, "s", toolUse("b1", "Bash", `{"command":"echo OUT-LINE; exit 3"}`))
+	sc := script(t, dir, "s",
+		toolUse("b1", "Bash", `{"command":"echo OUT-LINE; echo ERR-LINE >&2; exit 3"}`),
+		toolUse("b2", "Bash", `{"command":"true"}`))
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bf-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
 	block, _ := toolResultOf(t, readRecs(t, transcriptPath(t, cfg, dir, "bf-1")), "b1turn-s-a")
-	assert.Equal(t, "Exit code 3\nOUT-LINE", block["content"])
+	assert.Equal(t, "Exit code 3\nOUT-LINE\nERR-LINE", block["content"])
 	assert.Equal(t, true, block["is_error"])
 	raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "bf-1"))
-	assert.Contains(t, string(raw), `"toolUseResult":"Error: Exit code 3\nOUT-LINE"`)
+	assert.Contains(t, string(raw), `"toolUseResult":"Error: Exit code 3\nOUT-LINE\nERR-LINE"`)
 	ps := payloads(t, log)
-	require.Len(t, ps, 1)
+	require.Len(t, ps, 2)
 	assert.Equal(t, "PostToolUseFailure", ps[0]["hook_event_name"])
-	assert.Equal(t, "Exit code 3\nOUT-LINE", ps[0]["error"])
+	assert.Equal(t, "Exit code 3\nOUT-LINE\nERR-LINE", ps[0]["error"])
 	assert.Equal(t, false, ps[0]["is_interrupt"])
 	assert.Contains(t, ps[0], "duration_ms")
 	assert.NotContains(t, ps[0], "tool_response")
+	assert.Equal(t, "PostToolUse", ps[1]["hook_event_name"])
+	assert.Equal(t, "true", ps[1]["tool_input"].(map[string]any)["command"])
+}
+
+// TestT017_29b_FailingRead: a Read of a file that does not exist is a tool
+// that ran and failed: the agent gets "File does not exist. Note: your
+// current working directory is <cwd>." (is_error) and PostToolUseFailure
+// fires with that text as error, not PostToolUse (recorded:
+// snapshots/runs/tool-errors).
+// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
+// sr:proves tool-failure-hook/claude
+func TestT017_29b_FailingRead(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	log := filepath.Join(dir, "payloads.log")
+	h := payloadLogger(t, dir, "log.sh", log, "")
+	settings(t, dir, map[string]string{"PostToolUse": h, "PostToolUseFailure": h})
+	sc := script(t, dir, "s", toolUse("r1", "Read", `{"file_path":"nonexistent-dir/missing.txt"}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "rf-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	want := "File does not exist. Note: your current working directory is " + real + "."
+	block, _ := toolResultOf(t, readRecs(t, transcriptPath(t, cfg, dir, "rf-1")), "r1turn-s-a")
+	assert.Equal(t, want, block["content"])
+	assert.Equal(t, true, block["is_error"])
+	ps := payloads(t, log)
+	require.Len(t, ps, 1)
+	assert.Equal(t, "PostToolUseFailure", ps[0]["hook_event_name"])
+	assert.Equal(t, "Read", ps[0]["tool_name"])
+	assert.Equal(t, want, ps[0]["error"])
 }
 
 // TestT017_30_SubagentMetaSidecars: every sub-agent's .meta.json has the

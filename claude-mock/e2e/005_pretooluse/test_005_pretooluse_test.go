@@ -63,7 +63,7 @@ printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
 // [<command>]: <stderr>" (is_error), after which the turn continues. Claude
 // 2.1.282 did exactly this in a controlled run; no attachment is written.
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves pretooluse-refusal/claude
+// sr:proves pretooluse-refusal/claude
 func TestT005_02_PreToolUseExit2RefusesTheCallAndTheTurnGoesOn(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "cfg")
@@ -143,7 +143,7 @@ printf '%s\n' '`+assistantWithTool("Bash", "tu_1")+`'
 // tool_result (is_error + the deny reason) in the session and RETRIES with another
 // Bash tool_use, which is allowed and executed. The final result proves the run did
 // not abort.
-// staged:proves pretooluse-refusal/claude
+// sr:proves pretooluse-refusal/claude
 func TestT005_05_PreToolUseDenyBlocksAndAgentRetries(t *testing.T) {
 	dir := t.TempDir()
 	cntFile := filepath.Join(dir, "deny_count")
