@@ -3,7 +3,10 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -201,6 +204,17 @@ func TestT012_05_AcknowledgementAndPendingWakeup(t *testing.T) {
 	require.Len(t, transcripts, 1)
 	recorded, err := os.ReadFile(transcripts[0])
 	require.NoError(t, err)
+	// The time is rounded up to a whole minute, as recorded (scheduledFor a
+	// multiple of 60000), and never earlier than the delay asked for.
+	times := regexp.MustCompile(`"scheduledFor":([1-9][0-9]*)`).FindAllStringSubmatch(string(recorded), -1)
+	require.Len(t, times, 2)
+	for i, m := range times {
+		ms, err := strconv.ParseInt(m[1], 10, 64)
+		require.NoError(t, err)
+		assert.Zero(t, ms%60000, "scheduledFor %d is a whole minute", ms)
+		min := []time.Duration{3600 * time.Second, 300 * time.Second}[i]
+		assert.GreaterOrEqual(t, ms, time.Now().Add(min).Add(-time.Minute).UnixMilli())
+	}
 	assert.Contains(t, string(recorded), `"wasClamped":true`)
 	assert.Contains(t, string(recorded), `"clampedDelaySeconds":3600`)
 	assert.Contains(t, string(recorded), `"cancelledWakeups":1`)
