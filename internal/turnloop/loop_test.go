@@ -18,6 +18,7 @@ type host struct {
 	blocked    bool
 	stops      []string // reasons the end-of-turn hooks block with, one per call
 	nextStop   int
+	cap        int
 	sessionLog string
 }
 
@@ -41,7 +42,10 @@ func (h *host) EndOfTurn(_ context.Context, last string, continuing bool) (strin
 	return h.stops[h.nextStop-1], true
 }
 func (h *host) Continue(reason string) { h.log = append(h.log, "continue:"+reason) }
-func (h *host) SessionFile() string    { return h.sessionLog }
+func (h *host) CapOverridden(blocks int) {
+	h.log = append(h.log, fmt.Sprintf("overridden:%d", blocks))
+}
+func (h *host) SessionFile() string { return h.sessionLog }
 
 // run drives the loop with a script that asks for one tool call per output
 // recorded in the session file, then gives its result.
@@ -61,7 +65,7 @@ printf '%%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":
 	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go"})
+	return Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go", BlockCap: h.cap})
 }
 
 func TestRunStepsThroughToolCallsToTheResult(t *testing.T) {
