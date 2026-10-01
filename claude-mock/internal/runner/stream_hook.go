@@ -111,7 +111,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		sig := turn.sig
 		if sig != "" && sig == lastSig {
 			repeats++
-			if repeats >= maxIdenticalTurns {
+			// repeats counts the emissions after the first: the run ends on the
+			// maxIdenticalTurns-th identical one in a row.
+			if repeats+1 >= maxIdenticalTurns {
 				return fmt.Errorf("claude-mock: scenario looped — the same tool_use was emitted %d times in a row without advancing (signature %q); the script is re-run once per turn and must vary its output based on conversation history — read $A10N_MOCK_SESSION_FILE (e.g. grep for a prior tool_result/tool_use_id) and emit the next step (or a final result) instead of re-emitting the same tool_use", maxIdenticalTurns, sig)
 			}
 		} else {

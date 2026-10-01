@@ -78,7 +78,28 @@ printf '%s\n' '`+bashToolUse("t1", "true")+`'
 	assert.NotEqual(t, 0, code, "output:\n%s", out)
 	assert.Contains(t, out, "scenario looped")
 	n := strings.Count(readOrEmpty(runs), "run")
-	assert.Equal(t, 6, n, "the same tool_use, then 5 repeats of it, and the run stops")
+	assert.Equal(t, 5, n, "the 5th identical tool_use in a row stops the run")
+}
+
+// A different tool_use resets the count: 4 identical calls, then another,
+// then the first again, then a result, run to the end.
+// sr:proves loop-guard
+func TestT009_15_ChangedToolUseResetsTheGuard(t *testing.T) {
+	dir := t.TempDir()
+	runs := filepath.Join(dir, "runs")
+	script := writeScript(t, dir, "s.sh", `#!/bin/sh
+echo run >> "`+runs+`"
+n=$(wc -l < "`+runs+`" | tr -d ' ')
+case "$n" in
+  5) printf '%s\n' '`+bashToolUse("t2", "echo other")+`' ;;
+  10) printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}' ;;
+  *) printf '%s\n' '`+bashToolUse("t1", "true")+`' ;;
+esac
+`)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-lr", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, "4 in a row, a different call, then 4 again never reach 5; output:\n%s", out)
+	assert.NotContains(t, out, "scenario looped")
+	assert.Equal(t, 10, strings.Count(readOrEmpty(runs), "run"))
 }
 
 // A sub-agent runs its own script: the Agent call's script field, else the one
@@ -168,4 +189,27 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 	out, code = runInDir(t, dir, nil, "--resume", "s-nr", "--script", script, "--project-dir", dir, "--config-dir", cfg, "-p", "again")
 	assert.Equal(t, 0, code, "without it, the same resume succeeds; output:\n%s", out)
 	assert.Equal(t, 2, strings.Count(readOrEmpty(runs), "run"))
+}
+
+// The Agent call's script field wins over A10N_MOCK_SUBAGENT_SCRIPT: with both
+// set, the sub-agent runs the call's script and not the env's.
+// sr:proves subagent-script
+func TestT009_15_SubagentScriptFieldWinsOverEnv(t *testing.T) {
+	dir := t.TempDir()
+	fromField, fromEnv := filepath.Join(dir, "field-ran"), filepath.Join(dir, "env-ran")
+	sub := func(name, marker string) string {
+		return writeScript(t, dir, name, "#!/bin/sh\n: > \""+marker+"\"\nprintf '%s\\n' '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"SUB\",\"is_error\":false}'\n")
+	}
+	field, env := sub("field.sh", fromField), sub("env.sh", fromEnv)
+	script := writeScript(t, dir, "s.sh", `#!/bin/sh
+if grep -q 'agentId:' "$A10N_MOCK_SESSION_FILE"; then
+  printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
+  exit 0
+fi
+printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a1","name":"Agent","input":{"description":"d","prompt":"p","subagent_type":"general-purpose","script":"`+field+`"}}]}}'
+`)
+	out, code := runInDir(t, dir, []string{"A10N_MOCK_SUBAGENT_SCRIPT=" + env}, "--script", script, "--session-id", "s-sw", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code, "output:\n%s", out)
+	assert.True(t, fileExists(fromField), "the call's script ran")
+	assert.False(t, fileExists(fromEnv), "the env's did not")
 }
