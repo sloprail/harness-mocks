@@ -4,42 +4,6 @@ import (
 	"os"
 )
 
-// seedRootPromptTranscript writes the root agent's `-p` prompt as the FIRST user record
-// of the session transcript — mirroring real Claude Code, whose transcript opens with the
-// user prompt. A plugin's Stop hook reads the transcript's first user message (e.g. to
-// harvest a10n:// links into check contexts), so the mock must persist the prompt there;
-// without it the root transcript would contain only assistant/result records and that hook
-// path could never be exercised. Best-effort + idempotent: only writes when the session
-// file is still EMPTY (so a resume, whose transcript is already seeded, is left untouched).
-//
-// The record carries a uuid and an explicit NULL parentUuid — the ORIGIN shape real Claude
-// Code writes and a consumer's identity walk keys on ("first uuid-carrying record whose
-// parentUuid is null"). It is deterministic (`e2e-root-<sessionID>`) so a caller that
-// references the root by id up front — as the sloprail harness does with its own identical
-// root — lands on the same uuid; that also seeds the record chain the streamed records
-// extend, so a later resume continuation chains from a real uuid rather than a fallback.
-// The explicit null parent is what keeps it the origin: chainRecord fills a parent only
-// when the field is ABSENT, never over a null.
-func seedRootPromptTranscript(f *os.File, sessionID, cwd, prompt string) {
-	if f == nil || prompt == "" {
-		return
-	}
-	if fi, err := f.Stat(); err != nil || fi.Size() > 0 {
-		return // already has content (resume / re-entry) — don't duplicate the prompt
-	}
-	rec := map[string]any{
-		"type":       "user",
-		"uuid":       "e2e-root-" + sessionID,
-		"parentUuid": nil,
-		"sessionId":  sessionID,
-		"cwd":        cwd,
-		"message":    map[string]any{"role": "user", "content": prompt},
-	}
-	if line, err := marshalRecord(rec); err == nil {
-		appendToSession(f, line)
-	}
-}
-
 // preambleTypes are the no-uuid preamble record types real Claude Code opens a
 // transcript with — bookkeeping about the session rather than anything that happened
 // in it. A consumer skips them (they carry no uuid and cannot join a chain) but counts

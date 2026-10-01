@@ -35,6 +35,8 @@ type Resumed struct {
 
 // Resume continues session id from its existing transcript, or fails with a
 // *NoConversationError when there is none.
+//
+// sr:capability session-resume-unknown
 func Resume(l transcript.Layout, configDir, cwd, id string) (Resumed, error) {
 	path := Find(l, configDir, cwd, id)
 	if path == "" {

@@ -51,8 +51,7 @@ func compactionScenario(n int) string {
 // compaction record, the runner fires SessionStart with source="compact" and the
 // hook's additionalContext is surfaced on the output stream — the mechanism by which
 // a plugin re-seeds a compacted context window. ScheduleWakeup is NOT involved.
-// staged:proves session-start-hook/claude
-// sr:proves control-records
+// sr:proves session-start-hook/claude
 func TestT013_01_CompactionRecordFiresSessionStartCompact(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")
@@ -85,7 +84,7 @@ func TestT013_01_CompactionRecordFiresSessionStartCompact(t *testing.T) {
 // TestT013_02_MultipleCompactionsEachFireCompact: two compaction records in one run
 // each fire SessionStart source="compact", and the hook's additionalContext is
 // surfaced on each — proving compaction is a repeatable trajectory event.
-// staged:proves session-start-hook/claude
+// sr:proves session-start-hook/claude
 func TestT013_02_MultipleCompactionsEachFireCompact(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")

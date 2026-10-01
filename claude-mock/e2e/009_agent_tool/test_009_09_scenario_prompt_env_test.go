@@ -15,6 +15,8 @@ import (
 // added beside the prompt and never replaces it.
 // sr:proves scenario-prompt-env
 // sr:proves prompt-context-appended
+// sr:proves user-prompt-submit-hook/claude
+// sr:proves hook-additional-context/claude
 func TestT009_09_ScenarioSeesPromptAndHookContext(t *testing.T) {
 	for _, tc := range []struct{ name, hookOut, wantContext string }{
 		{"hook adds context", `{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"ctx from hook"}}`, "ctx from hook"},

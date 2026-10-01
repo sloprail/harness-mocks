@@ -40,7 +40,7 @@ func att(m map[string]any) map[string]any {
 	return a
 }
 
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_SilentSuccessLeavesNothing(t *testing.T) {
 	recs := recordsOf(t, func(tr *transcript) {
 		tr.recordHookRuns(hooks.Input{HookEventName: hooks.EventPreToolUse, ToolName: "Bash", ToolUseID: "toolu_1"},
@@ -49,7 +49,7 @@ func TestRecordHookRuns_SilentSuccessLeavesNothing(t *testing.T) {
 	assert.Empty(t, recs)
 }
 
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_SuccessWithOutput(t *testing.T) {
 	recs := recordsOf(t, func(tr *transcript) {
 		tr.recordHookRuns(hooks.Input{HookEventName: hooks.EventPreToolUse, ToolName: "Bash", ToolUseID: "toolu_1"},
@@ -65,7 +65,7 @@ func TestRecordHookRuns_SuccessWithOutput(t *testing.T) {
 	assert.Equal(t, "a1", recs[0]["agentId"])
 }
 
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_PlainStdoutIsTheContent(t *testing.T) {
 	recs := recordsOf(t, func(tr *transcript) {
 		tr.recordHookRuns(hooks.Input{HookEventName: hooks.EventUserPromptSubmit}, []hooks.HandlerRun{{Command: "h", Stdout: "hello\n"}})
@@ -75,7 +75,7 @@ func TestRecordHookRuns_PlainStdoutIsTheContent(t *testing.T) {
 	assert.Equal(t, "UserPromptSubmit", att(recs[0])["hookName"])
 }
 
-// staged:proves hook-additional-context/claude
+// sr:proves hook-additional-context/claude
 func TestRecordHookRuns_AdditionalContextPair(t *testing.T) {
 	out := hooks.Output{HookSpecificOutput: &hooks.HookSpecificOutput{AdditionalContext: "CTX"}}
 	recs := recordsOf(t, func(tr *transcript) {
@@ -93,7 +93,7 @@ func TestRecordHookRuns_AdditionalContextPair(t *testing.T) {
 }
 
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_NonBlockingError(t *testing.T) {
 	recs := recordsOf(t, func(tr *transcript) {
 		tr.recordHookRuns(hooks.Input{HookEventName: hooks.EventPostToolUse, ToolName: "Bash", ToolUseID: "toolu_1"},
@@ -107,7 +107,7 @@ func TestRecordHookRuns_NonBlockingError(t *testing.T) {
 }
 
 // sr:proves hook-exit-code-semantics/claude
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_Exit2PerEvent(t *testing.T) {
 	blocked := []hooks.HandlerRun{{Command: "h", ExitCode: 2, Blocked: true, Stderr: "no\n"}}
 	for _, tc := range []struct {
@@ -152,7 +152,7 @@ func TestRecordHookRuns_Exit2PerEvent(t *testing.T) {
 	}
 }
 
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_EmptyStderrOnExit2(t *testing.T) {
 	recs := recordsOf(t, func(tr *transcript) {
 		tr.recordHookRuns(hooks.Input{HookEventName: hooks.EventSubagentStop}, []hooks.HandlerRun{{Command: "h", ExitCode: 2, Blocked: true}})
@@ -161,7 +161,7 @@ func TestRecordHookRuns_EmptyStderrOnExit2(t *testing.T) {
 	assert.Equal(t, "Stop hook feedback:\n[h]: No stderr output", recs[0]["message"].(map[string]any)["content"])
 }
 
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_JSONStopBlock(t *testing.T) {
 	recs := recordsOf(t, func(tr *transcript) {
 		tr.recordHookRuns(hooks.Input{HookEventName: hooks.EventStop}, []hooks.HandlerRun{
@@ -184,7 +184,7 @@ func TestRecordHookRuns_JSONStopBlock(t *testing.T) {
 	assert.Equal(t, "suggestion", s["level"])
 }
 
-// staged:proves hook-output-transcript-records/claude
+// sr:proves hook-output-transcript-records/claude
 func TestRecordHookRuns_UnrecordedEvents(t *testing.T) {
 	for _, ev := range []hooks.EventName{hooks.EventSessionEnd, hooks.EventPreCompact, hooks.EventPostCompact, hooks.EventWorktreeCreate, hooks.EventWorktreeRemove} {
 		recs := recordsOf(t, func(tr *transcript) {
@@ -205,7 +205,7 @@ func TestRecordHookRuns_PreToolUseDenyLeavesNothing(t *testing.T) {
 	assert.Equal(t, "Blocked by hook", denyReason(hooks.Output{Decision: "block"}))
 }
 
-// staged:proves transcript-record-envelope/claude
+// sr:proves transcript-record-envelope/claude
 func TestStampRecord_MainAndSidechain(t *testing.T) {
 	main := stampRecord([]byte(`{"type":"user"}`), recordStamp{SessionID: "s", Cwd: "/w", GitBranch: "b"})
 	var m map[string]any

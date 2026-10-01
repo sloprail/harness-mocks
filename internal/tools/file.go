@@ -10,8 +10,15 @@ import (
 // ErrNotFound is the error of reading a file that does not exist.
 var ErrNotFound = errors.New("file not found")
 
-// ReadFile is a file's contents, or ErrNotFound when there is no such file.
+// ErrIsDir is the error of reading a directory: a read reads files.
+var ErrIsDir = errors.New("is a directory")
+
+// ReadFile is a file's contents, ErrNotFound when there is no such file, or
+// ErrIsDir when the path is a directory.
 func ReadFile(path string) (string, error) {
+	if st, err := os.Stat(path); err == nil && st.IsDir() {
+		return "", ErrIsDir
+	}
 	b, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", ErrNotFound

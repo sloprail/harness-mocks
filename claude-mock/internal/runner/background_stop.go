@@ -1,9 +1,9 @@
 package runner
 
 import (
-	"errors"
 	"os/exec"
-	"syscall"
+
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // stopOwned ends what owner still has running when its run gives its final
@@ -55,10 +55,5 @@ func (b *backgroundTasks) shutdown() {
 
 // killGroup kills a background command's whole process group.
 func killGroup(cmd *exec.Cmd) {
-	if cmd == nil || cmd.Process == nil {
-		return
-	}
-	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
-		_ = cmd.Process.Kill()
-	}
+	_ = procexec.KillGroup(cmd)
 }

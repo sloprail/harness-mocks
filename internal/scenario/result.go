@@ -42,6 +42,8 @@ func (r *Result) Continue() { r.line = nil }
 
 // Finish hands the held result to write exactly once, ending the run, and
 // reports whether there was one.
+//
+// sr:capability noninteractive-run
 func (r *Result) Finish(write func(line []byte)) bool {
 	if r.line == nil {
 		return false

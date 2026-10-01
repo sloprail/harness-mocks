@@ -106,7 +106,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"went on","is_error
 }
 
 // TestT005_03_PreToolUseMatcherFiltersToolName: hook with specific matcher only fires for that tool.
-// staged:proves hook-matcher-filter/claude
+// sr:proves hook-matcher-filter/claude
 func TestT005_03_PreToolUseMatcherFiltersToolName(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -201,7 +201,7 @@ func readFileOr(p string) string {
 }
 
 // TestT005_04_PreToolUseReceivesToolInput: hook stdin contains tool_input JSON.
-// staged:proves hook-command-handler/claude
+// sr:proves hook-command-handler/claude
 func TestT005_04_PreToolUseReceivesToolInput(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

@@ -251,7 +251,7 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"ty
 // uses (read the thing under review, decide, write {"pass":…}). It confirms the
 // mock is a sufficient trajectory source for the judge e2e without any hand-
 // crafted jsonl: everything here comes from the mock executing the scenario.
-// staged:proves file-tools/claude
+// sr:proves file-tools/claude
 func TestT014_07_JudgeReadsThenWritesVerdict(t *testing.T) {
 	dir := t.TempDir()
 	underReview := writeExec(t, dir, "under_review.txt", "the code does X and Y\n")

@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
-# No core yet (internal/session): the code lives in the claude-mock files below, until it moves.
+# Its core is internal/session (find, resume, fork); claude-mock's adapter lives in the claude-mock files below.
 concern: "finding, resuming and forking a session"
-home: ["internal/session/**", "claude-mock/internal/runner/session_append.go", "claude-mock/internal/runner/session_fork.go", "claude-mock/internal/runner/session_paths.go", "claude-mock/internal/runner/session_resume.go", "claude-mock/internal/runner/session_seed.go", "claude-mock/internal/runner/session_test.go", "claude-mock/internal/runner/fork_test.go", "claude-mock/internal/runner/runner_session_hooks.go", "codex-mock/internal/session/**"]   # everything about the concern lives here
+home: ["internal/session/**", "claude-mock/internal/runner/session_append.go", "claude-mock/internal/runner/session_fork.go", "claude-mock/internal/runner/session_paths.go", "claude-mock/internal/runner/session_resume.go", "claude-mock/internal/runner/session_seed.go", "claude-mock/internal/runner/session_test.go", "claude-mock/internal/runner/fork_test.go", "claude-mock/internal/runner/runner_session_hooks.go", "claude-mock/internal/runner/runner_resume.go", "codex-mock/internal/session/**"]   # everything about the concern lives here
 api: ["internal/session", "codex-mock/internal/session"]       # the only packages others may import

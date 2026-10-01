@@ -16,6 +16,7 @@ import (
 // snapshots/runs/hook-unstartable).
 // sr:docs https://code.claude.com/docs/en/hooks#other-exit-codes
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves hook-output-transcript-records/claude
 func TestT009_12_UnstartableHookIsNonBlockingNotice(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -100,6 +101,7 @@ func TestT009_12_UnparseableJSONIsNonBlockingOnAnyStatusBut2(t *testing.T) {
 // snapshots/runs/prompt-blocked-suppressed); the run still ends successfully.
 // sr:docs https://code.claude.com/docs/en/hooks#what-a-blocked-prompt-leaves-behind
 // sr:proves hook-exit-code-semantics/claude
+// sr:proves user-prompt-submit-hook/claude
 func TestT009_12_BlockedPromptCanSuppressItsText(t *testing.T) {
 	dir := t.TempDir()
 	writeSettings(t, dir, map[string]string{"UserPromptSubmit": hookWithRaw(t, dir,

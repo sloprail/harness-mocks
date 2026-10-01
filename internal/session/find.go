@@ -21,6 +21,8 @@ func Exists(p string) bool {
 // directory is resumed all the same); the most recently written wins when
 // several hold it. It is "" when none does, and for an id that is not a plain
 // file name.
+//
+// sr:capability session-resume
 func Find(l transcript.Layout, configDir, cwd, id string) string {
 	if id == "" || strings.ContainsAny(id, `/\`) || id == "." || id == ".." {
 		return ""

@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // Run executes the mock: runs the script, validates + streams JSONL, fires hooks.
@@ -54,11 +55,8 @@ func Run(ctx context.Context, cfg Config) error {
 		if cfg.ForkFrom != "" {
 			from = cfg.ForkFrom
 		}
-		if sessionFilePathIfExists(cfg.ConfigDir, cfg.Cwd, from) == "" {
-			inv := hooks.NewInvoker(settings, cfg.Cwd, from)
-			inv.SetTranscriptPath(sessionFilePath(cfg.ConfigDir, cfg.Cwd, from))
-			fireSessionEnd(ctx, cfg, inv)
-			return &ErrNoConversation{SessionID: from}
+		if err := resumeFailed(ctx, cfg, settings, from); err != nil {
+			return err
 		}
 	}
 
@@ -76,6 +74,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
 	inv.SetTranscriptPath(tr.reported)
+	inv.SetProjectDir(projectDirOf(cfg))
 	inv.SetRecorder(tr.recordHookRuns)
 	if cfg.AgentID != "" {
 		inv.SetAgent(cfg.AgentID, cfg.AgentType)
@@ -89,40 +88,15 @@ func Run(ctx context.Context, cfg Config) error {
 	// and carries on (docs, "Exit code 2 behavior per event").
 	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	if !nested {
-		source := "startup"
-		switch {
-		case cfg.ForkFrom != "":
-			source = "fork"
-		case cfg.IsResume:
-			source = "resume"
-		}
 		// Real Claude Code injects a SessionStart hook's additionalContext into
 		// the session context. Surface it so the script also sees it via env.
-		if ac := fireSessionStart(ctx, cfg, inv, source); ac != "" {
+		ac, err := fireSessionStart(ctx, cfg, inv, corehooks.SessionStartKind(cfg.IsResume, cfg.ForkFrom != "", false))
+		if err != nil {
+			return err
+		}
+		if ac != "" {
 			cfg.AdditionalContext = ac
 		}
-	}
-
-	// The prompt, as the HUMAN turn it is — AFTER SessionStart, as real Claude
-	// Code writes it:
-	//
-	//   - FRESH: the file may not exist yet. If SessionStart printed anything its
-	//     attachment is already the file's origin and the prompt chains after it;
-	//     if not, the prompt is the first record and so the origin itself. Its
-	//     uuid is the deterministic `e2e-root-<session>` either way, so a caller
-	//     can reference the human message up front.
-	//   - RESUME / FORK: the NEXT human turn, chained into the transcript on
-	//     disk — never a second parentless root.
-	//   - NESTED sub-agent run: nothing here. The sub-agent's human-origin record
-	//     is its dispatch prompt, seeded into its sidechain file by
-	//     prepareSubagent; writing it again would forge a human message the user
-	//     never sent.
-	switch {
-	case nested:
-	case cfg.IsResume:
-		appendResumePrompt(tr, cfg.SessionID, cfg.Prompt)
-	default:
-		writeRootPrompt(tr, cfg.SessionID, cfg.Cwd, cfg.Prompt)
 	}
 
 	// In print mode: run the script once with raw stdout capture, fire
@@ -138,6 +112,7 @@ func Run(ctx context.Context, cfg Config) error {
 	// writes files / emits raw text) on the original raw path.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--print
 	if cfg.PrintMode {
+		writePrompt(tr, cfg, nested)
 		err := runPrintMode(ctx, cfg, inv, tr) //nolint:contextcheck
 		fireSessionEnd(ctx, cfg, inv)
 		return err
@@ -150,18 +125,19 @@ func Run(ctx context.Context, cfg Config) error {
 	// for a nested sub-agent run: the sub-agent's prompt is its dispatcher's
 	// tool input, not something a user submitted.
 	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
-	if cfg.Prompt != "" && !nested {
-		promptOut, err := inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventUserPromptSubmit,
-			Prompt:        cfg.Prompt,
-		})
-		if err != nil {
-			return promptBlocked(cfg, tr, err)
-		}
-		cfg.AdditionalContext = addContext(cfg.AdditionalContext, promptContextFrom(promptOut))
+	src := corehooks.PromptFromUser
+	if nested {
+		src = corehooks.PromptSubagentDispatch
 	}
+	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, src, true)
+	if refused {
+		return err
+	}
+	cfg.AdditionalContext = corehooks.JoinContext(cfg.AdditionalContext, extra)
+	// The prompt is written once UserPromptSubmit has let it through, and what that
+	// hook left follows it (see writePrompt).
+	writePrompt(tr, cfg, nested)
+	tr.flushHookRuns()
 
 	// streamAndHook owns the turn lifecycle: Stop at every end of turn, the
 	// re-prompt on a block, and the turns background work starts after it. A

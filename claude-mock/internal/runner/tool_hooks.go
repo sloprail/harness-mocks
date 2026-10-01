@@ -2,8 +2,10 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
@@ -29,10 +31,26 @@ func decidePreTool(cfg Config, pending *pendingToolUse, hookOut hooks.Output, ho
 	return nil
 }
 
+// invalidCall is the refusal of a call that cannot be acted on, answered before
+// any hook sees it: input lacking required parameters (a sub-agent dispatch's
+// among them), or an Edit whose string is absent or ambiguous. Nil when the call
+// may go ahead.
+func invalidCall(toolName string, input json.RawMessage, cwd string) *toolexec.Result {
+	// sr:provides tool-failure-hook/claude
+	if missing := corehooks.RejectedInput(input, toolexec.Required(toolName)); len(missing) > 0 {
+		res := toolexec.ValidationError(toolName, missing)
+		return &res
+	}
+	if res, refused := toolexec.CheckInput(toolName, input, cwd); refused {
+		return &res
+	}
+	return nil
+}
+
 // firePostTool fires the hook a tool call's result calls for: PostToolUse
 // with the tool's response, or PostToolUseFailure with the error text the
 // agent got, or neither.
-func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending pendingToolUse, res toolexec.Result, took int64) {
+func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending pendingToolUse, res toolexec.Result, took time.Duration) {
 	outcome := corehooks.ToolSucceeded
 	switch {
 	case res.Failed:
@@ -44,6 +62,7 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 	switch corehooks.AfterToolHook(outcome) {
 	case corehooks.AfterFailure:
 		notInterrupted := false
+		ms := took.Milliseconds()
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
@@ -53,18 +72,20 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 			ToolInput:     pending.ToolInput,
 			Error:         res.Output,
 			IsInterrupt:   &notInterrupted,
-			DurationMs:    &took,
+			DurationMs:    &ms,
 		})
 	case corehooks.AfterSuccess:
+		// sr:provides posttooluse-payload/claude
+		n := corehooks.NewPostTool(pending.ToolInput, toolResponse(res), took)
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUse,
 			ToolName:      pending.ToolName,
 			ToolUseID:     pending.ToolUseID,
-			ToolInput:     pending.ToolInput,
-			ToolResponse:  toolResponse(res),
-			DurationMs:    &took,
+			ToolInput:     n.Input,
+			ToolResponse:  n.Response,
+			DurationMs:    &n.DurationMs,
 		})
 	}
 }
