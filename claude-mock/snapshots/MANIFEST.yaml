@@ -1,1 +1,5 @@
 version: "2.1.285"
+docs:
+  https://code.claude.com/docs/en/env-vars:
+    version: 2.1.285
+    sha256: 4071acaa854d4de336f004efae18bb66e080e94765bc38e8b31b97f9921c7de8
