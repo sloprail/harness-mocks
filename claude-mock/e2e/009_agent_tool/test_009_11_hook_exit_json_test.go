@@ -81,6 +81,24 @@ func TestT009_10_14b_SubagentStartExit2IsNonBlockingAndHiddenFromModel(t *testin
 	require.Equal(t, 0, code, "output:\n%s", out)
 	assert.True(t, fileExists(ran), "the subagent still runs")
 	assert.NotContains(t, modelText(allRecords(t, cfg)), "substart-secret-stderr", "docs: stderr is not shown to Claude")
+	// Docs: "the notice appears in the subagent's own transcript, not in the parent conversation."
+	inSub, inParent := 0, 0
+	for _, f := range transcriptFiles(cfg) {
+		n := 0
+		for _, a := range attachmentsOf(readRecordsFile(t, f), "hook_non_blocking_error") {
+			if strings.Contains(a["stderr"].(string), "substart-secret-stderr") {
+				n++
+			}
+		}
+		if filepath.Base(f) == "s-14b.jsonl" {
+			inParent += n
+		} else {
+			inSub += n
+			t.Logf("notice found in %s", f)
+		}
+	}
+	assert.Equal(t, 1, inSub, "the notice is in the subagent's own transcript")
+	assert.Equal(t, 0, inParent, "and not in the parent session's transcript")
 }
 
 // StopFailure cannot be triggered from a scenario: the mock does not model it
