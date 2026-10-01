@@ -2,10 +2,22 @@ package hooks
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 
+	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
+
+// hookEnv is the environment of a hook command: the real claude CLI stamps
+// CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT=sdk-cli on every session whether or
+// not a session id is known (a tool that detects "am I under a harness" keys
+// off them), and CLAUDE_CODE_SESSION_ID only when there is one.
+// sr:docs https://code.claude.com/docs/en/env-vars (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID)
+func hookEnv(sessionID string) []string {
+	return procexec.Env(os.Environ(), childenv.Identity(sessionID), childenv.Defaults())
+}
 
 // commandRun is the HandlerRun of a command hook that has run: what it
 // printed, read the way Claude Code reads it, and what its exit status makes
