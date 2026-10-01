@@ -45,3 +45,16 @@ func TestStrongerPermission(t *testing.T) {
 		}
 	}
 }
+
+func TestRejectedInput(t *testing.T) {
+	req := []string{"file_path", "old_string"}
+	if got := RejectedInput([]byte(`{"file_path":"a","old_string":"b"}`), req); len(got) != 0 {
+		t.Errorf("complete input rejected: %v", got)
+	}
+	if got := RejectedInput([]byte(`{"offset":1}`), req); len(got) != 2 || got[0] != "file_path" || got[1] != "old_string" {
+		t.Errorf("missing = %v, want [file_path old_string]", got)
+	}
+	if got := RejectedInput([]byte(`{"file_path":"a"}`), nil); len(got) != 0 {
+		t.Errorf("a tool with no required parameters rejected: %v", got)
+	}
+}

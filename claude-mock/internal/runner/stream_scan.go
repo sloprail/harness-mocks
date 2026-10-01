@@ -10,6 +10,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // scanLines reads one script invocation's JSONL output line by line, until a
@@ -71,9 +72,10 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				writeStreamLine(cfg, line)
 				tr.persist(line)
 
-				// Input the tool cannot take is refused before any hook fires.
-				if res := toolexec.Validate(toolName, toolInput); res != nil {
-					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
+				// sr:provides tool-failure-hook/claude
+				if missing := corehooks.RejectedInput(toolInput, toolexec.Required(toolName)); len(missing) > 0 {
+					res := toolexec.ValidationError(toolName, missing)
+					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: &res}
 					return out, nil
 				}
 				hookOut, hookErr := inv.Fire(ctx, hooks.Input{

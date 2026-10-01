@@ -116,10 +116,10 @@ func mergeOutput(dst *Output, src Output) {
 	if src.SystemMessage != "" {
 		dst.SystemMessage = src.SystemMessage
 	}
-	if src.Decision != "" {
-		dst.Decision = src.Decision
-	}
-	if src.Reason != "" {
+	// A block from any hook stands; another hook's "approve" does not undo it.
+	if src.Decision != "" && dst.Decision != "block" {
+		dst.Decision, dst.Reason = src.Decision, src.Reason
+	} else if src.Reason != "" && dst.Reason == "" {
 		dst.Reason = src.Reason
 	}
 	if src.HookSpecificOutput != nil {

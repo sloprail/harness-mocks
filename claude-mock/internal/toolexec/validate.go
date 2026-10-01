@@ -24,43 +24,33 @@ type validationIssue struct {
 	Message  string   `json:"message"`
 }
 
-// Validate is the tool_use_error a call whose input lacks a required
-// parameter is answered with, before any hook fires and without running the
-// tool; nil when the input is valid, or the tool is not one toolexec runs.
-// Claude Code 2.1.285 answered a Read without file_path "<tool_use_error>
-// InputValidationError: Read failed due to the following issue:\nThe required
-// parameter `file_path` is missing</tool_use_error>", and recorded the issue
-// list as the toolUseResult (recorded: snapshots/runs/tool-invalid-input).
+// Required is the parameters Claude Code requires of a tool toolexec runs;
+// nil for any other tool.
+func Required(toolName string) []string { return required[toolName] }
+
+// ValidationError is the tool_use_error Claude Code answers a call missing
+// required parameters with: "<tool_use_error>InputValidationError: Read
+// failed due to the following issue:\nThe required parameter `file_path` is
+// missing</tool_use_error>", recording the issue list as the toolUseResult
+// (claude 2.1.285, recorded: snapshots/runs/tool-invalid-input).
 //
 // sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
-func Validate(toolName string, input json.RawMessage) *Result {
-	params, ok := required[toolName]
-	if !ok {
-		return nil
-	}
-	var got map[string]json.RawMessage
-	_ = json.Unmarshal(input, &got)
+func ValidationError(toolName string, missing []string) Result {
 	var lines []string
 	var issues []validationIssue
-	for _, p := range params {
-		if _, present := got[p]; present {
-			continue
-		}
+	for _, p := range missing {
 		lines = append(lines, "The required parameter `"+p+"` is missing")
 		issues = append(issues, validationIssue{
 			Expected: "string", Code: "invalid_type", Path: []string{p},
 			Message: "Invalid input: expected string, received undefined",
 		})
 	}
-	if len(issues) == 0 {
-		return nil
-	}
 	head := toolName + " failed due to the following issue:\n"
 	if len(issues) > 1 {
 		head = toolName + " failed due to the following issues:\n"
 	}
 	recorded, _ := json.MarshalIndent(issues, "", "  ")
-	return &Result{
+	return Result{
 		Output:        "<tool_use_error>InputValidationError: " + head + strings.Join(lines, "\n") + "</tool_use_error>",
 		IsError:       true,
 		ToolUseResult: "InputValidationError: " + string(recorded),
