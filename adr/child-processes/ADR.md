@@ -33,7 +33,5 @@ same session facts to all of them (for Claude Code: `CLAUDE_CODE_SESSION_ID`,
   group, so no grandchild outlives the mock.
 - No other code calls `exec.Command`, `exec.CommandContext` or assigns
   `cmd.Env`.
-- Child processes should usually go through procexec, but code may start
-  them directly where that is simpler, as appropriate.
 - Where killing the group differs from what a harness does, the capability it
   affects records it under `deviations`, citing this ADR.
