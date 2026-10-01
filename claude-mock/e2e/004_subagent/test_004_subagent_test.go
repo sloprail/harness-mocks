@@ -76,6 +76,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 
 // TestT004_03_SubagentStartControlRecordOverridesAgentType: explicit control record sets agent_type.
 // staged:proves subagent-lifecycle-hooks/claude
+// sr:proves control-records
 func TestT004_03_SubagentStartControlRecordOverridesAgentType(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

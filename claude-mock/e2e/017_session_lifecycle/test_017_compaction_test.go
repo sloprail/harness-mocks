@@ -27,6 +27,7 @@ import (
 // staged:proves compaction-transcript-continuity/claude
 // staged:proves manual-compaction/claude
 // staged:proves session-start-hook/claude
+// sr:proves control-records
 func TestT017_07_Compaction(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

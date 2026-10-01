@@ -1,0 +1,4 @@
+statement: >-
+  The scenario script runs once per turn and prints stream-json lines: a
+  tool_use line ends the turn, the mock runs the tool and runs the script
+  again; a result line ends the run.

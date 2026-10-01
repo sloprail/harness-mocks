@@ -70,6 +70,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 
 	// A10N_MOCK_NO_RESUME=1 makes every --resume behave as one naming a session
 	// that does not exist (see noConversation), whatever is on disk.
+	// sr:invariant no-resume
 	if isResume && os.Getenv("A10N_MOCK_NO_RESUME") == "1" {
 		noConversation(cmd, sessionID)
 	}
@@ -78,6 +79,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	pluginCacheDir, _ := cmd.Flags().GetString(flagPluginCacheDir)
 	printMode, _ := cmd.Flags().GetBool(flagPrint)
 	systemPrompt, _ := cmd.Flags().GetString("system-prompt")
+	// sr:invariant system-prompt-env
 	if systemPrompt != "" {
 		os.Setenv("A10N_MOCK_SYSTEM_PROMPT", systemPrompt) //nolint:errcheck
 	}

@@ -183,6 +183,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 
 // TestT002_07_BothWorktreeEventsDistinct: WorktreeCreate and WorktreeRemove fire separately.
 // staged:proves worktree-hooks/claude
+// sr:proves control-records
 func TestT002_07_BothWorktreeEventsDistinct(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

@@ -106,6 +106,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach h
 }
 
 // TestT001_06_ResumeProbeEnv is the actual env-driven resume-probe test.
+// sr:proves no-resume
 func TestT001_06_ResumeProbeEnv(t *testing.T) {
 	script := writeScript(t, `#!/bin/sh
 printf '%s\n' '{"type":"result","subtype":"success","result":"should not reach here","is_error":false}'

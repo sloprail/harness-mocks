@@ -20,6 +20,7 @@ import (
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#worktreecreate
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#worktreeremove
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#subagentstart
+// sr:invariant control-records
 func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg Config, inv *hooks.Invoker, tr *transcript) (handled bool, err error) {
 	switch rec.Type {
 	case "worktree_create", "worktree_remove":

@@ -29,6 +29,8 @@ import (
 // output based on conversation history would otherwise loop forever (re-run →
 // same tool_use → re-run …). Hitting the bound is a scenario bug, surfaced as an
 // error instead of a hang.
+//
+// sr:invariant loop-guard
 const maxIdenticalTurns = 5
 
 // withEmptyResult is a result frame with its result text emptied.
@@ -124,6 +126,7 @@ func buildEnv(cfg Config, tr *transcript) []string {
 		// sr:invariant prompt-context-appended
 		"A10N_MOCK_ADDITIONAL_CONTEXT="+cfg.AdditionalContext,
 		"A10N_MOCK_IS_RESUME="+boolStr(cfg.IsResume),
+		// sr:invariant session-file-env
 		"A10N_MOCK_SESSION_FILE="+sessionPath,
 		"CLAUDE_CONFIG_DIR="+cfg.ConfigDir,
 	)

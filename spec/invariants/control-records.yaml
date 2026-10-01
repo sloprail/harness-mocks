@@ -1,0 +1,4 @@
+statement: >-
+  The scenario script drives the mock with control records: compact,
+  worktree_create and worktree_remove, subagent_start, and a logical_parent of
+  "unwritten".

@@ -19,6 +19,7 @@ import (
 // A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
 // the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
 // own background commands end with its final response.
+// sr:invariant turn-loop
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
 	// Every FILE record persisted below goes through tr, which chains it from the
 	// one before it (real-CC shape — see sessionWriter). The chain seeds from the

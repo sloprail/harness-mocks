@@ -52,6 +52,7 @@ func compactionScenario(n int) string {
 // hook's additionalContext is surfaced on the output stream — the mechanism by which
 // a plugin re-seeds a compacted context window. ScheduleWakeup is NOT involved.
 // staged:proves session-start-hook/claude
+// sr:proves control-records
 func TestT013_01_CompactionRecordFiresSessionStartCompact(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "sources.txt")

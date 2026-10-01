@@ -148,6 +148,7 @@ func TestT017_09_ForkOfAnUncompactedSession(t *testing.T) {
 // TestT017_10_CompactionCanNameAnUnwrittenLogicalParent: a real
 // preserved-segment compaction named, as its logical parent, a record written
 // to no transcript. The scenario can reproduce it.
+// sr:proves control-records
 func TestT017_10_CompactionCanNameAnUnwrittenLogicalParent(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

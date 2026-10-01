@@ -41,6 +41,7 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	// Opt-in: drive the script through the streaming turn loop so it can emit
 	// tool_use records (e.g. an Agent/Task tool_use → nested sub-agent). The
 	// turn loop fires Stop itself.
+	// sr:invariant print-stream
 	if os.Getenv("A10N_MOCK_PRINT_STREAM") == "1" {
 		return streamAndHook(ctx, cfg, inv, tr)
 	}

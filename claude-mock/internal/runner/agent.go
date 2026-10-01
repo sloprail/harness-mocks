@@ -120,6 +120,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID
 
 // resolveSubagentScript picks the subagent scenario script: the Agent input's
 // `script` field wins, then the A10N_MOCK_SUBAGENT_SCRIPT env var, else "".
+// sr:invariant subagent-script
 func resolveSubagentScript(fromInput string) string {
 	if fromInput != "" {
 		return fromInput
