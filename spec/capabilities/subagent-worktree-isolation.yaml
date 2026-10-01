@@ -9,3 +9,4 @@ providers:
       - https://code.claude.com/docs/en/worktrees#isolate-subagents-with-worktrees
     runs:
       - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/isolated-worktree

@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
@@ -18,23 +17,21 @@ import (
 //
 // sr:provides worktree-hooks/claude
 func hookedWorktree(ctx context.Context, cfg Config, inv *hooks.Invoker, name string) (path string, hooked bool, err error) {
-	var runs []hooks.HandlerRun
-	err = subagents.WorktreeHook(func() error {
-		_, r, e := inv.FireRuns(ctx, hooks.Input{
+	printed, hooked, err := subagents.WorktreeHook(true, func() (string, bool, error) {
+		_, runs, e := inv.FireRuns(ctx, hooks.Input{
 			SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventWorktreeCreate, WorktreeName: name,
 		})
-		runs = r
-		return e
+		if len(runs) == 0 && e == nil {
+			return "", false, nil
+		}
+		stdout := ""
+		if len(runs) > 0 {
+			stdout = runs[0].Stdout
+		}
+		return stdout, true, e
 	})
-	if len(runs) == 0 && err == nil {
-		return "", false, nil
-	}
-	if err != nil {
-		return "", true, err
-	}
-	printed, ok := subagents.HookWorktreePath(runs[0].Stdout)
-	if !ok {
-		return "", true, fmt.Errorf("the WorktreeCreate hook printed no worktree path")
+	if err != nil || !hooked {
+		return "", hooked, err
 	}
 	if !filepath.IsAbs(printed) {
 		printed = filepath.Join(cfg.Cwd, printed)

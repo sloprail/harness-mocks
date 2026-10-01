@@ -80,7 +80,7 @@ echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-7702"}'
 	assert.Equal(t, recs[first].UUID, *notification.ParentUUID)
 	var full map[string]any
 	require.NoError(t, json.Unmarshal([]byte(notification.Raw), &full))
-	assert.Equal(t, map[string]any{"kind": "task-notification"}, full["origin"])
+	assert.Equal(t, map[string]any{"kind": "task-notification", "producer": "session-task"}, full["origin"])
 	assert.Equal(t, "system", full["promptSource"])
 	assert.Equal(t, "task_notification", full["turnOrigin"])
 	note := messageText(notification)

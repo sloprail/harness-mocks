@@ -28,8 +28,9 @@ type subagentRun struct {
 	toolUseID      string
 	description    string
 	outputFile     string
-	// worktree is the real worktree of an isolated sub-agent, nil when it has none.
-	worktree *subagents.Worktree
+	// cleanup removes an isolated sub-agent's clean worktree once it has finished
+	// (subagents.Isolation.Cleanup); nil when it has no real worktree.
+	cleanup func(context.Context) bool
 }
 
 // subagentOutcome is how a sub-agent's run ended.

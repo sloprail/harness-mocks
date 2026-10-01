@@ -126,10 +126,12 @@ func TestT017_30_SubagentMetaSidecars(t *testing.T) {
 	require.NoError(t, exec.Command("git", "init", "-q", dir).Run())
 	require.NoError(t, exec.Command("git", "-C", dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "i").Run())
 	leaf := script(t, dir, "leaf")
+	// the isolated sub-agent leaves a file in its worktree, so the worktree stays (a clean one is removed)
+	worker := script(t, dir, "worker", toolUse("w1", "Bash", `{"command":"touch left-behind.txt"}`))
 	outer := script(t, dir, "outer", toolUse("in1", "Agent", `{"prompt":"p","description":"inner","script":"`+leaf+`"}`))
 	sc := script(t, dir, "s",
 		toolUse("o1", "Agent", `{"prompt":"p","description":"outer","script":"`+outer+`","model":"haiku"}`),
-		toolUse("i1", "Agent", `{"prompt":"p","description":"iso","isolation":"worktree","script":"`+leaf+`"}`),
+		toolUse("i1", "Agent", `{"prompt":"p","description":"iso","isolation":"worktree","script":"`+worker+`"}`),
 		toolUse("g1", "Agent", `{"prompt":"p","description":"bg","run_in_background":true,"script":"`+leaf+`"}`),
 	)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "mt-1",

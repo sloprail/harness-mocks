@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"time"
+
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 )
@@ -28,3 +30,8 @@ func backgroundTaskList(running []*tasks.Task) []hooks.BackgroundTask {
 	}
 	return out
 }
+
+// printReapGrace is how long after the final result a `claude -p` run leaves its
+// background shells before ending them, so that one finishing right after the
+// result still delivers its output (headless#background-tasks-at-exit).
+const printReapGrace = 5 * time.Second

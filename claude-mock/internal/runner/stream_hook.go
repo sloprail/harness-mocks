@@ -56,7 +56,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			final.Hold(turn.resultLine)
 			if nested {
 				finish()
-				bg.EndOfResponse(cfg.AgentID)
+				if cfg.SyncSubagent { // only a foreground sub-agent's commands end with its response
+					bg.EndOfResponse(cfg.AgentID)
+				}
 				return nil
 			}
 			active := stopBlocks > 0
@@ -103,11 +105,15 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			// new turn per task, waiting while a background agent still runs.
 			// A notification UserPromptSubmit refuses starts no turn; the next
 			// finished task is handed over instead (tasks.NextTurn).
-			if bg.NextTurn(ctx, cfg.AgentID, func(t *tasks.Task) bool { return bg.deliverAsTurn(ctx, cfg, inv, tr, t) }) != nil {
+			// The wait for background agents ends after the idle ceiling.
+			waitCtx, cancelWait := tasks.WaitCeiling(ctx, cfg.BgWaitCeiling)
+			next := bg.NextTurn(waitCtx, cfg.AgentID, func(t *tasks.Task) bool { return bg.deliverAsTurn(ctx, cfg, inv, tr, t) })
+			cancelWait()
+			if next != nil {
 				lastSig, repeats = "", 0
 				continue
 			}
-			bg.ReapAtExit(cfg.AgentID)
+			bg.ReapAtExit(cfg.AgentID, printReapGrace)
 			return nil
 		}
 		sig := turn.sig

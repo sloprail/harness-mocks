@@ -15,7 +15,7 @@ func TestCleanupWorktree_RemovesACleanOneAndKeepsOneWithWork(t *testing.T) {
 	bind := BindGit(context.Background(), repo)
 
 	clean := Isolate(repo, "clean", wl(), bind)
-	if !CleanupWorktree(context.Background(), repo, *clean.Worktree) {
+	if !clean.Cleanup(context.Background()) {
 		t.Fatal("a worktree left as it was found is not removed")
 	}
 	if _, err := os.Stat(clean.Cwd); !os.IsNotExist(err) {
@@ -29,13 +29,13 @@ func TestCleanupWorktree_RemovesACleanOneAndKeepsOneWithWork(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dirty.Cwd, "new.txt"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if CleanupWorktree(context.Background(), repo, *dirty.Worktree) {
+	if dirty.Cleanup(context.Background()) {
 		t.Fatal("a worktree with an uncommitted file was removed")
 	}
 
 	committed := Isolate(repo, "committed", wl(), bind)
 	git(t, committed.Cwd, "commit", "-q", "--allow-empty", "-m", "work")
-	if CleanupWorktree(context.Background(), repo, *committed.Worktree) {
+	if committed.Cleanup(context.Background()) {
 		t.Fatal("a worktree whose branch has a commit was removed")
 	}
 	if _, err := os.Stat(committed.Cwd); err != nil {

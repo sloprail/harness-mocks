@@ -59,7 +59,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 	// the parent cwd.
 	subCwd := cfg.Cwd
 	branch := ""
-	var worktree *subagents.Worktree
+	var cleanup func(context.Context) bool
 	hookMade := false
 	if in.Isolation == "worktree" {
 		path, hooked, err := hookedWorktree(ctx, cfg, inv, "agent-"+agentID)
@@ -71,9 +71,9 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		} else {
 			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd))
 			subCwd = iso.Cwd
-			worktree = iso.Worktree
-			if worktree != nil {
-				branch = worktree.Branch
+			cleanup = iso.Cleanup
+			if iso.Worktree != nil {
+				branch = iso.Worktree.Branch
 			}
 			for _, note := range iso.Notes {
 				fmt.Fprintf(cfg.Stderr, "claude-mock: isolation=worktree: %s\n", note)
@@ -119,6 +119,6 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
 		toolUseID: toolUseID, description: in.Description, outputFile: outFile,
-		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, worktree: worktree,
+		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup,
 	}, in, toolexec.Result{}
 }

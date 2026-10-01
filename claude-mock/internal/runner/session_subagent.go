@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/sloprail/harness-mocks/internal/subagents"
 )
 
 // subagentMeta is a sub-agent's .meta.json sidecar, in the shape claude
@@ -67,12 +65,12 @@ func seedSubagentTranscript(path, subCwd, sessionID, agentID, prompt string, met
 }
 
 // cleanupWorktree removes an isolated sub-agent's worktree and branch when it
-// left them as it found them (subagents.CleanupWorktree), and rewrites its
+// left them as it found them (the isolation's Cleanup), and rewrites its
 // sidecar the way Claude Code does: worktreePath, spawnedWithWorktree and
 // worktreeBranch dropped, worktreeCleanlyRemoved true. It reports whether it
 // removed them.
 func (s *subagentRun) cleanupWorktree(ctx context.Context) bool {
-	if s.worktree == nil || !subagents.CleanupWorktree(ctx, s.parent.Cwd, *s.worktree) {
+	if s.cleanup == nil || !s.cleanup(ctx) {
 		return false
 	}
 	sidecar := strings.TrimSuffix(s.sidechain, ".jsonl") + ".meta.json"

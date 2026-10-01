@@ -38,9 +38,9 @@ func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg C
 				in.WorktreePath = filepath.Join(cfg.Cwd, ".claude", "worktrees", rec.WorktreeName)
 			}
 		}
-		if err := subagents.WorktreeHook(func() error {
+		if _, _, err := subagents.WorktreeHook(false, func() (string, bool, error) {
 			_, err := inv.Fire(ctx, in)
-			return err
+			return "", true, err
 		}); err != nil {
 			fmt.Fprintf(cfg.Stderr, "claude-mock: %s hook blocked: %v\n", evt, err)
 			return true, err

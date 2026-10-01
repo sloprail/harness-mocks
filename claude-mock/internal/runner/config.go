@@ -2,6 +2,7 @@ package runner
 
 import (
 	"io"
+	"time"
 )
 
 // Config holds the runtime parameters for a mock run.
@@ -102,6 +103,10 @@ type Config struct {
 	// backgroundEndsWithFinalResponse).
 	SyncSubagent bool
 
+	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
+	// after its final turn; zero waits without a limit.
+	BgWaitCeiling time.Duration
+
 	// bg is the session's background-task registry, shared by the root run
 	// and every nested sub-agent run (Stop and SubagentStop list the whole
 	// session's tasks). Nil for the root run, which creates it.
@@ -120,13 +125,4 @@ type Config struct {
 	// sessionFile is the session's actual transcript, next to which every
 	// sub-agent's subagents/agent-<id>.jsonl lives. Set by the root run.
 	sessionFile string
-}
-
-// ErrNoConversation is --resume naming a session that has no transcript. Real
-// Claude Code prints "No conversation found with session ID: <id>" and exits 1
-// (claude 2.1.282; a stream-json run also writes an error result frame).
-type ErrNoConversation struct{ SessionID string }
-
-func (e *ErrNoConversation) Error() string {
-	return "No conversation found with session ID: " + e.SessionID
 }

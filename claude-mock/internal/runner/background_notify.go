@@ -70,7 +70,7 @@ func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *h
 		}
 		tr.persistMap(map[string]any{"type": "attachment", "attachment": map[string]any{
 			"type": "queued_command", "prompt": note, "source_uuid": newRecordUUID(),
-			"commandMode": "task-notification", "timestamp": nowStamp(),
+			"commandMode": "task-notification", "timestamp": nowStamp(), "origin": notificationOrigin(),
 		}})
 		tr.flushHookRuns()
 	}
@@ -87,7 +87,7 @@ func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *ho
 	tr.persistMap(map[string]any{
 		"type":                 "user",
 		"message":              map[string]any{"role": "user", "content": note},
-		"origin":               map[string]any{"kind": "task-notification"},
+		"origin":               notificationOrigin(),
 		"promptSource":         "system",
 		"turnOrigin":           "task_notification",
 		"queueSkipAttachments": true,
@@ -109,4 +109,11 @@ func submitNotification(ctx context.Context, cfg Config, inv *hooks.Invoker, tr 
 		return false
 	}
 	return true
+}
+
+// notificationOrigin is the origin a task notification's record carries, as the
+// turn it starts and the attachment it is handed over as both do (recorded:
+// snapshots/runs/bgagent and midturn).
+func notificationOrigin() map[string]any {
+	return map[string]any{"kind": "task-notification", "producer": "session-task"}
 }

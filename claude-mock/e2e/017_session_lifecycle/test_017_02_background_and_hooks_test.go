@@ -105,6 +105,7 @@ func TestT017_11_BackgroundBashFinishedMidTurn(t *testing.T) {
 	require.Equal(t, "attachment", q.Type, "the notification is handed over right after the tool result it arrived during")
 	assert.Equal(t, "queued_command", q.Attachment["type"])
 	assert.Equal(t, "task-notification", q.Attachment["commandMode"])
+	assert.Equal(t, map[string]any{"kind": "task-notification", "producer": "session-task"}, q.Attachment["origin"])
 	note := "<task-notification>\n<task-id>" + id + "</task-id>\n<tool-use-id>bg1turn-s-a</tool-use-id>\n<output-file>" + outFile +
 		"</output-file>\n<status>completed</status>\n<summary>Background command \"make output\" completed (exit code 0)</summary>\n</task-notification>"
 	assert.Equal(t, note, q.Attachment["prompt"])

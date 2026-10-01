@@ -51,7 +51,7 @@ func TestTaskFrames_AKilledCommandIsKilledThenStopped(t *testing.T) {
 	b := newBackgroundTasks()
 	defer b.Shutdown()
 	b.launchBash(cfg, "toolu_1", json.RawMessage(`{"command":"sleep 30","description":"long","run_in_background":true}`))
-	b.ReapAtExit("")
+	b.ReapAtExit("", 0)
 	var kinds, statuses []string
 	var last map[string]any
 	for _, l := range strings.Split(strings.TrimSpace(cfg.Out.(*bytes.Buffer).String()), "\n") {
