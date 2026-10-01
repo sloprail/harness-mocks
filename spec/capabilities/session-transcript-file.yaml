@@ -11,3 +11,4 @@ providers:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/forkresume
       - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/symlinked-cwd

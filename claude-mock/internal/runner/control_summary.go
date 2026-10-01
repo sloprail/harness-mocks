@@ -82,3 +82,14 @@ func writeCompactCommand(tr *transcript, preRuns, postRuns []hooks.HandlerRun) {
 		"content": "<local-command-stdout>Compacted " + strings.Join(lines, "\n") + "</local-command-stdout>"}})
 	tr.flushHookRuns()
 }
+
+// compactBlockMessage is what a PreCompact block tells the user: the stderr of
+// the handler that exited 2, else the decision's reason.
+func compactBlockMessage(out hooks.Output, runs []hooks.HandlerRun) string {
+	for _, r := range runs {
+		if r.ExitCode == 2 {
+			return strings.TrimSpace(r.Stderr)
+		}
+	}
+	return strings.TrimSpace(out.Reason)
+}

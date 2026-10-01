@@ -90,12 +90,15 @@ capture_run() {
   # each runs/<name>/setup/then/<NN>/ is a later one, in name order, in the same
   # repo and under the same fake HOME, so a later step can resume or fork what
   # an earlier one left (the scenario fixes the session ids in each step's args).
-  # A step's `cwd` file names a directory of the repo to run it from; its own settings.json and hook.sh go in that directory.
+  # A step's `cwd` file names a directory of the repo to run it from (a `symlink` file, "<name> <target>", makes <name> a symlink to <target> first); its own settings.json and hook.sh go in that directory.
   : >"$cap/stream.jsonl"; : >"$cap/stderr.txt"; : >"$cap/exit.txt"
   steps=("$run/setup"); [ -d "$run/setup/then" ] && for d in "$run/setup/then"/*/; do steps+=("${d%/}"); done
   for step in "${steps[@]}"; do
     sargs=(); [ -f "$step/args" ] && while IFS= read -r a; do [ -n "$a" ] && sargs+=("$a"); done <"$step/args"
-    sdir="$work/repo"; [ -f "$step/cwd" ] && sdir="$work/repo/$(cat "$step/cwd")" && mkdir -p "$sdir"
+    # a step's `symlink` file holds "<name> <target>": <name> in the repo is made a symlink
+    # to the directory <target> (also in the repo), for a step that runs from <name>
+    [ -f "$step/symlink" ] && { read -r lname ltarget <"$step/symlink"; mkdir -p "$work/repo/$ltarget"; ln -sfn "$work/repo/$ltarget" "$work/repo/$lname"; }
+    sdir="$work/repo"; [ -f "$step/cwd" ] && sdir="$work/repo/$(cat "$step/cwd")" && { [ -L "$sdir" ] || mkdir -p "$sdir"; }
     # a step's own settings.json and hook.sh are installed in its directory, which is
     # then a project of its own: the hooks of the repo root are not loaded from below it
     [ -f "$step/settings.json" ] && mkdir -p "$sdir/.claude" && cp "$step/settings.json" "$sdir/.claude/settings.json"

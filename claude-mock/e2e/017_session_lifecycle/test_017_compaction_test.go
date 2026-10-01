@@ -23,7 +23,9 @@ import (
 // an agent_transcript_path never written, the summary as last_assistant_message)
 // between PreCompact and SessionStart, and writes the /compact command's three
 // records after the summary, ahead of SessionStart:compact's attachment. The
-// turn goes on after each compaction.
+// turn goes on after each compaction. (The summarizer's SubagentStop payload is
+// in the compact sample's payloads.jsonl with its agent_id, agent_transcript_path
+// and last_assistant_message; events.jsonl strips those run-specific values.)
 // sr:proves compaction-transcript-continuity/claude
 // sr:proves manual-compaction/claude
 // staged:proves session-start-hook/claude

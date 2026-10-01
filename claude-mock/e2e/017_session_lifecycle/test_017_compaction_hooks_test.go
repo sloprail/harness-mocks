@@ -65,6 +65,33 @@ func TestT017_07g_PreCompactCannotStopWithContinueFalse(t *testing.T) {
 	assert.Contains(t, string(raw), "compact_boundary", "the compaction happens")
 }
 
+// TestT017_07i_ManualCompactionBlockShowsTheMessage: exit 2 from PreCompact blocks
+// the compaction, and for a manual /compact its stderr message is shown to the
+// user (hooks#precompact). An automatic compaction blocked the same way writes
+// nothing either.
+// sr:proves manual-compaction/claude
+func TestT017_07i_ManualCompactionBlockShowsTheMessage(t *testing.T) {
+	for _, trigger := range []string{"manual", "auto"} {
+		t.Run(trigger, func(t *testing.T) {
+			dir := t.TempDir()
+			cfg := filepath.Join(dir, "config")
+			block := write(t, filepath.Join(dir, "block.sh"), "#!/bin/sh\ncat >/dev/null\necho 'compaction not allowed now' 1>&2\nexit 2\n", 0o755)
+			compactSettings(t, dir, map[string][2]string{"PreCompact": {"*", block}})
+			sc := script(t, dir, "s", `{"type":"compact","summary":"x @MARK@","trigger":"`+trigger+`"}`)
+			out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-i",
+				"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+			require.Equal(t, 0, code, out)
+			if trigger == "manual" {
+				assert.Contains(t, out, "compaction not allowed now", "the block's message is shown to the user")
+			} else {
+				assert.NotContains(t, out, "compaction not allowed now")
+			}
+			raw, _ := os.ReadFile(transcriptPath(t, cfg, dir, "cmp-i"))
+			assert.NotContains(t, string(raw), "compact_boundary")
+		})
+	}
+}
+
 // TestT017_07h_CompactHookMatchersSelectTheTrigger: the matcher of PreCompact and
 // PostCompact is the trigger, `manual` for /compact and `auto` for auto-compact
 // (hooks#precompact, hooks#postcompact).
