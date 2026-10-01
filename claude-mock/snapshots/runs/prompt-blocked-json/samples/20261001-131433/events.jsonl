@@ -1,0 +1,4 @@
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Reply with the single word HELLO."}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"informational"}
+{"event":"stream","type":"result","subtype":"success"}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
@@ -58,10 +59,11 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				bg.stopOwned(cfg)
 				return nil
 			}
-			active := stopBlocks > 0
+			// sr:provides stop-hook-payload/claude
+			stop := corehooks.NewStop(lastText, stopBlocks)
+			active, last := stop.Continuing, stop.LastMessage
 			tasks := bg.running()
 			crons := []any{}
-			last := lastText
 			stopOut, stopRuns, stopErr := inv.FireRuns(ctx, hooks.Input{
 				SessionID:            cfg.SessionID,
 				Cwd:                  cfg.Cwd,

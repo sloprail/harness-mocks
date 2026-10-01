@@ -1,0 +1,20 @@
+statement: >-
+  A hook fires when the session ends and says why; a non-interactive run
+  reports a generic reason. Whatever the hook prints is not recorded in the
+  transcript. (How long it may run is hook-timeout's, and which reasons a
+  configured matcher selects is hook-matcher-filter's.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#sessionend
+      - https://code.claude.com/docs/en/hooks#sessionend-input
+    runs:
+      - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/hook-exit-codes
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The reasons clear, resume, logout and prompt_input_exit belong to an
+          interactive session (/clear, /resume, a logout, an exit from the
+          prompt). The mock models none, so every session ends with the
+          generic reason.

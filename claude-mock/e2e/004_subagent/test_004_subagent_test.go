@@ -188,7 +188,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 // agent_id on the sub-agent's PreToolUse, the resolver is misclassified as the root, its
 // `link resolve` is blocked, and it can never resolve its check (the e2e "got interrupted,
 // want pass" failures that only surface when the published mock lacks this stamp).
-// staged:proves hook-common-payload/claude
+// sr:proves hook-common-payload/claude
 func TestT004_07_SubagentPreToolUseCarriesAgentID(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "pretool.log")

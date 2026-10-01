@@ -1,0 +1,22 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh ONE" },
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh TWO" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh ONE" },
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/hook.sh TWO" }
+        ]
+      }
+    ]
+  }
+}

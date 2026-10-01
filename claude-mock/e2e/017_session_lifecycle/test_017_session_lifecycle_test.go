@@ -75,7 +75,7 @@ func TestT017_02_SilentSessionStartLeavesThePromptAsOrigin(t *testing.T) {
 
 // TestT017_03_EveryHookCarriesTranscriptPath: transcript_path is one of the
 // common input fields, on every event. The tool events carry tool_use_id.
-// staged:proves hook-common-payload/claude
+// sr:proves hook-common-payload/claude
 // sr:proves session-transcript-file/claude
 func TestT017_03_EveryHookCarriesTranscriptPath(t *testing.T) {
 	dir := t.TempDir()
@@ -154,7 +154,7 @@ func TestT017_04_HookAttachmentsSitWhereRealOnesDo(t *testing.T) {
 // agent_transcript_path; and the sub-agent's records go to its own sidechain
 // file — never into the dispatcher's (0 of 8,119 real main transcripts hold a
 // sidechain record).
-// staged:proves hook-common-payload/claude
+// sr:proves hook-common-payload/claude
 // staged:proves subagent-lifecycle-hooks/claude
 // staged:proves subagent-transcripts/claude
 func TestT017_05_SubagentPayloadsAndRecords(t *testing.T) {

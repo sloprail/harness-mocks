@@ -39,17 +39,13 @@ func matcherValue(in Input) string {
 // FireRuns is Fire, also handing back each handler's run, for a caller that
 // reports runs itself.
 func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []HandlerRun, error) {
-	if input.TranscriptPath == "" {
-		input.TranscriptPath = inv.transcriptPath
-	}
-	if inv.agentID != "" {
-		if input.AgentID == "" {
-			input.AgentID = inv.agentID
-		}
-		if input.AgentID == inv.agentID && input.AgentType == "" {
-			input.AgentType = inv.agentType
-		}
-	}
+	// sr:provides hook-common-payload/claude
+	common := corehooks.CommonFields(
+		corehooks.Common{TranscriptPath: input.TranscriptPath, Cwd: input.Cwd, Agent: corehooks.Agent{ID: input.AgentID, Type: input.AgentType}},
+		corehooks.Common{TranscriptPath: inv.transcriptPath, Cwd: inv.cwd},
+		corehooks.Agent{ID: inv.agentID, Type: inv.agentType})
+	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
+	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
 	handlers := inv.settings.EntriesFor(input.HookEventName, matcherValue(input))
 	if len(handlers) == 0 {
 		return Output{}, nil, nil
@@ -138,8 +134,12 @@ func mergeOutput(dst *Output, src Output) {
 		// decision wins, with its reason, whatever order they ran in (docs,
 		// "PreToolUse decision control").
 		h := *src.HookSpecificOutput
-		if prev := dst.HookSpecificOutput; prev != nil && corehooks.StrongerPermission(h.PermissionDecision, prev.PermissionDecision) != h.PermissionDecision {
-			h.PermissionDecision, h.PermissionDecisionReason = prev.PermissionDecision, prev.PermissionDecisionReason
+		if prev := dst.HookSpecificOutput; prev != nil {
+			if corehooks.StrongerPermission(h.PermissionDecision, prev.PermissionDecision) != h.PermissionDecision {
+				h.PermissionDecision, h.PermissionDecisionReason = prev.PermissionDecision, prev.PermissionDecisionReason
+			}
+			// Every hook's additionalContext reaches the agent, not the last's.
+			h.AdditionalContext = corehooks.JoinContext(prev.AdditionalContext, h.AdditionalContext)
 		}
 		dst.HookSpecificOutput = &h
 	}

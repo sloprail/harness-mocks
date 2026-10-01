@@ -22,6 +22,8 @@ type Common struct {
 // event raised inside a sub-agent (inside.ID is set) names that sub-agent,
 // with its type, unless the event already names an agent of its own. An event
 // on the main thread (inside empty) names none.
+//
+// sr:capability hook-common-payload
 func CommonFields(event, session Common, inside Agent) Common {
 	c := event
 	if c.TranscriptPath == "" {
@@ -52,6 +54,8 @@ type PostTool struct {
 
 // NewPostTool is the notice for a tool call that succeeded. The duration is
 // the call's own run time, in whole milliseconds and never negative.
+//
+// sr:capability posttooluse-payload
 func NewPostTool(input, response json.RawMessage, took time.Duration) PostTool {
 	ms := took.Milliseconds()
 	if ms < 0 {
@@ -70,6 +74,8 @@ type Stop struct {
 
 // NewStop is the notice for the agent finishing a response, after blocksSoFar
 // consecutive blocks by earlier stop hooks.
+//
+// sr:capability stop-hook-payload
 func NewStop(lastMessage string, blocksSoFar int) Stop {
 	return Stop{LastMessage: lastMessage, Continuing: blocksSoFar > 0}
 }

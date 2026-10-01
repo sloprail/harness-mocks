@@ -22,7 +22,7 @@ import (
 // sr:proves hook-exit-code-semantics/claude
 // staged:proves hook-output-transcript-records/claude
 // staged:proves stop-block-continuation/claude
-// staged:proves stop-hook-payload/claude
+// sr:proves stop-hook-payload/claude
 func TestT017_14_StopFeedbackInTheMainFile(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -81,7 +81,7 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 // leaves a hook_success (content "") and then a hook_additional_context — for
 // PostToolUse under the tool call's name and id, for SessionStart named
 // "SessionStart" with "SessionStart" as its toolUseID (claude 2.1.282).
-// staged:proves hook-additional-context/claude
+// sr:proves hook-additional-context/claude
 func TestT017_15_AdditionalContext(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -133,7 +133,7 @@ echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":
 // prints plain text leaves a hook_success whose content is that text; a
 // SessionEnd hook's output leaves nothing (claude 2.1.282).
 // staged:proves hook-output-transcript-records/claude
-// staged:proves session-end-hook/claude
+// sr:proves session-end-hook/claude
 func TestT017_19_PromptAndSessionEndAttachments(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -160,7 +160,7 @@ func TestT017_19_PromptAndSessionEndAttachments(t *testing.T) {
 // noOutputExpected} — never tool_output (docs, PostToolUse input; a claude
 // 2.1.282 payload).
 // staged:proves bash-tool-result/claude
-// staged:proves posttooluse-payload/claude
+// sr:proves posttooluse-payload/claude
 func TestT017_20_PostToolUsePayload(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
