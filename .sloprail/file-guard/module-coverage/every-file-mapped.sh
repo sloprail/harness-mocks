@@ -13,9 +13,11 @@ load_modules
 files="$(git -C "$SR_TREE" ls-files -- '*.go' ':!*_test.go' 2>&1)" || refuse "could not list Go files: $files"
 
 problems=""
+checked=0
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   in_globs "$f" "${space[@]}" || continue
+  checked=$((checked + 1))
   owners=""
   while IFS= read -r m; do
     home=(); while IFS= read -r g; do home+=("$g"); done < <(jq -r '.home[]' <<<"$m")
@@ -32,6 +34,7 @@ while IFS= read -r f; do
     *,*) problems="${problems}- $f lies in more than one module's home ($owners): module homes may not overlap"$'\n' ;;
   esac
 done <<<"$files"
+[ "$checked" -gt 0 ] || refuse "no Go file in the tree matches the ADR's space, so module coverage was not checked: fix the space globs of adr/modules-cover-code"
 [ -z "$problems" ] && exit 0
 refuse "Code outside the module map (adr/modules-cover-code):
 ${problems}"
