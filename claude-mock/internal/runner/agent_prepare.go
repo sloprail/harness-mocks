@@ -39,6 +39,11 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		return nil, in, inputValidationError("Agent", missing)
 	}
 
+	// At the spawn limit a sub-agent has no Agent tool to call.
+	if !(subagents.Parent{ID: cfg.AgentID, Depth: cfg.spawnDepth}).CanDispatch(cfg.SpawnLimit) {
+		return nil, in, toolexec.Result{Output: "Error: No such tool available: Agent", IsError: true}
+	}
+
 	agentType := in.SubagentType
 	if agentType == "" {
 		agentType = "general-purpose"

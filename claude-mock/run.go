@@ -119,6 +119,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		PrintMode:      printMode,
 		Model:          model,
 		BgWaitCeiling:  printWaitCeiling(),
+		SpawnLimit:     spawnLimit(),
 		Stderr:         os.Stderr,
 		Out:            os.Stdout,
 	})

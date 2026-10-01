@@ -49,3 +49,18 @@ type Placement struct {
 func Place(parent Parent) Placement {
 	return Placement{Depth: parent.Depth + 1, ParentID: parent.ID}
 }
+
+// DefaultSpawnLimit is how many layers of sub-agents a session can nest below
+// its main thread when the harness is not told otherwise.
+const DefaultSpawnLimit = 3
+
+// CanDispatch reports whether parent may dispatch a sub-agent when a session
+// nests at most limit layers deep (a limit of 0 is the default, a negative or
+// 1 turns nesting off for sub-agents): the main thread always may, and a
+// sub-agent only while it is above the limit.
+func (p Parent) CanDispatch(limit int) bool {
+	if limit == 0 {
+		limit = DefaultSpawnLimit
+	}
+	return p.Depth < limit
+}

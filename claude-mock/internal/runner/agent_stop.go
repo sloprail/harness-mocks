@@ -43,6 +43,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		stream:                s.parent.stream,
 		sessionFile:           s.sessionFile,
 		spawnDepth:            s.spawnDepth,
+		SpawnLimit:            s.parent.SpawnLimit,
 	}
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {
