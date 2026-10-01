@@ -14,12 +14,9 @@ shape misjudges, or refuses for the wrong reason.
 
 ## Decision
 
-- Each kind of structured file has one CUE schema under `.sloprail/schemas/`,
-  with closed definitions: a key the schema does not name is an error.
+- Each kind of structured file has one CUE schema under `.sloprail/schemas/`.
 - A write that would land a file breaking its schema is refused before it
   lands, except snapshot files, which only `capture.sh` writes.
 - At commit, every structured file the change touches matches its schema,
   snapshot files included: the backstop for writes the first check cannot
   predict.
-- A new kind of structured file gets its schema, and its place in both checks,
-  in the change that introduces it.
