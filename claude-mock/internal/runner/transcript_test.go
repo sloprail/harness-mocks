@@ -75,7 +75,7 @@ func TestRecordHookRuns_PlainStdoutIsTheContent(t *testing.T) {
 	assert.Equal(t, "UserPromptSubmit", att(recs[0])["hookName"])
 }
 
-// staged:proves hook-additional-context/claude
+// sr:proves hook-additional-context/claude
 func TestRecordHookRuns_AdditionalContextPair(t *testing.T) {
 	out := hooks.Output{HookSpecificOutput: &hooks.HookSpecificOutput{AdditionalContext: "CTX"}}
 	recs := recordsOf(t, func(tr *transcript) {

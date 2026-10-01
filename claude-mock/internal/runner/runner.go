@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // Run executes the mock: runs the script, validates + streams JSONL, fires hooks.
@@ -89,16 +90,13 @@ func Run(ctx context.Context, cfg Config) error {
 	// and carries on (docs, "Exit code 2 behavior per event").
 	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	if !nested {
-		source := "startup"
-		switch {
-		case cfg.ForkFrom != "":
-			source = "fork"
-		case cfg.IsResume:
-			source = "resume"
-		}
 		// Real Claude Code injects a SessionStart hook's additionalContext into
 		// the session context. Surface it so the script also sees it via env.
-		if ac := fireSessionStart(ctx, cfg, inv, source); ac != "" {
+		ac, err := fireSessionStart(ctx, cfg, inv, corehooks.SessionStartKind(cfg.IsResume, cfg.ForkFrom != "", false))
+		if err != nil {
+			return err
+		}
+		if ac != "" {
 			cfg.AdditionalContext = ac
 		}
 	}
@@ -150,18 +148,15 @@ func Run(ctx context.Context, cfg Config) error {
 	// for a nested sub-agent run: the sub-agent's prompt is its dispatcher's
 	// tool input, not something a user submitted.
 	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
-	if cfg.Prompt != "" && !nested {
-		promptOut, err := inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventUserPromptSubmit,
-			Prompt:        cfg.Prompt,
-		})
-		if err != nil {
-			return promptBlocked(cfg, tr, err)
-		}
-		cfg.AdditionalContext = addContext(cfg.AdditionalContext, promptContextFrom(promptOut))
+	src := corehooks.PromptFromUser
+	if nested {
+		src = corehooks.PromptSubagentDispatch
 	}
+	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, src)
+	if refused {
+		return err
+	}
+	cfg.AdditionalContext = corehooks.JoinContext(cfg.AdditionalContext, extra)
 
 	// streamAndHook owns the turn lifecycle: Stop at every end of turn, the
 	// re-prompt on a block, and the turns background work starts after it. A

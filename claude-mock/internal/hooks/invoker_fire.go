@@ -28,17 +28,13 @@ func (inv *Invoker) Fire(ctx context.Context, input Input) (Output, error) {
 // FireRuns is Fire, also handing back each handler's run, for a caller that
 // reports runs itself.
 func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []HandlerRun, error) {
-	if input.TranscriptPath == "" {
-		input.TranscriptPath = inv.transcriptPath
-	}
-	if inv.agentID != "" {
-		if input.AgentID == "" {
-			input.AgentID = inv.agentID
-		}
-		if input.AgentID == inv.agentID && input.AgentType == "" {
-			input.AgentType = inv.agentType
-		}
-	}
+	// sr:provides hook-common-payload/claude
+	common := corehooks.CommonFields(
+		corehooks.Common{TranscriptPath: input.TranscriptPath, Cwd: input.Cwd, Agent: corehooks.Agent{ID: input.AgentID, Type: input.AgentType}},
+		corehooks.Common{TranscriptPath: inv.transcriptPath, Cwd: inv.cwd},
+		corehooks.Agent{ID: inv.agentID, Type: inv.agentType})
+	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
+	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
 	handlers := inv.settings.EntriesFor(input.HookEventName, input.ToolName)
 	if len(handlers) == 0 {
 		return Output{}, nil, nil

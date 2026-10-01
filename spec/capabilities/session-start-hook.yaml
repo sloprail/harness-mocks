@@ -9,6 +9,11 @@ providers:
       - https://code.claude.com/docs/en/hooks#sessionstart-decision-control
       - https://code.claude.com/docs/en/hooks#exit-code-2-behavior-per-event
     runs:
-      - claude-mock/snapshots/runs/forkresume
-      - claude-mock/snapshots/runs/compact
       - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/stops
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          A session cleared with /clear starts again with source "clear" in
+          Claude Code. The mock parses no slash command, so it never reports
+          that source.

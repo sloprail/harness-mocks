@@ -17,6 +17,8 @@ const (
 // SessionStartKind is how a session began. A compaction continues the session
 // it compacted; a fork is a resume that got its own session, so it is a fork
 // and not a resume.
+//
+// sr:capability session-start-hook
 func SessionStartKind(resumed, forked, compacted bool) StartKind {
 	switch {
 	case compacted:
@@ -48,6 +50,8 @@ const (
 // SessionEndReason is why a session ended. A non-interactive run has no
 // interactive ending, so whatever the caller thinks happened, it ended for the
 // generic reason.
+//
+// sr:capability session-end-hook
 func SessionEndReason(interactive bool, why EndReason) EndReason {
 	if !interactive {
 		return EndOther
@@ -81,6 +85,8 @@ func PromptHookFires(src PromptSource) bool { return src != PromptSubagentDispat
 // hook blocked it, and otherwise goes to the agent unchanged with the context
 // the hooks added. A hook never rewrites the prompt: there is no prompt in,
 // and none out.
+//
+// sr:capability user-prompt-submit-hook
 func PromptOutcome(blocked bool, context string) (refused bool, extra string) {
 	if blocked {
 		return true, ""
@@ -91,6 +97,8 @@ func PromptOutcome(blocked bool, context string) (refused bool, extra string) {
 // ContextOf is the text a hook adds to the agent's context: the context its
 // structured output gave, else, for an event that reads plain output as
 // context, its plain output.
+//
+// sr:capability hook-additional-context
 func ContextOf(structured, plain string, plainAdds bool) string {
 	if structured != "" {
 		return structured

@@ -7,5 +7,5 @@ providers:
       - https://code.claude.com/docs/en/hooks#posttooluse
       - https://code.claude.com/docs/en/hooks#posttooluse-input
     runs:
-      - claude-mock/snapshots/runs/bgbash
-      - claude-mock/snapshots/runs/bgagent
+      - claude-mock/snapshots/runs/stops
+      - claude-mock/snapshots/runs/hookerrors

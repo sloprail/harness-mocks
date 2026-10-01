@@ -9,4 +9,11 @@ providers:
       - https://code.claude.com/docs/en/hooks#sessionend-input
     runs:
       - claude-mock/snapshots/runs/hookerrors
-      - claude-mock/snapshots/runs/resume-unknown
+      - claude-mock/snapshots/runs/hook-exit-codes
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The reasons clear, resume, logout and prompt_input_exit belong to an
+          interactive session (/clear, /resume, a logout, an exit from the
+          prompt). The mock models none, so every session ends with the
+          generic reason.

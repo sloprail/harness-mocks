@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
@@ -32,7 +33,7 @@ func decidePreTool(cfg Config, pending *pendingToolUse, hookOut hooks.Output, ho
 // firePostTool fires the hook a tool call's result calls for: PostToolUse
 // with the tool's response, or PostToolUseFailure with the error text the
 // agent got, or neither.
-func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending pendingToolUse, res toolexec.Result, took int64) {
+func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending pendingToolUse, res toolexec.Result, took time.Duration) {
 	outcome := corehooks.ToolSucceeded
 	switch {
 	case res.Failed:
@@ -44,6 +45,7 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 	switch corehooks.AfterToolHook(outcome) {
 	case corehooks.AfterFailure:
 		notInterrupted := false
+		ms := took.Milliseconds()
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
@@ -53,18 +55,20 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 			ToolInput:     pending.ToolInput,
 			Error:         res.Output,
 			IsInterrupt:   &notInterrupted,
-			DurationMs:    &took,
+			DurationMs:    &ms,
 		})
 	case corehooks.AfterSuccess:
+		// sr:provides posttooluse-payload/claude
+		n := corehooks.NewPostTool(pending.ToolInput, toolResponse(res), took)
 		_, _ = inv.Fire(ctx, hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUse,
 			ToolName:      pending.ToolName,
 			ToolUseID:     pending.ToolUseID,
-			ToolInput:     pending.ToolInput,
-			ToolResponse:  toolResponse(res),
-			DurationMs:    &took,
+			ToolInput:     n.Input,
+			ToolResponse:  n.Response,
+			DurationMs:    &n.DurationMs,
 		})
 	}
 }

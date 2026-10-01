@@ -16,7 +16,7 @@ import (
 // task notification, the notification is not written and no turn runs for it;
 // the session ends.
 // staged:proves task-notifications/claude
-// staged:proves user-prompt-submit-hook/claude
+// sr:proves user-prompt-submit-hook/claude
 func TestT017_28_RefusedNotificationStartsNoTurn(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

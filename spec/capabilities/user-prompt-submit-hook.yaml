@@ -10,5 +10,5 @@ providers:
       - https://code.claude.com/docs/en/hooks#what-a-blocked-prompt-leaves-behind
     runs:
       - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/prompt-blocked
       - claude-mock/snapshots/runs/midturn
-      - claude-mock/snapshots/runs/bgagent

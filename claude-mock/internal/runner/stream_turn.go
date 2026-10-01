@@ -119,7 +119,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// one, else the text the agent got. Input the tool could not take fires
 	// neither: the tool never ran. Neither leaves a record here.
 	// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
-	took := time.Since(toolStarted).Milliseconds()
+	took := time.Since(toolStarted)
 	firePostTool(ctx, cfg, inv, pending, res, took)
 	if startAgent != nil {
 		startAgent()

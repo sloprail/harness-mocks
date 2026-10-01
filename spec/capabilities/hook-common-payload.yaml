@@ -1,11 +1,11 @@
 statement: >-
   Every lifecycle hook receives a payload naming the session, its transcript
   file and its working directory. An event raised inside a sub-agent also
-  names that sub-agent, while events on the main thread do not.
+  names that sub-agent, while events on the main thread name none.
 providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/hooks#common-input-fields
     runs:
-      - claude-mock/snapshots/runs/bgagent
-      - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/stops

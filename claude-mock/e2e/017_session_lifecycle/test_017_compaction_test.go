@@ -26,7 +26,7 @@ import (
 // turn goes on after each compaction.
 // staged:proves compaction-transcript-continuity/claude
 // staged:proves manual-compaction/claude
-// staged:proves session-start-hook/claude
+// sr:proves session-start-hook/claude
 // sr:proves control-records
 func TestT017_07_Compaction(t *testing.T) {
 	dir := t.TempDir()

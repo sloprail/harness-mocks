@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // runPrintMode runs the supervisor script once with raw stdout capture (no JSONL
@@ -25,18 +26,11 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	// Fire UserPromptSubmit so any hook in the project-dir settings can intercept
 	// even in print mode. The hook cannot replace the prompt (real Claude
 	// contract); it may only append additionalContext or block (→ Fire errors).
-	if cfg.Prompt != "" {
-		promptOut, err := inv.Fire(ctx, hooks.Input{
-			SessionID:     cfg.SessionID,
-			Cwd:           cfg.Cwd,
-			HookEventName: hooks.EventUserPromptSubmit,
-			Prompt:        cfg.Prompt,
-		})
-		if err != nil {
-			return promptBlocked(cfg, tr, err)
-		}
-		cfg.AdditionalContext = addContext(cfg.AdditionalContext, promptContextFrom(promptOut))
+	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, corehooks.PromptFromUser)
+	if refused {
+		return err
 	}
+	cfg.AdditionalContext = corehooks.JoinContext(cfg.AdditionalContext, extra)
 
 	// Opt-in: drive the script through the streaming turn loop so it can emit
 	// tool_use records (e.g. an Agent/Task tool_use → nested sub-agent). The
@@ -56,8 +50,9 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 
 	// In print mode the Stop hook validates response.json (exit 2 = validation
 	// failure). Propagate a block as an error so RunSupervisor knows the run failed.
-	active := false
-	last := strings.TrimSpace(captured.String())
+	// sr:provides stop-hook-payload/claude
+	stop := corehooks.NewStop(strings.TrimSpace(captured.String()), 0)
+	active, last := stop.Continuing, stop.LastMessage
 	tasks := []hooks.BackgroundTask{}
 	crons := []any{}
 	stopOut, stopErr := inv.Fire(ctx, hooks.Input{

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // compact is a compaction, the way real Claude Code performs one. Evidence
@@ -143,7 +144,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	if manual {
 		ssInv = inv.WithRecorder(tr.holdHookRuns)
 	}
-	fireSessionStart(ctx, cfg, ssInv, "compact")
+	_, _ = fireSessionStart(ctx, cfg, ssInv, corehooks.SessionStartKind(false, false, true))
 
 	_, _ = inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { postRuns = runs }).Fire(ctx, hooks.Input{
 		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPostCompact,
