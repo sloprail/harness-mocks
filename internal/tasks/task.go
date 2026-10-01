@@ -42,6 +42,10 @@ type Task struct {
 	OutputFile         string
 	Started            time.Time
 
+	// Meta is what the harness attaches for its own reports of the task (its
+	// stream frames); the core never reads it.
+	Meta any
+
 	// ExitCode is a Command's exit status (also 1 for a failed Agent).
 	ExitCode int
 	// Result, Failure, ToolUses and DurationMs are an Agent's outcome.

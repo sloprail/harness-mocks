@@ -22,9 +22,10 @@ type CommandSpec struct {
 	// Trailer is what is appended to Out when the command ends: how it ended
 	// (the exit code, or that it was killed). Nil appends nothing.
 	Trailer func(exitCode int, killed bool) string
-	// Ended runs once the command has ended and Out is closed, before the task
-	// is finished.
-	Ended func(*Task)
+	// Started runs once the task is registered, before anything of its end can
+	// happen; Ended runs once the command has ended and Out is closed, before
+	// the task is finished.
+	Started, Ended func(*Task)
 }
 
 // StartCommand starts the command for t in the background and registers t. The
@@ -44,6 +45,9 @@ func (r *Registry) StartCommand(t *Task, s CommandSpec) error {
 	t.Kind = Command
 	t.kill = func() { killGroup(cmd) }
 	r.Add(t)
+	if s.Started != nil {
+		s.Started(t)
+	}
 	r.Go(func() {
 		code := 0
 		if err := cmd.Wait(); err != nil {
