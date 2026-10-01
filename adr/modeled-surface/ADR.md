@@ -1,6 +1,6 @@
 ---
 concern: which parts of a real harness a mock models, and how a capability states what it leaves out
-sloprails: [file-guard/capability-rigor]
+sloprails: [file-guard/capability-rigor, file-guard/adr-conformance]
 ---
 
 # A mock models the non-interactive harness its tests drive

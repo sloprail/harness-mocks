@@ -1,6 +1,6 @@
 ---
 concern: how every child process a mock starts is spawned, what environment it gets, and how it is stopped
-sloprails: [file-guard/child-processes]
+sloprails: [file-guard/child-processes, file-guard/adr-conformance]
 # Files that still spawn a process or set its environment themselves. None
 # adds a site; the list only shrinks.
 exceptions:
