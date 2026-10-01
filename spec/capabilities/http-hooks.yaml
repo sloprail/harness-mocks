@@ -2,8 +2,8 @@ statement: >-
   A hook can be an HTTP endpoint that receives the event payload as the body
   of a POST. A 2xx answer whose body is a JSON object decides like a command's
   printed JSON; an empty 2xx body is a success; anything else (a non-2xx
-  status, an endpoint that cannot be reached, a body that cannot be read) is a
-  non-blocking error: no status alone blocks.
+  status, an endpoint that cannot be reached, a 2xx body that is not a JSON
+  object) is a non-blocking error: no status alone blocks.
 providers:
   claude:
     docs:
