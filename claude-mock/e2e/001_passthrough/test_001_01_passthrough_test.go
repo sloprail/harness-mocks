@@ -11,7 +11,7 @@ import (
 
 // TestT001_01_ScriptJSONLPassthrough verifies that JSONL lines emitted by the
 // script are written to stdout verbatim and in order.
-// sr:proves noninteractive-run/claude
+// staged:proves noninteractive-run/claude
 func TestT001_01_ScriptJSONLPassthrough(t *testing.T) {
 	script := `#!/bin/sh
 printf '%s\n' '{"type":"system","subtype":"init","session_id":"test-session-001","tools":[]}'

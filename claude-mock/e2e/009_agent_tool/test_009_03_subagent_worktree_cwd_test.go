@@ -20,8 +20,8 @@ import (
 // delegated subagent's per-cwd folders/contexts don't collide with the root's. If the
 // mock reported the parent cwd for the subagent (the pre-fix behaviour), that isolation
 // could never be exercised in a mock-based harness.
-// sr:proves hook-common-payload/claude
-// sr:proves subagent-worktree-isolation/claude
+// staged:proves hook-common-payload/claude
+// staged:proves subagent-worktree-isolation/claude
 func TestT009_03_SubagentWorktreeCwdIsolated(t *testing.T) {
 	dir := t.TempDir()
 	// The mock now resolves symlinks before reporting/encoding cwd (matching real Claude

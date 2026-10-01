@@ -19,8 +19,8 @@ import (
 // `SessionStart:startup` runs of a hook reading its own transcript found no
 // file. When the hook prints something, its hook_success attachment is written
 // after it exits, and is the file's origin; the prompt chains to it.
-// sr:proves hook-output-transcript-records/claude
-// sr:proves session-transcript-file/claude
+// staged:proves hook-output-transcript-records/claude
+// staged:proves session-transcript-file/claude
 func TestT017_01_FreshSessionHasNoRecordAtSessionStart(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -58,7 +58,7 @@ echo "starting up" 1>&2
 // TestT017_02_SilentSessionStartLeavesThePromptAsOrigin: a hook that prints
 // nothing leaves no attachment — 0 of 2,846 real PreToolUse successes are
 // empty — so the prompt is the origin.
-// sr:proves hook-output-transcript-records/claude
+// staged:proves hook-output-transcript-records/claude
 func TestT017_02_SilentSessionStartLeavesThePromptAsOrigin(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -75,8 +75,8 @@ func TestT017_02_SilentSessionStartLeavesThePromptAsOrigin(t *testing.T) {
 
 // TestT017_03_EveryHookCarriesTranscriptPath: transcript_path is one of the
 // common input fields, on every event. The tool events carry tool_use_id.
-// sr:proves hook-common-payload/claude
-// sr:proves session-transcript-file/claude
+// staged:proves hook-common-payload/claude
+// staged:proves session-transcript-file/claude
 func TestT017_03_EveryHookCarriesTranscriptPath(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -114,8 +114,8 @@ func TestT017_03_EveryHookCarriesTranscriptPath(t *testing.T) {
 // prints lands as hook_success AFTER its tool_use and before the result, keyed
 // by the tool call's id; a non-zero, non-2 exit lands as
 // hook_non_blocking_error.
-// sr:proves hook-exit-code-semantics/claude
-// sr:proves hook-output-transcript-records/claude
+// staged:proves hook-exit-code-semantics/claude
+// staged:proves hook-output-transcript-records/claude
 func TestT017_04_HookAttachmentsSitWhereRealOnesDo(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -154,9 +154,9 @@ func TestT017_04_HookAttachmentsSitWhereRealOnesDo(t *testing.T) {
 // agent_transcript_path; and the sub-agent's records go to its own sidechain
 // file — never into the dispatcher's (0 of 8,119 real main transcripts hold a
 // sidechain record).
-// sr:proves hook-common-payload/claude
-// sr:proves subagent-lifecycle-hooks/claude
-// sr:proves subagent-transcripts/claude
+// staged:proves hook-common-payload/claude
+// staged:proves subagent-lifecycle-hooks/claude
+// staged:proves subagent-transcripts/claude
 func TestT017_05_SubagentPayloadsAndRecords(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -210,7 +210,7 @@ func TestT017_05_SubagentPayloadsAndRecords(t *testing.T) {
 // other than the one it began in keeps appending to its original transcript,
 // while its hooks are told a transcript_path under the NEW directory's project
 // folder — a file that does not exist. Measured on a real SessionStart:resume.
-// sr:proves session-resume/claude
+// staged:proves session-resume/claude
 func TestT017_06_ResumeFromAnotherDirectory(t *testing.T) {
 	root := t.TempDir()
 	cfg := filepath.Join(root, "config")

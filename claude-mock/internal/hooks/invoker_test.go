@@ -26,7 +26,7 @@ func writeExecScript(t *testing.T, dir, name, body string) string {
 // invokeCommand runs command hooks through /bin/sh -c, so a quoted script path
 // (the form plugin hooks.json emits) executes. A strings.Fields split would keep
 // the quotes in argv[0] and fail to find the binary.
-// sr:proves hook-command-handler/claude
+// staged:proves hook-command-handler/claude
 func TestInvokeCommand_QuotedPathRunsViaShell(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "ran.txt")
@@ -47,7 +47,7 @@ func TestInvokeCommand_QuotedPathRunsViaShell(t *testing.T) {
 }
 
 // A command carrying arguments and an env-var reference runs as a shell line.
-// sr:proves hook-command-handler/claude
+// staged:proves hook-command-handler/claude
 func TestInvokeCommand_ArgsAndEnvRunViaShell(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "out.txt")
@@ -144,7 +144,7 @@ func TestInvokeCommand_SetsHarnessEnvWithoutSessionID(t *testing.T) {
 }
 
 // Exit 2 from a command hook is a blocking error surfaced via Fire's error.
-// sr:proves hook-exit-code-semantics/claude
+// staged:proves hook-exit-code-semantics/claude
 func TestInvokeCommand_Exit2Blocks(t *testing.T) {
 	dir := t.TempDir()
 	script := writeExecScript(t, dir, "block.sh", "#!/bin/sh\ncat >/dev/null\necho 'denied' >&2\nexit 2\n")
@@ -179,7 +179,7 @@ func alive(pid int) bool {
 // open, and cmd.Run() blocks until every writer to those pipes is gone — so the
 // call returned only when the grandchild finished on its own. A hook declaring
 // `"timeout": 1` around a 20s sleep took the full 20s.
-// sr:proves hook-timeout/claude
+// staged:proves hook-timeout/claude
 func TestInvokeCommand_TimeoutBoundsTheCall(t *testing.T) {
 	dir := t.TempDir()
 	settings := &Settings{Hooks: map[EventName][]HookEntry{
@@ -205,7 +205,7 @@ func TestInvokeCommand_TimeoutBoundsTheCall(t *testing.T) {
 // process would still be running — now orphaned, and invisible to the harness
 // that spawned it. The hook here publishes its grandchild's pid so the test can
 // go looking for it afterwards.
-// sr:proves hook-timeout/claude
+// staged:proves hook-timeout/claude
 func TestInvokeCommand_TimeoutKillsGrandchild(t *testing.T) {
 	dir := t.TempDir()
 	pidFile := filepath.Join(dir, "grandchild.pid")
@@ -315,7 +315,7 @@ func TestExecCommandContext_LeaksGrandchildWithoutProcessGroup(t *testing.T) {
 // TestFire_RunsEveryHandlerAndReturnsTheFirstBlock: real Claude Code runs all
 // of an event's matching hooks, so one that exits 2 does not stop the others;
 // the block comes back as a *BlockError quoting "[<command>]: <stderr>".
-// sr:proves hooks-all-matching-run/claude
+// staged:proves hooks-all-matching-run/claude
 func TestFire_RunsEveryHandlerAndReturnsTheFirstBlock(t *testing.T) {
 	dir := t.TempDir()
 	ran := filepath.Join(dir, "ran")

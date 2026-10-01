@@ -66,7 +66,7 @@ printf '%%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"t
 // SubagentStart fires with agent_type AND a non-empty agent_id; the subagent
 // scenario actually runs (writes a side-effect file); SubagentStop fires with the
 // SAME agent_id; the Agent tool_result on stdout contains "agentId:".
-// sr:proves subagent-lifecycle-hooks/claude
+// staged:proves subagent-lifecycle-hooks/claude
 func TestT009_01_AgentToolSpawnsSubagent(t *testing.T) {
 	dir := t.TempDir()
 	startLog := filepath.Join(dir, "start.log")
@@ -151,7 +151,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"task done","is_err
 // TestT009_03_TwoLevelNesting: the subagent's OWN script also emits an Agent
 // tool_use, spawning a sub-subagent. Prove the second-level SubagentStart fires
 // (a distinct agent_id) and the sub-subagent's side-effect file is written.
-// sr:proves nested-subagents/claude
+// staged:proves nested-subagents/claude
 func TestT009_03_TwoLevelNesting(t *testing.T) {
 	dir := t.TempDir()
 	startLog := filepath.Join(dir, "start.log")

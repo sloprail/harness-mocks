@@ -15,8 +15,8 @@ import (
 // TestT017_28_RefusedNotificationStartsNoTurn: when UserPromptSubmit refuses a
 // task notification, the notification is not written and no turn runs for it;
 // the session ends.
-// sr:proves task-notifications/claude
-// sr:proves user-prompt-submit-hook/claude
+// staged:proves task-notifications/claude
+// staged:proves user-prompt-submit-hook/claude
 func TestT017_28_RefusedNotificationStartsNoTurn(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -50,8 +50,8 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"R"}'
 // fires PostToolUseFailure {error, is_interrupt, duration_ms} instead of
 // PostToolUse — claude 2.1.282 in a controlled run (fixture
 // evidence/bashfail).
-// sr:proves bash-tool-result/claude
-// sr:proves tool-failure-hook/claude
+// staged:proves bash-tool-result/claude
+// staged:proves tool-failure-hook/claude
 func TestT017_29_FailingBash(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -81,9 +81,9 @@ func TestT017_29_FailingBash(t *testing.T) {
 // parentAgentId for a nested one; model when the call names one; and for an
 // isolated one worktreePath, spawnedWithWorktree and the worktree-agent-<id>
 // branch it really creates (fixture evidence/meta, 626 real sidecars).
-// sr:proves nested-subagents/claude
-// sr:proves subagent-transcripts/claude
-// sr:proves subagent-worktree-isolation/claude
+// staged:proves nested-subagents/claude
+// staged:proves subagent-transcripts/claude
+// staged:proves subagent-worktree-isolation/claude
 func TestT017_30_SubagentMetaSidecars(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

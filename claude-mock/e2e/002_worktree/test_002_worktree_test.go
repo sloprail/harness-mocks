@@ -40,7 +40,7 @@ func writeScript(t *testing.T, dir, name, content string) string {
 // --- WorktreeCreate ---
 
 // TestT002_01_WorktreeCreateHookFires: positive — hook fires and receives worktree_name.
-// sr:proves worktree-hooks/claude
+// staged:proves worktree-hooks/claude
 func TestT002_01_WorktreeCreateHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -70,7 +70,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 }
 
 // TestT002_03_WorktreeCreateBlockCausesNonZeroExit: hook exit 2 must block the run.
-// sr:proves worktree-hooks/claude
+// staged:proves worktree-hooks/claude
 func TestT002_03_WorktreeCreateBlockCausesNonZeroExit(t *testing.T) {
 	dir := t.TempDir()
 	blockHook := writeScript(t, dir, "block.sh", `#!/bin/sh
@@ -111,7 +111,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 // --- WorktreeRemove ---
 
 // TestT002_05_WorktreeRemoveHookFires: positive — WorktreeRemove hook fires.
-// sr:proves worktree-hooks/claude
+// staged:proves worktree-hooks/claude
 func TestT002_05_WorktreeRemoveHookFires(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")
@@ -144,7 +144,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 }
 
 // TestT002_07_BothWorktreeEventsDistinct: WorktreeCreate and WorktreeRemove fire separately.
-// sr:proves worktree-hooks/claude
+// staged:proves worktree-hooks/claude
 func TestT002_07_BothWorktreeEventsDistinct(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "log.txt")

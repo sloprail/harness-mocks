@@ -30,7 +30,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 }
 
 // TestT008_01_SessionFileCreatedUnderConfigDir: session JSONL appears under configDir/projects/.
-// sr:proves session-transcript-file/claude
+// staged:proves session-transcript-file/claude
 func TestT008_01_SessionFileCreatedUnderConfigDir(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
@@ -141,7 +141,7 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","stop_reason":n
 }
 
 // TestT008_05_CLAUDECONFIGDIREnvOverridesDefault: CLAUDE_CONFIG_DIR env is honoured when no --config-dir flag.
-// sr:proves session-transcript-file/claude
+// staged:proves session-transcript-file/claude
 func TestT008_05_CLAUDECONFIGDIREnvOverridesDefault(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "env-config")

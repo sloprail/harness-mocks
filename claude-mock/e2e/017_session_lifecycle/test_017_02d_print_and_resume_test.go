@@ -14,8 +14,8 @@ import (
 // TestT017_16_NoStderrOutput: a Stop hook that fails without writing to stderr
 // is recorded as "Failed with non-blocking status code: No stderr output", and
 // its stop_hook_summary lists the error.
-// sr:proves hook-exit-code-semantics/claude
-// sr:proves hook-output-transcript-records/claude
+// staged:proves hook-exit-code-semantics/claude
+// staged:proves hook-output-transcript-records/claude
 func TestT017_16_NoStderrOutput(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -44,7 +44,7 @@ func TestT017_16_NoStderrOutput(t *testing.T) {
 // the way claude 2.1.282 fails it: "No conversation found with session ID:
 // <id>" on stderr, an error result frame on stdout, exit 1, no SessionStart,
 // SessionEnd fired, nothing written.
-// sr:proves session-resume-unknown/claude
+// staged:proves session-resume-unknown/claude
 func TestT017_17_UnknownResume(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -71,8 +71,8 @@ func TestT017_17_UnknownResume(t *testing.T) {
 // TestT017_18_PrintMode: in raw --print mode Stop carries the output as
 // last_assistant_message, and SessionEnd ends a `claude -p` session with
 // reason "other" (claude 2.1.282).
-// sr:proves session-end-hook/claude
-// sr:proves stop-hook-payload/claude
+// staged:proves session-end-hook/claude
+// staged:proves stop-hook-payload/claude
 func TestT017_18_PrintMode(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -116,7 +116,7 @@ func TestT017_22_ForkSessionWithoutResumeIsAPlainStart(t *testing.T) {
 // TestT017_23_MainRecordsCarryRealBookkeeping: every record the session writes
 // carries what every real one does — isSidechain false, userType, entrypoint
 // "sdk-cli" (a `claude -p` run), version, gitBranch in a git repository.
-// sr:proves transcript-record-envelope/claude
+// staged:proves transcript-record-envelope/claude
 func TestT017_23_MainRecordsCarryRealBookkeeping(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -146,7 +146,7 @@ func TestT017_23_MainRecordsCarryRealBookkeeping(t *testing.T) {
 // "(<Tool> completed with no output)" — claude 2.1.282 replaces empty result
 // content with it; the real transcripts hold 3,479 such Bash results and no
 // empty one. The structured result keeps the empty stdout.
-// sr:proves empty-tool-result-placeholder/claude
+// staged:proves empty-tool-result-placeholder/claude
 func TestT017_24_EmptyToolResult(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
