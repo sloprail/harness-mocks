@@ -30,6 +30,10 @@ type Outcome struct {
 	// Done is when it finished among the commands of its event: 1 for the
 	// first to finish, and so on.
 	Done int
+	// Took is how long it ran.
+	Took time.Duration
+	// Timeout is the limit it ran under.
+	Timeout time.Duration
 }
 
 // Runtime is where a harness runs its hook commands.
@@ -64,9 +68,10 @@ func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Out
 
 func runOne(ctx context.Context, c Command, stdin []byte, rt Runtime) Outcome {
 	timeout := DefaultTimeout(c.Timeout, rt.DefaultTimeout)
+	start := time.Now()
 	res, err := procexec.Run(ctx, procexec.Spec{
 		Argv: []string{"/bin/sh", "-c", c.Line}, Dir: rt.Dir, Stdin: stdin, Env: rt.Env, Timeout: timeout,
 	})
 	return Outcome{Command: c.Line, Exit: res.ExitCode, Started: err == nil && res.Started, TimedOut: res.TimedOut,
-		Stdout: string(res.Stdout), Stderr: string(res.Stderr)}
+		Stdout: string(res.Stdout), Stderr: string(res.Stderr), Took: time.Since(start), Timeout: timeout}
 }
