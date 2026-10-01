@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/tasks); today it lives in the claude-mock files below.
 concern: "background tasks: launching, tracking, delivering their notifications and killing them"
-home: ["internal/tasks/**"]   # everything about the concern lives here
-api: ["internal/tasks"]       # the only package others may import
+home: ["internal/tasks/**", "claude-mock/internal/runner/background*.go"]   # everything about the concern lives here
+api: ["internal/tasks"]       # the only packages others may import

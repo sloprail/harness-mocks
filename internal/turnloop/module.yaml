@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/turnloop); today it lives in the claude-mock files below.
 concern: "the turn: running the agent, the end-of-turn hook, re-prompting on a block, and the block cap"
-home: ["internal/turnloop/**"]   # everything about the concern lives here
-api: ["internal/turnloop"]       # the only package others may import
+home: ["internal/turnloop/**", "claude-mock/internal/runner/stream.go", "claude-mock/internal/runner/stream_hook.go", "claude-mock/internal/runner/stream_turn.go"]   # everything about the concern lives here
+api: ["internal/turnloop"]       # the only packages others may import

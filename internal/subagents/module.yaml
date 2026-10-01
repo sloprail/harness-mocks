@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/subagents); today it lives in the claude-mock files below.
 concern: "a nested agent run: its identity, working directory or worktree, transcript, hooks and result"
-home: ["internal/subagents/**"]   # everything about the concern lives here
-api: ["internal/subagents"]       # the only package others may import
+home: ["internal/subagents/**", "claude-mock/internal/runner/agent*.go", "claude-mock/internal/runner/session_subagent.go"]   # everything about the concern lives here
+api: ["internal/subagents"]       # the only packages others may import

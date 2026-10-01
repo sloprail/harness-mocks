@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/tools); today it lives in the claude-mock files below.
 concern: "executing the built-in tools (Bash, Read, Write, Edit, Glob)"
-home: ["internal/tools/**"]   # everything about the concern lives here
-api: ["internal/tools"]       # the only package others may import
+home: ["internal/tools/**", "claude-mock/internal/toolexec/**", "claude-mock/internal/runner/schedulewakeup.go"]   # everything about the concern lives here
+api: ["internal/tools", "claude-mock/internal/toolexec"]       # the only packages others may import

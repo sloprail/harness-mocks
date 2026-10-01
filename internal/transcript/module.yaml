@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/transcript); today it lives in the claude-mock files below.
 concern: "a session's append-only, chained record file"
-home: ["internal/transcript/**"]   # everything about the concern lives here
-api: ["internal/transcript"]       # the only package others may import
+home: ["internal/transcript/**", "claude-mock/internal/runner/transcript*.go", "claude-mock/internal/runner/sessionwriter*.go"]   # everything about the concern lives here
+api: ["internal/transcript"]       # the only packages others may import

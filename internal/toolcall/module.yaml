@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/toolcall); today it lives in the claude-mock files below.
 concern: "a tool call: the pre-tool hook, refusing or executing, the result, and the post-tool hooks"
-home: ["internal/toolcall/**"]   # everything about the concern lives here
-api: ["internal/toolcall"]       # the only package others may import
+home: ["internal/toolcall/**", "claude-mock/internal/runner/stream_tool.go"]   # everything about the concern lives here
+api: ["internal/toolcall"]       # the only packages others may import

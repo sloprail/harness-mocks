@@ -1,5 +1,5 @@
-# SAMPLE target module (the package does not exist yet). A module is an area
-# of code with a boundary; its decisions live here, not in an ADR.
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is to come (internal/compaction); today it lives in the claude-mock files below.
 concern: "the compaction sequence and what it preserves"
-home: ["internal/compaction/**"]   # everything about the concern lives here
-api: ["internal/compaction"]       # the only package others may import
+home: ["internal/compaction/**", "claude-mock/internal/runner/control*.go"]   # everything about the concern lives here
+api: ["internal/compaction"]       # the only packages others may import
