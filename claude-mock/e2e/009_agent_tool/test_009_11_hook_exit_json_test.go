@@ -333,3 +333,26 @@ func TestT009_11_Exit2JSONReasonBeatsStderr(t *testing.T) {
 	}
 	assert.Equal(t, []string{"PreToolUse:Bash hook error: the JSON reason wins"}, results, "no [cmd] prefix, no stderr")
 }
+
+// On the events whose plain-text stdout becomes context, stdout tried as JSON
+// that does not parse is a non-blocking error, and its text is not added as
+// context.
+// sr:docs https://code.claude.com/docs/en/hooks#exit-code-0
+// sr:proves hook-exit-code-semantics/claude
+func TestT009_11_MalformedJSONOnContextEventsIsNotContext(t *testing.T) {
+	for _, event := range []string{"UserPromptSubmit", "SessionStart"} {
+		t.Run(event, func(t *testing.T) {
+			dir := t.TempDir()
+			ctxLog := filepath.Join(dir, "ctx.log")
+			writeSettings(t, dir, map[string]string{event: hookWithRaw(t, dir, "{not json at all}", "", 0)})
+			script := writeScript(t, dir, "s.sh", "#!/bin/sh\nprintf %s \"$A10N_MOCK_ADDITIONAL_CONTEXT\" > \""+ctxLog+"\"\nprintf '%s\\n' '"+resultFrame+"'\n")
+			cfg := filepath.Join(dir, "config")
+			out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-mj", "--project-dir", dir, "--config-dir", cfg, "-p", "hi")
+			require.Equal(t, 0, code, "output:\n%s", out)
+			assert.NotContains(t, readOrEmpty(ctxLog), "not json", "malformed JSON is not context")
+			errs := attachmentsOf(allRecords(t, cfg), "hook_non_blocking_error")
+			require.NotEmpty(t, errs, "malformed JSON is a non-blocking error")
+			assert.True(t, strings.HasPrefix(errs[0]["stderr"].(string), "Hook output looks like a JSON object but is not valid JSON"))
+		})
+	}
+}
