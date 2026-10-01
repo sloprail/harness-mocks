@@ -6,5 +6,5 @@ providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/env-vars#variables
-    runs:
+    runz:
       - claude-mock/snapshots/runs/subprocess-session-env
