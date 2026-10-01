@@ -4,7 +4,7 @@ sloprails: [file-guard/module-coverage]
 # The code that must be mapped to modules.
 space: ["internal/**", "*-mock/**"]
 # Globs of code not yet in any module. Each only shrinks.
-exceptions: ["claude-mock/main.go", "claude-mock/run.go", "claude-mock/run_flags.go", "claude-mock/e2etest/**"]
+exceptions: []
 ---
 
 # Every piece of code belongs to exactly one module
