@@ -11,4 +11,4 @@ providers:
       - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
     runs:
       - claude-mock/snapshots/runs/bashfail
-      - claude-mock/snapshots/runs/bgbash
+      - claude-mock/snapshots/runs/stops
