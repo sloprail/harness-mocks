@@ -17,6 +17,8 @@ type turnHost struct{ *state }
 // SubmitPrompt fires UserPromptSubmit: the context the hooks add (plain text
 // or additionalContext), and whether one blocked the prompt (exit 2, or a block
 // decision).
+// sr:provides user-prompt-submit-hook/codex
+// sr:provides hook-additional-context/codex
 func (h turnHost) SubmitPrompt(ctx context.Context) (string, bool) {
 	var texts []string
 	blocked := false
@@ -50,6 +52,8 @@ func (h turnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
 
 // EndOfTurn fires Stop. A hook that blocks (exit 2, or a block decision) asks
 // for the turn to continue; the first one's reason is the new prompt.
+// sr:provides stop-block-continuation/codex
+// sr:provides stop-hook-payload/codex
 func (h turnHost) EndOfTurn(ctx context.Context, last string, continuing bool) (string, bool) {
 	own := map[string]any{"turn_id": h.turnID, "stop_hook_active": continuing, "last_assistant_message": last}
 	for _, o := range h.hooks.Fire(ctx, hooks.Stop, "", own) {
@@ -72,3 +76,7 @@ func (h turnHost) Continue(reason string) {
 
 // SessionFile is the rollout the script reads.
 func (h turnHost) SessionFile() string { return h.rollout.Path }
+
+// CapOverridden: Codex has no cap on end-of-turn blocks (the run passes none),
+// so this is never called.
+func (h turnHost) CapOverridden(int) {}

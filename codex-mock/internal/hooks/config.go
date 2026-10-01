@@ -18,6 +18,7 @@ const (
 	PreToolUse       Event = "PreToolUse"
 	PostToolUse      Event = "PostToolUse"
 	Stop             Event = "Stop"
+	SessionEnd       Event = "SessionEnd"
 )
 
 // Handler is one command hook.

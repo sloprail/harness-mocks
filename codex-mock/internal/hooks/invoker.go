@@ -36,6 +36,9 @@ var toolAliases = map[string][]string{"apply_patch": {"Edit", "Write"}}
 // fields and the event's own. UserPromptSubmit and Stop ignore a matcher.
 //
 // sr:docs https://developers.openai.com/codex/hooks#review-and-trust-hooks
+// sr:provides hook-command-handler/codex
+// sr:provides hook-matcher-filter/codex
+// sr:provides hook-timeout/codex
 func (iv *Invoker) Fire(ctx context.Context, ev Event, match string, own map[string]any) []corehooks.Outcome {
 	var cmds []corehooks.Command
 	for _, g := range iv.Config[ev] {

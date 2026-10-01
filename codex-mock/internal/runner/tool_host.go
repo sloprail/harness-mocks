@@ -55,11 +55,15 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // After fires PostToolUse, which Codex fires for every command that ran,
 // whatever its exit status; a hook that blocks (exit 2, or a block decision)
 // gives the agent its feedback in place of the result.
+// sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
 	own := h.payload(c)
 	own["tool_response"] = r.Output
 	for _, o := range h.hooks.Fire(ctx, hooks.PostToolUse, toolName, own) {
 		d := hooks.Interpret(hooks.PostToolUse, o)
+		if d.Context != "" {
+			h.rollout.Developer(d.Context)
+		}
 		switch {
 		case d.Blocked:
 			return d.BlockReason, true

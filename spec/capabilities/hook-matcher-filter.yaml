@@ -9,3 +9,8 @@ providers:
       - https://code.claude.com/docs/en/hooks#matcher-patterns
     runs:
       - claude-mock/snapshots/runs/matcher
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#matcher-patterns
+    runs:
+      - codex-mock/snapshots/runs/hook-matchers

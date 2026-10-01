@@ -47,6 +47,9 @@ type state struct {
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
+// sr:provides session-start-hook/codex
+// sr:provides session-end-hook/codex
+// sr:provides noninteractive-run/codex
 func Run(ctx context.Context, cfg Config) error {
 	if cfg.Script == "" {
 		return errors.New("codex-mock: a scenario script is required (--script or A10N_MOCK_SCRIPT)")
@@ -80,6 +83,9 @@ func Run(ctx context.Context, cfg Config) error {
 	last, err := turnloop.Run(ctx, turnHost{s}, turnloop.Params{
 		Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
 	s.events.TurnCompleted()
+	// The session ends with the run, for the one reason a non-interactive run has;
+	// what the hook prints is not read.
+	s.hooks.Fire(ctx, hooks.SessionEnd, "other", map[string]any{"reason": "other"})
 	if !cfg.JSON && last != "" {
 		fmt.Fprintln(cfg.Stdout, last)
 	}

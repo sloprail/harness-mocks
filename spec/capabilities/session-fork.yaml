@@ -9,3 +9,4 @@ providers:
       - https://code.claude.com/docs/en/agent-sdk/sessions#fork-to-explore-alternatives
     runs:
       - claude-mock/snapshots/runs/forkresume
+  codex: false

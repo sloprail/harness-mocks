@@ -114,7 +114,7 @@ func sortedHookLines(lines []map[string]any) []string {
 // sr:proves pretooluse-refusal/codex
 func TestReplayOfRecordedRuns(t *testing.T) {
 	for _, name := range []string{"stops", "hook-exit-codes", "hook-exit-json", "hook-unstartable",
-		"pretool-decisions", "prompt-blocked", "posttool-block"} {
+		"pretool-decisions", "prompt-blocked", "posttool-block", "hook-matchers", "hook-timeout", "session-end"} {
 		t.Run(name, func(t *testing.T) {
 			rec := loadRecording(t, name)
 			got := replay(t, rec)

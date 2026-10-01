@@ -16,6 +16,7 @@ type Common struct {
 // tool_input, prompt, source, …).
 //
 // sr:docs https://developers.openai.com/codex/hooks#common-input-fields
+// sr:provides hook-common-payload/codex
 func Payload(c Common, ev Event, own map[string]any) []byte {
 	p := map[string]any{
 		"session_id":      c.SessionID,
@@ -24,6 +25,10 @@ func Payload(c Common, ev Event, own map[string]any) []byte {
 		"hook_event_name": string(ev),
 		"model":           c.Model,
 		"permission_mode": c.PermissionMode,
+	}
+	if ev == SessionEnd { // recorded: a session-end payload names neither model nor permission mode
+		delete(p, "model")
+		delete(p, "permission_mode")
 	}
 	for k, v := range own {
 		p[k] = v

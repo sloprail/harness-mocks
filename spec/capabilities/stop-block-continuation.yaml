@@ -11,3 +11,9 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/cap
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#stop
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/hook-exit-codes

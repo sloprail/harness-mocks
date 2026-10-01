@@ -1,0 +1,15 @@
+{"event":"hook","hook":null,"payload":{"ran":"session-startup","event":"SessionStart","tool":""}}
+{"event":"hook","hook":null,"payload":{"ran":"prompt-ignored-matcher","event":"UserPromptSubmit","tool":""}}
+{"event":"hook","hook":null,"payload":{"ran":"pre-star","event":"PreToolUse","tool":"Bash"}}
+{"event":"hook","hook":null,"payload":{"ran":"pre-bash","event":"PreToolUse","tool":"Bash"}}
+{"event":"hook","hook":null,"payload":{"ran":"pre-empty","event":"PreToolUse","tool":"Bash"}}
+{"event":"hook","hook":null,"payload":{"ran":"post-bash","event":"PostToolUse","tool":"Bash"}}
+{"event":"hook","hook":null,"payload":{"ran":"stop-ignored-matcher","event":"Stop","tool":""}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

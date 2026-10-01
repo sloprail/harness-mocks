@@ -9,3 +9,14 @@ providers:
     runs:
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/stops
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#common-input-fields
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/hook-matchers
+      - codex-mock/snapshots/runs/session-end
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no sub-agents (its tool executor handles only the shell tool), so the events a sub-agent raises, which Codex gives the parent session's id and an agent id, are not modeled; every event is a main-thread event.
