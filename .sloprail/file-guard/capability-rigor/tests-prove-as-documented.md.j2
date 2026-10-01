@@ -67,6 +67,20 @@ failure.
   tests assert the deviation, and a test asserting the real behaviour instead
   fails.
 
+## How to decide
+
+Before deciding, make the checklist: every statement inside the capability's
+scope that the docs or the runs make, one item each: each value, each kind of
+child process, and each variant a doc sentence names (e.g. "on resume", "on
+clear", "when nested", "when unknown"). Then find, for each item, the test
+that checks it. An item with no test fails the subject, however minor it
+looks. A doc variant the mock does not support at all is still an item: it
+fails unless a <deviation> declares it.
+
+Your reasoning, pass or fail, is that checklist: each item, the doc line or
+run it comes from, and the test that checks it (or "none"). A pass with no
+checklist is not a pass.
+
 ## Fail
 
 Name each test that asserts something the real harness did not do (quote the
