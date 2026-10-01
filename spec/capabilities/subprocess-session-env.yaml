@@ -20,3 +20,9 @@ providers:
           or tmux sessions), no PowerShell tool and no Monitor tool, so the
           docs' session id updated on /clear and the variables set for status
           line, tmux, PowerShell and Monitor children are not modeled.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#environment-variables
+    runs:
+      - cursor-mock/snapshots/runs/subprocess-session-env
+      - cursor-mock/snapshots/runs/nested-session-env

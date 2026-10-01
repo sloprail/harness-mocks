@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# The ONLY writer of cursor-mock/snapshots/ (the snapshots-read-only gate
+# refuses every other write). Everything it writes is sealed; snapshots-current
+# refuses a snapshot whose seal does not match, so a hand edit is caught at the
+# commit even if it slipped past the gate.
+#
+#   capture.sh run <name>    run the scenario in runs/<name>/setup/ against the
+#                            real `cursor-agent`, and add a sample
+#   capture.sh doc <url>     freeze a doc page (e.g. https://cursor.com/docs/hooks):
+#                            its sha256 goes in the MANIFEST; its text only into a cache
+#                            under the git dir, never into the repo
+#   capture.sh drop <run> <ts>  remove one sample (a bad or non-hermetic capture)
+#   capture.sh all           re-capture every run and doc at the installed
+#                            cursor-agent's version, and set MANIFEST.version to it
+#
+# The version is cursor-agent's release date (`2026.09.28`): `--version` also
+# prints a build hash after it (`2026.09.28-64d2043`), which the schema's
+# version pattern does not take, so the hash is dropped.
+#
+# Login: cursor-agent has no environment-only login in this setup, so the fake
+# HOME links to the user's Keychains directory and nothing else (the same as
+# claude-mock's capture). No credential is copied into the fake HOME; the
+# email the login reports is nulled out of every payload before anything is
+# sealed. A CURSOR_API_KEY is never read or passed.
+#
+# A scenario is hand-authored, and only its setup/ is:
+#   runs/<name>/setup/prompt.txt       the prompt
+#   runs/<name>/setup/hooks.json       the project's .cursor/hooks.json
+#   runs/<name>/setup/*.sh             optional: the hook scripts, installed in .cursor/hooks/;
+#                                      hook.sh appends to $HOOK_LOG
+#   runs/<name>/setup/args             optional: extra cursor-agent flags, one per line
+#   runs/<name>/setup/env              optional: KEY=VALUE lines cursor-agent inherits on
+#                                      top of the hermetic env
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+manifest="$here/MANIFEST.yaml"
+die() { echo "capture.sh: $*" >&2; exit 1; }
+version() { yq -r '.version' "$manifest"; }
+installed() { cursor-agent --version | awk '{print $1}' | sed 's/-.*$//'; }
+# The first capture creates the MANIFEST, frozen at the installed version: it is
+# a snapshot file too, so nothing else may write it.
+[ -f "$manifest" ] || printf 'version: "%s"\n' "$(installed)" >"$manifest"
+
+# seal DIR — SEAL lists the sha256 of every other file under DIR.
+# Written to SEAL.tmp and renamed only on success, so a SEAL always means a
+# complete sample (the cleanup trap relies on it).
+seal() { (cd "$1" && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shasum -a 256 >SEAL.tmp && mv SEAL.tmp SEAL); }
+
+# normalize — hook payloads and stream frames into events.jsonl: what a
+# scenario did, without what differs between two captures of the same
+# behaviour (ids, paths, timings, the model's own wording, how many thoughts
+# it voiced). The run's own session id is kept as <SESSION_ID> wherever it
+# appears, so that they match is recorded; which session a value names is
+# behaviour, the id itself is not.
+normalize() {
+  local cap="$1" sid
+  sid="$(jq -r 'select(.session_id) | .session_id' "$cap/payloads.jsonl" 2>/dev/null | head -n1 || true)"
+  jq -c --arg sid "${sid:-<none>}" 'select(.hook_event_name != "afterAgentThought")
+         | walk(if type == "object" then del(.transcript_path, .cwd, .workspace_roots, .user_email, .generation_id, .tool_use_id,
+              .duration, .duration_ms, .model, .model_id, .model_params, .cursor_version, .conversation_id)
+          elif type == "string" then gsub($sid; "<SESSION_ID>") else . end)
+         | {event: "hook", hook: .hook_event_name, payload: .}' "$cap/payloads.jsonl" 2>/dev/null || true
+  jq -c 'select(.type != "assistant" and .type != "user" and .type != "thinking")
+         | if .type == "tool_call" then (.tool_call | to_entries | map(select(.key | endswith("ToolCall")))[0]) as $t
+             | {event: "stream", type, subtype, tool: $t.key,
+                outcome: (if .subtype == "completed" then ($t.value.result | keys | map(select(. != "isBackground"))[0]) else null end)}
+           else {event: "stream", type, subtype: (.subtype // null)} end' "$cap/stream.jsonl" 2>/dev/null || true
+}
+
+# one capture at a time: the model calls are the user's account's
+lock=/tmp/capture-cursor.lock.d
+acquire() { local n=0; until mkdir "$lock" 2>/dev/null; do n=$((n + 1)); [ "$n" -lt 600 ] || die "another cursor capture holds $lock"; sleep 1; done; }
+
+capture_run() {
+  local name="$1" run="$here/runs/$1" v ts home
+  work="" cap=""   # global: the EXIT trap below reads them
+  [ -f "$run/setup/prompt.txt" ] || die "runs/$name/setup/prompt.txt is missing: author the scenario first"
+  v="$(version)"; [ "$(installed)" = "$v" ] || die "installed cursor-agent is $(installed), MANIFEST.version is $v: run 'capture.sh all' to move to it"
+  acquire
+  ts="$(date -u +%Y%m%d-%H%M%S)"
+  cap="$run/samples/$ts"
+  # a capture that fails part-way leaves nothing behind: no half-written sample
+  trap 'rm -rf "$work"; [ -f "$cap/SEAL" ] || rm -rf "$cap"; rmdir "$lock" 2>/dev/null || true' EXIT
+  [ ! -e "$cap" ] || die "a sample named $ts already exists; re-run in a second"
+  work="$(cd "$(mktemp -d)" && pwd -P)"; home="$work/home"   # canonical (/private/var/…), so sanitizing matches the paths cursor-agent records
+  mkdir -p "$work/repo/.cursor/hooks" "$home/Library" "$cap"
+  mkdir -m 700 "$work/tmp"
+  ln -s "$HOME/Library/Keychains" "$home/Library/Keychains" 2>/dev/null || true   # keeps the login, nothing else
+  cp "$run/setup/hooks.json" "$work/repo/.cursor/hooks.json" 2>/dev/null || true
+  for s in "$run"/setup/*.sh; do [ -f "$s" ] && cp "$s" "$work/repo/.cursor/hooks/" && chmod +x "$work/repo/.cursor/hooks/$(basename "$s")"; done
+  git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
+  args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
+  extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
+  # Hermetic: cursor-agent starts from an EMPTY environment plus only what it needs
+  # to run, so nothing of the session that runs this script can leak into what
+  # the capture records as the harness's own behaviour. stdin is closed so a -p
+  # run does not wait for it. (A literal /tmp path stays shared: only a sandbox
+  # could stop that.)
+  local bin; bin="$(command -v cursor-agent)" || die "cursor-agent is not on PATH"
+  set +e
+  (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
+    "$bin" -p --force --trust --model auto --output-format stream-json \
+      ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
+  echo $? >"$cap/exit.txt"
+  set -e
+  mkdir -p "$cap/transcript"
+  cp -R "$home/.cursor/projects/"*/agent-transcripts/* "$cap/transcript/" 2>/dev/null || true
+  # the transcript stamps the wall clock and the user's timezone into the prompt
+  find "$cap/transcript" -name '*.jsonl' -type f | while IFS= read -r f; do
+    jq -c 'walk(if type == "string" then gsub("<timestamp>[^<]*</timestamp>"; "<timestamp/>") else . end)' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+  done
+  # the login's email: every payload carries it as user_email; nulled, never kept
+  if [ -f "$cap/payloads.jsonl" ]; then
+    jq -c 'if type == "object" and has("user_email") then .user_email = null else . end' "$cap/payloads.jsonl" >"$cap/payloads.tmp" && mv "$cap/payloads.tmp" "$cap/payloads.jsonl"
+  fi
+  # redact: the value of every secret-named variable a child saw out of
+  # everything captured, before anything is sealed or committed
+  { jq -r 'select(.hook_env) | .hook_env | to_entries[] | select(.key | test("TOKEN|SECRET|KEY|PASSWORD")) | .value' "$cap/payloads.jsonl" 2>/dev/null || true
+    grep -rhoE '[A-Z0-9_]*(TOKEN|SECRET|KEY|PASSWORD)[A-Z0-9_]*=[A-Za-z0-9._/+-]{8,}' "$cap" 2>/dev/null | cut -d= -f2- || true   # no secret is fine
+  } | sort -u | while IFS= read -r secret; do
+    [ "${#secret}" -ge 8 ] || continue
+    { grep -rlF -e "$secret" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do sed -i '' -e "s#$secret#<REDACTED>#g" "$f"; done
+  done
+  # sanitize: the machine's paths out of everything captured, and the run dir as
+  # cursor-agent encodes it into a folder name (every non-alphanumeric as -)
+  local enc; enc="$(printf '%s' "${work#/}/repo" | sed 's#[^A-Za-z0-9]#-#g')"
+  { grep -rlF -e "$work" -e "$HOME" -e "$enc" "$cap" 2>/dev/null || true; } | while IFS= read -r f; do
+    sed -i '' -e "s#$work/repo#<RUN>#g" -e "s#$work#<TMP>#g" -e "s#$HOME#<HOME>#g" -e "s#$enc#<RUN_DIRNAME>#g" "$f"
+  done
+  normalize "$cap" >"$cap/events.jsonl"
+  # a sample never carries an email address but Anthropic's attribution one
+  if grep -rhoE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}' "$cap" | grep -vxq 'noreply@anthropic.com'; then
+    grep -rlE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}' "$cap" | sed "s#^$cap/#  #" >&2
+    die "the capture holds an email address in the files above; not sealed, and removed"
+  fi
+  # nor the account's user name
+  if [ "${#USER}" -ge 4 ] && grep -rqF -e "$USER" "$cap"; then
+    grep -rlF -e "$USER" "$cap" | sed "s#^$cap/#  #" >&2
+    die "the capture holds the user name in the files above; not sealed, and removed"
+  fi
+  # a re-capture with the same events adds nothing
+  for other in "$run"/samples/*/; do
+    [ "$other" = "$cap/" ] && continue
+    if cmp -s "$other/events.jsonl" "$cap/events.jsonl"; then
+      rm -rf "$cap" "$work"; echo "same events as $(basename "$other"): no new sample"; return 0
+    fi
+  done
+  printf 'version: %s\ncommand: cursor-agent -p --force --trust --model auto --output-format stream-json\n' "$v" >"$run/run.yaml"
+  seal "$cap"
+  rm -rf "$work"
+  echo "captured runs/$name/samples/$ts"
+}
+
+# capture_doc URL — freeze a doc page: fetch <url>.md, record its sha256 in the
+# MANIFEST, and keep the text only in the cache under the git dir (the rules'
+# doc_copy reads it there). The page's text is never committed: it is the
+# harness vendor's.
+capture_doc() {
+  local url="${1%%#*}" v tmp sha cache
+  url="${url%/}"; v="$(version)"; tmp="$(mktemp)"
+  curl -fsSL "$url.md" -o "$tmp" || die "could not fetch $url.md"
+  head -c 200 "$tmp" | grep -q '<html' && die "$url.md is not markdown"
+  sha="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
+  cache="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/sloprail-doc-cache"
+  mkdir -p "$cache" && mv "$tmp" "$cache/$sha.md"
+  URL="$url" V="$v" SHA="$sha" yq -i '.docs[strenv(URL)] = {"version": strenv(V), "sha256": strenv(SHA)}' "$manifest"
+  echo "froze $url at sha256 $sha (text cached, not committed)"
+}
+
+case "${1:-}" in
+  run) [ -n "${2:-}" ] || die "usage: capture.sh run <name>"; capture_run "$2" ;;
+  drop)
+    # The one way to remove a sample: this script is the only writer of
+    # snapshots/, and a hand `rm` there is refused by gate/snapshots-read-only.
+    [ -n "${2:-}" ] && [ -n "${3:-}" ] || die "usage: capture.sh drop <run> <sample-timestamp>"
+    printf '%s' "$3" | grep -Eq '^[0-9]{8}-[0-9]{6}$' || die "a sample is named YYYYMMDD-HHMMSS"
+    [ -d "$here/runs/$2/samples/$3" ] || die "no sample runs/$2/samples/$3"
+    rm -rf "$here/runs/$2/samples/$3"
+    echo "dropped runs/$2/samples/$3"
+    ;;
+  doc) [ -n "${2:-}" ] || die "usage: capture.sh doc <url>"; capture_doc "$2" ;;
+  all)
+    v="$(installed)"; yq -i ".version = \"$v\"" "$manifest"
+    for r in "$here"/runs/*/; do rm -rf "$r/samples"; capture_run "$(basename "$r")"; done
+    for u in $(yq -r '.docs // {} | keys | .[]' "$manifest"); do capture_doc "$u"; done
+    ;;
+  *) die "usage: capture.sh run <name> | drop <run> <ts> | doc <url> | all" ;;
+esac

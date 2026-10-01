@@ -44,3 +44,25 @@ providers:
           WorktreeRemove fails on a non-zero hook exit only if the worktree's
           directory still exists afterward. The mock's worktree_remove manages
           no directory, so any non-zero exit fails it.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#command-based-hooks
+      - https://cursor.com/docs/hooks#per-script-configuration-options
+      - https://cursor.com/docs/hooks#troubleshooting
+    runs:
+      - cursor-mock/snapshots/runs/hook-exit-codes
+      - cursor-mock/snapshots/runs/hook-fail-closed
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock fires sessionStart, sessionEnd, preToolUse, postToolUse,
+          postToolUseFailure, beforeShellExecution, afterShellExecution and
+          afterFileEdit, and no others. The docs' exit-code rules for the other
+          permission hooks (beforeMCPExecution, beforeReadFile,
+          beforeTabFileRead, subagentStart) and for afterMCPExecution,
+          subagentStop, beforeSubmitPrompt, preCompact, stop,
+          afterAgentResponse, afterAgentThought, the Tab hooks and
+          workspaceOpen are not modeled; the recordings show cursor-agent in
+          print mode firing none of beforeSubmitPrompt, afterAgentResponse and
+          stop.

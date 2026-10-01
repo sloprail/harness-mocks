@@ -37,3 +37,28 @@ jobs:
           git config --global user.name  harness-mocks CI
 
       - run: make -C claude-mock test-e2e
+
+  cursor-unit:
+    name: cursor-mock unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make -C cursor-mock test-unit
+
+  cursor-e2e:
+    name: cursor-mock e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      # the e2e suite replays recorded runs, whose hook scripts use jq
+      - name: jq
+        run: sudo apt-get install -y jq
+      - run: make -C cursor-mock test-e2e

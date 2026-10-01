@@ -21,6 +21,22 @@ make test-unit  # unit tests
 make test-e2e   # full e2e suite, driving the built binary
 ```
 
+## Building and testing cursor-mock
+
+`cursor-mock/` is the same kind of stand-in for the `cursor-agent` CLI (print
+mode, `--output-format stream-json`): a scenario script plays the agent, the
+mock fires Cursor's hooks from `.cursor/hooks.json` and runs the Shell, Read and
+Write tools. It is an adapter on the shared core in `internal/`. Its e2e suite
+replays the runs recorded in `cursor-mock/snapshots/` (captured with
+`snapshots/capture.sh` against the installed `cursor-agent`; needs `jq`).
+
+```
+cd cursor-mock
+make build      # builds ../bin/a10n-cursor-mock
+make test-unit  # unit tests
+make test-e2e   # e2e suite, driving the built binary
+```
+
 ## Releases
 
 Pushing a tag matching `v*` (or running the `publish claude-mock` workflow

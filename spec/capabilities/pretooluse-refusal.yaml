@@ -19,3 +19,19 @@ providers:
           the call to resume later) decide nothing in the mock; they only rank
           below deny when several hooks decide one call. Permission rules
           evaluated beside the hook are not modeled.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#pretooluse
+      - https://cursor.com/docs/hooks#beforeshellexecution--beforemcpexecution
+      - https://cursor.com/docs/hooks#configuration
+    runs:
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock models a non-interactive run with no one to ask, so a hook's
+          "ask" (a permission prompt) decides nothing in the mock; it only ranks
+          below deny when several hooks decide one call. The call-refusing
+          hooks the mock fires are preToolUse and beforeShellExecution;
+          beforeMCPExecution, beforeReadFile and subagentStart, which refuse
+          too, are not modeled.

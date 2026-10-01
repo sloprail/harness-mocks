@@ -1,0 +1,1 @@
+Do these as separate shell tool calls, one command per call, in order, whatever happens: 1) echo EXIT2ME 2) echo EXIT1ME 3) echo EXIT3ME 4) echo BADJSON 5) echo AFTER2ME 6) echo FINE. If a call is refused, do not retry it or look for a workaround; go on to the next. Then reply only DONE.
