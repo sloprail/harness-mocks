@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,9 +40,15 @@ func TestT017_32_CommonFieldsOnEveryEvent(t *testing.T) {
 	require.NoError(t, err)
 	agentIDs := map[string]bool{}
 	seen := map[string]bool{}
+	var order []string
 	for _, p := range payloads(t, log) {
 		ev := p["hook_event_name"].(string)
 		id, _ := p["tool_use_id"].(string)
+		if strings.HasPrefix(id, "ag1") {
+			order = append(order, ev+":Agent")
+		} else {
+			order = append(order, ev)
+		}
 		sub := ev == "SubagentStart" || ev == "SubagentStop" || strings.HasPrefix(id, "sb1")
 		seen[ev] = true
 		assert.Equal(t, "cf-1", p["session_id"], "%s names the session", ev)
@@ -62,6 +69,21 @@ func TestT017_32_CommonFieldsOnEveryEvent(t *testing.T) {
 		assert.True(t, seen[ev], "%s never fired", ev)
 	}
 	assert.Len(t, agentIDs, 1, "one sub-agent, one id, on every event it raised")
+	// the Agent call is a main-thread call: it brackets the sub-agent's whole run
+	pre, start, stop, post := -1, -1, -1, -1
+	for i, ev := range order {
+		switch ev {
+		case "PreToolUse:Agent":
+			pre = i
+		case "SubagentStart":
+			start = i
+		case "SubagentStop":
+			stop = i
+		case "PostToolUse:Agent":
+			post = i
+		}
+	}
+	assert.True(t, pre >= 0 && pre < start && start < stop && stop < post, "order: %v", order)
 }
 
 // TestT017_33_PostToolUsePayloadFields: after a successful call a hook is told
@@ -140,6 +162,62 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 	assert.Equal(t, "CTX-ONE\nCTX-TWO", string(ctx), "every hook's context is added")
 }
 
+// TestT017_36_EveryHooksContextIsRecorded: two hooks on one event each return
+// JSON additionalContext and each leaves its own record, in hook order. After
+// a tool call it is a hook_success then a hook_additional_context, named for
+// the tool and keyed by the call's id, for an Agent call as for a Bash one; for
+// a submitted prompt it is the hook_additional_context alone, named for the
+// event (recorded: snapshots/runs/ctxmulti).
+// sr:proves hook-additional-context/claude
+// sr:proves user-prompt-submit-hook/claude
+func TestT017_36_EveryHooksContextIsRecorded(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	hook := func(name, ev, ctx string) string {
+		return write(t, filepath.Join(dir, name), "#!/bin/sh\ncat >/dev/null\necho '{\"hookSpecificOutput\":{\"hookEventName\":\""+ev+"\",\"additionalContext\":\""+ctx+"\"}}'\n", 0o755)
+	}
+	two := func(ev string) string {
+		return `[{"matcher":"*","hooks":[{"type":"command","command":"` + hook(ev+"1.sh", ev, ev+"-ONE") + `"},{"type":"command","command":"` + hook(ev+"2.sh", ev, ev+"-TWO") + `"}]}]`
+	}
+	write(t, filepath.Join(dir, ".claude", "settings.json"),
+		`{"hooks":{"UserPromptSubmit":`+two("UserPromptSubmit")+`,"PostToolUse":`+two("PostToolUse")+`}}`, 0o644)
+	sub := script(t, dir, "sub")
+	orch := script(t, dir, "orch",
+		toolUse("b1", "Bash", `{"command":"true"}`),
+		toolUse("ag1", "Agent", `{"prompt":"p","description":"d","script":"`+sub+`"}`))
+	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "cx-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+
+	var got []string
+	for _, r := range readRecs(t, transcriptPath(t, cfg, dir, "cx-1")) {
+		if r.Type != "attachment" || !strings.HasPrefix(r.Attachment["type"].(string), "hook_") {
+			continue
+		}
+		line := r.Attachment["type"].(string) + " " + r.Attachment["hookName"].(string)
+		if c, ok := r.Attachment["content"].([]any); ok {
+			line += " " + c[0].(string)
+		}
+		if strings.HasPrefix(r.Attachment["hookName"].(string), "PostToolUse") {
+			id := r.Attachment["toolUseID"].(string)
+			line += " " + id[:strings.IndexAny(id, "@t")]
+		}
+		got = append(got, line)
+	}
+	assert.Equal(t, []string{
+		"hook_additional_context UserPromptSubmit UserPromptSubmit-ONE",
+		"hook_additional_context UserPromptSubmit UserPromptSubmit-TWO",
+		"hook_success PostToolUse:Bash b1",
+		"hook_additional_context PostToolUse:Bash PostToolUse-ONE b1",
+		"hook_success PostToolUse:Bash b1",
+		"hook_additional_context PostToolUse:Bash PostToolUse-TWO b1",
+		"hook_success PostToolUse:Agent ag1",
+		"hook_additional_context PostToolUse:Agent PostToolUse-ONE ag1",
+		"hook_success PostToolUse:Agent ag1",
+		"hook_additional_context PostToolUse:Agent PostToolUse-TWO ag1",
+	}, got)
+}
+
 // TestT017_35_PromptRefusedByJSONDecision: a prompt hook that blocks by JSON
 // (decision "block" with a reason) refuses the prompt as an exit 2 does: the
 // agent never runs, the run ends successfully with the block message, which
@@ -174,6 +252,35 @@ func TestT017_35_PromptRefusedByJSONDecision(t *testing.T) {
 			}
 			assert.Contains(t, out, `"content":"`+want+`"`)
 			assert.Contains(t, out, `"result":"`+want+`"`)
+			// the frames and the transcript record say the same as for an exit 2
+			var info, result map[string]any
+			for _, l := range strings.Split(out, "\n") {
+				var m map[string]any
+				if json.Unmarshal([]byte(l), &m) != nil {
+					continue
+				}
+				if m["subtype"] == "informational" {
+					info = m
+				} else if m["type"] == "result" {
+					result = m
+				}
+			}
+			require.NotNil(t, info)
+			assert.Equal(t, "warning", info["level"])
+			assert.Equal(t, true, info["prevent_continuation"])
+			require.NotNil(t, result)
+			assert.Equal(t, "success", result["subtype"])
+			assert.Equal(t, false, result["is_error"])
+			assert.EqualValues(t, 0, result["num_turns"])
+			var rec map[string]any
+			for _, r := range readRecs(t, transcriptPath(t, cfg, dir, "pj-1")) {
+				if r.Type == "system" && r.Subtype == "informational" {
+					require.NoError(t, json.Unmarshal([]byte(r.Raw), &rec))
+				}
+			}
+			require.NotNil(t, rec, "the block is recorded in the transcript")
+			assert.Equal(t, true, rec["preventContinuation"])
+			assert.Contains(t, rec["content"], "NOT-ALLOWED")
 		})
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
@@ -108,4 +109,27 @@ func denyReason(out hooks.Output) string {
 		return out.Reason
 	}
 	return "Blocked by hook"
+}
+
+// recordSuccess writes what a hook that exited 0 with output leaves: a
+// hook_success, then, when its JSON carried additionalContext, a
+// hook_additional_context. A prompt hook's JSON context leaves only the
+// latter (recorded: snapshots/runs/ctxmulti: one hook_additional_context per
+// hook, no hook_success). It reports whether context was recorded.
+func (t *transcript) recordSuccess(att func(string, map[string]any), in hooks.Input, r hooks.HandlerRun, hookName, toolUseID, ac string) bool {
+	contextOnly := in.HookEventName == hooks.EventUserPromptSubmit && r.JSONParsed && ac != ""
+	if !contextOnly {
+		content := ""
+		if !r.JSONParsed { // plain text, as the adapter read it
+			content = strings.TrimRight(r.Stdout, "\n")
+		}
+		att("hook_success", map[string]any{
+			"content": content, "stdout": r.Stdout, "stderr": r.Stderr, "exitCode": r.ExitCode,
+			"command": r.Command, "durationMs": r.DurationMs,
+		})
+	}
+	if ac != "" {
+		t.additionalContext(in, hookName, toolUseID, ac)
+	}
+	return ac != ""
 }

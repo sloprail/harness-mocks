@@ -1,0 +1,13 @@
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Run the Bash command: echo CTXDONE . Then reply only DONE."}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Run the Bash command: echo CTXDONE . Then reply only DONE."}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo CTXDONE ."},"tool_response":{"stdout":"CTXDONE .","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo CTXDONE ."},"tool_response":{"stdout":"CTXDONE .","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"result","subtype":"success"}

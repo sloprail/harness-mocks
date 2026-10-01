@@ -117,16 +117,7 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 			summary.errors = append(summary.errors, msg)
 			summary.hasOutput = true
 		case r.Stdout != "" || r.Stderr != "":
-			content := ""
-			if !r.JSONParsed { // plain text, as the adapter read it
-				content = strings.TrimRight(r.Stdout, "\n")
-			}
-			att("hook_success", map[string]any{
-				"content": content, "stdout": r.Stdout, "stderr": r.Stderr, "exitCode": r.ExitCode,
-				"command": r.Command, "durationMs": r.DurationMs,
-			})
-			if ac != "" {
-				t.additionalContext(in, hookName, toolUseID, ac)
+			if t.recordSuccess(att, in, r, hookName, toolUseID, ac) {
 				summary.contexts = append(summary.contexts, ac)
 			}
 			info["durationMs"] = r.DurationMs
