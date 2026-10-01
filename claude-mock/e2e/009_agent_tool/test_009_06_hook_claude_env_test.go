@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +18,9 @@ import (
 // CLAUDE_PID and CLAUDE_CODE_SESSION_ID are this run's whatever was inherited;
 // CLAUDE_CODE_ENTRYPOINT is the launcher's when it set one, and sdk-cli when
 // not (runs/subprocess-session-env). A tool a hook shells to keys "am I under a
-// harness" off these (sr-agent refuses with ErrNoHarness without them).
+// harness" off these (sr-agent refuses with ErrNoHarness without them). Each
+// hook's CLAUDE_CODE_SESSION_ID is the session_id of its own payload, as both
+// runs record.
 // sr:proves subprocess-session-env/claude
 func TestT009_06_HookEnvCarriesClaudeCodeVars(t *testing.T) {
 	for _, tc := range []struct {
@@ -31,7 +34,7 @@ func TestT009_06_HookEnvCarriesClaudeCodeVars(t *testing.T) {
 			events := []string{"SessionStart", "PreToolUse", "PostToolUse", "Stop", "SubagentStart"}
 			hooks := map[string]string{}
 			for _, ev := range events {
-				hooks[ev] = writeHook(t, dir, ev+".sh", `cat >/dev/null
+				hooks[ev] = writeHook(t, dir, ev+".sh", `cat > "`+filepath.Join(dir, ev+".payload")+`"
 { echo "CLAUDECODE=$CLAUDECODE"; echo "CLAUDE_CODE_ENTRYPOINT=$CLAUDE_CODE_ENTRYPOINT"; echo "CLAUDE_CODE_SESSION_ID=$CLAUDE_CODE_SESSION_ID"; echo "CLAUDE_CODE_CHILD_SESSION=$CLAUDE_CODE_CHILD_SESSION"; echo "CLAUDE_CODE_SESSION_ATTENDED=$CLAUDE_CODE_SESSION_ATTENDED"; echo "CLAUDE_PID=$CLAUDE_PID"; } > "`+filepath.Join(dir, ev+".env")+`"`)
 			}
 			writeSettings(t, dir, hooks)
@@ -60,6 +63,15 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"subagent done","is
 				assert.Contains(t, got, "CLAUDE_CODE_CHILD_SESSION=1\n", ev)
 				assert.Contains(t, got, "CLAUDE_CODE_SESSION_ATTENDED=0\n", ev)
 				assert.Regexp(t, `(?m)^CLAUDE_PID=[0-9]+$`, got, ev)
+
+				// the env's session id is the one the hook's own payload names
+				raw, err := os.ReadFile(filepath.Join(dir, ev+".payload"))
+				require.NoError(t, err, "%s hook payload", ev)
+				var payload struct {
+					SessionID string `json:"session_id"`
+				}
+				require.NoError(t, json.Unmarshal(raw, &payload), ev)
+				assert.Equal(t, "sess-envtest", payload.SessionID, "%s payload session_id matches CLAUDE_CODE_SESSION_ID", ev)
 			}
 		})
 	}
