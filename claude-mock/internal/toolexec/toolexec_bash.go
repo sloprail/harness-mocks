@@ -28,7 +28,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", inp.Command) //nolint:gosec
 	cmd.Dir = cwd
-	cmd.Env = bashEnv(sessionID, inp.Command)
+	cmd.Env = bashEnv(sessionID)
 	out, err := cmd.CombinedOutput()
 	text := strings.TrimRight(string(out), "\n")
 	// toolUseResult/tool_response: the structured result real Claude Code
@@ -63,11 +63,6 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 // over any inherited value — without it, a mock run nested inside a live Claude
 // Code session would hand its tool calls the OPERATOR's outer session id. Set
 // only when non-empty, matching the hook invoker (hooks/invoker.go).
-func bashEnv(sessionID, command string) []string {
-	ident := childenv.Identity(sessionID)
-	// sloprail's own commands resolve their session elsewhere: keep them out of it
-	if strings.HasPrefix(strings.TrimSpace(command), "sr-") {
-		delete(ident, "CLAUDE_CODE_SESSION_ID")
-	}
-	return procexec.Env(os.Environ(), ident, childenv.Defaults())
+func bashEnv(sessionID string) []string {
+	return procexec.Env(os.Environ(), childenv.Identity(sessionID), childenv.Defaults())
 }
