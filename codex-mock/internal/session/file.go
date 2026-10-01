@@ -35,8 +35,9 @@ func Create(home, id, cwd string, now time.Time) (*File, error) {
 }
 
 func (s *File) append(kind string, payload map[string]any) {
-	b, _ := json.Marshal(map[string]any{"timestamp": time.Now().UTC().Format(time.RFC3339Nano), "type": kind, "payload": payload})
-	fmt.Fprintf(s.f, "%s\n", b)
+	enc := json.NewEncoder(s.f)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(map[string]any{"timestamp": time.Now().UTC().Format(time.RFC3339Nano), "type": kind, "payload": payload})
 }
 
 func message(role, ctype, text string) map[string]any {

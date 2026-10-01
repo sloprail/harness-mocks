@@ -36,7 +36,7 @@ type Decision struct {
 //
 // sr:provides hook-exit-code-semantics/codex
 // sr:docs https://developers.openai.com/codex/hooks#pretooluse
-func Interpret(ev Event, o Outcome) Decision {
+func Interpret(ev Event, o corehooks.Outcome) Decision {
 	switch {
 	case !o.Started:
 		return Decision{Error: "hook command could not be started: " + o.Command}

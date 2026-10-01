@@ -13,8 +13,7 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
-	"github.com/sloprail/harness-mocks/codex-mock/internal/toolcall"
-	"github.com/sloprail/harness-mocks/codex-mock/internal/turn"
+	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
 // Config is everything a run is told, read once at the entrypoint.
@@ -33,6 +32,18 @@ type Config struct {
 	// agent's final message.
 	JSON           bool
 	Stdout, Stderr io.Writer
+}
+
+// state is the state of one run, shared by Codex's side of the turn and of
+// its tool calls.
+type state struct {
+	cfg     Config
+	id      string
+	turnID  string
+	hooks   *hooks.Invoker
+	events  *events.Stream
+	rollout *session.File
+	toolEnv []string
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
@@ -54,21 +65,21 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	stream := events.New(out)
-	stream.ThreadStarted(id)
-	iv := &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
+	s := &state{cfg: cfg, id: id, turnID: newID(), rollout: rollout, events: events.New(out),
+		toolEnv: childenv.ToolEnv(cfg.Environ, id)}
+	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
 		Common: hooks.Common{SessionID: id, TranscriptPath: rollout.Path, Cwd: cfg.Cwd, Model: cfg.Model,
 			PermissionMode: "bypassPermissions"}}
-	for _, o := range iv.Fire(ctx, hooks.SessionStart, "startup", map[string]any{"source": "startup"}) {
-		if dec := hooks.Interpret(hooks.SessionStart, o); dec.Context != "" {
-			rollout.Developer(dec.Context)
+	s.events.ThreadStarted(id)
+	for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, "startup", map[string]any{"source": "startup"}) {
+		if d := hooks.Interpret(hooks.SessionStart, o); d.Context != "" {
+			rollout.Developer(d.Context)
 		}
 	}
-	last, err := turn.Run(ctx, turn.Deps{
-		Deps: toolcall.Deps{Hooks: iv, Env: childenv.ToolEnv(cfg.Environ, id), Dir: cfg.Cwd, Events: stream,
-			Session: rollout, Stderr: cfg.Stderr, TurnID: newID()},
-		Script: cfg.Script, Environ: cfg.Environ, Prompt: cfg.Prompt,
-	})
+	s.events.TurnStarted()
+	last, err := turnloop.Run(ctx, turnHost{s}, turnloop.Params{
+		Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
+	s.events.TurnCompleted()
 	if !cfg.JSON && last != "" {
 		fmt.Fprintln(cfg.Stdout, last)
 	}

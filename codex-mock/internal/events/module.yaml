@@ -1,4 +1,0 @@
-# A module is an area of code with a boundary; its decisions live here, not in an ADR.
-concern: "the JSONL event stream a non-interactive codex run prints"
-home: ["codex-mock/internal/events/**"]   # everything about the concern lives here
-api: ["codex-mock/internal/events"]       # the only packages others may import

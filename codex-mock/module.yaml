@@ -1,4 +1,0 @@
-# A module is an area of code with a boundary; its decisions live here, not in an ADR.
-concern: "the codex-mock command: its flags and environment, and wiring one run together"
-home: ["codex-mock/main.go", "codex-mock/exec.go", "codex-mock/internal/runner/**"]   # everything about the concern lives here
-api: ["codex-mock/internal/runner"]       # the only packages others may import

@@ -18,8 +18,9 @@ type Stream struct {
 func New(out io.Writer) *Stream { return &Stream{out: out} }
 
 func (s *Stream) emit(v map[string]any) {
-	b, _ := json.Marshal(v)
-	fmt.Fprintf(s.out, "%s\n", b)
+	enc := json.NewEncoder(s.out)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(v)
 }
 
 func (s *Stream) newID() string {
