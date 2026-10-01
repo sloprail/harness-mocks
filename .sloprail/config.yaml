@@ -1,0 +1,11 @@
+# Rules switched off for now, with why. A rule here stays in its folder,
+# loaded and reviewable; it is just not run.
+disabled:
+  # The three citation rules require the user's words on the commit that last
+  # changed each ADR, module, invariant and capability. Activated mid-session,
+  # a rule's first range starts at the session start, so they judged files
+  # committed before they existed. Re-enable at the start of a new session,
+  # where their range starts there, and prove each with a probe.
+  - file-guard/adr-grounded
+  - file-guard/capability-grounded
+  - file-guard/invariant-grounded
