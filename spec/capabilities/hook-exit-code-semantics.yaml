@@ -31,3 +31,8 @@ providers:
           non-blocking error in the mock too, whose message names the failing
           field and carries the hook's own stderr, but not the full output
           schema Claude Code prints after it.
+      - adr: modeled-surface
+        statement: >-
+          WorktreeRemove fails on a non-zero hook exit only if the worktree's
+          directory still exists afterward. The mock's worktree_remove manages
+          no directory, so any non-zero exit fails it.
