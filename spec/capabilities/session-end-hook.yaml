@@ -1,7 +1,8 @@
 statement: >-
   A hook fires when the session ends and says why; a non-interactive run
   reports a generic reason. Whatever the hook prints is not recorded in the
-  transcript. (How long it may run is hook-timeout's.)
+  transcript. (How long it may run is hook-timeout's, and which reasons a
+  configured matcher selects is hook-matcher-filter's.)
 providers:
   claude:
     docs:

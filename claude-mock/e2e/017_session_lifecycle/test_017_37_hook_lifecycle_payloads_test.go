@@ -29,6 +29,56 @@ func TestT017_37_DurationExcludesPreToolUseHooks(t *testing.T) {
 	assert.Less(t, ps[0]["duration_ms"].(float64), 500.0, "the one-second PreToolUse hook is not part of the call's time")
 }
 
+// TestT017_40_AgentCallPostToolUsePayload: an Agent call fires PostToolUse as
+// any tool does, with the call's input as given, its id and its duration (the
+// hookerrors recording: tool_input {prompt, subagent_type, run_in_background},
+// a tool_use_id and duration_ms); the duration covers the sub-agent's run.
+// sr:proves posttooluse-payload/claude
+func TestT017_40_AgentCallPostToolUsePayload(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	log := filepath.Join(dir, "post.log")
+	settings(t, dir, map[string]string{"PostToolUse": payloadLogger(t, dir, "post.sh", log, "")})
+	sub := write(t, filepath.Join(dir, "sub.sh"), "#!/bin/sh\nsleep 0.3\necho '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"HELPED\"}'\n", 0o755)
+	orch := script(t, dir, "orch", toolUse("ag1", "Agent", `{"prompt":"Reply HELPED","description":"d","subagent_type":"general-purpose","script":"`+sub+`"}`))
+	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "ap-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	ps := payloads(t, log)
+	require.Len(t, ps, 1)
+	p := ps[0]
+	assert.Equal(t, "Agent", p["tool_name"])
+	in := p["tool_input"].(map[string]any)
+	assert.Equal(t, "Reply HELPED", in["prompt"])
+	assert.Equal(t, "general-purpose", in["subagent_type"])
+	assert.True(t, strings.HasPrefix(p["tool_use_id"].(string), "ag1"))
+	assert.GreaterOrEqual(t, p["duration_ms"].(float64), 250.0, "the call lasts as long as the sub-agent's run")
+}
+
+// TestT017_41_SessionStartContextFromSeveralHooksWhole: several SessionStart
+// hooks each add context, all of it kept in order, whatever its length; the
+// agent's scenario receives it, and the mock does not cut it short (declared
+// deviation: Claude Code moves context over 10,000 characters to a file).
+// sr:proves hook-additional-context/claude
+func TestT017_41_SessionStartContextFromSeveralHooksWhole(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	long := strings.Repeat("x", 12000)
+	hook := func(name, text string) string {
+		return write(t, filepath.Join(dir, name), "#!/bin/sh\ncat >/dev/null\nprintf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\""+text+"\"}}'\n", 0o755)
+	}
+	h1, h2 := hook("h1.sh", "FIRST"), hook("h2.sh", long)
+	write(t, filepath.Join(dir, ".claude", "settings.json"),
+		`{"hooks":{"SessionStart":[{"matcher":"*","hooks":[{"type":"command","command":"`+h1+`"},{"type":"command","command":"`+h2+`"}]}]}}`, 0o644)
+	sc := write(t, filepath.Join(dir, "s.sh"), "#!/bin/sh\nprintf %s \"$A10N_MOCK_ADDITIONAL_CONTEXT\" > "+filepath.Join(dir, "ctx.out")+"\necho '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"done\"}'\n", 0o755)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "sc-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	got, err := os.ReadFile(filepath.Join(dir, "ctx.out"))
+	require.NoError(t, err)
+	assert.Equal(t, "FIRST\n"+long, string(got))
+}
+
 // TestT017_38_SessionHooksCannotStopTheSession: a SessionStart hook that tries
 // to stop the session (a JSON block, continue:false, exit 2) does not: the
 // agent runs and the session ends in its own time. A SessionEnd hook's JSON

@@ -99,12 +99,16 @@ func TestT017_33_PostToolUsePayloadFields(t *testing.T) {
 	post := payloadLogger(t, dir, "post.sh", log, "")
 	pre := write(t, filepath.Join(dir, "pre.sh"), `#!/bin/sh
 IN=$(cat)
-case "$IN" in *REFUSEME*) echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"no"}}';; esac
+case "$IN" in
+  *REFUSEME*) echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"no"}}';;
+  *EXIT2ME*) echo no >&2; exit 2;;
+esac
 exit 0
 `, 0o755)
 	settings(t, dir, map[string]string{"PostToolUse": post, "PreToolUse": pre})
 	sc := script(t, dir, "s",
 		toolUse("r1", "Bash", `{"command":"echo REFUSEME"}`),
+		toolUse("r2", "Bash", `{"command":"echo EXIT2ME"}`),
 		toolUse("b1", "Bash", `{"command":"sleep 0.3; echo SLEPT"}`))
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "pp-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
