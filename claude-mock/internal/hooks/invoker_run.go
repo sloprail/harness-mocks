@@ -71,16 +71,11 @@ func (h HandlerSpec) env() []string {
 	return []string{"CLAUDE_PLUGIN_ROOT=" + h.PluginRoot, "CLAUDE_PLUGIN_DATA=" + h.PluginData}
 }
 
-// hookDir is where a command hook runs: the event's working directory, or,
-// when that no longer exists (a worktree another shell deleted), the first of
-// the directory the session started in, the project root, the home directory
-// and the system temp directory that does (docs, Hook handler fields).
+// hookDir is where a command hook runs. Claude's order of candidates is the
+// event's working directory, the directory the session started in, the project
+// root, the home directory and the system temp directory (docs, Hook handler
+// fields); core picks the first that exists.
 func hookDir(cwd string, fallbacks ...string) string {
 	home, _ := os.UserHomeDir()
-	for _, d := range append(append([]string{cwd}, fallbacks...), home, os.TempDir()) {
-		if st, err := os.Stat(d); d != "" && err == nil && st.IsDir() {
-			return d
-		}
-	}
-	return cwd
+	return corehooks.FirstDir(append(append([]string{cwd}, fallbacks...), home, os.TempDir())...)
 }
