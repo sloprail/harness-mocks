@@ -101,7 +101,7 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventNa
 	// code output"): parse it before the status decides anything.
 	if stdout.Len() > 0 {
 		switch {
-		case !corehooks.IsJSONOutput(stdout.String()):
+		case !corehooks.IsJSONOutput(stdout.String(), isOutputField):
 			run.Output.PlainText = strings.TrimSpace(stdout.String())
 		case !json.Valid(stdout.Bytes()):
 			run.JSONError = "Hook output looks like a JSON object but is not valid JSON"
@@ -117,7 +117,10 @@ func (inv *Invoker) invokeCommand(ctx context.Context, h HandlerSpec, ev EventNa
 	// sr:provides hook-exit-code-semantics/claude
 	if corehooks.VerdictOf(exitCode, strictExitEvents[ev]) == corehooks.Blocked {
 		run.Blocked = true
-		return run, &BlockError{Command: h.Command, Stderr: run.Stderr}
+		if run.JSONParsed {
+			run.BlockReason = jsonBlockReason(run.Output)
+		}
+		return run, &BlockError{Command: h.Command, Stderr: run.Stderr, Reason: run.BlockReason}
 	}
 	if runErr != nil {
 		slog.Debug("hooks: command non-blocking error", "cmd", h.Command, "err", runErr, "stderr", stderr.String())

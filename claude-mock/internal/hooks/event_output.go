@@ -47,3 +47,14 @@ type HookSpecificOutput struct {
 	UpdatedToolOutput        string          `json:"updatedToolOutput,omitempty"`
 	WorktreePath             string          `json:"worktreePath,omitempty"`
 }
+
+// isOutputField reports whether key is a top-level field of Claude Code's hook
+// JSON output (the docs' "JSON output" table).
+// sr:docs https://code.claude.com/docs/en/hooks#json-output
+func isOutputField(key string) bool {
+	switch key {
+	case "continue", "suppressOutput", "stopReason", "decision", "reason", "systemMessage", "terminalSequence", "hookSpecificOutput":
+		return true
+	}
+	return false
+}

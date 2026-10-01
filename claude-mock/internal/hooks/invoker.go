@@ -74,6 +74,8 @@ type HandlerRun struct {
 	// JSONError: stdout looked like JSON but did not parse or validate.
 	JSONParsed bool
 	JSONError  string
+	// BlockReason is the blocking reason a blocked handler's JSON gave.
+	BlockReason string
 }
 
 // NewInvoker creates an Invoker backed by the given settings. Every command hook

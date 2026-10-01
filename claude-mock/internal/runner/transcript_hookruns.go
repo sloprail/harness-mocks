@@ -59,7 +59,7 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 		ac := additionalContextFrom(r.Output)
 		switch {
 		case r.Blocked:
-			quoted := hooks.QuoteBlock(r.Command, r.Stderr)
+			quoted := hooks.QuoteRun(r)
 			switch ev {
 			case hooks.EventSessionStart, hooks.EventSubagentStart:
 				att("hook_non_blocking_error", map[string]any{
@@ -118,7 +118,7 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 			summary.hasOutput = true
 		case r.Stdout != "" || r.Stderr != "":
 			content := ""
-			if !looksLikeJSONObject(r.Stdout) {
+			if !r.JSONParsed { // plain text, as the adapter read it
 				content = strings.TrimRight(r.Stdout, "\n")
 			}
 			att("hook_success", map[string]any{

@@ -19,8 +19,14 @@ func TestVerdictOfStrict(t *testing.T) {
 }
 
 func TestIsJSONOutput(t *testing.T) {
-	for in, want := range map[string]bool{`{"a":1}`: true, "  {}\n": true, "The secret word is BANANA.": false, `{"a":1`: false, `["x"]`: false, `"q"`: false, "": false} {
-		if got := IsJSONOutput(in); got != want {
+	field := func(k string) bool { return k == "decision" }
+	for in, want := range map[string]bool{
+		`{"a":1}`: true, "  {}\n": true, "The secret word is BANANA.": false, `{"a":1`: false, `["x"]`: false, `"q"`: false, "": false,
+		"{\n  \"decision\": \"block\"\n}":       true,  // one object over several lines
+		"{\"x\": 1}\n{\"y\": 2}":                false, // lines of JSON, none setting a field
+		"{\"x\": 1}\n{\"decision\": \"block\"}": true,
+	} {
+		if got := IsJSONOutput(in, field); got != want {
 			t.Errorf("IsJSONOutput(%q) = %v, want %v", in, got, want)
 		}
 	}

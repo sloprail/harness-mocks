@@ -1,10 +1,5 @@
 package runner
 
-import (
-	"encoding/json"
-	"strings"
-)
-
 // stopSummary accumulates one Stop fire's stop_hook_summary.
 type stopSummary struct {
 	toolUseID  string
@@ -39,15 +34,6 @@ func (t *transcript) writeStopSummary(s stopSummary) {
 		"stopReason": s.stopReason, "hasOutput": s.hasOutput, "level": "suggestion",
 		"toolUseID": s.toolUseID,
 	})
-}
-
-func looksLikeJSONObject(s string) bool {
-	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, "{") {
-		return false
-	}
-	var v map[string]any
-	return json.Unmarshal([]byte(s), &v) == nil
 }
 
 // stopHookFeedback writes the record real Claude Code puts ahead of a blocking
