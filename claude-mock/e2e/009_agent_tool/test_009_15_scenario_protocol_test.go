@@ -143,3 +143,29 @@ printf '%s\n' '`+bashToolUse("t1", "touch "+ran)+`'
 		}
 	}
 }
+
+// A10N_MOCK_NO_RESUME=1 makes every --resume behave as one naming an unknown
+// session, an existing one included: the same resume that succeeds without it
+// fails with "No conversation found" and runs no script.
+// sr:proves no-resume
+func TestT009_15_NoResumeHidesAnExistingSession(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	runs := filepath.Join(dir, "runs")
+	script := writeScript(t, dir, "s.sh", `#!/bin/sh
+echo run >> "`+runs+`"
+printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
+`)
+	out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s-nr", "--project-dir", dir, "--config-dir", cfg, "-p", "first")
+	require.Equal(t, 0, code, "the session exists; output:\n%s", out)
+
+	out, code = runInDir(t, dir, []string{"A10N_MOCK_NO_RESUME=1"}, "--resume", "s-nr", "--script", script, "--project-dir", dir, "--config-dir", cfg, "--output-format", "stream-json", "-p", "again")
+	assert.Equal(t, 1, code, "output:\n%s", out)
+	assert.Contains(t, out, "No conversation found with session ID: s-nr")
+	assert.Contains(t, out, `"is_error":true`)
+	assert.Equal(t, 1, strings.Count(readOrEmpty(runs), "run"), "the resume ran no script")
+
+	out, code = runInDir(t, dir, nil, "--resume", "s-nr", "--script", script, "--project-dir", dir, "--config-dir", cfg, "-p", "again")
+	assert.Equal(t, 0, code, "without it, the same resume succeeds; output:\n%s", out)
+	assert.Equal(t, 2, strings.Count(readOrEmpty(runs), "run"))
+}
