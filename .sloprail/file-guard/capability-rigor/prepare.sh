@@ -51,7 +51,7 @@ while IFS= read -r c; do
       # (measured: it often does not): the page's lines naming an identifier the
       # runs or tests mention. A floor, never the whole story.
       ids="$(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' <<<"$seen" | sort -u | grep -Fx -f <(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' "$f" | sort -u) | paste -sd'|' -)"
-      ex="$([ -n "$ids" ] && grep -nE "$ids" "$f" | head -c 20000)"
+      ex="$([ -n "$ids" ] && grep -nwE "$ids" "$f" | head -c 20000)"
       docs="$(jq -c --arg r "$ref" --arg p "$f" --arg l "${line:-1}" --arg n "$(wc -l <"$f" | tr -d ' ')" --arg ex "$ex" \
         '. + [{ref: $r, path: $p, line: ($l | tonumber), lines: ($n | tonumber), excerpt: $ex}]' <<<"$docs")"; done
     subjects="$(jq -c --arg id "$id/$h" --arg st "$(jq -r '.doc.statement' <<<"$c")" --arg h "$h" \
