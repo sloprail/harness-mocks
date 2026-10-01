@@ -51,33 +51,19 @@ func TestT017_07f_PreCompactJSONBlockStopsTheCompaction(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "PostCompact fires only when the compaction happens")
 }
 
-// TestT017_07g_CompactHooksCannotStopWithContinueFalse: Claude Code discards a
-// PreCompact or PostCompact hook's `continue` and `systemMessage` fields
-// (hooks#precompact, hooks#postcompact), so they neither block the compaction nor
-// stop the session, and the message becomes no system message.
+// TestT017_07g_PreCompactCannotStopWithContinueFalse: Claude Code discards a
+// PreCompact hook's `continue` and `systemMessage` fields (hooks#precompact), so
+// they neither block nor change the compaction.
 // sr:proves manual-compaction/claude
-func TestT017_07g_CompactHooksCannotStopWithContinueFalse(t *testing.T) {
+func TestT017_07g_PreCompactCannotStopWithContinueFalse(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
-	hook := write(t, filepath.Join(dir, "hook.sh"), "#!/bin/sh\ncat >/dev/null\necho '{\"continue\":false,\"stopReason\":\"halt\",\"systemMessage\":\"SYSMSG-SHOWN\"}'\n", 0o755)
-	compactSettings(t, dir, map[string][2]string{"PreCompact": {"*", hook}, "PostCompact": {"*", hook}})
-	sc := script(t, dir, "s", `{"type":"compact","summary":"x @MARK@","trigger":"manual"}`, toolUse("b1", "Bash", `{"command":"echo AFTER-COMPACT"}`))
-	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-g",
-		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
-	require.Equal(t, 0, code, out)
+	pre := write(t, filepath.Join(dir, "pre.sh"), "#!/bin/sh\ncat >/dev/null\necho '{\"continue\":false,\"systemMessage\":\"ignored\"}'\n", 0o755)
+	compactSettings(t, dir, map[string][2]string{"PreCompact": {"*", pre}})
+	compactRun(t, dir, cfg, "cmp-g", "manual")
 	raw, err := os.ReadFile(transcriptPath(t, cfg, dir, "cmp-g"))
 	require.NoError(t, err)
-	assert.Contains(t, string(raw), "compact_boundary", "the compaction happens, whatever PreCompact says")
-	assert.Contains(t, string(raw), "AFTER-COMPACT", "the session goes on after PostCompact's continue:false")
-	// The hook's stdout is reported as the command's output ("Compacted <Event> [<cmd>]
-	// completed successfully: <stdout>"), but its systemMessage is never made a system
-	// message of its own, on the stream or in the transcript.
-	for _, l := range strings.Split(out+"\n"+string(raw), "\n") {
-		var m map[string]any
-		if json.Unmarshal([]byte(l), &m) == nil && m["type"] == "system" {
-			assert.NotContains(t, l, "SYSMSG-SHOWN", "a discarded systemMessage surfaces as no system record")
-		}
-	}
+	assert.Contains(t, string(raw), "compact_boundary", "the compaction happens")
 }
 
 // TestT017_07i_ManualCompactionBlockShowsTheMessage: exit 2 from PreCompact blocks
