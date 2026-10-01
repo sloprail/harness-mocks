@@ -1,5 +1,5 @@
 ---
-concern: what grounds a capability: the real harness for what it does, the user for what is mocked
+concern: "what grounds a capability: the real harness for what it does, the user for what is mocked"
 sloprails: [file-guard/capability-grounded]
 ---
 
