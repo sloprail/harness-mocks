@@ -40,6 +40,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SidechainPath:         s.sidechain,
 		ParentTranscriptPath:  s.parentReported,
 		bg:                    bg,
+		wake:                  s.parent.wake,
 		stream:                s.parent.stream,
 		sessionFile:           s.sessionFile,
 		spawnDepth:            s.spawnDepth,
@@ -67,7 +68,7 @@ func fireSubagentStop(ctx context.Context, s *subagentRun, inv *hooks.Invoker, b
 	active := stopHookActive
 	facts := subagents.Stop(s.sidechain, lastAssistant, bg.Registry)
 	running := backgroundTaskList(facts.Tasks)
-	crons := []any{}
+	crons := sessionCrons(s.parent.wake)
 	out, err := inv.Fire(ctx, hooks.Input{
 		SessionID:            s.parent.SessionID,
 		Cwd:                  s.subCwd,

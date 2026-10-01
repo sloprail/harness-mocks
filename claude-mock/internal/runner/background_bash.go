@@ -45,6 +45,7 @@ func exitTrailer(code int, killed bool) string {
 // a foreground sub-agent (cfg.SyncSubagent) the receipt says the command is
 // terminated at the sub-agent's final response, as real Claude Code's does.
 //
+// sr:provides background-bash/claude
 // sr:provides foreground-subagent-bash-ends-with-response/claude
 func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawMessage) toolexec.Result {
 	var in struct {

@@ -66,8 +66,8 @@ func isStopSummary(r rec) bool { return r.Subtype == "stop_hook_summary" }
 // working, the notification is handed over INSIDE the turn — a queued_command
 // attachment (commandMode task-notification) after the next tool result — and
 // UserPromptSubmit fires with it. Stop fires after, at the end of the turn.
-// staged:proves background-bash/claude
-// staged:proves task-notifications/claude
+// sr:proves background-bash/claude
+// sr:proves task-notifications/claude
 // staged:proves user-prompt-submit-hook/claude
 func TestT017_11_BackgroundBashFinishedMidTurn(t *testing.T) {
 	dir := t.TempDir()
@@ -154,7 +154,7 @@ func TestT017_11b_BackgroundBashFailure(t *testing.T) {
 // background_tasks, then killed: its stopped notification goes to the output
 // stream only, never the transcript, and nothing waits for it. A command that
 // changes directory gets the cwd note (claude 2.1.282).
-// staged:proves background-bash-reaped-at-exit/claude
+// sr:proves background-bash-reaped-at-exit/claude
 // staged:proves stop-hook-payload/claude
 func TestT017_11c_BackgroundBashStillRunningIsStopped(t *testing.T) {
 	dir := t.TempDir()
@@ -218,7 +218,7 @@ func framesOf(t *testing.T, out, taskID string) []map[string]any {
 // false, task_type local_bash} and task_notification {status completed,
 // output_file "", summary: its description} (F:bgagent). The root's own
 // foreground Bash streams no task frame.
-// staged:proves task-stream-frames/claude
+// sr:proves task-stream-frames/claude
 func TestT017_12d_BackgroundSubAgentsOwnBash(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

@@ -118,7 +118,7 @@ func testCfg(t *testing.T) Config {
 	return Config{SessionID: "sid", Cwd: t.TempDir(), Out: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}
 }
 
-// staged:proves background-bash/claude
+// sr:proves background-bash/claude
 func TestLaunchBash_ReceiptAndCompletion(t *testing.T) {
 	cfg := testCfg(t)
 	b := newBackgroundTasks()

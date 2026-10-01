@@ -1,0 +1,19 @@
+statement: >-
+  The agent can ask to be woken after a delay with a prompt; an invalid
+  request is an error result, and a valid one is acknowledged.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/scheduled-tasks#let-claude-choose-the-interval
+    runs:
+      - claude-mock/snapshots/runs/schedule-wakeup
+      - claude-mock/snapshots/runs/schedule-wakeup-limits
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no clock to wait on: a valid request is acknowledged and the
+          turn goes on at once, as the wake-up having fired, so the harness's
+          re-invocation when the wakeup fires or a task-notification arrives, and
+          the jitter the recorded wake-up times show beyond rounding up to a whole
+          minute, are not modeled. A self-paced /loop (a slash command, interactive
+          surface) is what Claude calls this tool for; no mock parses one.

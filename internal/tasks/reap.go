@@ -35,6 +35,8 @@ func (r *Registry) EndOfResponse(owner string) { r.stopOwned(owner) }
 // other work is done: its background commands are terminated, once grace has
 // passed, so that a command that finishes right after the final result still
 // delivers its output.
+//
+// sr:capability background-bash-reaped-at-exit
 func (r *Registry) ReapAtExit(owner string, grace time.Duration) {
 	if r == nil {
 		return

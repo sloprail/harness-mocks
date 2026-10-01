@@ -13,6 +13,8 @@ import (
 // description as summary (F:bgbash); one that finished carries the
 // notification's summary (F:midturn); a sub-agent's is its result text or
 // failure, with its usage.
+//
+// sr:provides task-stream-frames/claude
 type frameObserver struct{ cfg Config }
 
 func (o frameObserver) Started(t *tasks.Task) {

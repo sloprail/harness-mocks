@@ -17,6 +17,8 @@ import (
 // together with start, which runs the sub-agent concurrently. The caller
 // starts it once the receipt's tool_result and PostToolUse are written — real
 // Claude Code returns the receipt first and fires SubagentStart after.
+//
+// sr:provides background-agent/claude
 func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func()) {
 	sub, in, errRes := prepareSubagent(b.Context(), cfg, inv, toolUseID, raw, tr, true)
 	if sub == nil {

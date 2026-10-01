@@ -94,7 +94,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	case isAgentTool(pending.ToolName):
 		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isScheduleWakeupTool(pending.ToolName):
-		res = runScheduleWakeupTool(pending.ToolInput)
+		res = runScheduleWakeupTool(cfg.wake, pending.ToolInput)
 	case pending.ToolName == "Bash" && runsInBackground(pending.ToolInput):
 		res = bg.launchBash(cfg, pending.ToolUseID, pending.ToolInput)
 	default:

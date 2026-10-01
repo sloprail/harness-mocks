@@ -7,6 +7,7 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/scenario"
 	"github.com/sloprail/harness-mocks/internal/tasks"
+	coretools "github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // streamAndHook owns a run's turns. At every end of turn (the script's result
@@ -21,9 +22,14 @@ import (
 // A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
 // the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
 // own background commands end with its final response.
-// The run streams one result, at its real end (internal/scenario's Result).
+// The run streams one result, at its real end (internal/scenario's Result). Once
+// the turn is over a `claude -p` session waits for its background agents, each
+// finished task starting a further turn (tasks.NextTurn) until the idle ceiling,
+// and ends the background shells that are left after a grace (tasks.ReapAtExit).
 //
 // sr:provides noninteractive-run/claude
+// sr:provides print-waits-for-background-agents/claude
+// sr:provides background-bash-reaped-at-exit/claude
 // sr:invariant turn-loop
 func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) error {
 	// Every FILE record persisted below goes through tr, which chains it from the
@@ -34,6 +40,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	if cfg.bg == nil {
 		cfg.bg = newBackgroundTasks()
 		defer cfg.bg.Shutdown()
+	}
+	if cfg.wake == nil {
+		cfg.wake = coretools.NewWakeups()
 	}
 	bg := cfg.bg
 	nested := cfg.SuppressSubagentHooks
@@ -63,7 +72,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			}
 			active := stopBlocks > 0
 			running := bg.running()
-			crons := []any{}
+			crons := sessionCrons(cfg.wake)
 			last := lastText
 			stopOut, stopRuns, stopErr := inv.FireRuns(ctx, hooks.Input{
 				SessionID:            cfg.SessionID,

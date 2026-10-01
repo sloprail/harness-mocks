@@ -3,6 +3,8 @@ package runner
 import (
 	"io"
 	"time"
+
+	coretools "github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // Config holds the runtime parameters for a mock run.
@@ -111,6 +113,10 @@ type Config struct {
 	// and every nested sub-agent run (Stop and SubagentStop list the whole
 	// session's tasks). Nil for the root run, which creates it.
 	bg *backgroundTasks
+
+	// wake is the session's pending ScheduleWakeup, shared by the root run and
+	// every nested run like bg. Nil for the root run, which creates it.
+	wake *coretools.Wakeups
 
 	// stream is the session's output stream, shared with every nested run: a
 	// sub-agent's task frames go to it, not to the sub-agent's own captured

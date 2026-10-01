@@ -15,6 +15,8 @@ type Observer interface {
 func Announce(t *Task, o Observer) { o.Started(t) }
 
 // Conclude reports a task's end: its status update, then its notification.
+//
+// sr:capability task-stream-frames
 func Conclude(t *Task, o Observer) {
 	updated := string(t.Status())
 	if t.Killed() {

@@ -62,6 +62,8 @@ func writeFrame(cfg Config, frame map[string]any) {
 // written after the tool result it arrived during, and UserPromptSubmit fired
 // with the notification as its prompt — as claude 2.1.282 did in a controlled
 // `claude -p` run. A notification the hook refuses is not handed over.
+//
+// sr:provides task-notifications/claude
 func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) {
 	for _, t := range b.TakeFinished(cfg.AgentID) {
 		note := taskNotification(t)
