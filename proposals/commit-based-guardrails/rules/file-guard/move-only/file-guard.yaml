@@ -4,6 +4,6 @@
 # must be identical, only its file (and imports) may differ. A relocation
 # names its directories in the trailer: `Sloprail-Refactor: move-only
 # claude-mock/internal/hooks=internal/hooks`.
-match: '"move-only" in trailers["Sloprail-Refactor"] or any(trailers["Sloprail-Refactor"], # startsWith "move-only ")'
+match: 'any(trailers["Sloprail-Refactor"] ?? [], # == "move-only" or # startsWith "move-only ")'
 checks:
   - script: ./reconcile.sh
