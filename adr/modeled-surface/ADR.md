@@ -16,8 +16,9 @@ visible and deliberate, not a test nobody wrote.
 
 - A mock models the harness as its tests drive it: a non-interactive session
   (print mode, or a stream of prompts), with the tools those sessions use.
-- Out of the model, for every harness: interactive commands (Claude Code's
-  `/clear`, for example), tools for a platform the mocks do not run on
+- Out of the model, for every harness: what exists only in an interactive
+  session (Claude Code's `/clear` and other slash commands, its status line
+  command, the tmux sessions it opens, for example), tools for a platform the mocks do not run on
   (Claude Code's PowerShell tool), and tools no test drives yet (Claude Code's
   Monitor tool).
 - A capability whose docs describe behaviour on a part left out declares it in
