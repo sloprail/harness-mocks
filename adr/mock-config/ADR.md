@@ -1,6 +1,6 @@
 ---
 concern: where a mock reads its configuration (flags and environment variables)
-sloprails: [file-guard/config-at-entry, file-guard/adr-conformance, file-guard/no-such-rule]
+sloprails: [file-guard/config-at-entry, file-guard/adr-conformance]
 # Files that still read or write the process environment themselves. The list
 # only shrinks.
 exceptions:

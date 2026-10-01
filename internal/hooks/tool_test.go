@@ -69,6 +69,3 @@ func TestStrongerDecision(t *testing.T) {
 		}
 	}
 }
-
-// sr:proves no-such-invariant
-func TestProbeInvariant(t *testing.T) {}
