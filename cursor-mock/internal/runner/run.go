@@ -20,6 +20,11 @@ type session struct {
 	hooks   *hooks.Hooks
 	started time.Time
 	texts   []string // what the agent said, in order: the result frame's text
+	// named: hook payloads carry the transcript path. Cursor leaves it null
+	// until the conversation's first tool call is past its preToolUse hooks
+	// (recorded: runs/tool-failure), though the file is there from the first
+	// record.
+	named bool
 }
 
 // Run plays one run: the stream's opening frames, the sessionStart hooks, the
@@ -48,6 +53,7 @@ func Run(ctx context.Context, cfg Config) error {
 	s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false})
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
 	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt})
+	s.named = true
 	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
 		"is_background_agent": false, "final_status": "completed",
@@ -64,7 +70,7 @@ func Run(ctx context.Context, cfg Config) error {
 // the conversation has a transcript.
 func (s *session) common() hooks.Common {
 	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version}
-	if s.tr.exists() {
+	if s.named && s.tr.exists() {
 		c.TranscriptPath = s.tr.path
 	}
 	return c

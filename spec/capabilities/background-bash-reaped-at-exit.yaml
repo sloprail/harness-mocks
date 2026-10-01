@@ -7,3 +7,4 @@ providers:
       - https://code.claude.com/docs/en/headless#background-tasks-at-exit
     runs:
       - claude-mock/snapshots/runs/bgbash
+  cursor: false

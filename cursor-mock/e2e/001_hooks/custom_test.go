@@ -119,20 +119,23 @@ func TestWhateverTheSessionEndHookPrintsIsNotInTheTranscript(t *testing.T) {
 }
 
 // TestEveryHookPayloadNamesTheSessionTheTranscriptAndTheWorkspace: recorded,
-// each payload carries the conversation and session id (the same one), the
-// workspace roots and the transcript path.
+// each payload carries the conversation and session id (the same one) and the
+// workspace roots; its transcript path is null at sessionStart and in the
+// first preToolUse, and the transcript file's from then on.
 // sr:proves hook-common-payload/cursor
 func TestEveryHookPayloadNamesTheSessionTheTranscriptAndTheWorkspace(t *testing.T) {
 	got, want := replay(t, "tool-failure")
 	conforms(t, got, want)
 	sid, _ := got.raw[0]["session_id"].(string)
 	require.NotEmpty(t, sid)
-	for i, h := range got.raw {
+	firstPre := true
+	for _, h := range got.raw {
 		require.Equal(t, sid, h["session_id"], h["hook_event_name"])
 		require.Equal(t, sid, h["conversation_id"])
 		require.Equal(t, []any{got.ws}, h["workspace_roots"])
-		if i == 0 {
-			require.Nil(t, h["transcript_path"], "no transcript yet at sessionStart")
+		if h["hook_event_name"] == "sessionStart" || (h["hook_event_name"] == "preToolUse" && firstPre) {
+			require.Nil(t, h["transcript_path"], "no transcript path yet: %v", h["hook_event_name"])
+			firstPre = firstPre && h["hook_event_name"] != "preToolUse"
 			continue
 		}
 		require.Contains(t, h["transcript_path"], sid+".jsonl", h["hook_event_name"])

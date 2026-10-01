@@ -8,3 +8,4 @@ providers:
       - https://code.claude.com/docs/en/tools-reference#background-commands
     runs:
       - claude-mock/snapshots/runs/fg-subagent-bash
+  cursor: false

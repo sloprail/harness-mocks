@@ -34,6 +34,33 @@ func TestACommandExitingNonZeroFiresTheFailureHookInsteadOfTheSuccessHook(t *tes
 	require.Equal(t, "tool_call/completed/shellToolCall/failure", got.frames[1])
 }
 
+// TestTheFailureHookSaysHowLongTheCallTook: recorded, postToolUseFailure
+// carries duration, in milliseconds: the time a command that ran took, and 0
+// for a call a hook refused before it ran.
+// sr:proves tool-failure-hook/cursor
+func TestTheFailureHookSaysHowLongTheCallTook(t *testing.T) {
+	got, want := replay(t, "tool-failure")
+	conforms(t, got, want)
+	ran := 0
+	for _, h := range got.raw {
+		if h["hook_event_name"] != "postToolUseFailure" {
+			continue
+		}
+		d, ok := h["duration"].(float64)
+		require.True(t, ok, "duration in ms: %v", h)
+		require.GreaterOrEqual(t, d, 0.0)
+		ran++
+	}
+	require.Equal(t, 4, ran, "false, the stderr command, the missing read, and the write's read of a new file")
+
+	refused, _ := replay(t, "pretool-refusal")
+	for _, h := range refused.raw {
+		if h["hook_event_name"] == "postToolUseFailure" {
+			require.Equal(t, 0.0, h["duration"], "a refused call took no time")
+		}
+	}
+}
+
 // TestAFileToolsErrorFiresTheFailureHook: recorded, a Read of a missing file
 // fires postToolUseFailure with "File not found: <path>", and a write first
 // reads the file it changes, which is such a failure when the file is new.

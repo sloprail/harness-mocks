@@ -46,8 +46,10 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
 		h.failure, h.result = hooks.PreToolRefusal(msg)
 		h.refused = true
+		h.s.named = true
 		return true, h.result
 	}
+	h.s.named = true
 	if h.call.Kind == "shellToolCall" {
 		own := map[string]any{"command": h.call.Command(), "cwd": "", "sandbox": false}
 		if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.BeforeShellExecution, h.call.Command(), own)); refused {
