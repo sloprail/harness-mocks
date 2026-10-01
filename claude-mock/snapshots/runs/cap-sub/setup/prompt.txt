@@ -1,0 +1,1 @@
+Use the Agent tool (not in background), subagent_type general-purpose, description 'helper', prompt 'Reply with the single word HELPED. If told to keep going, reply HELPED again.' Then reply only DONE.

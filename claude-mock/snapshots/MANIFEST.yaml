@@ -9,3 +9,9 @@ docs:
   https://code.claude.com/docs/en/tools-reference:
     version: 2.1.285
     sha256: d6c333e5c338b5f9943ef724f016f068e649bb118d152e820f30fbe226f787ab
+  https://code.claude.com/docs/en/hooks-guide:
+    version: 2.1.285
+    sha256: 02621714b53ad11b95643b35dccbee54e940fa5aeafb8eaffa3efcc70232727b
+  https://code.claude.com/docs/en/plugin-marketplaces:
+    version: 2.1.285
+    sha256: b624040340b1aa58cba1f31f70ba356d9ded06842128b533614c1ea2b33c44cd
