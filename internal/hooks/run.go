@@ -3,6 +3,7 @@ package hooks
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sloprail/harness-mocks/internal/procexec"
@@ -26,6 +27,9 @@ type Outcome struct {
 	// TimedOut is whether its timeout stopped it.
 	TimedOut       bool
 	Stdout, Stderr string
+	// Done is when it finished among the commands of its event: 1 for the
+	// first to finish, and so on.
+	Done int
 }
 
 // Runtime is where a harness runs its hook commands.
@@ -44,12 +48,14 @@ type Runtime struct {
 // can keep another from starting.
 func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Outcome {
 	out := make([]Outcome, len(cmds))
+	var finished atomic.Int64
 	var wg sync.WaitGroup
 	for i, c := range cmds {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			out[i] = runOne(ctx, c, stdin, rt)
+			out[i].Done = int(finished.Add(1))
 		}()
 	}
 	wg.Wait()
@@ -57,10 +63,7 @@ func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Out
 }
 
 func runOne(ctx context.Context, c Command, stdin []byte, rt Runtime) Outcome {
-	timeout := rt.DefaultTimeout
-	if c.Timeout > 0 {
-		timeout = c.Timeout
-	}
+	timeout := DefaultTimeout(c.Timeout, rt.DefaultTimeout)
 	res, err := procexec.Run(ctx, procexec.Spec{
 		Argv: []string{"/bin/sh", "-c", c.Line}, Dir: rt.Dir, Stdin: stdin, Env: rt.Env, Timeout: timeout,
 	})
