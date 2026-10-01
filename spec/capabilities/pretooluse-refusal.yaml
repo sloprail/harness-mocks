@@ -19,3 +19,17 @@ providers:
           the call to resume later) decide nothing in the mock; they only rank
           below deny when several hooks decide one call. Permission rules
           evaluated beside the hook are not modeled.
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#pretooluse
+      - https://developers.openai.com/codex/hooks#tool-coverage
+    runs:
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/pretool-decisions
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock's tool executor handles only the shell tool (hooks name it
+          Bash), so a refusal of apply_patch, of MCP tools and of Codex's other
+          local function tools is not modeled. Hosted tools such as web search
+          run no hook in Codex either.

@@ -47,3 +47,23 @@ providers:
           WorktreeRemove fails on a non-zero hook exit only if the worktree's
           directory still exists afterward. The mock's worktree_remove manages
           no directory, so any non-zero exit fails it.
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#pretooluse
+      - https://developers.openai.com/codex/hooks#userpromptsubmit
+      - https://developers.openai.com/codex/hooks#posttooluse
+      - https://developers.openai.com/codex/hooks#stop
+    runs:
+      - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/hook-exit-json
+      - codex-mock/snapshots/runs/hook-unstartable
+      - codex-mock/snapshots/runs/prompt-blocked
+      - codex-mock/snapshots/runs/posttool-block
+      - codex-mock/snapshots/runs/stops
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock fires SessionStart, UserPromptSubmit, PreToolUse,
+          PostToolUse and Stop, and no others. The docs' exit-code rows for
+          PermissionRequest, PreCompact, PostCompact, SubagentStart,
+          SubagentStop, Interrupt and SessionEnd are not modeled.
