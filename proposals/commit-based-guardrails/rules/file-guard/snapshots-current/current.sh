@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Per harness with snapshots, against its MANIFEST.yaml `version`:
 #   script <harness>-mock/snapshots/capture.sh exists: the only writer
-#   docs   every docs/<host>/<path>.md is registered in MANIFEST.docs by its URL, with version ==
-#          version and a sha256 that matches the file (a hand edit breaks it)
+#   docs   every MANIFEST.docs entry is frozen at `version`, and the live page
+#          still hashes to its sha256 (the text is cached, never committed)
 #   runs   kebab name; run.yaml version == version; ≥1 sample; sample dirs are
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
 #          have identical events (a re-run that changed nothing adds nothing);
@@ -32,17 +32,13 @@ for h in $(harnesses); do
   [ -n "$ver" ] || { add "$h-mock/snapshots/MANIFEST.yaml has no version"; continue; }
   [ -f "$d/capture.sh" ] || add "$h-mock/snapshots/capture.sh is missing: snapshots are only written by it"
 
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    p="${f#"$d"/}"; u="$(doc_url "$p")"
-    dv="$(jq -r --arg u "$u" '.docs[$u].version // ""' <<<"$m")"
-    [ -n "$dv" ] || { add "$h-mock/snapshots/$p is not registered in MANIFEST.docs (as $u)"; continue; }
-    [ "$dv" = "$ver" ] || add "$h-mock/snapshots/$p was copied at $dv, not $ver: re-fetch it"
-    [ "$(jq -r --arg u "$u" '.docs[$u].sha256 // ""' <<<"$m")" = "$(hash "$f")" ] ||
-      add "$h-mock/snapshots/$p does not match the sha256 capture.sh recorded: it was edited by hand; re-fetch it with capture.sh doc $u"
-  done < <(find "$d/docs" -type f 2>/dev/null)
+  # docs: only their hashes are committed; each must be frozen at this
+  # version, and the live page must still hash to it (else the doc changed
+  # since capture, and the snapshot is stale).
   for u in $(jq -r '(.docs // {}) | keys[]' <<<"$m"); do
-    [ -f "$d/$(doc_path "$u")" ] || add "MANIFEST.docs registers $u, but $h-mock/snapshots/$(doc_path "$u") does not exist"
+    dv="$(jq -r --arg u "$u" '.docs[$u].version // ""' <<<"$m")"
+    [ "$dv" = "$ver" ] || add "doc $u was frozen at $dv, not $ver: re-capture it with capture.sh doc $u"
+    doc_copy "$h" "$u" >/dev/null || add "$DOC_ERROR"
   done
 
   for r in "$d"/runs/*/; do
@@ -79,10 +75,11 @@ for h in $(harnesses); do
     if [ "$kind" = run ]; then
       [ -d "$SR_TREE/$ref" ] || add "capability '$id' cites run '$ref', which does not exist"
     else
-      doc_file "$h" "$ref" >/dev/null ||
-        { add "capability '$id' cites $h doc '${ref%%#*}', which no snapshot in $h-mock/snapshots/MANIFEST.yaml copies"; continue; }
+      doc_sha "$h" "$ref" >/dev/null ||
+        { add "capability '$id' cites $h doc '${ref%%#*}', which no snapshot in $h-mock/snapshots/MANIFEST.yaml freezes"; continue; }
+      if ! doc_copy "$h" "$ref" >/dev/null; then add "capability '$id' cites '$ref': $DOC_ERROR"; continue; fi
       doc_ref_section "$h" "$ref" >/dev/null ||
-        add "capability '$id' cites '$ref', but the $h snapshot of that page has no such section"
+        add "capability '$id' cites '$ref', but the frozen page has no such section"
     fi
   done < <(jq -r --arg h "$h" '.[] | .id as $id | (.doc.providers[$h] // false) | select(type == "object")
             | ((.runs // [])[] | [$id, ., "run"]), ((.docs // [])[] | [$id, ., "doc"]) | @tsv' <<<"$caps")

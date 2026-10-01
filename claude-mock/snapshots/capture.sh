@@ -6,8 +6,9 @@
 #
 #   capture.sh run <name>    run the scenario in runs/<name>/setup/ against the
 #                            real `claude`, and add a sample
-#   capture.sh doc <url>     copy a doc page (e.g. https://code.claude.com/docs/en/hooks)
-#                            to docs/<host>/<path>.md, and register its URL in MANIFEST
+#   capture.sh doc <url>     freeze a doc page (e.g. https://code.claude.com/docs/en/hooks):
+#                            its sha256 goes in the MANIFEST; its text only into a cache
+#                            under the git dir, never into the repo
 #   capture.sh drop <run> <ts>  remove one sample (a bad or non-hermetic capture)
 #   capture.sh all           re-capture every run and doc at the installed
 #                            claude's version, and set MANIFEST.version to it
@@ -95,22 +96,20 @@ capture_run() {
   echo "captured runs/$name/samples/$ts"
 }
 
-# The same URL → path function as the rules' doc_path (rules/_lib/snapshots.sh).
-doc_path() {
-  local u="${1%%#*}"; u="${u%%\?*}"; u="${u#https://}"; u="${u#http://}"; u="${u%/}"
-  printf 'docs/%s.md' "$u"
-}
-
+# capture_doc URL — freeze a doc page: fetch <url>.md, record its sha256 in the
+# MANIFEST, and keep the text only in the cache under the git dir (the rules'
+# doc_copy reads it there). The page's text is never committed: it is the
+# harness vendor's.
 capture_doc() {
-  local url="${1%%#*}" path v tmp
-  url="${url%/}"; path="$(doc_path "$url")"
-  v="$(version)"; tmp="$(mktemp)"
+  local url="${1%%#*}" v tmp sha cache
+  url="${url%/}"; v="$(version)"; tmp="$(mktemp)"
   curl -fsSL "$url.md" -o "$tmp" || die "could not fetch $url.md"
   head -c 200 "$tmp" | grep -q '<html' && die "$url.md is not markdown"
-  mkdir -p "$(dirname "$here/$path")"; mv "$tmp" "$here/$path"; chmod 644 "$here/$path"
-  URL="$url" V="$v" SHA="$(shasum -a 256 "$here/$path" | cut -d' ' -f1)" \
-    yq -i '.docs[strenv(URL)] = {"version": strenv(V), "sha256": strenv(SHA)}' "$manifest"
-  echo "copied $url → $path"
+  sha="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
+  cache="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/sloprail-doc-cache"
+  mkdir -p "$cache" && mv "$tmp" "$cache/$sha.md"
+  URL="$url" V="$v" SHA="$sha" yq -i '.docs[strenv(URL)] = {"version": strenv(V), "sha256": strenv(SHA)}' "$manifest"
+  echo "froze $url at sha256 $sha (text cached, not committed)"
 }
 
 case "${1:-}" in

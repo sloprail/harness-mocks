@@ -24,7 +24,7 @@ while IFS= read -r c; do
     printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && hit=1
     printf '%s\n' "$fqns" | grep -Fxq -e "$id" -e "$id/$h" && hit=1
     for r in $(jq -r '.runs[]' <<<"$cell"); do printf '%s\n' "$changed" | grep -q "^$r/" && hit=1; done
-    for u in $(jq -r '.docs[]' <<<"$cell"); do f="$(doc_file "$h" "$u")" && printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/$f" && hit=1; done
+    printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/MANIFEST.yaml" && hit=1   # a re-frozen doc
     [ "$hit" = 1 ] || continue
     d="$(snap_dir "$h")"
     docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do

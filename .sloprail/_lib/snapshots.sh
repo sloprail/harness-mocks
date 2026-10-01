@@ -3,9 +3,8 @@
 #
 #   <harness>-mock/snapshots/
 #     MANIFEST.yaml          version: <the one freeze point>
-#                            docs: {<page URL>: {version, sha256}}
-#     docs/<host>/<path>.md  a doc page, copied at that version; its path is a
-#                            pure function of its URL (doc_path), so no lookup
+#                            docs: {<page URL>: {version, sha256}}  ← only the
+#                            hash of each doc page is committed, never its text
 #     runs/<name>/           a recorded real scenario
 #       run.yaml             version, command
 #       setup/               what makes it this scenario (settings, hooks, prompt)
@@ -13,8 +12,14 @@
 #         events.jsonl       the normalized event sequence (hook payloads + stream frames)
 #         …                  the raw capture (payloads.jsonl, stream.jsonl, transcript/)
 #
+# A doc page's TEXT is never committed (it is the harness vendor's). Its copy
+# lives in a cache under the repository's git dir, keyed by the sha256 the
+# MANIFEST records, and is fetched from <url>.md on a miss. A fetched page
+# whose hash differs from the MANIFEST's is not the page that was frozen: the
+# doc changed since capture, and the snapshot is stale.
+#
 # A capability cites them per harness: docs by the page's full URL plus
-# #anchor (the copy is at doc_path of that URL), runs by their
+# #anchor, runs by their
 # repo-relative path (<harness>-mock/snapshots/runs/<name>). A run is a
 # scenario; its captures are the timestamped samples inside it.
 
@@ -40,25 +45,43 @@ doc_section() {
     END { exit found ? 0 : 1 }' "$file"
 }
 
-# doc_path URL — where the copy of a doc page lives, relative to the snapshots
-# dir: https://code.claude.com/docs/en/hooks#stop → docs/code.claude.com/docs/en/hooks.md
-doc_path() {
-  local u="${1%%#*}"; u="${u%%\?*}"; u="${u#https://}"; u="${u#http://}"; u="${u%/}"
-  printf 'docs/%s.md' "$u"
-}
-# doc_url PATH — the inverse: docs/<host>/<path>.md → https://<host>/<path>.
-doc_url() { local p="${1#docs/}"; printf 'https://%s' "${p%.md}"; }
+# doc_cache_dir — where fetched doc pages are cached: inside the repository's
+# common git dir (shared by every worktree, never committed).
+doc_cache_dir() { printf '%s/sloprail-doc-cache' "$(git -C "$SR_TREE" rev-parse --path-format=absolute --git-common-dir)"; }
 
-# doc_file HARNESS URL — doc_path of URL, if that copy exists. Exit 1 if not.
-doc_file() {
-  local f; f="$(doc_path "$2")"
-  [ -f "$(snap_dir "$1")/$f" ] || return 1
-  printf '%s' "$f"
+# doc_sha HARNESS URL — the sha256 the MANIFEST froze for URL (anchor dropped).
+doc_sha() {
+  local m="$(snap_dir "$1")/MANIFEST.yaml" u="${2%%#*}"
+  [ -f "$m" ] || return 1
+  U="$u" yq -r '.docs[strenv(U)].sha256 // ""' "$m" 2>/dev/null | grep -E '^[0-9a-f]{64}$'
 }
 
-# doc_ref_section HARNESS URL#ANCHOR — the cited section's text from the snapshot.
+# DOC_ERROR — why doc_copy failed, for the caller's refusal.
+# doc_copy HARNESS URL — prints the path of the cached copy of URL's frozen
+# page, fetching it on a miss. Exit 1 (DOC_ERROR set) when the MANIFEST does
+# not freeze the URL, the page cannot be fetched, or the live page's hash
+# differs from the frozen one (stale).
+doc_copy() {
+  local sha dir f tmp got u="${2%%#*}"
+  DOC_ERROR=""
+  sha="$(doc_sha "$1" "$u")" || { DOC_ERROR="no snapshot in $1-mock/snapshots/MANIFEST.yaml freezes $u"; return 1; }
+  dir="$(doc_cache_dir)"; f="$dir/$sha.md"
+  [ -f "$f" ] && { printf '%s' "$f"; return 0; }
+  mkdir -p "$dir" && tmp="$(mktemp "$dir/fetch.XXXXXX")" || { DOC_ERROR="the doc cache $dir is not writable"; return 1; }
+  if ! curl -fsSL --max-time 30 "$u.md" -o "$tmp"; then
+    rm -f "$tmp"; DOC_ERROR="could not fetch $u.md to check it against its frozen hash"; return 1
+  fi
+  got="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
+  if [ "$got" != "$sha" ]; then
+    rm -f "$tmp"; DOC_ERROR="$u changed since it was captured (its hash is no longer the frozen one): re-capture it with capture.sh doc $u, and re-check what cites it"; return 1
+  fi
+  mv "$tmp" "$f" && printf '%s' "$f"
+}
+
+# doc_ref_section HARNESS URL#ANCHOR — the cited section's text, from the
+# frozen page. Exit 1 when the page cannot be had (DOC_ERROR) or has no such section.
 doc_ref_section() {
   local f
-  f="$(doc_file "$1" "$2")" || return 1
-  doc_section "$(snap_dir "$1")/$f" "${2#*#}"
+  f="$(doc_copy "$1" "$2")" || return 1
+  doc_section "$f" "${2#*#}"
 }
