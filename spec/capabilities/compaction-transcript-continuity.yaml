@@ -4,7 +4,8 @@ statement: >-
   chain across it.
 providers:
   claude:
-    docs: []
+    docs:
+      - https://code.claude.com/docs/en/claude-directory#application-data
     runs:
       - claude-mock/snapshots/runs/compact
       - claude-mock/snapshots/runs/compact-nohooks

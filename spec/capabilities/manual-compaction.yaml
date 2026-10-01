@@ -1,0 +1,25 @@
+statement: >-
+  The session can be compacted on request; hooks fire before and after the
+  compaction, and the hook before it can stop it.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/hooks#precompact
+      - https://code.claude.com/docs/en/hooks#postcompact
+    runs:
+      - claude-mock/snapshots/runs/compact
+      - claude-mock/snapshots/runs/compact-nohooks
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          /compact is a slash command, and no mock parses one: a scenario's compact
+          control record requests the compaction, so PreCompact's custom_instructions
+          is always null and the text a user passes after /compact is not modeled.
+      - adr: modeled-surface
+        statement: >-
+          The mock has no API and no context window, so it never compacts by
+          itself and never meets a context-limit error: an automatic compaction is
+          requested by a scenario, and the variant where blocking an automatic
+          compaction that was triggered to recover from a context-limit error
+          surfaces that error is not modeled. A blocked automatic compaction is
+          skipped and the conversation continues uncompacted.

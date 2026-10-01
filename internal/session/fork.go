@@ -44,6 +44,8 @@ func ParseRecords(data []byte, uuidKey string) []Record {
 // everything after the summary, the first of it re-parented onto the last
 // preserved record. The source is only read: recs are what the caller parsed of
 // it, and Fork changes only the fork's own copies of them.
+//
+// sr:capability session-fork
 func Fork(recs []Record, newID string, s ForkSchema) []Record {
 	segment := forkSegment(recs, s)
 	for _, rec := range segment {

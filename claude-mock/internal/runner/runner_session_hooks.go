@@ -46,6 +46,9 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, sourc
 		HookEventName: hooks.EventSessionStart,
 		Source:        source,
 	}
+	if source == "resume" || source == "fork" {
+		in.ResumeFields = resumeFields(cfg.sessionFile)
+	}
 	ssOut, runs, _ := inv.FireRuns(ctx, in)
 	writeSessionStartFrames(cfg, in, runs)
 	ac := promptContextFrom(ssOut)
