@@ -68,9 +68,11 @@ var recordedEvents = map[hooks.EventName]bool{
 	hooks.EventUserPromptSubmit: true,
 	hooks.EventPreToolUse:       true,
 	hooks.EventPostToolUse:      true,
-	hooks.EventStop:             true,
-	hooks.EventSubagentStart:    true,
-	hooks.EventSubagentStop:     true,
+	// its exit 2: recorded in snapshots/runs/hook-exit-codes (claude 2.1.285)
+	hooks.EventPostToolUseFailure: true,
+	hooks.EventStop:               true,
+	hooks.EventSubagentStart:      true,
+	hooks.EventSubagentStop:       true,
 }
 
 // additionalContext writes the hook_additional_context record that follows a

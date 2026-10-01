@@ -23,8 +23,9 @@ import (
 //   - exit 2: SessionStart and SubagentStart write it as a
 //     hook_non_blocking_error whose stderr is "[<command>]: <stderr>" (no
 //     durationMs); Stop/SubagentStop write only the feedback meta turn
-//     "Stop hook feedback:\n[<command>]: <stderr>"; PostToolUse writes a
-//     hook_blocking_error; PreToolUse writes nothing (its tool_result carries
+//     "Stop hook feedback:\n[<command>]: <stderr>"; PostToolUse and
+//     PostToolUseFailure write a hook_blocking_error (the latter recorded in
+//     snapshots/runs/hook-exit-codes); PreToolUse writes nothing (its tool_result carries
 //     it). Other events: no evidence, nothing written.
 //   - any other non-zero exit: hook_non_blocking_error {stderr: "Failed with
 //     non-blocking status code: <stderr or No stderr output>", stdout,
@@ -41,7 +42,7 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 	}
 	hookName := string(in.HookEventName)
 	switch in.HookEventName {
-	case hooks.EventPreToolUse, hooks.EventPostToolUse:
+	case hooks.EventPreToolUse, hooks.EventPostToolUse, hooks.EventPostToolUseFailure:
 		if in.ToolName != "" {
 			hookName += ":" + in.ToolName
 		}
@@ -82,7 +83,7 @@ func (t *transcript) recordHookRuns(in hooks.Input, runs []hooks.HandlerRun) {
 			case hooks.EventStop, hooks.EventSubagentStop:
 				t.stopHookFeedback(quoted)
 				summary.errors = append(summary.errors, quoted)
-			case hooks.EventPostToolUse:
+			case hooks.EventPostToolUse, hooks.EventPostToolUseFailure: // the tool already ran; stderr is shown to Claude (docs)
 				att("hook_blocking_error", map[string]any{
 					"blockingError": map[string]any{"blockingError": quoted, "command": r.Command},
 				})
