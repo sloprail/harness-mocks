@@ -10,9 +10,9 @@ import (
 
 // Background tasks: a Bash or an Agent called with run_in_background, the
 // receipts real Claude Code answers them with, and how a finished one is handed
-// back to the agent. Every text and field below is pinned in EVIDENCE.md to the
-// claude 2.1.282 binary, controlled `claude -p` runs of it, and the real
-// transcripts on one machine.
+// back to the agent. Every text and field below is pinned to the claude binary, the
+// recorded runs under claude-mock/snapshots/runs (bgbash, bgagent, midturn), and
+// the real transcripts on one machine.
 //
 //   - A background Bash is answered at once with "Command running in
 //     background with ID: <id>. Output is being written to: <file>. You will

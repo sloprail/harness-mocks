@@ -1,1 +1,0 @@
-{"hooks":{"SubagentStop":[{"matcher":"*","hooks":[{"type":"command","command":"<RUN>/cap-sub/h.sh"}]}],"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"<RUN>/cap-sub/h.sh"}]}]}}

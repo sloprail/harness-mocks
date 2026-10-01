@@ -35,9 +35,5 @@ allow:
   - regex: '^\.github/workflows/[a-z0-9-]+\.yml$'
   - regex: '^\.claude/settings\.json$'
 
-  # legacy, until claude-mock's evidence moves to snapshots/: its index only.
-  # claude-mock/evidence/** itself is frozen (not allowed; deletes are not gated).
-  - regex: '^claude-mock/EVIDENCE\.md$'
-
   # this proposal, until it is activated
   - glob: "proposals/**"

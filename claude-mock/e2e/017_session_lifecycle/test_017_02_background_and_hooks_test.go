@@ -14,8 +14,8 @@ import (
 )
 
 // These pin the background-task lifecycle and the hook records to claude
-// 2.1.282: controlled `claude -p` runs of it, its binary, and the real
-// transcripts on one machine (claude-mock/EVIDENCE.md).
+// 2.1.285: the recorded runs under claude-mock/snapshots/runs, the claude
+// binary, and the real transcripts on one machine.
 
 // messageText is a record's message.content when it is a string.
 func messageText(r rec) string {

@@ -6,9 +6,9 @@ import (
 )
 
 // recordHookRuns writes what real Claude Code records for one fired hook
-// event, handler by handler. Each rule below is pinned to evidence in
-// claude-mock/EVIDENCE.md (real transcripts, controlled runs of claude
-// 2.1.282, and the 2.1.282 binary's hook runner):
+// event, handler by handler. Each rule below is pinned to evidence: real
+// transcripts, the recorded runs under claude-mock/snapshots/runs (hookmix,
+// hook-exit-codes, hookerrors), and the claude binary's hook runner:
 //
 //   - exit 0, nothing printed: no record at all.
 //   - exit 0 with output: hook_success {content, stdout, stderr, exitCode,

@@ -154,7 +154,7 @@ exit 0`)
 // channel by which its words reached the conversation it was judging.
 //
 // The two blocking forms are recorded differently, as claude 2.1.282 records
-// them (a controlled run, EVIDENCE.md): an exit-0 decision:block leaves the
+// them (snapshots/runs/stops): an exit-0 decision:block leaves the
 // "Stop hook feedback:\n<reason>" turn AND a hook_blocking_error attachment
 // {blockingError: {blockingError: reason, command}}; an exit 2 leaves only the
 // feedback turn, quoting the hook as "[<command>]: <stderr>".

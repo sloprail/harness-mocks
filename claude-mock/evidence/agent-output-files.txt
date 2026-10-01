@@ -1,8 +1,0 @@
-# tasks/<agentId>.output files in the real HOME's task directories, 2026-09-28.
-# Directories under the temp root (<TMP>/claude-<uid>/<encoded cwd>/<session>/tasks/) are counted, not listed.
-agent task output files that are symlinks: 121
-agent task output files that are regular files: 0
-# Every symlink points at the sub-agent's own transcript. One example, fully sanitized:
-<TMP>/claude-<uid>/<encoded-cwd>/<session-id>/tasks/a0123456789abcdef.output -> <HOME>/.claude/projects/<encoded-cwd>/<session-id>/subagents/agent-a0123456789abcdef.jsonl
-# The fake-HOME runs in this directory (7 of them) left 0-byte regular files at
-# tasks/<agentId>.output instead. So the symlink is backed only by this real-HOME count.

@@ -11,8 +11,8 @@ import (
 // forkTranscript writes dest as a FORK of the session fromID under the new
 // session id newID — what `--resume <id> --fork-session` leaves.
 //
-// Measured on claude 2.1.282 (a controlled fork) and on the real forks on one
-// machine (EVIDENCE.md):
+// Measured on claude (the run under claude-mock/snapshots/runs/forkresume) and on
+// the real forks on one machine:
 //
 //   - A session never compacted forks whole: every record, origin included,
 //     its parentUuid unchanged, with sessionId rewritten to the fork's — as

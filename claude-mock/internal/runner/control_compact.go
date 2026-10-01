@@ -10,9 +10,9 @@ import (
 	"github.com/sloprail/harness-mocks/internal/compaction"
 )
 
-// compact is a compaction, the way real Claude Code performs one. Evidence
-// (EVIDENCE.md): two manual /compact runs through claude 2.1.282 (fixtures
-// evidence/compact*), the 65 compact_boundary records in the real transcripts,
+// compact is a compaction, the way real Claude Code performs one. Evidence:
+// the manual /compact runs under claude-mock/snapshots/runs/compact and
+// compact-nohooks, the 65 compact_boundary records in the real transcripts,
 // and the binary's compaction path.
 //
 //  1. PreCompact fires {trigger, custom_instructions: null}; an exit 2 or a
