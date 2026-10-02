@@ -124,7 +124,6 @@ func (h *ctxHost) Tool(ctx context.Context, tu scenario.ToolUse) {
 	h.host.Tool(ctx, tu)
 	h.added = append(h.added, "after-"+tu.ID)
 }
-func (h *ctxHost) Context() string { return strings.Join(h.added, "\n") }
 
 func TestRunGivesTheScriptTheContextAHostAddsAsTheTurnGoes(t *testing.T) {
 	dir := t.TempDir()
@@ -140,7 +139,8 @@ printf '%s\n' '{"type":"result","result":"done"}'`
 	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go"}); err != nil {
+	if _, err := Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go",
+		Added: func() string { return strings.Join(h.added, "\n") }}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(h.sessionLog + ".ctx")
