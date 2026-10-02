@@ -20,10 +20,25 @@ type Invoker struct {
 	Common          Common
 }
 
-// DefaultTimeout is Codex's hook timeout when none is configured.
+// DefaultTimeout is Codex's hook timeout when none is configured, for every
+// event but SessionEnd; SessionEnd's is SessionEndDefault, and no hook of it
+// may run longer than SessionEndCap, whatever its own timeout says.
 //
 // sr:docs https://developers.openai.com/codex/hooks#config-shape
-const DefaultTimeout = 600 * time.Second
+const (
+	DefaultTimeout    = 600 * time.Second
+	SessionEndDefault = 1 * time.Second
+	SessionEndCap     = 3 * time.Second
+)
+
+// timeoutFor is the timeout a hook of ev runs under: its own (zero when none
+// is configured, which the core replaces by the default), capped for SessionEnd.
+func timeoutFor(ev Event, own time.Duration) time.Duration {
+	if ev == SessionEnd {
+		return corehooks.CapTimeout(corehooks.DefaultTimeout(own, SessionEndDefault), SessionEndCap)
+	}
+	return own
+}
 
 // toolAliases are the other names a canonical tool name also matches.
 //
@@ -44,7 +59,7 @@ func (iv *Invoker) Fire(ctx context.Context, ev Event, match string, own map[str
 	for _, g := range iv.Config[ev] {
 		if ev == UserPromptSubmit || ev == Stop || corehooks.Matches(g.Matcher, match, toolAliases[match]...) {
 			for _, h := range g.Handlers {
-				cmds = append(cmds, corehooks.Command{Line: h.Command, Timeout: time.Duration(h.Timeout) * time.Second})
+				cmds = append(cmds, corehooks.Command{Line: h.Command, Timeout: timeoutFor(ev, time.Duration(h.Timeout)*time.Second)})
 			}
 		}
 	}
