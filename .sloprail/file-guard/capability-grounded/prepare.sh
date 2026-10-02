@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # prepare: the capabilities whose file changed, or which cite a doc page that
-# changed, as additionalContext.subjects (the engine does not split subjects
+# changed, as additionalContext.subjects, each with only the harnesses in
+# question: those whose cell changed (cells.sh; every harness when the statement
+# or the whole file changed) or whose cited doc page was re-frozen (the engine does not split subjects
 # yet; one judge call reviews them all). Per capability: the statement (a short
 # string) and, per providing harness, each cited doc ref with the path of its
 # frozen page (a local file in the doc cache under the git dir, fetched on a miss
@@ -12,19 +14,27 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/snapshots.sh"
+. "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 load_spec capabilities; caps="$SPEC"
 changed="$(cs '.changeset.files[].path')"
 subjects="[]"
 while IFS= read -r c; do
   [ -n "$c" ] || continue
   id="$(jq -r '.id' <<<"$c")"
-  hit=0; printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && hit=1
+  hs=""   # the harnesses in question, one per line ("*": all)
+  printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && hs="$(touched_harnesses "spec/capabilities/$id.yaml")"
   refs="$(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h | .value.docs[] | [$h, .] | @tsv' <<<"$c")"
   while IFS=$'\t' read -r h ref; do
     [ -n "$h" ] || continue
-    printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/MANIFEST.yaml" && hit=1   # a re-frozen doc
+    printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/MANIFEST.yaml" && hs="$(printf '%s\n%s' "$hs" "$h")"   # a re-frozen doc
   done <<<"$refs"
-  [ "$hit" = 1 ] || continue
+  hs="$(printf '%s\n' "$hs" | sed '/^$/d' | sort -u)"
+  [ -n "$hs" ] || continue
+  # keep only the cited docs and runs of the harnesses in question
+  if ! printf '%s\n' "$hs" | grep -Fxq '*'; then
+    refs="$(printf '%s\n' "$refs" | awk -F'\t' -v keep="$(printf '%s ' $hs)" 'BEGIN{n=split(keep,k," "); for(i=1;i<=n;i++) want[k[i]]=1} want[$1]')"
+    c="$(jq -c --argjson hs "$(printf '%s\n' "$hs" | jq -R . | jq -sc .)" '.doc.providers = ((.doc.providers // {}) | with_entries(select(.key as $k | $hs | index($k))))' <<<"$c")"
+  fi
   docs="[]"
   while IFS=$'\t' read -r h ref; do
     [ -n "$h" ] || continue
