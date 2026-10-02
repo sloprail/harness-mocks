@@ -9,5 +9,23 @@ providers:
     runs:
       - claude-mock/snapshots/runs/bgbash
       - claude-mock/snapshots/runs/midturn
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model a background command's time limit: the docs
+          give 30 minutes by default, or the timeout passed with
+          run_in_background up to 2 hours (raised by BASH_DEFAULT_TIMEOUT_MS and
+          BASH_MAX_TIMEOUT_MS), and a stop notice reading 'Background command
+          "<description>" was stopped after reaching its background time
+          limit'. A mock's background command runs until it ends or the session
+          reaps it.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model a foreground command moving to the
+          background: the docs say one that reaches its timeout is moved to the
+          background ('Command did not complete within its 120s timeout and was
+          moved to the background', with the task id and output file), and that
+          a foreground sub-agent's moved command still stops when that
+          sub-agent's run ends. A mock's foreground command is never moved.
   codex: false
   cursor: false
