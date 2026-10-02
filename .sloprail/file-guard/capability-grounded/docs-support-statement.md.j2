@@ -5,7 +5,7 @@ harness-neutral; each harness that provides it cites sections of that
 harness's own docs, frozen as snapshots. Judge every <subject>; fail if any
 one fails.
 
-Nothing is inlined here: read the files. Each <doc> is the harness's
+Nothing is inlined here: read the files (a <deviation>'s `adr-path` too). Each <doc> is the harness's
 documentation page, frozen and verified at the captured version, as a local
 file outside the project: read it in full, starting at its cited section
 (`section-line`; 0 means the cited anchor was not found in the page: that
@@ -20,6 +20,7 @@ Pass only if a citation below asks to stop mocking it.
 {% else %}<statement id="{{ subject.id }}" path="{{ subject.path }}">{{ subject.statement }}</statement>
 {% for d in subject.docs %}<doc harness="{{ d.harness }}" ref="{{ d.ref }}" path="{{ d.path }}" section-line="{{ d.line }}" lines="{{ d.lines }}"/>
 {% endfor %}{% for r in subject.runs %}<run harness="{{ r.harness }}" path="{{ r.path }}"/>
+{% endfor %}{% for v in subject.deviations %}<deviation harness="{{ v.harness }}" adr="{{ v.adr }}" adr-path="{{ v.adrpath }}">{{ v.statement }}</deviation>
 {% endfor %}{% endif %}</subject>
 {% endfor %}
 {% if changeset.citations %}<citations>
@@ -35,6 +36,12 @@ Pass only if a citation below asks to stop mocking it.
   stream, transcript). A run never grounds a part the doc contradicts.
 - The statement claims nothing any providing harness's doc leaves out; what
   differs between harnesses (a default, a name) is left out of the statement.
+- Every <deviation> fits the ADR it names: read that ADR (`adr-path`); the
+  deviation names a part the ADR's decision puts out of the model for that
+  harness, and says what is not modeled. A deviation naming a part the ADR
+  does not leave out, that the mock models, or that is only a convenience is
+  not covered by the ADR. The support matrix changes without the user's words,
+  so this is the check on it.
 - If the capability is newly added: a citation asks to mock this behaviour.
 
 ## How to decide
@@ -51,6 +58,7 @@ checklist is not a pass.
 
 ## Fail
 
-Name the harness, the part of the statement neither its doc nor its runs
+For a deviation outside its ADR's scope, name the harness, the deviation and
+the ADR line it does not fit. Otherwise name the harness, the part of the statement neither its doc nor its runs
 support (or that its doc contradicts, or the empty section: a ref that
 resolved to nothing), and quote the doc line closest to it.

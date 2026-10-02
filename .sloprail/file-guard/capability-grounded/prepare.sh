@@ -6,7 +6,8 @@
 # frozen page (a local file in the doc cache under the git dir, fetched on a miss
 # and checked against the MANIFEST's sha256 by doc_copy; a page that cannot be
 # had fails this check closed) and the line its cited section starts at; and
-# each cited run's directory.
+# each cited run's directory, and each deviation with the path of the ADR it
+# names (an ADR that does not exist fails this check closed).
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -37,8 +38,12 @@ while IFS= read -r c; do
   # each providing harness's cited runs (project paths: the judge reads their
   # setup and samples) ground what its docs leave unsaid
   runs="$(jq -c '[.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h | .value.runs[]? | {harness: $h, path: .}]' <<<"$c")"
-  subjects="$(jq -c --arg id "$id" --arg st "$(jq -r '.doc.statement // ""' <<<"$c")" --argjson d "$docs" --argjson r "$runs" --arg p "spec/capabilities/$id.yaml" \
-    '. + [{id: $id, removed: false, path: $p, statement: $st, docs: $d, runs: $r}]' <<<"$subjects")"
+  devs="$(jq -c '[.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h | .value.deviations[]? | {harness: $h, adr: .adr, statement: .statement, adrpath: ("adr/" + .adr + "/ADR.md")}]' <<<"$c")"
+  for a in $(jq -r '.[].adr' <<<"$devs"); do
+    [ -f "$SR_TREE/adr/$a/ADR.md" ] || { echo "capability '$id': a deviation names adr/$a, which does not exist" >&2; exit 1; }
+  done
+  subjects="$(jq -c --arg id "$id" --arg st "$(jq -r '.doc.statement // ""' <<<"$c")" --argjson d "$docs" --argjson r "$runs" --argjson v "$devs" --arg p "spec/capabilities/$id.yaml" \
+    '. + [{id: $id, removed: false, path: $p, statement: $st, docs: $d, runs: $r, deviations: $v}]' <<<"$subjects")"
 done < <(jq -c '.[]' <<<"$caps")
 # a deleted capability: judged on the words only
 for p in $(cs '.changeset.files[] | select(.status == "D" and (.path | startswith("spec/capabilities/"))) | .path'); do

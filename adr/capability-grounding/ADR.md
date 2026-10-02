@@ -26,6 +26,14 @@ quirks.
   (`providers.<harness>.runs`: `<harness>-mock/snapshots/runs/<name>/`, whose
   `samples/<ts>/` hold the real harness's payloads, stream and transcript).
 - A run never grounds a part its harness's docs contradict.
-- Adding or removing a capability, changing its `statement`, or changing any
-  line of a cell's `deviations` carries the user's words on its commit
-  (`Sloprail-Cites-User`).
+- Adding or removing a capability, changing its `statement`, or adding or
+  dropping a harness's cell (a `providers.<harness>` key, or flipping it
+  between `false` and a cell) carries the user's words on its commit
+  (`Sloprail-Cites-User`): what is mocked is the user's choice.
+- A change solely inside a harness's cell of the support matrix (its `docs`,
+  `runs` and `deviations`) needs no citation: the cell is held to the harness
+  by the rules above, not to the user. Every `deviations` entry still names an
+  existing ADR, and a judge refuses one that does not fit the scope of the
+  ADR it names, so the matrix cannot declare a gap no ADR allows. A commit
+  that touches the matrix together with anything above needs the words as a
+  whole.
