@@ -43,7 +43,7 @@ echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-7702"}'
 		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"LAUNCHED @MARK@"}]}}`,
 	)
 	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bga-1",
-		"--project-dir", dir, "--config-dir", cfg, "--model", "haiku", "-p", "hello")
+		"--project-dir", dir, "--config-dir", cfg, "--model", "claude-haiku-4-5-20251001", "-p", "hello")
 	require.Equal(t, 0, code, out)
 
 	main := transcriptPath(t, cfg, dir, "bga-1")
