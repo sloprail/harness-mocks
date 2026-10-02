@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # `when`: exit 0 (words required) when the changeset adds or deletes a
-# capability file, or changes its statement or any cell's `deviations` (what is
-# mocked, and where a mock knowingly differs, is the user's call:
-# adr/capability-grounding); exit 1 (waived) otherwise. The statement and the
-# deviations are compared parsed, at the range's base and head, so an edit to
-# any line of a folded block counts. Any failure requires them.
+# capability file, or changes its statement (what is mocked is the user's call:
+# adr/capability-grounding); exit 1 (waived) otherwise. A change confined to the
+# support matrix (the `providers` cells: docs, runs, deviations) needs no words;
+# the judge still reviews it. The statement is compared parsed, at the range's
+# base and head, so an edit to any line of a folded block counts. Any failure
+# requires them.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -15,7 +16,7 @@ base="$(cs '.changeset.base')"; head="$(cs '.changeset.head')"
 decided() {   # REV PATH
   git -C "$SR_TREE" cat-file -e "$1:$2" 2>/dev/null || { echo null; return; }
   git -C "$SR_TREE" show "$1:$2" |
-    yq -o=json '{"statement": .statement, "deviations": ([.providers // {} | to_entries[] | {"h": .key, "d": (.value.deviations // [])}])}' 2>/dev/null |
+    yq -o=json '{"statement": .statement}' 2>/dev/null |
     jq -cS . 2>/dev/null || echo null
 }
 for p in $(cs '.changeset.files[] | select(.path | test("^spec/capabilities/")) | .path'); do

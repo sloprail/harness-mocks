@@ -34,7 +34,9 @@ visible and deliberate, not a test nobody wrote.
     whose shell will not start: it always runs `/bin/sh`);
   - the reference text a harness prints inside its own diagnostics (such as
     the output schema Claude Code appends to a hook validation error): a mock
-    writes the diagnostic's first line and the hook's own output.
+    writes the diagnostic's first line and the hook's own output;
+  - a background time limit, and a foreground command moving to the
+    background.
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.

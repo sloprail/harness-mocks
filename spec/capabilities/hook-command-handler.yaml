@@ -16,3 +16,17 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/hook-exit-json
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#command-based-hooks
+      - https://cursor.com/docs/hooks#configuration
+    runs:
+      - cursor-mock/snapshots/runs/hook-exit-codes
+      - cursor-mock/snapshots/runs/hook-matchers
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock reads the project's .cursor/hooks.json only, and runs its
+          hooks from the project root. The user-level hooks of
+          ~/.cursor/hooks.json (which run from ~/.cursor), and the team and
+          enterprise sources, are not modeled.

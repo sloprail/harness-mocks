@@ -11,3 +11,4 @@ providers:
       - claude-mock/snapshots/runs/agent-invalid-description
       - claude-mock/snapshots/runs/tool-invalid-input
   codex: false
+  cursor: false

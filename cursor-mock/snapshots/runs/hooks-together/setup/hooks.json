@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      { "command": ".cursor/hooks/rv.sh a b" },
+      { "command": ".cursor/hooks/rv.sh b a" }
+    ]
+  }
+}

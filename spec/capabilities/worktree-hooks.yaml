@@ -26,3 +26,4 @@ providers:
           returned path (a path through a symlink, or with . or .. segments, is
           refused) and the .worktreeinclude copy that the default creation does.
   codex: false
+  cursor: false

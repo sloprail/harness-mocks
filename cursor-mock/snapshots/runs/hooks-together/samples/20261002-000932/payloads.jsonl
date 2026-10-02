@@ -1,0 +1,2 @@
+{"hook_result":{"script":"rv-b","event":"beforeShellExecution","command":"saw-a"}}
+{"hook_result":{"script":"rv-a","event":"beforeShellExecution","command":"saw-b"}}

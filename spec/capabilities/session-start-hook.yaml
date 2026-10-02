@@ -1,8 +1,9 @@
 statement: >-
-  A hook fires when a session begins and says how it began: fresh, resumed,
-  forked, or continuing after a compaction. The hook cannot stop the session
-  from starting. (What else the hook receives or may return, such as context
-  for the agent, is other capabilities'.)
+  A hook fires when a session begins and, in a harness that starts a session
+  in more than one way, says how it began: fresh, resumed, forked, or
+  continuing after a compaction. The hook cannot stop the session from
+  starting. (What else the hook receives or may return, such as context for
+  the agent, is other capabilities'.)
 providers:
   claude:
     docs:
@@ -29,3 +30,14 @@ providers:
       - adr: modeled-surface
         statement: >-
           The mock never resumes, forks or compacts a session, so a session start is always the fresh one, source startup.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#sessionstart
+    runs:
+      - cursor-mock/snapshots/runs/session-start-block
+      - cursor-mock/snapshots/runs/symlinked-cwd
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock never resumes, forks or compacts a conversation, so it fires
+          one sessionStart hook per run, at the fresh start.

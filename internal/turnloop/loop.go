@@ -42,6 +42,11 @@ type Params struct {
 	// BlockCap is how many blocks in a row may continue the turn; zero is no
 	// limit.
 	BlockCap int
+	// Added, when set, is the context the harness's hooks have added to the
+	// conversation since the prompt (at the start of the session, after a tool
+	// call), all of it so far in the order added. The script is given it as
+	// additional context on each run, after what the prompt hooks added.
+	Added func() string
 }
 
 // LoopLimit is how many turns in a row a script may ask for the same call.
@@ -79,6 +84,18 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 	}
 }
 
+// contextOf is the context the agent has at a step: what the prompt hooks added
+// and, when the harness adds more as the turn goes, what it has added so far.
+func contextOf(p Params, prompt string) string {
+	if p.Added == nil || p.Added() == "" {
+		return prompt
+	}
+	if prompt == "" {
+		return p.Added()
+	}
+	return prompt + "\n" + p.Added()
+}
+
 // agent runs the script step by step until it gives its result (or neither a
 // call nor a result), returning the agent's last message.
 func agent(ctx context.Context, h Host, p Params, extra string) (last string, err error) {
@@ -86,7 +103,7 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 	same := 0
 	for {
 		t, err := scenario.RunTurn(ctx, p.Script, p.Dir, p.Environ, scenario.Input{
-			Prompt: p.Prompt, AdditionalContext: extra, SessionFile: h.SessionFile()})
+			Prompt: p.Prompt, AdditionalContext: contextOf(p, extra), SessionFile: h.SessionFile()})
 		if err != nil {
 			return "", err
 		}

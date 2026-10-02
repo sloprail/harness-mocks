@@ -10,3 +10,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/forkresume
   codex: false
+  cursor: false

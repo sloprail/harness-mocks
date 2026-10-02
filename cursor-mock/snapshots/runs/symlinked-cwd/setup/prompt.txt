@@ -1,0 +1,1 @@
+Run exactly one shell command: echo SYMLINKED. Then reply only DONE.
