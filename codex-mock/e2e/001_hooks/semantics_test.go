@@ -88,7 +88,10 @@ func TestExit2PerEvent(t *testing.T) {
 	})
 	assert.Equal(t, 0, r.Code, r.Stderr)
 	assert.Equal(t, 2, strings.Count(r.Stdout, `"text":"DONE"`), "the stop block did not continue the turn")
-	assert.Contains(t, r.rollout(t), `<hook_prompt hook_run_id=\"stop\">STOP-REASON</hook_prompt>`)
+	// The recorded run (runs/stops) names the hook run `stop:<n>:<path of hooks.json>`;
+	// the mock names it plain `stop`, so only the part both share is pinned: a
+	// stop hook_prompt carrying the hook's reason.
+	assert.Regexp(t, `<hook_prompt hook_run_id=\\"stop[^>]*>STOP-REASON</hook_prompt>`, r.rollout(t))
 }
 
 // PostToolUse fires for a command that failed too (runs/bashfail), and a hook
@@ -104,8 +107,7 @@ func TestPostToolUseFiresForFailureAndFeedbackReplacesTheResult(t *testing.T) {
 	assert.Equal(t, []string{"echo out; exit 3"}, cmds)
 	assert.Equal(t, []float64{3}, exits)
 	assert.Len(t, r.hookLog(), 1, "PostToolUse did not fire for a failed command")
-	assert.Contains(t, r.rollout(t), `"output":"FEEDBACK"`)
-	assert.NotContains(t, r.rollout(t), `"output":"out\n"`)
+	assert.True(t, resultTold(t, r.rollout(t), "FEEDBACK", "out\n"), "the agent was not told the hook's feedback in place of the result")
 }
 
 // Commands run in the session's directory, hooks and the scenario script too.

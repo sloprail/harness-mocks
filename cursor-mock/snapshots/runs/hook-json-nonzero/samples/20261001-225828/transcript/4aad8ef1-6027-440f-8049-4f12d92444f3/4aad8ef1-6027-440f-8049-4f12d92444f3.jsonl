@@ -1,0 +1,6 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, whatever happens: 1) echo JSONEXIT1 2) echo JSONEXIT3 3) echo FINE. If a call is refused, do not retry it or look for a workaround; go on to the next. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll run those three echo commands one after another as separate shell calls."},{"type":"tool_use","name":"Shell","input":{"command":"echo JSONEXIT1","description":"Echo JSONEXIT1"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo JSONEXIT3","description":"Echo JSONEXIT3"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo FINE","description":"Echo FINE"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

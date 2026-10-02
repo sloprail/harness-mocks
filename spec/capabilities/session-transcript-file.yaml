@@ -14,3 +14,9 @@ providers:
       - claude-mock/snapshots/runs/symlinked-cwd
       - claude-mock/snapshots/runs/transcript-at-start
   codex: false
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#common-schema
+    runs:
+      - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/symlinked-cwd

@@ -32,3 +32,9 @@ providers:
           The mock has no interactive session (no /clear, which changes the
           session id in Codex) and its tool executor runs every command with
           /bin/sh, where Codex runs the user's login shell.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#environment-variables
+    runs:
+      - cursor-mock/snapshots/runs/subprocess-session-env
+      - cursor-mock/snapshots/runs/nested-session-env

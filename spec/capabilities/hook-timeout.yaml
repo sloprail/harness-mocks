@@ -32,3 +32,12 @@ providers:
       - https://developers.openai.com/codex/hooks#config-shape
     runs:
       - codex-mock/snapshots/runs/hook-timeout
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          Codex also gives the Interrupt event a default of 1 second, capped at 3, but the mock fires no Interrupt event (a non-interactive run has nothing to interrupt), so that default is not modeled.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#per-script-configuration-options
+    runs:
+      - cursor-mock/snapshots/runs/hook-timeout

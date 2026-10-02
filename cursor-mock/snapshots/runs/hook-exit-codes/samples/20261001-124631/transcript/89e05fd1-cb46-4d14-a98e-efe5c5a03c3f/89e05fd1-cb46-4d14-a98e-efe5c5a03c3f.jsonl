@@ -1,0 +1,9 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, whatever happens: 1) echo EXIT2ME 2) echo EXIT1ME 3) echo EXIT3ME 4) echo BADJSON 5) echo AFTER2ME 6) echo FINE. If a call is refused, do not retry it or look for a workaround; go on to the next. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the six shell commands in order, one per call."},{"type":"tool_use","name":"Shell","input":{"command":"echo EXIT2ME","description":"Echo EXIT2ME"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo EXIT1ME","description":"Echo EXIT1ME"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo EXIT3ME","description":"Echo EXIT3ME"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo BADJSON","description":"Echo BADJSON"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo AFTER2ME","description":"Echo AFTER2ME"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo FINE","description":"Echo FINE"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}
