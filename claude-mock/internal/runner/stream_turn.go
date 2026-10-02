@@ -90,7 +90,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var startAgent func()
 	toolStarted := time.Now()
 	switch {
-	case isAgentTool(pending.ToolName) && runsInBackground(pending.ToolInput):
+	case isAgentTool(pending.ToolName) && tasks.RunsInBackground(runsInBackground(pending.ToolInput), cfg.BackgroundTasksDisabled):
 		res, startAgent = bg.launchAgent(cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isAgentTool(pending.ToolName):
 		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, tr)

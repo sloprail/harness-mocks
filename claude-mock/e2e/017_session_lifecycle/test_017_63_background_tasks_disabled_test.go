@@ -58,3 +58,25 @@ func TestT017_63_DisabledBackgroundTasksRunInTheForeground(t *testing.T) {
 		})
 	}
 }
+
+// TestT017_64_DisabledBackgroundTasksRunAnAgentInTheForeground: with the same
+// variable an Agent call that asks for run_in_background runs the sub-agent in
+// the foreground: the agent gets the sub-agent's final reply, not an
+// async_launched receipt.
+// sr:proves background-agent/claude
+func TestT017_64_DisabledBackgroundTasksRunAnAgentInTheForeground(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
+echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"AGENT-REPLY-6401"}]}}'
+echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-6401"}'
+`, 0o755)
+	sc := script(t, dir, "s", toolUse("ag1", "Agent", `{"prompt":"go","description":"fg agent","script":"`+sub+`","run_in_background":true}`))
+	out, code := runInDir(t, dir, []string{"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1"}, "--script", sc, "--session-id", "dis-2",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.NotContains(t, out, "async_launched")
+	assert.Contains(t, out, `"is_backgrounded":false`, "a foreground sub-agent's task frame")
+	assert.NotContains(t, out, `"is_backgrounded":true`)
+	assert.Contains(t, out, "AGENT-REPLY-6401")
+}
