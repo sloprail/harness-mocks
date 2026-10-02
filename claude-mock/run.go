@@ -98,8 +98,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	// payload `cwd` field is ALREADY the resolved form, e.g. /private/tmp/... on macOS, not
 	// /tmp/...). --project-dir is passed as an unresolved path far more often than a plain
 	// os.Getwd() fallback would ever be (every test harness/caller that hands the mock an
-	// explicit directory string does so unresolved), so resolving only at the getwd()
-	// fallback branch above was never enough on its own.
+	// explicit directory string does so unresolved), so resolving at the getwd() fallback alone never sufficed.
 	cwd := projectDir
 	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = resolved
