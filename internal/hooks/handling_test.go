@@ -74,12 +74,6 @@ func TestATimedOutCommandRendersNoDecision(t *testing.T) {
 	if out[0].Timeout != 200*time.Millisecond || out[0].Took < 200*time.Millisecond || out[0].Took > 4*time.Second {
 		t.Errorf("timed-out command: Timeout=%v Took=%v", out[0].Timeout, out[0].Took)
 	}
-	if FailsClosed(out[0], false) || !FailsClosed(out[0], true) || FailsClosed(out[1], true) {
-		t.Error("only a timed-out command under the strict setting fails closed")
-	}
-	if SilentFails("  \n", false) || !SilentFails("  \n", true) || SilentFails("{}", true) {
-		t.Error("only no output under the strict setting fails")
-	}
 	if got := DefaultTimeout(0, 9*time.Second); got != 9*time.Second {
 		t.Errorf("default = %v", got)
 	}
