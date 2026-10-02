@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // fireTimeout is the limit a hook of ev with the given own timeout (seconds,
@@ -29,6 +31,30 @@ func TestDefaultTimeoutIs600Seconds(t *testing.T) {
 	}
 	if got := fireTimeout(t, PreToolUse, 7); got != 7*time.Second {
 		t.Errorf("own timeout: %v", got)
+	}
+}
+
+// firedOutcome runs one `sleep` command of ev with the given own timeout and
+// returns its outcome.
+func firedOutcome(t *testing.T, ev Event, own int) corehooks.Outcome {
+	t.Helper()
+	iv := &Invoker{Config: Config{ev: {{Handlers: []Handler{{Command: "sleep 30", Timeout: own}}}}}, Dir: t.TempDir()}
+	outs := iv.Fire(context.Background(), ev, "", nil)
+	if len(outs) != 1 {
+		t.Fatalf("outcomes: %d", len(outs))
+	}
+	return outs[0]
+}
+
+// A SessionEnd hook that outlives its limit is killed at it: at 1 second when
+// it has no timeout of its own, at 3 when its own is longer.
+// sr:proves hook-timeout/codex
+func TestSessionEndHookIsKilledAtItsLimit(t *testing.T) {
+	for own, want := range map[int]time.Duration{0: time.Second, 10: 3 * time.Second} {
+		o := firedOutcome(t, SessionEnd, own)
+		if !o.TimedOut || o.Took < want || o.Took > want+2*time.Second {
+			t.Errorf("own %ds: timed out %v after %v, want kill at %v", own, o.TimedOut, o.Took, want)
+		}
 	}
 }
 
