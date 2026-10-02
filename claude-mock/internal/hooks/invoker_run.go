@@ -43,7 +43,7 @@ func (inv *Invoker) runHandlers(ctx context.Context, handlers []HandlerSpec, ev 
 	// Mirror the real claude CLI's hook environment (see NewInvoker): the
 	// session's identity, whether or not a session id is known.
 	// sr:provides hook-timeout/claude
-	rt := corehooks.Runtime{Dir: hookDir(hookCwd, inv.cwd, inv.projectDir), Env: hookEnv(inv.sessionID, inv.projectDir), DefaultTimeout: defaultTimeout(ev)}
+	rt := corehooks.Runtime{Dir: hookDir(hookCwd, inv.cwd, inv.projectDir), Env: hookEnv(inv.sessionID, inv.projectDir), DefaultTimeout: defaultTimeout(ev), NewSession: true}
 	for k, o := range corehooks.RunAll(ctx, cmds, payload, rt) {
 		outs[at[k]] = o
 		runs[at[k]] = commandRun(handlers[at[k]], ev, o)

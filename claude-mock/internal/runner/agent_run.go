@@ -77,6 +77,9 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
 		},
 	}, stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
+	if !s.background { // only a foreground sub-agent's commands end with its response, after SubagentStop has listed them
+		bg.EndOfResponse(s.agentID)
+	}
 	final := out.FinalText
 	if final == "" {
 		final = out.LastAssistant

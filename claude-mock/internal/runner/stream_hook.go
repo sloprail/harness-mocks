@@ -67,9 +67,6 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			final.Hold(turn.resultLine)
 			if nested {
 				finish()
-				if cfg.SyncSubagent { // only a foreground sub-agent's commands end with its response
-					bg.EndOfResponse(cfg.AgentID)
-				}
 				return nil
 			}
 			// sr:provides stop-hook-payload/claude

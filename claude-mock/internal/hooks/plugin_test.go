@@ -158,7 +158,7 @@ func TestExpandPluginRoot(t *testing.T) {
 			{Type: "command", Command: `"${CLAUDE_PLUGIN_ROOT}/hooks/x.sh" --bin "${A10N_TASK_MANAGER_BIN}"`},
 		},
 	}}
-	out := expandPluginRoot(entries, "/install/dir")
+	out := expandPluginRoot(entries, "/install/dir", t.TempDir())
 
 	assert.Equal(t, `"/install/dir/hooks/pre.sh"`, out[0].Hooks[0].Command)
 	assert.Equal(t, `"/install/dir/hooks/x.sh" --bin "${A10N_TASK_MANAGER_BIN}"`, out[0].Hooks[1].Command)
