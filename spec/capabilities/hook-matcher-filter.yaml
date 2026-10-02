@@ -14,3 +14,13 @@ providers:
       - https://developers.openai.com/codex/hooks#matcher-patterns
     runs:
       - codex-mock/snapshots/runs/hook-matchers
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock fires no PermissionRequest, PreCompact, PostCompact,
+          SubagentStart or SubagentStop event and has no MCP tools or
+          sub-agents, so the matcher variants of those (MCP tool names such as
+          mcp__filesystem__.*, the manual|auto compaction triggers, the
+          sub-agent types, and spawn_agent also matching Agent) are not
+          modeled. The mock's tool-name aliases are only apply_patch matching
+          Edit and Write.
