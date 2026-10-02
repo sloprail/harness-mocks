@@ -116,7 +116,7 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 
 // sr:proves hook-timeout/cursor
 func TestAHookThatTimedOutIsIgnoredUnlessItFailsClosed(t *testing.T) {
-	timedOut := corehooks.Outcome{Started: true, Exit: -1, TimedOut: true, Stdout: `{"permission":"deny"}`}
+	timedOut := corehooks.Outcome{Started: true, Exit: -1, TimedOut: true, Timeout: time.Second, Stdout: `{"permission":"deny"}`}
 	if got := Interpret(BeforeShellExecution, Entry{Command: "h.sh", Timeout: time.Second}, timedOut); got != (Decision{}) {
 		t.Errorf("a timed-out hook decides nothing, whatever it printed: %+v", got)
 	}

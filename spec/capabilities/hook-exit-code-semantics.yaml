@@ -4,7 +4,9 @@ statement: >-
   non-blocking error (any other status, except on WorktreeCreate, where any
   non-zero status fails the creation, and except, in a harness that reads a
   hook's output whatever its status, when stdout holds valid JSON, which alone
-  decides the outcome), after which the action goes on. What a
+  decides the outcome), after which the action goes on, unless the harness
+  has a setting that makes a hook's failures (a non-zero status, a crash, no
+  output) block the action instead. What a
   block does on each event, how accepted output is used (context, decisions,
   updated input) and hook timeouts are those events' and hook output's own
   capabilities.

@@ -30,6 +30,7 @@ const NoSubject = "\x00"
 //
 // sr:provides hook-command-handler/cursor
 // sr:provides hook-matcher-filter/cursor
+// sr:provides hooks-all-matching-run/cursor
 // sr:docs https://cursor.com/docs/hooks#configuration
 func (h *Hooks) Fire(ctx context.Context, e Event, subject string, own map[string]any) []Decision {
 	var entries []Entry

@@ -42,7 +42,7 @@ func runCustomAt(t *testing.T, symlinked bool, hooksJSON string, scripts map[str
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(scratch, "end.json"), []byte(`{"type":"result","subtype":"success","result":"DONE"}`+"\n"), 0o644))
 	script := filepath.Join(scratch, "scenario.sh")
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nn=$(grep -c '\"type\":\"tool_use\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\nn=${n:-0}\nf=\""+scratch+"/$n.json\"\n[ -f \"$f\" ] || f=\""+scratch+"/end.json\"\ncat \"$f\"\n"), 0o755))
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nn=$(grep -c '\"type\":\"tool_use\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\nn=${n:-0}\nprintf '%s\\n' \"$A10N_MOCK_ADDITIONAL_CONTEXT\" | tr '\\n' ' ' >>\"$HOOK_LOG.ctx\"; echo >>\"$HOOK_LOG.ctx\"\nf=\""+scratch+"/$n.json\"\n[ -f \"$f\" ] || f=\""+scratch+"/end.json\"\ncat \"$f\"\n"), 0o755))
 	logPath := filepath.Join(scratch, "log.txt")
 	cmd := exec.Command(binary, "-p", "--output-format", "stream-json", "--script", script, "go")
 	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + logPath}

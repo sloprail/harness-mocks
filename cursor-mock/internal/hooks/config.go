@@ -20,7 +20,8 @@ type Entry struct {
 	// Matcher is a regular expression the event's subject must match for the
 	// hook to run: "" and "*" match everything.
 	Matcher string
-	// Timeout stops the command after this long; zero is no timeout.
+	// Timeout stops the command after this long; zero is none of its own, and
+	// the core applies the harness's default for it (corehooks.DefaultTimeout).
 	Timeout time.Duration
 }
 

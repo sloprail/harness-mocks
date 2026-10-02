@@ -1,9 +1,9 @@
 statement: >-
   Every hook that matches an event runs, all together, even when one of them
-  blocks; when several block, the one that finishes last is the one acted on.
-  The same hook configured in several settings files runs once. (How the
-  decisions and the context of several hooks combine is each decision's and
-  context's own capability.)
+  blocks; when several block, the harness acts on the one that finishes last or
+  merges them. The same hook configured in several settings files runs once,
+  in a harness that reads more than one. (How the decisions and the context of
+  several hooks combine is each decision's and context's own capability.)
 providers:
   claude:
     docs:
@@ -13,4 +13,15 @@ providers:
       - claude-mock/snapshots/runs/all-hooks
       - claude-mock/snapshots/runs/all-hooks-slow-first
   codex: false
-  cursor: false
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#configuration
+    runs:
+      - cursor-mock/snapshots/runs/hooks-together
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock reads only the project's .cursor/hooks.json: the user, team
+          and enterprise sources, and so a hook configured in more than one, are
+          not modeled.

@@ -74,7 +74,8 @@ func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result
 // its tool (afterShellExecution, afterFileEdit) and then the success hook with
 // the tool's output, or the failure hook with its error; for a refused call,
 // the failure hook with permission_denied. No hook's output changes what the
-// agent is told.
+// agent is told of the result; the additional_context of the success and failure
+// hooks is added to what the agent knows (recorded: runs/additional-context).
 //
 // sr:provides tool-failure-hook/cursor
 // sr:provides posttooluse-payload/cursor
@@ -84,7 +85,7 @@ func (h *toolHost) After(ctx context.Context, _ toolcall.Call, _ toolcall.Result
 	own["duration"] = ms(h.res.Took)
 	if h.refused {
 		own["error_message"], own["failure_type"], own["is_interrupt"] = h.failure, "permission_denied", false
-		h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own)
+		h.s.keep(h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own))
 		return "", false
 	}
 	switch {
@@ -97,10 +98,10 @@ func (h *toolHost) After(ctx context.Context, _ toolcall.Call, _ toolcall.Result
 	switch kind {
 	case corehooks.AfterSuccess:
 		own["tool_output"] = h.res.ToolOutput
-		h.s.hooks.Fire(ctx, hooks.PostToolUse, h.tool.Name, own)
+		h.s.keep(h.s.hooks.Fire(ctx, hooks.PostToolUse, h.tool.Name, own))
 	case corehooks.AfterFailure:
 		own["error_message"], own["failure_type"], own["is_interrupt"] = h.res.ErrorMessage, "error", false
-		h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own)
+		h.s.keep(h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own))
 	}
 	return "", false
 }
