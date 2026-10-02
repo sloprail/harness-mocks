@@ -24,6 +24,9 @@ type Spec struct {
 	Timeout time.Duration
 	// Stderr, when set, receives the child's stderr as well as Result.Stderr.
 	Stderr io.Writer
+	// NewSession runs the child in a session of its own, so it has no
+	// controlling terminal; its process group is still its own.
+	NewSession bool
 }
 
 // Result is how a child ended.
@@ -56,6 +59,9 @@ func Run(ctx context.Context, s Spec) (Result, error) {
 	cmd.Dir = s.Dir
 	cmd.Env = s.Env
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if s.NewSession { // a session leader is also a group leader
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = 2 * time.Second
 	if s.Stdin != nil {
