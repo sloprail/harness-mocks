@@ -17,6 +17,10 @@ const (
 	// or ","; any other matcher is a regular expression searched in the
 	// subject.
 	MatchExactOrRegexp
+	// MatchExactOrRegexpNarrow: as MatchExactOrRegexp, with a narrower set of
+	// exact characters: only letters, digits, "_" and "|"; a hyphen, a space or
+	// a comma makes the matcher a regular expression.
+	MatchExactOrRegexpNarrow
 )
 
 // Matches reports whether a hook's matcher selects the value its event filters
@@ -39,7 +43,7 @@ func Select(style MatcherStyle, matcher, subject string, aliases ...string) bool
 		return true
 	}
 	names := append([]string{subject}, aliases...)
-	if style == MatchExactOrRegexp && exactOnly(matcher) {
+	if style != MatchRegexp && exactOnly(style, matcher) {
 		for _, alt := range strings.FieldsFunc(matcher, func(r rune) bool { return r == '|' || r == ',' }) {
 			for _, n := range names {
 				if strings.TrimSpace(alt) == n {
@@ -63,11 +67,15 @@ func Select(style MatcherStyle, matcher, subject string, aliases ...string) bool
 
 // exactOnly is whether a matcher holds nothing but the characters of an exact
 // name or a list of them.
-func exactOnly(matcher string) bool {
+func exactOnly(style MatcherStyle, matcher string) bool {
 	for _, r := range matcher {
 		switch {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-		case r == '_', r == '-', r == ' ', r == ',', r == '|':
+		case r == '_', r == '|':
+		case r == '-', r == ' ', r == ',':
+			if style == MatchExactOrRegexpNarrow {
+				return false
+			}
 		default:
 			return false
 		}
