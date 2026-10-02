@@ -129,8 +129,10 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 // TestT017_44_HookTimeoutKillsTheHookAndWhatItSpawned: a hook that outlives
 // its timeout is cancelled: the process group dies (the grandchild never
 // writes), the deny it would print late is discarded, so the call goes ahead,
-// and the transcript says it was cancelled (snapshots/runs/hook-timeout:
-// hook_cancelled with timedOut and timeoutMs). A session-end hook is bounded by
+// and the transcript says it was cancelled (the recorded transcript,
+// snapshots/runs/hook-timeout/samples/*/transcript/*.jsonl, holds an
+// attachment hook_cancelled with hookName PreToolUse:Bash, timedOut true and
+// timeoutMs 1000, beside the payload and stream frames of events.jsonl). A session-end hook is bounded by
 // the harness's 1.5-second budget when it sets no timeout of its own.
 // sr:proves hook-timeout/claude
 // sr:proves hook-output-transcript-records/claude
