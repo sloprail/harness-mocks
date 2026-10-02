@@ -111,6 +111,9 @@ type Config struct {
 	// SpawnLimit is how many layers of sub-agents nest below the main thread;
 	// 0 is the default.
 	SpawnLimit int
+	// BackgroundTasksDisabled turns run_in_background off for Bash: the command
+	// runs in the foreground. The harness's CLAUDE_CODE_DISABLE_BACKGROUND_TASKS.
+	BackgroundTasksDisabled bool
 
 	// bg is the session's background-task registry, shared by the root run
 	// and every nested sub-agent run (Stop and SubagentStop list the whole

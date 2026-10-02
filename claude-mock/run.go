@@ -107,21 +107,22 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 
 	model, _ := cmd.Flags().GetString("model")
 	err := runner.Run(cmd.Context(), runner.Config{
-		ScriptPath:     scriptPath,
-		SessionID:      sessionID,
-		IsResume:       isResume,
-		ForkFrom:       forkFrom,
-		Prompt:         prompt,
-		Cwd:            cwd,
-		ProjectDir:     projectDir,
-		ConfigDir:      configDir,
-		PluginCacheDir: pluginCacheDir,
-		PrintMode:      printMode,
-		Model:          model,
-		BgWaitCeiling:  printWaitCeiling(),
-		SpawnLimit:     spawnLimit(),
-		Stderr:         os.Stderr,
-		Out:            os.Stdout,
+		ScriptPath:              scriptPath,
+		SessionID:               sessionID,
+		IsResume:                isResume,
+		ForkFrom:                forkFrom,
+		Prompt:                  prompt,
+		Cwd:                     cwd,
+		ProjectDir:              projectDir,
+		ConfigDir:               configDir,
+		PluginCacheDir:          pluginCacheDir,
+		PrintMode:               printMode,
+		Model:                   model,
+		BgWaitCeiling:           printWaitCeiling(),
+		SpawnLimit:              spawnLimit(),
+		BackgroundTasksDisabled: backgroundTasksDisabled(),
+		Stderr:                  os.Stderr,
+		Out:                     os.Stdout,
 	})
 	var noConv *runner.ErrNoConversation
 	if errors.As(err, &noConv) {

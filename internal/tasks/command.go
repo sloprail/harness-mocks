@@ -72,3 +72,10 @@ func (r *Registry) StartAgent(t *Task, run func(ctx context.Context)) {
 		r.Finish(t)
 	})
 }
+
+// RunsInBackground reports whether a command that asked to run in the
+// background does: it does not when the harness has background tasks turned
+// off, and then it runs in the foreground like any other.
+func RunsInBackground(asked, disabled bool) bool {
+	return asked && !disabled
+}
