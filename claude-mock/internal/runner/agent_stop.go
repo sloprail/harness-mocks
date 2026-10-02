@@ -10,6 +10,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/subagents"
 )
 
@@ -83,13 +84,7 @@ func fireSubagentStop(ctx context.Context, s *subagentRun, inv *hooks.Invoker, b
 		BackgroundTasks:      &running,
 		SessionCrons:         &crons,
 	})
-	if err != nil {
-		return true, err.Error()
-	}
-	if out.Decision == "block" {
-		return true, out.Reason
-	}
-	return false, ""
+	return corehooks.BlockReason(err, out.Decision, out.Reason)
 }
 
 // sectionHash is the binary's harnessSectionHash of a report's text blocks:
