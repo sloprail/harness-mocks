@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -13,15 +14,27 @@ import (
 // run_in_background: true, and PostToolUse with the recorded tool_response of
 // a command that answered at once: empty stdout and stderr, interrupted,
 // isImage and noOutputExpected false, and a backgroundTaskId (recorded:
-// snapshots/runs/bgbash and snapshots/runs/midturn, events.jsonl).
+// snapshots/runs/bgbash and snapshots/runs/midturn, payloads.jsonl).
 // sr:proves background-bash/claude
 func TestT017_61_BackgroundBashHookPayloads(t *testing.T) {
+	// bgbash recorded the input with a description, midturn without one: the
+	// payload carries the input as the model wrote it, whichever it is.
+	for name, in := range map[string]map[string]any{
+		"with_description":    {"command": "echo BGDONE", "description": "quick echo", "run_in_background": true},
+		"without_description": {"command": "echo BGDONE", "run_in_background": true},
+	} {
+		t.Run(name, func(t *testing.T) { backgroundBashHookPayloads(t, in) })
+	}
+}
+
+func backgroundBashHookPayloads(t *testing.T, want map[string]any) {
+	t.Helper()
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
 	logger := payloadLogger(t, dir, "log.sh", log, "")
 	settings(t, dir, map[string]string{"PreToolUse": logger, "PostToolUse": logger})
-	root := script(t, dir, "root", toolUse("bgh", "Bash", `{"command":"echo BGDONE","description":"quick echo","run_in_background":true}`))
+	root := script(t, dir, "root", toolUse("bgh", "Bash", mustJSON(t, want)))
 	out, code := runInDir(t, dir, nil, "--script", root, "--session-id", "bgh-1", "--project-dir", dir, "--config-dir", cfg, "-p", "go")
 	require.Equal(t, 0, code, out)
 
@@ -41,7 +54,7 @@ func TestT017_61_BackgroundBashHookPayloads(t *testing.T) {
 	require.NotNil(t, pre, "no PreToolUse for the background Bash call")
 	require.NotNil(t, post, "no PostToolUse for the background Bash call")
 
-	assert.Equal(t, map[string]any{"command": "echo BGDONE", "description": "quick echo", "run_in_background": true}, pre["tool_input"],
+	assert.Equal(t, want, pre["tool_input"],
 		"PreToolUse carries run_in_background: true")
 
 	resp, _ := post["tool_response"].(map[string]any)
@@ -50,4 +63,11 @@ func TestT017_61_BackgroundBashHookPayloads(t *testing.T) {
 	assert.NotEmpty(t, id)
 	assert.Equal(t, map[string]any{"stdout": "", "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false, "backgroundTaskId": id}, resp)
 	assert.Equal(t, pre["tool_input"], post["tool_input"], "PostToolUse repeats the same tool_input")
+}
+
+func mustJSON(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	require.NoError(t, err)
+	return string(b)
 }
