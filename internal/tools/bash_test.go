@@ -8,7 +8,7 @@ import (
 func TestBashReportsOutputAndExit(t *testing.T) {
 	env := []string{"PATH=/usr/bin:/bin", "WHO=world"}
 	r := Bash(context.Background(), `echo "hello $WHO"; echo oops >&2; exit 4`, t.TempDir(), env)
-	if r.ExitCode != 4 || r.Output != "hello world\noops\n" || !r.Failed() {
+	if r.ExitCode != 4 || r.Output != "hello world\noops\n" || r.Stdout != "hello world\n" || r.Stderr != "oops\n" || !r.Failed() {
 		t.Fatalf("Bash = %+v", r)
 	}
 	if ok := Bash(context.Background(), "true", t.TempDir(), env); ok.Failed() {
