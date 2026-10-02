@@ -46,7 +46,7 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		// under.
 		// sr:provides hook-timeout/cursor
 		// sr:docs https://cursor.com/docs/hooks#per-script-configuration-options
-		if o.TimedOut && h.FailClosed {
+		if corehooks.FailsClosed(o, h.FailClosed) {
 			return Decision{Permission: "deny", Blocked: true, Message: fmt.Sprintf("%sHook %q execution failed: Hook script timed out after %dms", failClosedNote, h.Command, o.Timeout.Milliseconds())}
 		}
 		return Decision{}
@@ -80,7 +80,7 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		return Decision{}
 	}
 	if out == "" {
-		if h.FailClosed {
+		if corehooks.SilentFails(out, h.FailClosed) {
 			return Decision{Permission: "deny", Message: fmt.Sprintf("%sHook %q returned no output.", failClosedNote, h.Command)}
 		}
 		return Decision{}

@@ -1,11 +1,29 @@
 package hooks
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Counts reports whether a command's result is read at all: a command that
 // timed out was cancelled, its output discarded, so it renders no decision,
 // and a command that could not start has none to read either.
 func (o Outcome) Counts() bool { return o.Started && !o.TimedOut }
+
+// FailsClosed reports whether a command that gave no result to read blocks the
+// action all the same: it timed out, and the harness has a setting (strict:
+// the same one VerdictOf takes) that makes a hook's failures block. Without it
+// the action goes on.
+//
+// sr:capability hook-timeout
+func FailsClosed(o Outcome, strict bool) bool { return strict && !o.Counts() && o.TimedOut }
+
+// SilentFails reports whether a command that exited cleanly but printed nothing
+// blocks the action: only under the same strict setting, for an event whose
+// decision is read from the output.
+//
+// sr:capability hook-exit-code-semantics
+func SilentFails(stdout string, strict bool) bool { return strict && strings.TrimSpace(stdout) == "" }
 
 // ActedBlock is which of the commands of one event a block is acted on for.
 // Every matching command runs to completion before the results are merged,
