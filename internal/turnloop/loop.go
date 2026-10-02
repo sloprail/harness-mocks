@@ -33,6 +33,14 @@ type Host interface {
 	SessionFile() string
 }
 
+// Contexter is a Host whose hooks add context to the conversation after the
+// prompt (at the start of the session, after a tool call): Context is all of it
+// so far, in the order it was added. The script is given it as additional
+// context on each run, after what the prompt hooks added.
+type Contexter interface {
+	Context() string
+}
+
 // Params is what the loop is told.
 type Params struct {
 	Script  string
@@ -79,6 +87,19 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 	}
 }
 
+// contextOf is the context the agent has at a step: what the prompt hooks added
+// and, for a host that adds more as the turn goes, what it has added so far.
+func contextOf(h Host, prompt string) string {
+	c, ok := h.(Contexter)
+	if !ok || c.Context() == "" {
+		return prompt
+	}
+	if prompt == "" {
+		return c.Context()
+	}
+	return prompt + "\n" + c.Context()
+}
+
 // agent runs the script step by step until it gives its result (or neither a
 // call nor a result), returning the agent's last message.
 func agent(ctx context.Context, h Host, p Params, extra string) (last string, err error) {
@@ -86,7 +107,7 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 	same := 0
 	for {
 		t, err := scenario.RunTurn(ctx, p.Script, p.Dir, p.Environ, scenario.Input{
-			Prompt: p.Prompt, AdditionalContext: extra, SessionFile: h.SessionFile()})
+			Prompt: p.Prompt, AdditionalContext: contextOf(h, extra), SessionFile: h.SessionFile()})
 		if err != nil {
 			return "", err
 		}

@@ -26,7 +26,26 @@ type session struct {
 	// (recorded: runs/tool-failure), though the file is there from the first
 	// record.
 	named bool
+	// added is the context the hooks have handed the agent so far (their
+	// additional_context), in the order their events fired and, within an event,
+	// the order the hooks are configured in.
+	added []string
 }
+
+// keep adds the context the hooks of one event gave to the agent's: all of it,
+// when several hooks gave some.
+//
+// sr:provides hook-additional-context/cursor
+func (s *session) keep(ds []hooks.Decision) {
+	for _, d := range ds {
+		if d.Context != "" {
+			s.added = append(s.added, d.Context)
+		}
+	}
+}
+
+// Context is what the agent has been handed by hooks, all of it (turnloop.Contexter).
+func (s *session) Context() string { return strings.Join(s.added, "\n") }
 
 // Run plays one run: the stream's opening frames, the sessionStart hooks, the
 // script's turns until its result, the sessionEnd hooks, and then the result
@@ -35,9 +54,15 @@ type session struct {
 // sessionEnd hook says the session completed: a non-interactive run has no
 // other reason to report.
 //
+// The sessionStart hook fires once, before the first turn, and what it prints or
+// exits with does not stop the session (recorded: runs/session-start-block); the
+// payload says no source, as Cursor's does not.
+//
 // sr:provides noninteractive-run/cursor
 // sr:provides session-end-hook/cursor
+// sr:provides session-start-hook/cursor
 // sr:docs https://cursor.com/docs/hooks#sessionend
+// sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
 	s := &session{cfg: cfg, id: newID(), started: time.Now()}
 	var err error
@@ -51,7 +76,7 @@ func Run(ctx context.Context, cfg Config) error {
 	s.hooks = &hooks.Hooks{Config: conf, Dir: cfg.Dir, Env: s.hookEnv, Common: s.common}
 	s.forward(initFrame(s.id, cfg.Dir))
 	s.forward(userFrame(s.id, cfg.Prompt))
-	s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false})
+	s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
 	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt})
 	s.named = true

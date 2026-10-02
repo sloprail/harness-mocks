@@ -19,6 +19,9 @@ type Decision struct {
 	// Message is what a refusal says: the hook's stderr after "Hook blocked
 	// with message:", the user_message of a deny, or the invalid-JSON notice.
 	Message string
+	// Context is the additional_context the hook gave, for an event that takes
+	// it (sessionStart, postToolUse, postToolUseFailure).
+	Context string
 }
 
 // failClosedNote opens what a fail-closed hook's failure says.
@@ -35,18 +38,21 @@ const failClosedNote = "Tool blocked because this hook is configured to fail clo
 // sr:provides hook-exit-code-semantics/cursor
 // sr:docs https://cursor.com/docs/hooks#command-based-hooks
 func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
-	if o.TimedOut {
-		// The hook and its children were killed at the timeout, and whatever it
-		// printed is discarded: the action goes on, unless the hook fails closed.
+	if !o.Counts() {
+		// The core says a result is not read when the hook timed out (it and its
+		// children were killed, and whatever it printed is discarded) or could not
+		// start: the action goes on. Cursor's one difference: a hook that timed
+		// out and fails closed blocks, saying it timed out after the limit it ran
+		// under.
 		// sr:provides hook-timeout/cursor
 		// sr:docs https://cursor.com/docs/hooks#per-script-configuration-options
-		if h.FailClosed {
-			return Decision{Permission: "deny", Blocked: true, Message: fmt.Sprintf("%sHook %q execution failed: Hook script timed out after %dms", failClosedNote, h.Command, h.Timeout.Milliseconds())}
+		if o.TimedOut && h.FailClosed {
+			return Decision{Permission: "deny", Blocked: true, Message: fmt.Sprintf("%sHook %q execution failed: Hook script timed out after %dms", failClosedNote, h.Command, o.Timeout.Milliseconds())}
 		}
 		return Decision{}
 	}
 	verdict := corehooks.NonBlockingError
-	if o.Started && o.Exit >= 0 {
+	if o.Exit >= 0 {
 		verdict = corehooks.VerdictOf(o.Exit, h.FailClosed)
 	}
 	switch verdict {
@@ -59,6 +65,17 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		return Decision{}
 	}
 	out := strings.TrimSpace(o.Stdout)
+	if e.addsContext() {
+		// sr:provides hook-additional-context/cursor
+		// sr:docs https://cursor.com/docs/hooks#posttooluse
+		var p struct {
+			Context string `json:"additional_context"`
+		}
+		if corehooks.IsJSONOutput(out, isOutputField) && json.Unmarshal([]byte(out), &p) == nil {
+			return Decision{Context: p.Context}
+		}
+		return Decision{}
+	}
 	if !e.permission() {
 		return Decision{}
 	}
@@ -72,13 +89,23 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		Permission  string `json:"permission"`
 		UserMessage string `json:"user_message"`
 	}
-	if err := json.Unmarshal([]byte(out), &p); err != nil || !strings.HasPrefix(out, "{") || !validPermission(p.Permission) {
+	// What counts as JSON output is the core's; the fields read from it are Cursor's.
+	if !corehooks.IsJSONOutput(out, isOutputField) || json.Unmarshal([]byte(out), &p) != nil || !validPermission(p.Permission) {
 		return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned invalid JSON. The command was blocked for safety.", h.Command)}
 	}
 	return Decision{Permission: p.Permission, Message: p.UserMessage}
 }
 
 func validPermission(p string) bool { return p == "" || p == "allow" || p == "deny" || p == "ask" }
+
+// isOutputField reports whether a key is one a Cursor hook's output sets.
+func isOutputField(key string) bool {
+	switch key {
+	case "permission", "user_message", "agent_message", "continue", "env", "additional_context":
+		return true
+	}
+	return false
+}
 
 // Refusal is whether several hooks' decisions refuse the call, and what the
 // refusal says: the core decides (a deny from any hook refuses, whatever the

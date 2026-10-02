@@ -21,6 +21,15 @@ const (
 	AfterFileEdit        Event = "afterFileEdit"
 )
 
+// addsContext reports whether a hook of the event can hand the agent context,
+// as the additional_context of its JSON output: at the start of the session,
+// and after a tool call, whether it succeeded or failed.
+//
+// sr:docs https://cursor.com/docs/hooks#sessionstart
+func (e Event) addsContext() bool {
+	return e == SessionStart || e == PostToolUse || e == PostToolUseFailure
+}
+
 // permission reports whether a hook of the event answers with a permission
 // decision: for these, output that is not a JSON object blocks the action.
 //
