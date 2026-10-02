@@ -14,3 +14,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/http-hook
   codex: false
+  cursor: false

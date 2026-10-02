@@ -1,0 +1,69 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionStart","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT2ME","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentThought","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo EXIT2ME","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":2}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT2ME","timeout":30000},"error_message":"Command execution was blocked by a hook: Hook blocked with message: SHELL-BLOCK-MSG\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT1ME","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentThought","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo EXIT1ME","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":1}}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo EXIT1ME","output":"EXIT1ME\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterShellExecution","exit":0}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT1ME","timeout":30000},"tool_output":"{\"output\":\"EXIT1ME\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT3ME","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentThought","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo EXIT3ME","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":3}}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo EXIT3ME","output":"EXIT3ME\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterShellExecution","exit":0}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo EXIT3ME","timeout":30000},"tool_output":"{\"output\":\"EXIT3ME\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo BADJSON","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentThought","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo BADJSON","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo BADJSON","timeout":30000},"error_message":"Command execution was blocked by a hook: Hook \".cursor/hooks/hook.sh\" returned invalid JSON. The command was blocked for safety.\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo AFTER2ME","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentThought","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo AFTER2ME","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":0}}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo AFTER2ME","output":"AFTER2ME\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterShellExecution","exit":2}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo AFTER2ME","timeout":30000},"tool_output":"{\"output\":\"AFTER2ME\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentThought","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo FINE","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":0}}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo FINE","output":"FINE\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterShellExecution","exit":0}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"tool_output":"{\"output\":\"FINE\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentThought","exit":0}}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","exit":0}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

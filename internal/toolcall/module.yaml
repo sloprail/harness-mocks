@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
 # No core yet (internal/toolcall): the code lives in the claude-mock files below, until it moves.
 concern: "a tool call: the pre-tool hook, refusing or executing, the result, and the post-tool hooks"
-home: ["internal/toolcall/**", "claude-mock/internal/runner/stream_tool.go", "claude-mock/internal/runner/tool_hooks.go", "codex-mock/internal/runner/tool_host.go"]   # everything about the concern lives here
+home: ["internal/toolcall/**", "claude-mock/internal/runner/stream_tool.go", "claude-mock/internal/runner/tool_hooks.go", "codex-mock/internal/runner/tool_host.go", "cursor-mock/internal/runner/toolhost.go", "cursor-mock/internal/runner/toolcall_frames.go"]   # everything about the concern lives here
 api: ["internal/toolcall"]       # the only packages others may import

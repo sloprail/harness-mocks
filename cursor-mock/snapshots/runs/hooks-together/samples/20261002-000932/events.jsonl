@@ -1,0 +1,6 @@
+{"event":"hook","hook":null,"payload":{"hook_result":{"script":"rv-b","event":"beforeShellExecution","command":"saw-a"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"script":"rv-a","event":"beforeShellExecution","command":"saw-b"}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

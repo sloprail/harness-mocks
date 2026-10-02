@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun exactly one shell command: echo STARTED. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo STARTED","description":"Echo STARTED to stdout"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

@@ -1,0 +1,16 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionStart","exit":2}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo STARTED","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo STARTED","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":0}}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo STARTED","output":"STARTED\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterShellExecution","exit":0}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo STARTED","timeout":30000},"tool_output":"{\"output\":\"STARTED\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","exit":0}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

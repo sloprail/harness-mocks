@@ -1,0 +1,1 @@
+Do these as separate tool calls, one per call, in order: 1) create the file note.txt containing the word hi, with your file edit/write tool, not the shell 2) read the file note.txt with your Read tool 3) change the word hi in note.txt to bye, with your file edit tool, not the shell. Then reply only DONE.
