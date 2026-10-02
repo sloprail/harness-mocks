@@ -14,15 +14,11 @@ func (o Outcome) Counts() bool { return o.Started && !o.TimedOut }
 // action all the same: it timed out, and the harness has a setting (strict:
 // the same one VerdictOf takes) that makes a hook's failures block. Without it
 // the action goes on.
-//
-// sr:capability hook-timeout
 func FailsClosed(o Outcome, strict bool) bool { return strict && !o.Counts() && o.TimedOut }
 
 // SilentFails reports whether a command that exited cleanly but printed nothing
 // blocks the action: only under the same strict setting, for an event whose
 // decision is read from the output.
-//
-// sr:capability hook-exit-code-semantics
 func SilentFails(stdout string, strict bool) bool { return strict && strings.TrimSpace(stdout) == "" }
 
 // ActedBlock is which of the commands of one event a block is acted on for.

@@ -44,7 +44,7 @@ func (s *session) keep(ds []hooks.Decision) {
 	}
 }
 
-// Context is what the agent has been handed by hooks, all of it (turnloop.Contexter).
+// Context is what the agent has been handed by hooks, all of it (turnloop.Params.Added).
 func (s *session) Context() string { return strings.Join(s.added, "\n") }
 
 // Run plays one run: the stream's opening frames, the sessionStart hooks, the
@@ -78,7 +78,7 @@ func Run(ctx context.Context, cfg Config) error {
 	s.forward(userFrame(s.id, cfg.Prompt))
 	s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
-	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt})
+	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
 	s.named = true
 	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
