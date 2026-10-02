@@ -113,3 +113,42 @@ func TestRunDifferentCallsAreNotALoop(t *testing.T) {
 		t.Fatalf("eight different calls: %v", err)
 	}
 }
+
+// ctxHost is a host whose hooks add context as the turn goes: after each tool.
+type ctxHost struct {
+	host
+	added []string
+}
+
+func (h *ctxHost) Tool(ctx context.Context, tu scenario.ToolUse) {
+	h.host.Tool(ctx, tu)
+	h.added = append(h.added, "after-"+tu.ID)
+}
+func (h *ctxHost) Context() string { return strings.Join(h.added, "\n") }
+
+func TestRunGivesTheScriptTheContextAHostAddsAsTheTurnGoes(t *testing.T) {
+	dir := t.TempDir()
+	h := &ctxHost{host: host{sessionLog: filepath.Join(dir, "session")}}
+	script := filepath.Join(dir, "s.sh")
+	body := `n=$(grep -c '^output' "$A10N_MOCK_SESSION_FILE" 2>/dev/null); n=${n:-0}
+printf '%s\n' "$A10N_MOCK_ADDITIONAL_CONTEXT" | tr '\n' ',' >>"$A10N_MOCK_SESSION_FILE.ctx"; echo >>"$A10N_MOCK_SESSION_FILE.ctx"
+if [ "$n" -lt 2 ]; then
+  printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c%s","name":"Bash","input":{"n":%s}}]}}\n' "$n" "$n"
+  exit 0
+fi
+printf '%s\n' '{"type":"result","result":"done"}'`
+	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(h.sessionLog + ".ctx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "ctx,\nctx,after-c0,\nctx,after-c0,after-c1,\n"
+	if string(got) != want {
+		t.Fatalf("the script was given %q, want %q: the prompt hooks' context, then what the host added so far", got, want)
+	}
+}
