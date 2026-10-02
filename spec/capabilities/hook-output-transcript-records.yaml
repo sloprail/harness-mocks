@@ -17,3 +17,4 @@ providers:
       - claude-mock/snapshots/runs/bgbash
       - claude-mock/snapshots/runs/hook-timeout
   codex: false
+  cursor: false

@@ -11,3 +11,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/plugin-hooks
   codex: false
+  cursor: false

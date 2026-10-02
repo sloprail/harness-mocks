@@ -1,0 +1,5 @@
+CURSOR_AGENT=decoy-agent
+CURSOR_CONVERSATION_ID=decoy-conversation
+CURSOR_INVOKED_AS=decoy-invoked
+CURSOR_PROJECT_DIR=decoy-project
+CURSOR_VERSION=decoy-version

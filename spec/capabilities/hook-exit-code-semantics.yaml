@@ -2,9 +2,11 @@ statement: >-
   A hook command's exit status classifies its outcome: accepted (0), blocked
   (2, with the hook's stderr as its message when it gave no other reason), or a
   non-blocking error (any other status, except on WorktreeCreate, where any
-  non-zero status fails the creation, and except when stdout holds valid JSON,
-  which alone decides the outcome whatever the status), after which the action
-  goes on. What a
+  non-zero status fails the creation, and except, in a harness that reads a
+  hook's output whatever its status, when stdout holds valid JSON, which alone
+  decides the outcome), after which the action goes on, unless the harness
+  has a setting that makes a hook's failures (a non-zero status, a crash, no
+  output) block the action instead. What a
   block does on each event, how accepted output is used (context, decisions,
   updated input) and hook timeouts are those events' and hook output's own
   capabilities.
@@ -67,3 +69,26 @@ providers:
           PostToolUse and Stop, and no others. The docs' exit-code rows for
           PermissionRequest, PreCompact, PostCompact, SubagentStart,
           SubagentStop, Interrupt and SessionEnd are not modeled.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#command-based-hooks
+      - https://cursor.com/docs/hooks#per-script-configuration-options
+      - https://cursor.com/docs/hooks#troubleshooting
+    runs:
+      - cursor-mock/snapshots/runs/hook-exit-codes
+      - cursor-mock/snapshots/runs/hook-fail-closed
+      - cursor-mock/snapshots/runs/hook-json-nonzero
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock fires sessionStart, sessionEnd, preToolUse, postToolUse,
+          postToolUseFailure, beforeShellExecution, afterShellExecution and
+          afterFileEdit, and no others. The docs' exit-code rules for the other
+          permission hooks (beforeMCPExecution, beforeReadFile,
+          beforeTabFileRead, subagentStart) and for afterMCPExecution,
+          subagentStop, beforeSubmitPrompt, preCompact, stop,
+          afterAgentResponse, afterAgentThought, the Tab hooks and
+          workspaceOpen are not modeled; the recordings show cursor-agent in
+          print mode firing none of beforeSubmitPrompt, afterAgentResponse and
+          stop.

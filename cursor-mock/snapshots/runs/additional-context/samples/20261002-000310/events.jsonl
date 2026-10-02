@@ -1,0 +1,16 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionStart","arg":"S1","exit":0}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FIRST","timeout":30000},"tool_output":"{\"output\":\"FIRST\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FIRST","timeout":30000},"tool_output":"{\"output\":\"FIRST\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","arg":"P2","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","arg":"P1","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"grep zzz /dev/null","timeout":30000},"error_message":"Command failed with exit code 1","failure_type":"error","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","arg":"F1","exit":0}}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","arg":"END","exit":0}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"failure"}
+{"event":"stream","type":"result","subtype":"success"}

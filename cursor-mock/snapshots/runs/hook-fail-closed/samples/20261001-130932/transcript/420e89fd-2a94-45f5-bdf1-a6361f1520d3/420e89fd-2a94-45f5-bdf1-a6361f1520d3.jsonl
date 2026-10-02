@@ -1,0 +1,6 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, whatever happens: 1) echo EXIT1ME 2) echo EXIT3ME 3) echo FINE. If a call is refused, do not retry it or look for a workaround; go on to the next. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the three commands in order, one shell call each."},{"type":"tool_use","name":"Shell","input":{"command":"echo EXIT1ME","description":"Echo EXIT1ME marker"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo EXIT3ME","description":"Echo EXIT3ME marker"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo FINE","description":"Echo FINE marker"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

@@ -22,31 +22,43 @@ func eventsOf(r result, name string) []map[string]any {
 	return out
 }
 
-// Context a hook adds (SessionStart JSON, UserPromptSubmit plain text,
-// PostToolUse additionalContext) reaches the agent as developer context in the
-// session record, and when several hooks add text all of it is kept
-// (runs/stops: SS-CTX; runs/hook-exit-codes: the secret word).
+// Context a hook adds (SessionStart, UserPromptSubmit) reaches the agent as its
+// own role=developer message holding exactly that text, whether the hook
+// printed plain text or JSON additionalContext (runs/stops: SS-CTX by JSON;
+// runs/hook-exit-codes: the secret word by plain text). Plain text printed by
+// a PostToolUse hook is ignored (hooks#posttooluse); its JSON additionalContext
+// is added. When several hooks add text all of it is kept.
 // sr:proves hook-additional-context/codex
 func TestHookAddedContextIsKept(t *testing.T) {
-	r := execMock(t, scenario{
+	plain := execMock(t, scenario{
 		HooksJSON: hooksJSON("sh hook.sh", "SessionStart", "UserPromptSubmit", "PostToolUse"),
 		Files: map[string]string{"hook.sh": `in=$(cat); case "$in" in
+  *SessionStart*) echo "CTX-START" ;;
+  *UserPromptSubmit*) echo '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"CTX-PROMPT"}}' ;;
+  *PostToolUse*) echo "POST-PLAIN" ;;
+esac`},
+		Script: callThenResult, Prompt: "go", Env: withCalls(t, "true"),
+	})
+	assert.Equal(t, []string{"CTX-START", "CTX-PROMPT"}, developerTexts(t, plain.rollout(t)))
+	assert.NotContains(t, plain.rollout(t), "POST-PLAIN", "plain text from a PostToolUse hook was kept")
+
+	byJSON := execMock(t, scenario{
+		HooksJSON: hooksJSON("sh hook.sh", "SessionStart", "PostToolUse"),
+		Files: map[string]string{"hook.sh": `in=$(cat); case "$in" in
   *SessionStart*) echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"CTX-START"}}' ;;
-  *UserPromptSubmit*) echo "CTX-PROMPT" ;;
   *PostToolUse*) echo '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"CTX-POST"}}' ;;
 esac`},
 		Script: callThenResult, Prompt: "go", Env: withCalls(t, "true"),
 	})
-	rollout := r.rollout(t)
-	for _, want := range []string{"CTX-START", "CTX-PROMPT", "CTX-POST"} {
-		assert.Contains(t, rollout, want)
-	}
+	assert.Equal(t, []string{"CTX-START", "CTX-POST"}, developerTexts(t, byJSON.rollout(t)))
+
 	two := execMock(t, scenario{
 		HooksJSON: `{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"echo FIRST"},{"type":"command","command":"echo SECOND"}]}]}}`,
 		Script:    callThenResult, Prompt: "go", Env: withCalls(t),
 	})
-	assert.Contains(t, two.rollout(t), "FIRST")
-	assert.Contains(t, two.rollout(t), "SECOND")
+	joined := strings.Join(developerTexts(t, two.rollout(t)), "\n")
+	assert.Contains(t, joined, "FIRST")
+	assert.Contains(t, joined, "SECOND")
 }
 
 // A command hook given as a shell line runs through the shell in the session's
@@ -54,13 +66,32 @@ esac`},
 // sr:proves hook-command-handler/codex
 func TestCommandHookReadsThePayloadOnStdinInTheSessionDirectory(t *testing.T) {
 	r := execMock(t, scenario{
-		HooksJSON: hooksJSON(`pwd -P >"$TMPDIR/dir"; cat >>"$HOOK_LOG"; echo >>"$HOOK_LOG"; true | true`, "SessionStart"),
-		Script:    callThenResult, Prompt: "go", Env: withCalls(t),
+		HooksJSON: hooksJSON(`pwd -P >>"$TMPDIR/dirs"; cat >>"$HOOK_LOG"; echo >>"$HOOK_LOG"; true | true`, "SessionStart", "PreToolUse", "PostToolUse"),
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "echo hi"),
 	})
+	want, err := filepath.EvalSymlinks(r.Repo)
+	require.NoError(t, err)
+	// Every hook ran in exactly the session directory (not a subdirectory of it).
+	assert.Equal(t, []string{want, want, want}, strings.Fields(readFile(t, filepath.Join(r.Tmp, "dirs"))))
+
+	sid := sessionIDOf(t, r)
 	start := eventsOf(r, "SessionStart")
 	require.Len(t, start, 1)
 	assert.Equal(t, "startup", start[0]["source"])
-	assert.Equal(t, r.Repo, readFile(t, filepath.Join(r.Tmp, "dir"))[:len(r.Repo)])
+	pre, post := eventsOf(r, "PreToolUse"), eventsOf(r, "PostToolUse")
+	require.Len(t, pre, 1)
+	require.Len(t, post, 1)
+	for _, p := range []map[string]any{start[0], pre[0], post[0]} {
+		assert.Equal(t, sid, p["session_id"], p["hook_event_name"])
+		cwd, err := filepath.EvalSymlinks(p["cwd"].(string))
+		require.NoError(t, err)
+		assert.Equal(t, want, cwd, p["hook_event_name"])
+	}
+	for _, p := range []map[string]any{pre[0], post[0]} {
+		assert.NotEmpty(t, p["tool_name"], p["hook_event_name"])
+		assert.Contains(t, p["tool_input"], "command", p["hook_event_name"])
+		assert.Contains(t, p["tool_input"].(map[string]any)["command"], "echo hi", p["hook_event_name"])
+	}
 }
 
 // Every hook payload names the session, its transcript file and its working

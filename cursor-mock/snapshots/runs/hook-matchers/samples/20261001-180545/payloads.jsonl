@@ -1,0 +1,25 @@
+{"hook_ran":"nomatch-session-start","event":"sessionStart","tool":"","command":""}
+{"hook_ran":"pre-Shell","event":"preToolUse","tool":"Shell","command":"echo MATCH-ME"}
+{"hook_ran":"pre-none","event":"preToolUse","tool":"Shell","command":"echo MATCH-ME"}
+{"hook_ran":"pre-regex","event":"preToolUse","tool":"Shell","command":"echo MATCH-ME"}
+{"hook_ran":"pre-star","event":"preToolUse","tool":"Shell","command":"echo MATCH-ME"}
+{"hook_ran":"shell-MATCH","event":"beforeShellExecution","tool":"","command":"echo MATCH-ME"}
+{"hook_ran":"post-Shell","event":"postToolUse","tool":"Shell","command":"echo MATCH-ME"}
+{"hook_ran":"pre-none","event":"preToolUse","tool":"Shell","command":"echo OTHER"}
+{"hook_ran":"pre-Shell","event":"preToolUse","tool":"Shell","command":"echo OTHER"}
+{"hook_ran":"pre-star","event":"preToolUse","tool":"Shell","command":"echo OTHER"}
+{"hook_ran":"pre-regex","event":"preToolUse","tool":"Shell","command":"echo OTHER"}
+{"hook_ran":"post-Shell","event":"postToolUse","tool":"Shell","command":"echo OTHER"}
+{"hook_ran":"pre-star","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"pre-none","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"pre-regex","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"pre-Read","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"pre-star","event":"preToolUse","tool":"Write","command":""}
+{"hook_ran":"pre-none","event":"preToolUse","tool":"Write","command":""}
+{"hook_ran":"pre-Write","event":"preToolUse","tool":"Write","command":""}
+{"hook_ran":"edit-Write","event":"afterFileEdit","tool":"","command":""}
+{"hook_ran":"pre-none","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"pre-Read","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"pre-star","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"pre-regex","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"post-Read","event":"postToolUse","tool":"Read","command":""}

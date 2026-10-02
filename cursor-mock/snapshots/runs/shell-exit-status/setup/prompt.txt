@@ -1,0 +1,1 @@
+Do these as separate shell tool calls, one command per call, in order, whatever happens: 1) grep zzz /dev/null 2) sh -c 'echo SOME-OUTPUT; exit 1' 3) sh -c 'echo MORE-OUTPUT; echo ERR-OUTPUT >&2; exit 2' 4) echo FINE. Then reply only DONE.

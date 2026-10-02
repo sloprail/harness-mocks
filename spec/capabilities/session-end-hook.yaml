@@ -23,3 +23,15 @@ providers:
       - https://developers.openai.com/codex/hooks#sessionend
     runs:
       - codex-mock/snapshots/runs/session-end
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#sessionend
+    runs:
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no interactive session, and models a run that ends by its
+          script's result, so the sessionEnd reasons window_close, user_close, aborted
+          and error, and the error message that goes with a reason of error, are not
+          modeled: it always says completed.
