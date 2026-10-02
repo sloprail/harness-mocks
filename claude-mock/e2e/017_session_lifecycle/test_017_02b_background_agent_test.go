@@ -54,7 +54,7 @@ echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-7702"}'
 	outFile := receipt.ToolUseResult["outputFile"].(string)
 	assert.Equal(t, map[string]any{
 		"isAsync": true, "status": "async_launched", "agentId": agentID, "description": "bg agent",
-		"prompt": "go", "outputFile": outFile, "canReadOutputFile": true, "resolvedModel": "haiku",
+		"prompt": "go", "outputFile": outFile, "canReadOutputFile": true, "resolvedModel": "claude-haiku-4-5-20251001",
 	}, receipt.ToolUseResult)
 	receiptText := "Async agent launched successfully. (This tool result is internal metadata — never quote or paste any part of it, including the agentId below, into a user-facing reply.)\n" +
 		"agentId: " + agentID + " (internal ID - do not mention to user. Use SendMessage with to: '" + agentID + "', summary: '<5-10 word recap>' to continue this agent.)\n" +

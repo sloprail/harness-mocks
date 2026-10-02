@@ -48,9 +48,13 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 		ToolUseResult: map[string]any{
 			"isAsync": true, "status": "async_launched", "agentId": sub.agentID,
 			"description": in.Description, "prompt": in.Prompt, "outputFile": outFile,
-			"canReadOutputFile": true, "resolvedModel": model,
+			"canReadOutputFile": true, "resolvedModel": resolvedModel(model),
 		},
 	}
+	// SubagentStart fires with the launch, ahead of the call's PostToolUse, as
+	// recorded (snapshots/runs/bgagent); the run itself starts after it.
+	sub.fireSubagentStart(b.Context(), sub.invoker(inv))
+	sub.startFired = true
 	start := func() {
 		b.StartAgent(task, func(ctx context.Context) {
 			out := sub.execute(ctx, inv, b, in.Prompt)
@@ -63,6 +67,17 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 		})
 	}
 	return res, start
+}
+
+// resolvedModel is the id an async receipt names for a model alias: the real
+// harness resolves the alias to the full model id (recorded: haiku is
+// claude-haiku-4-5-20251001 in snapshots/runs/bgagent). Anything else is
+// reported as given.
+func resolvedModel(alias string) string {
+	if alias == "haiku" {
+		return "claude-haiku-4-5-20251001"
+	}
+	return alias
 }
 
 // writeStreamLine writes one line to the output stream in a single Write, so

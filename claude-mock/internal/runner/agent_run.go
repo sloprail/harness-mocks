@@ -30,6 +30,9 @@ type subagentRun struct {
 	// cleanup removes an isolated sub-agent's clean worktree once it has finished
 	// (subagents.Isolation.Cleanup); nil when it has no real worktree.
 	cleanup func(context.Context) bool
+	// startFired is set once SubagentStart has fired ahead of the run: a
+	// background Agent's fires before the launching call's PostToolUse.
+	startFired bool
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -62,13 +65,9 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		// SubagentStart — cannot block. transcript_path is the SESSION's (the
 		// invoker's default); the sub-agent is named by agent_id.
 		Start: func() {
-			_, _ = sideInv.Fire(ctx, hooks.Input{
-				SessionID:     s.parent.SessionID,
-				Cwd:           s.subCwd,
-				HookEventName: hooks.EventSubagentStart,
-				AgentType:     s.agentType,
-				AgentID:       s.agentID,
-			})
+			if !s.startFired {
+				s.fireSubagentStart(ctx, sideInv)
+			}
 		},
 		// What the hook said is recorded as it fires — into the SUB-AGENT's own
 		// file, where real Claude Code writes a SubagentStop's feedback — so the
@@ -101,5 +100,17 @@ func (s *subagentRun) invoker(inv *hooks.Invoker) *hooks.Invoker {
 		}
 		defer side.Close()
 		side.recordHookRuns(in, runs)
+	})
+}
+
+// fireSubagentStart fires SubagentStart through inv, which records into the
+// sub-agent's own file.
+func (s *subagentRun) fireSubagentStart(ctx context.Context, inv *hooks.Invoker) {
+	_, _ = inv.Fire(ctx, hooks.Input{
+		SessionID:     s.parent.SessionID,
+		Cwd:           s.subCwd,
+		HookEventName: hooks.EventSubagentStart,
+		AgentType:     s.agentType,
+		AgentID:       s.agentID,
 	})
 }

@@ -11,8 +11,9 @@ import (
 
 // TestT017_65_BackgroundAgentHooks: the hooks around a background Agent, in
 // the order recorded (snapshots/runs/bgagent, payloads.jsonl): PreToolUse of
-// the Agent call, SubagentStart (its place differs, see below), the Agent's PostToolUse carrying the
-// async_launched payload, the first Stop (which lists the sub-agent running),
+// the Agent call, SubagentStart, the Agent's PostToolUse carrying the
+// async_launched payload, the sub-agent's own Bash PreToolUse (agent_id and
+// agent_type set) before the launching turn's Stop, its PostToolUse after it,
 // SubagentStop (agent_transcript_path is the sub-agent's own transcript, its
 // last_assistant_message the reply, and background_tasks still lists the
 // sub-agent as running), the notification's UserPromptSubmit, and the second
@@ -22,15 +23,14 @@ func TestT017_65_BackgroundAgentHooks(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
-	h := payloadLogger(t, dir, "log.sh", log, `case "$IN" in *'"hook_event_name":"Stop"'*) touch `+dir+`/stopped;; esac`)
+	h := payloadLogger(t, dir, "log.sh", log, "")
+	// The launching turn's Stop is slow to log, so the sub-agent's own work is
+	// seen to happen while that turn is still live.
+	slow := write(t, filepath.Join(dir, "slow.sh"), "#!/bin/sh\nIN=$(cat)\nsleep 1\nprintf '%s\\n' \"$IN\" >> "+log+"\n", 0o755)
 	settings(t, dir, map[string]string{
-		"UserPromptSubmit": h, "PreToolUse": h, "PostToolUse": h, "SubagentStart": h, "SubagentStop": h, "Stop": h,
+		"UserPromptSubmit": h, "PreToolUse": h, "PostToolUse": h, "SubagentStart": h, "SubagentStop": h, "Stop": slow,
 	})
-	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
-while [ ! -f `+dir+`/stopped ]; do sleep 0.05; done
-echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"AGENT-REPLY-6501"}]}}'
-echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-6501"}'
-`, 0o755)
+	sub := script(t, dir, "sub", toolUse("sb", "Bash", `{"command":"sleep 3; echo SUBDONE"}`))
 	input := `{"prompt":"go","description":"hook agent","script":"` + sub + `","run_in_background":true}`
 	sc := script(t, dir, "s",
 		toolUse("ag1", "Agent", input),
@@ -54,19 +54,12 @@ echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-6501"}'
 		order = append(order, label)
 		byEvent[label] = append(byEvent[label], p)
 	}
-	// SubagentStart is left out of the order: the recording has it before the
-	// Agent's PostToolUse, the mock fires it when the sub-agent's run starts,
-	// after the launching turn's PostToolUse and Stop.
-	var rest []string
-	for _, l := range order {
-		if l != "SubagentStart" {
-			rest = append(rest, l)
-		}
-	}
+	// The sub-agent works while the launching turn is live: its Bash PreToolUse
+	// comes before the first Stop and its PostToolUse after it.
 	assert.Equal(t, []string{
-		"UserPromptSubmit", "PreToolUse:Agent", "PostToolUse:Agent", "Stop", "SubagentStop", "UserPromptSubmit", "Stop",
-	}, rest)
-	require.Len(t, byEvent["SubagentStart"], 1)
+		"UserPromptSubmit", "PreToolUse:Agent", "SubagentStart", "PostToolUse:Agent", "PreToolUse:Bash", "Stop",
+		"PostToolUse:Bash", "SubagentStop", "UserPromptSubmit", "Stop",
+	}, order)
 
 	start := byEvent["SubagentStart"][0]
 	agentID, _ := start["agent_id"].(string)
@@ -91,7 +84,12 @@ echo '{"type":"result","subtype":"success","result":"AGENT-REPLY-6501"}'
 	assert.Equal(t, "general-purpose", stop["agent_type"])
 	assert.Equal(t, false, stop["stop_hook_active"])
 	assert.Equal(t, filepath.Join(strings.TrimSuffix(main, ".jsonl"), "subagents", "agent-"+agentID+".jsonl"), stop["agent_transcript_path"])
-	assert.Equal(t, "AGENT-REPLY-6501", stop["last_assistant_message"])
+	assert.Equal(t, "done", stop["last_assistant_message"])
+	for _, label := range []string{"PreToolUse:Bash", "PostToolUse:Bash"} {
+		p := byEvent[label][0]
+		assert.Equal(t, agentID, p["agent_id"], label+" names the sub-agent")
+		assert.Equal(t, "general-purpose", p["agent_type"], label)
+	}
 	assert.Equal(t, []any{map[string]any{"id": agentID, "type": "subagent", "status": "running", "description": "hook agent", "agent_type": "general-purpose"}},
 		stop["background_tasks"], "the sub-agent is still listed running when its own SubagentStop fires")
 }
