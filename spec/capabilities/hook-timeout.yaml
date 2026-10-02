@@ -12,6 +12,15 @@ providers:
       - https://code.claude.com/docs/en/hooks#common-fields
     runs:
       - claude-mock/snapshots/runs/hook-timeout
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock defines and fires none of the PreModelSwitch,
+          PostModelSwitch and MessageDisplay events, so the shorter default
+          timeouts the docs give them (30 s, 30 s and 10 s), and a timed-out
+          PreModelSwitch hook blocking the model switch, are not modeled. The
+          mcp_tool hook handler is not implemented either, so a timed-out
+          mcp_tool hook's cancellation and discarded output are not modeled.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#config-shape
