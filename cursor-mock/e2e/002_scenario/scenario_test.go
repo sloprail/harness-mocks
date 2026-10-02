@@ -71,10 +71,17 @@ fi
 // prompt, unchanged, in A10N_MOCK_PROMPT.
 // sr:proves scenario-prompt-env
 func TestThePromptReachesTheScriptUnchanged(t *testing.T) {
-	out, _, code := run(t, "#!/bin/sh\nprintf '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"%s\"}\\n' \"$A10N_MOCK_PROMPT\"\n"+
-		"printf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"'\"$A10N_MOCK_PROMPT\"'\"}]}}'\n", "fix", "the  bug")
+	// The script says the prompt it was given before it ends the run, and
+	// Cursor's result frame carries what the agent said, so the assertion is on
+	// that result, not on the user frame the mock echoes from the command line.
+	out, _, code := run(t, "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"got:'\"$A10N_MOCK_PROMPT\"'\"}]}}'\n"+
+		"printf '%s\\n' '"+done+"'\n", "fix", "the  bug")
 	require.Equal(t, 0, code, out)
-	require.Contains(t, out, `"text":"fix the  bug"`)
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	var last struct{ Type, Result string }
+	require.NoError(t, json.Unmarshal([]byte(lines[len(lines)-1]), &last))
+	require.Equal(t, "result", last.Type, out)
+	require.Equal(t, "got:fix the  bug", last.Result)
 }
 
 // TestTheScriptCanReadTheSessionSoFar: the transcript so far is readable
