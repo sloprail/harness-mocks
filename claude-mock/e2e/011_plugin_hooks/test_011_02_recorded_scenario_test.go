@@ -75,6 +75,7 @@ echo '{"type":"result","subtype":"success","result":"done"}'
 	assert.Equal(t, "project root= data= project="+dir, lines[1], "a project hook is told no plugin")
 	dataDir := strings.TrimPrefix(strings.Fields(lines[0])[2], "data=")
 	assert.NotEqual(t, filepath.Join(mpRoot, "plugins", "p1"), dataDir, "the plugin's data is kept apart from its installation")
+	assert.NotContains(t, dataDir, mpRoot, "and never inside the marketplace the user keeps")
 	st, err := os.Stat(dataDir)
 	require.NoError(t, err)
 	assert.True(t, st.IsDir())

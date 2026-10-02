@@ -94,7 +94,7 @@ func ensureCloned(gitURL, targetPath string) error {
 // hook-run time.
 //
 // sr:docs https://code.claude.com/docs/en/plugins#hooks
-func expandPluginRoot(entries []HookEntry, pluginDir string) []HookEntry {
+func expandPluginRoot(entries []HookEntry, pluginDir, cacheDir string) []HookEntry {
 	out := make([]HookEntry, len(entries))
 	for i, e := range entries {
 		expanded := make([]HandlerSpec, len(e.Hooks))
@@ -105,7 +105,7 @@ func expandPluginRoot(entries []HookEntry, pluginDir string) []HookEntry {
 				}
 				return "${" + key + "}"
 			})
-			h.PluginRoot, h.PluginData = pluginDir, pluginDataDir(pluginDir)
+			h.PluginRoot, h.PluginData = pluginDir, pluginDataDir(cacheDir, pluginDir)
 			expanded[j] = h
 		}
 		out[i] = HookEntry{Matcher: e.Matcher, Hooks: expanded}
@@ -113,11 +113,12 @@ func expandPluginRoot(entries []HookEntry, pluginDir string) []HookEntry {
 	return out
 }
 
-// pluginDataDir is where a plugin's persistent data lives, beside the
-// installation and apart from it so an update does not touch it (docs,
-// Reference scripts by path). It is made on first use.
-func pluginDataDir(pluginDir string) string {
-	dir := filepath.Join(filepath.Dir(pluginDir), ".data", filepath.Base(pluginDir))
+// pluginDataDir is where a plugin's persistent data lives: under the plugin
+// cache, apart from the installation so an update does not touch it, and never
+// inside a marketplace the user keeps (docs, Reference scripts by path). It is
+// made on first use.
+func pluginDataDir(cacheDir, pluginDir string) string {
+	dir := filepath.Join(cacheDir, "data", filepath.Base(pluginDir))
 	_ = os.MkdirAll(dir, 0o755)
 	return dir
 }

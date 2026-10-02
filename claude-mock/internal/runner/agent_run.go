@@ -60,11 +60,37 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
 	}
 	tasks.Announce(bg.Registry, task, frames)
+<<<<<<< HEAD
 	begin := s.begun
 	if begin == nil {
 		begin = subagents.Begin(s.hooks(ctx, inv, bg))
 	}
 	out := begin(stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
+=======
+	sideInv := s.invoker(inv)
+	out := subagents.Execute(subagents.Hooks{
+		// SubagentStart — cannot block. transcript_path is the SESSION's (the
+		// invoker's default); the sub-agent is named by agent_id.
+		Start: func() {
+			_, _ = sideInv.Fire(ctx, hooks.Input{
+				SessionID:     s.parent.SessionID,
+				Cwd:           s.subCwd,
+				HookEventName: hooks.EventSubagentStart,
+				AgentType:     s.agentType,
+				AgentID:       s.agentID,
+			})
+		},
+		// What the hook said is recorded as it fires — into the SUB-AGENT's own
+		// file, where real Claude Code writes a SubagentStop's feedback — so the
+		// last refusal before the cap is on the record too.
+		Stop: func(active bool, last string) (bool, string) {
+			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
+		},
+	}, stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
+	if !s.background { // only a foreground sub-agent's commands end with its response, after SubagentStop has listed them
+		bg.EndOfResponse(s.agentID)
+	}
+>>>>>>> origin/main
 	final := out.FinalText
 	if final == "" {
 		final = out.LastAssistant

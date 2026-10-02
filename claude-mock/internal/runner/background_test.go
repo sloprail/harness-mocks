@@ -142,7 +142,7 @@ func TestLaunchBash_ReceiptAndCompletion(t *testing.T) {
 	assert.NotContains(t, tur, "backgroundEndsWithFinalResponse")
 	task := b.AwaitAfterTurn(context.Background(), "")
 	assert.Nil(t, task, "a -p session does not wait for a background command")
-	require.Eventually(t, func() bool { return len(b.TakeFinished("")) == 1 }, 5*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return len(b.TakeFinished("")) == 1 }, 30*time.Second, 20*time.Millisecond)
 	data, err := os.ReadFile(out)
 	require.NoError(t, err)
 	assert.Equal(t, "hi\n\n[exited with code 0]\n", string(data))

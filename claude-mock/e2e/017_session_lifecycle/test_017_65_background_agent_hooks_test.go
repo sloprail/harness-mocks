@@ -9,6 +9,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestT017_66_ForegroundAgentBlocksItsParent: a foreground Agent call does not
+// return until the sub-agent has finished: the parent's next step runs after
+// the sub-agent's work is done, and gets the sub-agent's report as the result.
+// sr:proves foreground-subagent-result/claude
+func TestT017_66_ForegroundAgentBlocksItsParent(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	done, saw := filepath.Join(dir, "SUBDONE"), filepath.Join(dir, "PARENTSAW")
+	sub := write(t, filepath.Join(dir, "sub.sh"), `#!/bin/sh
+sleep 1
+touch `+done+`
+echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"SLOW-REPORT-6601"}]}}'
+echo '{"type":"result","subtype":"success","result":"SLOW-REPORT-6601"}'
+`, 0o755)
+	sc := script(t, dir, "s",
+		toolUse("ag1", "Agent", `{"prompt":"go","description":"slow agent","script":"`+sub+`"}`),
+		toolUse("b2", "Bash", `{"command":"test -f `+done+` && touch `+saw+`"}`),
+	)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "fgb-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.FileExists(t, saw, "the parent's next step ran only after the sub-agent had finished")
+	block, _ := toolResultOf(t, readRecs(t, transcriptPath(t, cfg, dir, "fgb-1")), "ag1turn-s-a")
+	assert.Contains(t, block["content"].([]any)[0].(map[string]any)["text"], "SLOW-REPORT-6601")
+}
+
 // TestT017_65_BackgroundAgentHooks: the hooks around a background Agent, in
 // the order recorded (snapshots/runs/bgagent, payloads.jsonl): PreToolUse of
 // the Agent call, SubagentStart, the Agent's PostToolUse carrying the
