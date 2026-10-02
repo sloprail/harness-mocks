@@ -10,3 +10,4 @@ providers:
     runs:
       - claude-mock/snapshots/runs/resume-unknown
   codex: false
+  cursor: false

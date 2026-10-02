@@ -1,9 +1,10 @@
 statement: >-
   A hook run at the start of a session, on a submitted prompt, or after a tool
-  call succeeds can return text that is added to the agent's context; when
-  several hooks return text, all of it is kept. The harness records the text
-  beside the hook's own output. (What a harness does with text too long to
-  keep whole is not part of this.)
+  call succeeds can return text that is added to the agent's context (a
+  harness may take it at only some of these); when several hooks return text,
+  all of it is kept. A harness that records what its hooks output records the
+  text beside the hook's own output. (What a harness does with text too long
+  to keep whole is not part of this.)
 providers:
   claude:
     docs:
@@ -21,3 +22,10 @@ providers:
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#sessionstart
+      - https://cursor.com/docs/hooks#posttooluse
+      - https://cursor.com/docs/hooks#posttoolusefailure
+    runs:
+      - cursor-mock/snapshots/runs/additional-context

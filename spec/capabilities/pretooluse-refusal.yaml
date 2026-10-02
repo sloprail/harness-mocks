@@ -33,3 +33,26 @@ providers:
           Bash), so a refusal of apply_patch, of MCP tools and of Codex's other
           local function tools is not modeled. Hosted tools such as web search
           run no hook in Codex either.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#pretooluse
+      - https://cursor.com/docs/hooks#beforeshellexecution--beforemcpexecution
+      - https://cursor.com/docs/hooks#configuration
+    runs:
+      - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock models a non-interactive run with no one to ask, so a hook's
+          "ask" (a permission prompt) decides nothing in the mock; it only ranks
+          below deny when several hooks decide one call. The call-refusing
+          hooks the mock fires are preToolUse and beforeShellExecution;
+          beforeMCPExecution, beforeReadFile and subagentStart, which refuse
+          too, are not modeled.
+      - adr: modeled-surface
+        statement: >-
+          A deny's agent_message, which the docs say is fed back to the agent as
+          the refusal, is not read: the mock has no model to receive it, and the
+          recorded stream shows the agent's side of a refusal only as the
+          rejected tool call, so only the hook's user_message (the failure
+          hook's error_message) is modeled.

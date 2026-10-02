@@ -28,3 +28,4 @@ providers:
           a foreground sub-agent's moved command still stops when that
           sub-agent's run ends. A mock's foreground command is never moved.
   codex: false
+  cursor: false

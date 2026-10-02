@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/ctx.sh S1" }],
+    "sessionEnd": [{ "command": ".cursor/hooks/ctx.sh END" }],
+    "postToolUse": [{ "command": ".cursor/hooks/ctx.sh P1" }, { "command": ".cursor/hooks/ctx.sh P2" }],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/ctx.sh F1" }]
+  }
+}
