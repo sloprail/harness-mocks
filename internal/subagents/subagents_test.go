@@ -63,6 +63,21 @@ func TestExecute_StartCannotBlockAndStopReruns(t *testing.T) {
 	}
 }
 
+func TestBegin_StartsNowAndFinishesLater(t *testing.T) {
+	var events []string
+	finish := Begin(Hooks{
+		Start: func() { events = append(events, "start") },
+		Stop:  func(bool, string) (bool, string) { events = append(events, "stop"); return false, "" },
+	})
+	if len(events) != 1 || events[0] != "start" {
+		t.Fatalf("Begin should fire only the start hook: %v", events)
+	}
+	out := finish(0, func() Outcome { events = append(events, "run"); return Outcome{FinalText: "x"} })
+	if out.FinalText != "x" || len(events) != 3 || events[1] != "run" || events[2] != "stop" {
+		t.Fatalf("finishing runs then stops, without a second start: %v %+v", events, out)
+	}
+}
+
 func TestExecute_StopsAtTheBlockCap(t *testing.T) {
 	stops, capped := 0, 0
 	h := Hooks{

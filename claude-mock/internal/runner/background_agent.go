@@ -9,14 +9,15 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // launchAgent validates a background Agent call, prepares its sub-agent (its
 // sidechain file, and the output-file symlink to it), and returns the receipt
 // together with start, which runs the sub-agent concurrently. The caller
-// starts it once the receipt's tool_result and PostToolUse are written — real
-// Claude Code returns the receipt first and fires SubagentStart after.
+// starts it once the receipt's tool_result and PostToolUse are written;
+// SubagentStart has fired by then, with the launch.
 //
 // sr:provides background-agent/claude
 func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func()) {
@@ -48,9 +49,12 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 		ToolUseResult: map[string]any{
 			"isAsync": true, "status": "async_launched", "agentId": sub.agentID,
 			"description": in.Description, "prompt": in.Prompt, "outputFile": outFile,
-			"canReadOutputFile": true, "resolvedModel": model,
+			"canReadOutputFile": true, "resolvedModel": resolvedModel(model),
 		},
 	}
+	// The sub-agent is begun with the launch, ahead of the call's PostToolUse
+	// (recorded: snapshots/runs/bgagent); its run starts after the answer.
+	sub.begun = subagents.Begin(sub.hooks(b.Context(), inv, b))
 	start := func() {
 		b.StartAgent(task, func(ctx context.Context) {
 			out := sub.execute(ctx, inv, b, in.Prompt)
@@ -63,6 +67,17 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 		})
 	}
 	return res, start
+}
+
+// resolvedModel is the id an async receipt names for a model alias: the real
+// harness resolves the alias to the full model id (recorded: haiku is
+// claude-haiku-4-5-20251001 in snapshots/runs/bgagent). Anything else is
+// reported as given.
+func resolvedModel(alias string) string {
+	if alias == "haiku" {
+		return "claude-haiku-4-5-20251001"
+	}
+	return alias
 }
 
 // writeStreamLine writes one line to the output stream in a single Write, so
