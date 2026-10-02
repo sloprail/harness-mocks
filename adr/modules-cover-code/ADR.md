@@ -3,8 +3,6 @@ concern: which module every piece of code belongs to
 sloprails: [file-guard/module-coverage]
 # The code that must be mapped to modules.
 space: ["internal/**", "*-mock/**"]
-# Globs of code not yet in any module. Each only shrinks.
-exceptions: []
 ---
 
 # Every piece of code belongs to exactly one module
@@ -19,4 +17,3 @@ code sits outside a boundary.
 - Every non-test Go file matching `space` lies in the `home` of exactly one
   module (a `module.yaml`).
 - Module homes do not overlap.
-- Code matching `exceptions` belongs to no module; nothing new is added there.
