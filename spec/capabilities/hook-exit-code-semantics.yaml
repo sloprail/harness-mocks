@@ -64,6 +64,6 @@ providers:
       - adr: modeled-surface
         statement: >-
           The mock fires SessionStart, UserPromptSubmit, PreToolUse,
-          PostToolUse and Stop, and no others. The docs' exit-code rows for
-          PermissionRequest, PreCompact, PostCompact, SubagentStart,
-          SubagentStop, Interrupt and SessionEnd are not modeled.
+          PostToolUse, Stop and SessionEnd, and no others. The docs'
+          exit-code rows for PermissionRequest, PreCompact, PostCompact,
+          SubagentStart, SubagentStop and Interrupt are not modeled.
