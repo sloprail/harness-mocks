@@ -21,6 +21,12 @@ providers:
           PreModelSwitch hook blocking the model switch, are not modeled. The
           mcp_tool hook handler is not implemented either, so a timed-out
           mcp_tool hook's cancellation and discarded output are not modeled.
+      - adr: modeled-surface
+        statement: >-
+          A timed-out PreToolUse hook lets the call fall through to the normal
+          permission flow. The mock models a non-interactive run with no
+          permission rules evaluated beside the hook, so what a deny or ask
+          rule does after a timeout is not modeled.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#config-shape
