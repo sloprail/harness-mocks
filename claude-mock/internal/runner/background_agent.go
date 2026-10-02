@@ -9,14 +9,15 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // launchAgent validates a background Agent call, prepares its sub-agent (its
 // sidechain file, and the output-file symlink to it), and returns the receipt
 // together with start, which runs the sub-agent concurrently. The caller
-// starts it once the receipt's tool_result and PostToolUse are written — real
-// Claude Code returns the receipt first and fires SubagentStart after.
+// starts it once the receipt's tool_result and PostToolUse are written;
+// SubagentStart has fired by then, with the launch.
 //
 // sr:provides background-agent/claude
 func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func()) {
@@ -51,10 +52,9 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 			"canReadOutputFile": true, "resolvedModel": resolvedModel(model),
 		},
 	}
-	// SubagentStart fires with the launch, ahead of the call's PostToolUse, as
-	// recorded (snapshots/runs/bgagent); the run itself starts after it.
-	sub.fireSubagentStart(b.Context(), sub.invoker(inv))
-	sub.startFired = true
+	// The sub-agent is begun with the launch, ahead of the call's PostToolUse
+	// (recorded: snapshots/runs/bgagent); its run starts after the answer.
+	sub.begun = subagents.Begin(sub.hooks(b.Context(), inv, b))
 	start := func() {
 		b.StartAgent(task, func(ctx context.Context) {
 			out := sub.execute(ctx, inv, b, in.Prompt)

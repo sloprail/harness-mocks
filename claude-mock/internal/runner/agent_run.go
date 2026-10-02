@@ -30,9 +30,9 @@ type subagentRun struct {
 	// cleanup removes an isolated sub-agent's clean worktree once it has finished
 	// (subagents.Isolation.Cleanup); nil when it has no real worktree.
 	cleanup func(context.Context) bool
-	// startFired is set once SubagentStart has fired ahead of the run: a
-	// background Agent's fires before the launching call's PostToolUse.
-	startFired bool
+	// begun is the sub-agent as begun at its launch (subagents.Begin), when it
+	// was begun before its run; nil begins it with the run.
+	begun func(blockCap int, run func() subagents.Outcome) subagents.Outcome
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -60,22 +60,11 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
 	}
 	tasks.Announce(bg.Registry, task, frames)
-	sideInv := s.invoker(inv)
-	out := subagents.Execute(subagents.Hooks{
-		// SubagentStart — cannot block. transcript_path is the SESSION's (the
-		// invoker's default); the sub-agent is named by agent_id.
-		Start: func() {
-			if !s.startFired {
-				s.fireSubagentStart(ctx, sideInv)
-			}
-		},
-		// What the hook said is recorded as it fires — into the SUB-AGENT's own
-		// file, where real Claude Code writes a SubagentStop's feedback — so the
-		// last refusal before the cap is on the record too.
-		Stop: func(active bool, last string) (bool, string) {
-			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
-		},
-	}, stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
+	begin := s.begun
+	if begin == nil {
+		begin = subagents.Begin(s.hooks(ctx, inv, bg))
+	}
+	out := begin(stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
 	final := out.FinalText
 	if final == "" {
 		final = out.LastAssistant
@@ -103,14 +92,26 @@ func (s *subagentRun) invoker(inv *hooks.Invoker) *hooks.Invoker {
 	})
 }
 
-// fireSubagentStart fires SubagentStart through inv, which records into the
-// sub-agent's own file.
-func (s *subagentRun) fireSubagentStart(ctx context.Context, inv *hooks.Invoker) {
-	_, _ = inv.Fire(ctx, hooks.Input{
-		SessionID:     s.parent.SessionID,
-		Cwd:           s.subCwd,
-		HookEventName: hooks.EventSubagentStart,
-		AgentType:     s.agentType,
-		AgentID:       s.agentID,
-	})
+// hooks are the hooks fired around the sub-agent.
+func (s *subagentRun) hooks(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks) subagents.Hooks {
+	sideInv := s.invoker(inv)
+	return subagents.Hooks{
+		// SubagentStart — cannot block. transcript_path is the SESSION's (the
+		// invoker's default); the sub-agent is named by agent_id.
+		Start: func() {
+			_, _ = sideInv.Fire(ctx, hooks.Input{
+				SessionID:     s.parent.SessionID,
+				Cwd:           s.subCwd,
+				HookEventName: hooks.EventSubagentStart,
+				AgentType:     s.agentType,
+				AgentID:       s.agentID,
+			})
+		},
+		// What the hook said is recorded as it fires — into the SUB-AGENT's own
+		// file, where real Claude Code writes a SubagentStop's feedback — so the
+		// last refusal before the cap is on the record too.
+		Stop: func(active bool, last string) (bool, string) {
+			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
+		},
+	}
 }
