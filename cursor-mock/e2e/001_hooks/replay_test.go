@@ -34,6 +34,8 @@ type observed struct {
 	// envs are the environments the hook scripts logged of themselves.
 	envs     []map[string]any
 	ws, home string
+	// stdout is the mock's whole stream, as printed (set on the mock's side only).
+	stdout string
 }
 
 // dropped are the fields a capture's normalizer removes (capture.sh): what
@@ -271,7 +273,7 @@ func replay(t *testing.T, run string) (got, want observed) {
 		}
 	}
 	sort.Strings(got.results)
-	got.ws, got.home = ws, home
+	got.ws, got.home, got.stdout = ws, home, string(out)
 	for _, l := range strings.Split(string(out), "\n") {
 		var f map[string]any
 		if json.Unmarshal([]byte(l), &f) == nil {

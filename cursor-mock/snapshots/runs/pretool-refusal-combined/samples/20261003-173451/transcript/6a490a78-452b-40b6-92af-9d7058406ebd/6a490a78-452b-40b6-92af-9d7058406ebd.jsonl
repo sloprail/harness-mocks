@@ -1,0 +1,7 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, whatever happens: 1) echo BOTH 2) echo BLOCKFIRST 3) echo TWODENY 4) echo FINE. If a call is refused, do not retry it or look for a workaround; go on to the next. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the four echo commands one at a time, in order."},{"type":"tool_use","name":"Shell","input":{"command":"echo BOTH","description":"Echo BOTH"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo BLOCKFIRST","description":"Echo BLOCKFIRST"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo TWODENY","description":"Echo TWODENY"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo FINE","description":"Echo FINE"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

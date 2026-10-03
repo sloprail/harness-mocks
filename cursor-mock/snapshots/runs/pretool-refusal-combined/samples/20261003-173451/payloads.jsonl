@@ -1,0 +1,20 @@
+{"hook_ran":"deny-two","event":"preToolUse","command":"echo BOTH"}
+{"hook_ran":"first-block","event":"preToolUse","command":"echo BOTH"}
+{"hook_ran":"block-two","event":"preToolUse","command":"echo BOTH"}
+{"hook_ran":"deny-one","event":"preToolUse","command":"echo BOTH"}
+{"conversation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","generation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","model":"default","tool_name":"Shell","tool_input":{"command":"echo BOTH","cwd":"","timeout":30000},"error_message":"deny-one-DENY\n\n---\n\nHook blocked with message: block-two-BLOCK","failure_type":"permission_denied","duration":0,"tool_use_id":"6c662b17-3d7a-4c48-827a-f84b657d8e31","is_interrupt":false,"cwd":"","session_id":"6a490a78-452b-40b6-92af-9d7058406ebd","hook_event_name":"postToolUseFailure","cursor_version":"2026.09.28-64d2043","workspace_roots":["<RUN>"],"user_email":null,"transcript_path":"<TMP>/home/.cursor/projects/<RUN_DIRNAME>/agent-transcripts/6a490a78-452b-40b6-92af-9d7058406ebd/6a490a78-452b-40b6-92af-9d7058406ebd.jsonl"}
+{"hook_ran":"deny-one","event":"preToolUse","command":"echo BLOCKFIRST"}
+{"hook_ran":"deny-two","event":"preToolUse","command":"echo BLOCKFIRST"}
+{"hook_ran":"block-two","event":"preToolUse","command":"echo BLOCKFIRST"}
+{"hook_ran":"first-block","event":"preToolUse","command":"echo BLOCKFIRST"}
+{"conversation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","generation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","model":"default","tool_name":"Shell","tool_input":{"command":"echo BLOCKFIRST","cwd":"","timeout":30000},"error_message":"Hook blocked with message: first-block-BLOCK\n\n---\n\ndeny-one-DENY","failure_type":"permission_denied","duration":0,"tool_use_id":"1fd60907-309a-4b7f-9d38-48a8c2d84421","is_interrupt":false,"cwd":"","session_id":"6a490a78-452b-40b6-92af-9d7058406ebd","hook_event_name":"postToolUseFailure","cursor_version":"2026.09.28-64d2043","workspace_roots":["<RUN>"],"user_email":null,"transcript_path":"<TMP>/home/.cursor/projects/<RUN_DIRNAME>/agent-transcripts/6a490a78-452b-40b6-92af-9d7058406ebd/6a490a78-452b-40b6-92af-9d7058406ebd.jsonl"}
+{"hook_ran":"first-block","event":"preToolUse","command":"echo TWODENY"}
+{"hook_ran":"deny-two","event":"preToolUse","command":"echo TWODENY"}
+{"hook_ran":"block-two","event":"preToolUse","command":"echo TWODENY"}
+{"hook_ran":"deny-one","event":"preToolUse","command":"echo TWODENY"}
+{"conversation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","generation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","model":"default","tool_name":"Shell","tool_input":{"command":"echo TWODENY","cwd":"","timeout":30000},"error_message":"deny-one-DENY\n\n---\n\ndeny-two-DENY","failure_type":"permission_denied","duration":0,"tool_use_id":"56733eb1-9cec-418c-b302-77bc7965ffec","is_interrupt":false,"cwd":"","session_id":"6a490a78-452b-40b6-92af-9d7058406ebd","hook_event_name":"postToolUseFailure","cursor_version":"2026.09.28-64d2043","workspace_roots":["<RUN>"],"user_email":null,"transcript_path":"<TMP>/home/.cursor/projects/<RUN_DIRNAME>/agent-transcripts/6a490a78-452b-40b6-92af-9d7058406ebd/6a490a78-452b-40b6-92af-9d7058406ebd.jsonl"}
+{"hook_ran":"deny-one","event":"preToolUse","command":"echo FINE"}
+{"hook_ran":"first-block","event":"preToolUse","command":"echo FINE"}
+{"hook_ran":"block-two","event":"preToolUse","command":"echo FINE"}
+{"hook_ran":"deny-two","event":"preToolUse","command":"echo FINE"}
+{"conversation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","generation_id":"6a490a78-452b-40b6-92af-9d7058406ebd","model":"default","tool_name":"Shell","tool_input":{"command":"echo FINE","cwd":"","timeout":30000},"tool_output":"{\"output\":\"FINE\\n\",\"exitCode\":0}","duration":799.486,"tool_use_id":"8f8aafe9-ea59-4d21-8617-26a84d1bb4cd","cwd":"","session_id":"6a490a78-452b-40b6-92af-9d7058406ebd","hook_event_name":"postToolUse","cursor_version":"2026.09.28-64d2043","workspace_roots":["<RUN>"],"user_email":null,"transcript_path":"<TMP>/home/.cursor/projects/<RUN_DIRNAME>/agent-transcripts/6a490a78-452b-40b6-92af-9d7058406ebd/6a490a78-452b-40b6-92af-9d7058406ebd.jsonl"}

@@ -37,9 +37,19 @@ func completedFrame(session, id string, c toolexec.Call, result map[string]any) 
 	return toolFrame(session, id, "completed", c, result)
 }
 
-// rejectedFrame ends a call a hook refused: its result is a rejection with the
-// reason the agent was given.
+// rejectedFrame ends a call a hook refused, with the reason the agent was
+// given. A shell command's result is a rejection; a file tool's is an error
+// carrying the reason, shaped as that tool's other errors are (recorded:
+// runs/pretool-refusal for a command, runs/pretool-refusal-file-tools for a
+// Write and a Read).
 func rejectedFrame(session, id string, c toolexec.Call, reason string) []byte {
+	switch c.Kind {
+	case "editToolCall":
+		return toolFrame(session, id, "completed", c, map[string]any{
+			"error": map[string]any{"path": "", "error": reason, "modelVisibleError": reason}})
+	case "readToolCall":
+		return errorFrame(session, id, c, reason)
+	}
 	rejected := map[string]any{"reason": reason, "isReadonly": false}
 	if c.Kind == "shellToolCall" {
 		rejected["command"], rejected["workingDirectory"] = c.Command(), ""

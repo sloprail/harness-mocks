@@ -1,0 +1,30 @@
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-two","event":"preToolUse","command":"echo BOTH"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"first-block","event":"preToolUse","command":"echo BOTH"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"block-two","event":"preToolUse","command":"echo BOTH"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-one","event":"preToolUse","command":"echo BOTH"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo BOTH","timeout":30000},"error_message":"deny-one-DENY\n\n---\n\nHook blocked with message: block-two-BLOCK","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-one","event":"preToolUse","command":"echo BLOCKFIRST"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-two","event":"preToolUse","command":"echo BLOCKFIRST"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"block-two","event":"preToolUse","command":"echo BLOCKFIRST"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"first-block","event":"preToolUse","command":"echo BLOCKFIRST"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo BLOCKFIRST","timeout":30000},"error_message":"Hook blocked with message: first-block-BLOCK\n\n---\n\ndeny-one-DENY","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"first-block","event":"preToolUse","command":"echo TWODENY"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-two","event":"preToolUse","command":"echo TWODENY"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"block-two","event":"preToolUse","command":"echo TWODENY"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-one","event":"preToolUse","command":"echo TWODENY"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo TWODENY","timeout":30000},"error_message":"deny-one-DENY\n\n---\n\ndeny-two-DENY","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-one","event":"preToolUse","command":"echo FINE"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"first-block","event":"preToolUse","command":"echo FINE"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"block-two","event":"preToolUse","command":"echo FINE"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"deny-two","event":"preToolUse","command":"echo FINE"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"tool_output":"{\"output\":\"FINE\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}
