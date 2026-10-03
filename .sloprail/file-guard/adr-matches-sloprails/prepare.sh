@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# prepare: one subject per ADR that changed, or that links a rule whose folder
-# changed, as additionalContext.subjects (the engine does not split subjects
-# yet; one judge call reviews them all). Nothing that can grow is inlined: the
+# prepare: the ADR this check's subject names (subjects.sh: one per ADR that changed, or that links
+# a rule whose folder changed; all of them when the rule runs unsplit), as
+# additionalContext.subjects. Nothing that can grow is inlined: the
 # ADR and each file of each linked rule are named by project path.
 set -uo pipefail
 payload="$(cat)"
@@ -13,6 +13,7 @@ subjects="[]"
 while IFS= read -r a; do
   [ -n "$a" ] || continue
   id="$(jq -r '.id' <<<"$a")"
+  want_subject "$id" || continue
   links="$(jq -r '.frontmatter.sloprails // [] | .[]' <<<"$a")"
   hit=0
   printf '%s\n' "$changed" | grep -q "^adr/$id/" && hit=1

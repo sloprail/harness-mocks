@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# prepare: one subject per ADR folder, or module.yaml, the changeset touched, as
-# additionalContext.subjects (the engine does not split subjects yet; one judge
-# call reviews them all). Nothing that can grow is inlined: the ADR.md after is
-# its project path, the ADR.md before and every diff are files outside the
-# project (written under a temp dir) that the judge reads.
+# prepare: the ADR folder this check's subject names (subjects.sh: one per ADR the changeset
+# touched; all of them when the rule runs unsplit), as additionalContext.subjects. Nothing that
+# can grow is inlined: the ADR.md after is its project path, the ADR.md before and every diff are
+# files outside the project (written under a temp dir) that the judge reads.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 files="$(cs_json '
-  [.changeset.files[] | select((.path | test("^adr/[a-z0-9-]+/")) or (.path | endswith("/module.yaml")))
-   | {path, status, diff, oldContent,
-      adr: (if (.path | startswith("adr/")) then (.path | split("/")[1]) else "module:" + (.path | rtrimstr("/module.yaml")) end)}]')"
+  [.changeset.files[] | select(.path | test("^adr/[a-z0-9-]+/"))
+   | {path, status, diff, oldContent, adr: (.path | split("/")[1])}]')"
+files="$(jq -c --arg want "$(subject_id)" '[.[] | select($want == "" or .adr == $want)]' <<<"$files")"
 [ "$(jq 'length' <<<"$files")" -gt 0 ] || { echo '{"skip": true}'; exit 0; }
 dir="$(mktemp -d "${TMPDIR:-/tmp}/sr-judge-adr-grounded.XXXXXX")" || refuse "cannot make a directory for the judge's diffs"
 out="[]"

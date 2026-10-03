@@ -6,14 +6,15 @@
 # statement needs their words (Sloprail-Cites-User,
 # added-or-removed.sh); a change confined to the support matrix (a cell's
 # docs, runs and deviations) does not
-# (adr/capability-grounding). One judge call reviews every capability touched
-# (its file, or a doc page it cites; prepare.sh lists them as subjects,
-# the engine does not split subjects yet).
+# (adr/capability-grounding). One subject per capability touched (its file, or a doc
+# page it cites): subjects.sh splits the changeset, so a change to one capability leaves
+# another's verdict alone, and prepare.sh builds the context of the subject it is handed.
 match: path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$"
 deletions: include
 require:
   - citation: {source_types: [user]}
     when: ./added-or-removed.sh
+subjects: ./subjects.sh
 checks:
   - prepare: ./prepare.sh
     judge: ./docs-support-statement.md.j2

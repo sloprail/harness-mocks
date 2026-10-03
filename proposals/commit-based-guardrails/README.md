@@ -66,7 +66,7 @@ the commit (`Sloprail-Cites-User:`).
 | **ADRs** | `adr-linked` | D | kebab name, one-line `concern`, no `status`, links ≥1 existing rule, linked modules exist, has the sections |
 | | `adr-well-formed` | P | one concern, checkable, present tense only (no history, commit references or plans) |
 | | `adr-matches-sloprails` | P | the ADR and its linked rules say the same thing |
-| | `adr-grounded` | G+P | an ADR, or a `module.yaml`, changes only with the user's words (shrinking `exceptions` is waived) |
+| | `adr-grounded` | G+P | an ADR changes only with the user's words (shrinking `exceptions` is waived); a `module.yaml` is the agent's own statement and needs none |
 | | `concern-undeclared` | P (Opus, `size-xl`) | once per changeset: a line makes the first instance of a choice the next author will copy or contradict (a policy, a mechanism, a global dependency), and no ADR decides it. The rubric teaches that test, not a list. |
 | **modules** | `module-coverage` | D | every non-test Go file in the `space` (from `adr/modules-cover-code`) lies in exactly one module's home; homes don't overlap; legacy code is covered by `exceptions` globs, which only shrink |
 | | `module-boundaries` | D | nothing imports past a module's `api` |

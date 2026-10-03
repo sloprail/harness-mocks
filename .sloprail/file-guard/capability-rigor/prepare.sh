@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# prepare: the (capability, harness) pairs touched (pairs-lib.sh), as
+# prepare: the (capability, harness) pairs touched (pairs-lib.sh; of the subject's capability), as
 # additionalContext.subjects. Context: statement, cited doc sections, cited runs
 # (run.yaml + sample names; the judge reads samples from the project) and the
 # path of every test proving <id>/<h>.

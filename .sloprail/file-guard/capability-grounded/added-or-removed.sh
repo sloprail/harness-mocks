@@ -19,7 +19,9 @@ decided() {   # REV PATH
     yq -o=json '{"statement": .statement}' 2>/dev/null |
     jq -cS . 2>/dev/null || echo null
 }
-for p in $(cs '.changeset.files[] | select(.path | test("^spec/capabilities/")) | .path'); do
+# the files this requirement is asked about: the subject's (the rule is split per capability, and
+# another capability's statement moving must not demand words of this one), else every changed one
+for p in $(cs '(.subject.files // [.changeset.files[].path])[] | select(test("^spec/capabilities/"))'); do
   b="$(decided "$base" "$p")"; h="$(decided "$head" "$p")"
   [ "$b" = "null" ] || [ "$h" = "null" ] && exit 0   # added or removed
   [ "$b" = "$h" ] || exit 0

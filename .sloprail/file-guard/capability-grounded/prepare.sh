@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# prepare: the capabilities whose file changed, or which cite a doc page that
-# changed, as additionalContext.subjects, each with only the harnesses in
+# prepare: the capability this check's subject names (subjects.sh: one per capability whose
+# file changed, or which cites a doc page that changed; all of them when the rule runs unsplit),
+# as additionalContext.subjects, with only the harnesses in
 # question: those whose cell changed (cells.sh; every harness when the statement
-# or the whole file changed) or whose cited doc page was re-frozen (the engine does not split subjects
-# yet; one judge call reviews them all). Per capability: the statement (a short
+# or the whole file changed) or whose cited doc page was re-frozen. Per capability: the statement (a short
 # string) and, per providing harness, each cited doc ref with the path of its
 # frozen page (a local file in the doc cache under the git dir, fetched on a miss
 # and checked against the MANIFEST's sha256 by doc_copy; a page that cannot be
@@ -19,12 +19,13 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/snapshots.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
-load_spec capabilities; caps="$SPEC"
+load_spec capabilities; caps="$SPEC"; load_touched
 changed="$(cs '.changeset.files[].path')"
 subjects="[]"
 while IFS= read -r c; do
   [ -n "$c" ] || continue
   id="$(jq -r '.id' <<<"$c")"
+  want_subject "$id" || continue
   hs=""   # the harnesses in question, one per line ("*": all)
   printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && hs="$(touched_harnesses "spec/capabilities/$id.yaml")"
   refs="$(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h
@@ -59,6 +60,7 @@ while IFS= read -r c; do
 done < <(jq -c '.[]' <<<"$caps")
 # a deleted capability: judged on the words only
 for p in $(cs '.changeset.files[] | select(.status == "D" and (.path | startswith("spec/capabilities/"))) | .path'); do
+  want_subject "$(basename "$p" .yaml)" || continue
   subjects="$(jq -c --arg p "$p" '. + [{id: ($p | ltrimstr("spec/capabilities/") | rtrimstr(".yaml")), removed: true, path: "", statement: "", docs: []}]' <<<"$subjects")"
 done
 if [ "$(jq 'length' <<<"$subjects")" -eq 0 ]; then echo '{"skip": true}'; exit 0; fi

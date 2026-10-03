@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# prepare: the invariants touched, as additionalContext.subjects (the engine does
-# not split subjects yet; one judge call reviews them all). Touched: a changed
+# prepare: the invariant this check's subject names (subjects.sh; all the invariants touched when
+# the rule runs unsplit), as additionalContext.subjects. Touched: a changed
 # spec/invariants/<id>.yaml, or a changed file carrying (before or after)
 # sr:invariant <id> or sr:proves <id>. Each subject carries the statement
 # (a short string) and the project path of every test file proving it; the judge
@@ -17,6 +17,7 @@ ids="$( { cs '.changeset.files[].path | select(test("^spec/invariants/[a-z0-9-]+
 subjects="[]"
 while IFS= read -r id; do
   [ -n "$id" ] || continue
+  want_subject "$id" || continue
   st="$(jq -r --arg id "$id" '[.[] | select(.id == $id)][0].doc.statement // empty' <<<"$inv")"
   [ -n "$st" ] || continue                     # removed, or malformed: invariant-covered's finding
   tests="$(printf '%s\n' "$proves" | awk -F'\t' -v id="$id" '$2 == id {print $1}' | sort -u | jq -R . | jq -sc 'map(select(. != ""))')"

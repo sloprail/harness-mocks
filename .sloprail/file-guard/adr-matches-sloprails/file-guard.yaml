@@ -1,8 +1,10 @@
 # An ADR and the sloprails it links say the same thing [judge]. Re-judged when
 # the ADR changes, or when any rule it links changes, so neither drifts alone.
-# One subject per such ADR, naming (by path) its ADR.md and every file of every
-# linked rule (YAML, scripts, templates).
+# One subject per such ADR (subjects.sh): its changed files and those of the rules it links;
+# prepare.sh names (by path) its ADR.md and every file of every linked rule (YAML, scripts,
+# templates), and the judge reads them all, so the subject's fingerprint covers them.
 match: path startsWith "adr/" or path startsWith ".sloprail/"
+subjects: ./subjects.sh
 checks:
   - prepare: ./prepare.sh
     judge: ./rules-enforce-decision.md.j2

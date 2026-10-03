@@ -7,11 +7,12 @@
 #      tests, and in paths the module's ADRs list under `exceptions`;
 #   3. [P] judge only what is left: the module's logic outside it (a leak), or
 #      a use of it (calling its API, a log line)?
-# Nothing left: no judge call. Code outside the range was judged when its own
-# range passed (the per-rule watermark), so it never reaches the judge again.
+# Nothing left: no judge call. One subject per module with candidates left (subjects.sh),
+# so a leak found for one module leaves another's verdict alone.
 match: >-
   (path endsWith ".go" and not (path endsWith "_test.go"))
   or path endsWith "/module.yaml" or path endsWith "/candidates.sh"
+subjects: ./subjects.sh
 checks:
   - prepare: ./find-leaks.sh
     judge: ./leak-or-use.md.j2
