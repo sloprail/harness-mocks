@@ -13,6 +13,7 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -44,6 +45,8 @@ type state struct {
 	events  *events.Stream
 	rollout *session.File
 	toolEnv []string
+	// bg holds the commands a call left running (see background.go).
+	bg *tasks.Registry
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
@@ -69,7 +72,8 @@ func Run(ctx context.Context, cfg Config) error {
 		out = io.Discard
 	}
 	s := &state{cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
-		toolEnv: childenv.ToolEnv(cfg.Environ, id)}
+		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
+	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
 		Common: hooks.Common{SessionID: id, TranscriptPath: rollout.Path, Cwd: cfg.Cwd, Model: cfg.Model,
 			PermissionMode: "bypassPermissions"}}
@@ -83,6 +87,7 @@ func Run(ctx context.Context, cfg Config) error {
 	last, err := turnloop.Run(ctx, turnHost{s}, turnloop.Params{
 		Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
 	s.events.TurnCompleted()
+	s.reapAtExit()
 	// The session ends with the run, for the one reason a non-interactive run has;
 	// what the hook prints is not read.
 	s.hooks.Fire(ctx, hooks.SessionEnd, "other", map[string]any{"reason": "other"})

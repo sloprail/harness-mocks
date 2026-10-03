@@ -16,6 +16,17 @@ providers:
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/posttool-block
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex's PostToolUse payload does not say how long the call took: it
+          has no duration field, in its doc or in any recorded payload, and the
+          mock sends none.
+      - adr: modeled-surface
+        statement: >-
+          The mock runs the shell tool only, so what PostToolUse reports for
+          apply_patch, MCP tool calls and other local function tools is not
+          modeled.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#posttooluse

@@ -47,7 +47,15 @@ func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result {
 	cmd := command(c)
 	id := h.events.CommandStarted(cmd)
-	r := tools.Bash(ctx, cmd, h.cfg.Cwd, h.toolEnv)
+	var r tools.BashResult
+	if y := yieldTime(c); y > 0 {
+		var running bool
+		if r, running = h.runYielding(cmd, y); running {
+			return toolcall.Result{Output: r.Output} // still running: no end to report
+		}
+	} else {
+		r = tools.Bash(ctx, cmd, h.cfg.Cwd, h.toolEnv)
+	}
 	h.events.CommandCompleted(id, cmd, r.Output, r.ExitCode)
 	return toolcall.Result{Output: r.Output, Failed: r.Failed()}
 }

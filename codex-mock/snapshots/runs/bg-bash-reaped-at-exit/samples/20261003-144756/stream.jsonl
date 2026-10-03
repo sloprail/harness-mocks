@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a1023c-7216-7b71-beb3-ea1dea1be639"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc \"sh -c 'i=0; while [ \"'$i -lt 40 ]; do echo \"{\"hook_event_name\":\"BackgroundTick\"}\" >>\"$HOOK_LOG\"; i=$((i+1)); sleep 1; done'\"'\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"LAUNCHED"}}
+{"type":"turn.completed","usage":{"input_tokens":24021,"cached_input_tokens":20992,"cache_write_input_tokens":0,"output_tokens":130,"reasoning_output_tokens":28}}
