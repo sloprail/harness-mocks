@@ -96,6 +96,19 @@ func runSubagent(ctx context.Context, sub *state, in spawnInput) subagents.Outco
 	return out
 }
 
+// agentTurnHost is the turn with the tool that starts a sub-agent: spawn_agent
+// is carried out by spawnAgent, every other call as the turn does.
+type agentTurnHost struct{ turnHost }
+
+func (h agentTurnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
+	if tu.Name != spawnAgentTool {
+		h.turnHost.Tool(ctx, tu)
+		return
+	}
+	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
+	h.spawnAgent(ctx, tu)
+}
+
 // subHost is a sub-agent's side of its turn: its task is its prompt, its tools
 // are the session's, and no end-of-turn hook runs for it (SubagentStop does).
 type subHost struct {

@@ -146,3 +146,23 @@ func TestSubagentStartCannotRefuse(t *testing.T) {
 	assert.Equal(t, want["SubagentStop"][0]["last_assistant_message"], have["SubagentStop"][0]["last_assistant_message"])
 	assert.Contains(t, got.Stdout, `"SUB-DONE"`, "the wait reports what the sub-agent said")
 }
+
+// A sub-agent hook's matcher is applied to the sub-agent's type, and a start
+// hook's continue:false does not stop the sub-agent (hooks#subagentstart).
+// sr:proves subagent-lifecycle-hooks/codex
+func TestSubagentHookMatcherAndContinueFalse(t *testing.T) {
+	group := func(matcher string) string {
+		return `[{"matcher":"` + matcher + `","hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]`
+	}
+	got := execMock(t, scenario{
+		HooksJSON: `{"hooks":{"SubagentStart":` + group("default") + `,"SubagentStop":` + group("nomatch") + `}}`,
+		Files: map[string]string{"sub.sh": subScript,
+			"hook.sh": "#!/bin/sh\ncat >>\"$HOOK_LOG\"\necho >>\"$HOOK_LOG\"\necho '{\"continue\":false}'\n"},
+		Script: spawnThenResult, Prompt: "go",
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	have := byEvent(got.hookLog())
+	assert.Len(t, have["SubagentStart"], 1, "its matcher matches the sub-agent's type")
+	assert.Empty(t, have["SubagentStop"], "its matcher does not")
+	assert.Contains(t, got.Stdout, `"message":"SUB-DONE"`, "the sub-agent ran to its end whatever the start hook said")
+}

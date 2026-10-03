@@ -46,10 +46,6 @@ func (h turnHost) Say(text string) {
 // Tool records the agent's call, and carries it out.
 func (h turnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
 	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
-	if tu.Name == spawnAgentTool {
-		h.spawnAgent(ctx, tu)
-		return
-	}
 	toolcall.Run(ctx, toolHost{h.state}, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
 		toolcall.Options{SeparateFailureHook: false})
 }

@@ -24,7 +24,7 @@ providers:
     deviations:
       - adr: capability-grounding
         statement: >-
-          Codex's SubagentStop payload lists no background tasks: it carries
+          Codex's stop hook payload does not list the session's background tasks: it carries
           the sub-agent's agent_transcript_path and last_assistant_message, and
           no field naming the session's tasks (recorded:
           runs/subagent-lifecycle-hooks), so the mock lists none either.
