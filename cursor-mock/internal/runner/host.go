@@ -42,6 +42,10 @@ func (s *session) SessionFile() string { return s.tr.path }
 // the file it is about to change: a call of its own to the hooks (recorded:
 // runs/tool-failure, runs/file-tools), which is not shown on the stream.
 func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) {
+	if tu.Name == "Task" {
+		s.launchTask(ctx, tu)
+		return
+	}
 	c := toolexec.FromScript(tu.Name, tu.Input)
 	s.forward(startedFrame(s.id, tu.ID, c))
 	s.tr.toolUse(tu.Name, c.Args)
