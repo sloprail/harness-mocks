@@ -32,7 +32,11 @@ SUBJECTS="[]"
 
 # sub_oids REV — stdin: one path per line; stdout: the object id of each at REV ("-" if absent).
 sub_oids() {
-  sed "s|^|$1:|" | git -C "$SR_TREE" cat-file --batch-check 2>/dev/null | awk '{ if ($NF == "missing") print "-"; else print $1 }'
+  local in out
+  in="$(sed "s|^|$1:|")"
+  out="$(printf '%s\n' "$in" | git -C "$SR_TREE" cat-file --batch-check 2>&1)" || refuse "could not read object ids at $1: $out"
+  [ "$(printf '%s\n' "$in" | wc -l)" -eq "$(printf '%s\n' "$out" | wc -l)" ] || refuse "object id lookup at $1 returned the wrong number of lines"
+  printf '%s\n' "$out" | awk '{ if ($NF == "missing") print "-"; else print $1 }'
 }
 
 # sub_resolve ARRAY — ARRAY with each subject's deps and bdeps resolved: [{id, files, text}]
