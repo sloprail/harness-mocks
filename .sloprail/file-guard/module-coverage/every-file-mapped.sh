@@ -13,6 +13,10 @@ space=(); while IFS= read -r g; do [ -n "$g" ] && space+=("$g"); done < <(jq -r 
 exc=(); while IFS= read -r g; do [ -n "$g" ] && exc+=("$g"); done < <(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")
 [ "${#space[@]}" -gt 0 ] || refuse "no ADR linking $(rule_qname) declares a space, so module coverage cannot be checked"
 load_modules
+# every module states its concern (adr/modules-cover-code): an empty `concern:` cannot be judged
+noconcern="$(jq -r '.[] | select((.concern | tostring | gsub("\\s"; "")) == "") | .dir' <<<"$MODULES")" || refuse "could not read the modules' concern lines"
+[ -z "$noconcern" ] || refuse "these modules have no \`concern:\` line in their module.yaml; state each module's responsibility there (adr/modules-cover-code):
+$noconcern"
 files="$(git -C "$SR_TREE" ls-files -- '*.go' ':!*_test.go' ':!proposals/**' 2>&1)" || refuse "could not list Go files: $files"
 
 problems=""
