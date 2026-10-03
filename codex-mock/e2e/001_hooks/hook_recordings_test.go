@@ -27,6 +27,15 @@ func payloadsOf(lines []map[string]any, event string) []map[string]any {
 	return out
 }
 
+// osNeutral is a payload value without the OS's own wording of an error (ls's
+// message differs between systems), which the recording and the mock may differ in.
+func osNeutral(v any) any {
+	if s, ok := v.(string); ok && strings.Contains(s, "No such file or directory") {
+		return "<ENOENT>"
+	}
+	return v
+}
+
 // replayAs replays a recorded run on the mock like replay, starting the
 // session in dir (a subdirectory of the repository) and with the run's
 // project-level hooks.json, when it has one.
@@ -72,7 +81,7 @@ func TestPostToolUsePayloadFieldsOfRecordedRuns(t *testing.T) {
 				p := gotPost[i]
 				assert.Equal(t, keysOf(want), keysOf(p), "the fields of PostToolUse #%d", i)
 				for _, k := range []string{"hook_event_name", "permission_mode", "tool_name", "tool_input", "tool_response"} {
-					assert.Equal(t, want[k], p[k], "%s of PostToolUse #%d", k, i)
+					assert.Equal(t, osNeutral(want[k]), osNeutral(p[k]), "%s of PostToolUse #%d (the OS's wording of an error aside)", k, i)
 				}
 				assert.Equal(t, "Bash", p["tool_name"])
 				assert.Equal(t, sid, p["session_id"])
