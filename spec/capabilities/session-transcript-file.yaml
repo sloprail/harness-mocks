@@ -13,7 +13,24 @@ providers:
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/symlinked-cwd
       - claude-mock/snapshots/runs/transcript-at-start
-  codex: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#common-input-fields
+    runs:
+      - codex-mock/snapshots/runs/session-transcript-file
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex does not key the transcript by working directory: its rollout
+          file is <config dir>/sessions/YYYY/MM/DD/rollout-<start time>-<session
+          id>.jsonl, the day it started and the session id, and the working
+          directory is only a field of the file's first record
+          (recorded: runs/session-transcript-file). The mock does the same.
+      - adr: capability-grounding
+        statement: >-
+          Codex creates a fresh session's file before the start hook runs: the
+          file the SessionStart payload's transcript_path names already exists
+          then, and the mock does the same (recorded: runs/session-transcript-file).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema

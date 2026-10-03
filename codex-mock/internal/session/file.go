@@ -17,7 +17,11 @@ type File struct {
 }
 
 // Create starts the rollout of session id at
-// <home>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl, with its meta record.
+// <home>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl, with its meta record:
+// keyed by the day and the session id, not by the working directory, and
+// already there when the start hook runs (recorded: runs/session-transcript-file).
+//
+// sr:provides session-transcript-file/codex
 func Create(home, id, cwd string, now time.Time) (*File, error) {
 	dir := filepath.Join(home, "sessions", now.Format("2006"), now.Format("01"), now.Format("02"))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
