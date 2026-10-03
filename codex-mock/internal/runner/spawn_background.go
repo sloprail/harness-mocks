@@ -3,10 +3,8 @@ package runner
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
-	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
@@ -48,7 +46,7 @@ func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	}
 	_ = json.Unmarshal([]byte(receipt), &r)
 	h.bg.StartAgent(tasks.NewTask(tasks.Agent, r.AgentID), func(ctx context.Context) {
-		rollout, err := session.Create(h.cfg.CodexHome, r.AgentID, h.cfg.Cwd, time.Now())
+		rollout, err := h.createSub(r.AgentID)
 		if err != nil {
 			return
 		}

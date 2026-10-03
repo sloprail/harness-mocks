@@ -1,0 +1,1 @@
+Use your Task tool to start a sub-agent A with this prompt: "You must use your Task tool yourself to start a sub-agent B whose prompt is: reply only LEAF. Do not answer from your own knowledge: wait for B, then reply with what B replied, or with the exact error if you cannot start a sub-agent." Wait for A, then reply only with what A replied.

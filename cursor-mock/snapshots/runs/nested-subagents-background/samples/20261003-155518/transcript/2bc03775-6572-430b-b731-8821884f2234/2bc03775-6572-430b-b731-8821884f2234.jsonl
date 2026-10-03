@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nUse your Task tool yourself to start a sub-agent B in the background (run_in_background true) whose prompt is: run the shell command sleep 25 and then reply LATE. Do not wait for B: reply only STARTED straight after starting it.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Starting background sub-agent B now."},{"type":"tool_use","name":"Task","input":{"description":"Background sleep then LATE","prompt":"run the shell command sleep 25 and then reply LATE.","subagent_type":"shell","run_in_background":true}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"STARTED"}]}}
+{"type":"turn_ended","status":"success"}

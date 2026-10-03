@@ -1,0 +1,8 @@
+{"type":"thread.started","thread_id":"01a10247-9d4d-7c60-86fe-982684c1a158"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10247-9d4d-7c60-86fe-982684c1a158","receiver_thread_ids":[],"prompt":"Call the spawn_agent tool to start a sub-agent B whose message is: run the shell command sleep 25 and then reply LATE. Do NOT wait for B and do not call wait: reply only STARTED straight after spawning it.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10247-9d4d-7c60-86fe-982684c1a158","receiver_thread_ids":["01a10247-e46e-7c00-84a2-ae4899ffd6e0"],"prompt":"Call the spawn_agent tool to start a sub-agent B whose message is: run the shell command sleep 25 and then reply LATE. Do NOT wait for B and do not call wait: reply only STARTED straight after spawning it.","agents_states":{"01a10247-e46e-7c00-84a2-ae4899ffd6e0":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"DONE"}}
+{"type":"turn.completed","usage":{"input_tokens":44192,"cached_input_tokens":36096,"cache_write_input_tokens":0,"output_tokens":159,"reasoning_output_tokens":37}}

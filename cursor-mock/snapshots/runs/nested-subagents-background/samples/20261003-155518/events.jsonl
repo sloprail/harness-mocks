@@ -1,0 +1,15 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Task","tool_input":{"description":"Sub-agent A starter","prompt":"Use your Task tool yourself to start a sub-agent B in the background (run_in_background true) whose prompt is: run the shell command sleep 25 and then reply LATE. Do not wait for B: reply only STARTED straight after starting it.","subagent_type":"generalPurpose"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Task","tool_input":{"description":"Background sleep then LATE","prompt":"run the shell command sleep 25 and then reply LATE.","subagent_type":"shell","run_in_background":true},"session_id":"2bc03775-6572-430b-b731-8821884f2234","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"sleep 25","timeout":35000},"session_id":"4abe9d54-19b3-4c84-a9f3-c251e871c4bd","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"sleep 25","sandbox":false,"session_id":"4abe9d54-19b3-4c84-a9f3-c251e871c4bd","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"sleep 25","output":"","sandbox":false,"session_id":"4abe9d54-19b3-4c84-a9f3-c251e871c4bd","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"sleep 25","timeout":35000},"tool_output":"{\"output\":\"\",\"exitCode\":0}","session_id":"4abe9d54-19b3-4c84-a9f3-c251e871c4bd","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"awaitToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"taskToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"taskToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"awaitToolCall","outcome":"success"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"result","subtype":"success"}

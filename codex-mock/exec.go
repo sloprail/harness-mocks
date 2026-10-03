@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ func newExec() *cobra.Command {
 	f.StringP("cd", "C", "", "Working directory of the session (default: the current one)")
 	f.StringP("model", "m", "", "Model name reported in hook payloads")
 	// Accepted for compatibility with `codex exec`; no effect.
-	f.StringArrayP("config", "c", nil, "Accepted; no effect")
+	f.StringArrayP("config", "c", nil, "Config override key=value; only agents.max_depth has an effect")
 	f.StringArray("enable", nil, "Accepted; no effect")
 	f.StringArray("disable", nil, "Accepted; no effect")
 	f.StringP("sandbox", "s", "", "Accepted; no effect")
@@ -73,8 +74,24 @@ func runExec(cmd *cobra.Command, args []string) error {
 	if len(args) >= 2 && args[0] == "resume" { // `exec resume <session id> [prompt]`
 		return session.Resume(home, args[1])
 	}
+	overrides, _ := f.GetStringArray("config")
+	runner.Agents = runner.AgentSettings{MaxDepth: maxDepthOf(overrides), Script: os.Getenv("A10N_MOCK_SUBAGENT_SCRIPT")}
 	return runner.Run(cmd.Context(), runner.Config{
 		Script: script, Prompt: strings.Join(args, " "), Cwd: cwd, CodexHome: home, Model: model,
 		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
+}
+
+// maxDepthOf is the agents.max_depth a -c override sets (the last one wins),
+// 0 when none does: Codex's default depth.
+func maxDepthOf(overrides []string) int {
+	depth := 0
+	for _, o := range overrides {
+		if v, ok := strings.CutPrefix(o, "agents.max_depth="); ok {
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				depth = n
+			}
+		}
+	}
+	return depth
 }

@@ -22,7 +22,7 @@ type toolHost struct{ *state }
 // Tool: the one tool the mock runs is the shell, which needs a command.
 // A sub-agent dispatch needs a message (agent_tool.go).
 func (h toolHost) Tool(name string) ([]string, bool) {
-	if name == agentTool {
+	if name == agentTool && canDispatch(posOf(h.id)) { // not offered to a sub-agent at the depth limit
 		return agentRequired, true
 	}
 	return []string{"command"}, name == toolName || name == patchTool
@@ -38,10 +38,10 @@ func command(c toolcall.Call) string {
 
 func (h toolHost) payload(c toolcall.Call) map[string]any {
 	if c.Name == agentTool {
-		return map[string]any{"turn_id": h.turnID, "tool_name": agentTool, "tool_use_id": c.ID, "tool_input": c.Input}
+		return h.byAgent(map[string]any{"turn_id": h.turnID, "tool_name": agentTool, "tool_use_id": c.ID, "tool_input": c.Input})
 	}
-	return map[string]any{"turn_id": h.turnID, "tool_name": fileOrHookName(c), "tool_use_id": c.ID,
-		"tool_input": map[string]string{"command": command(c)}}
+	return h.byAgent(map[string]any{"turn_id": h.turnID, "tool_name": fileOrHookName(c), "tool_use_id": c.ID,
+		"tool_input": map[string]string{"command": command(c)}})
 }
 
 // Before fires PreToolUse and asks for the refusal of what the hooks decided.

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
-	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
@@ -53,7 +51,7 @@ func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Resu
 		return h.spawnBackground(in)
 	}
 	subID := coresession.NewID()
-	subRollout, err := session.Create(h.cfg.CodexHome, subID, h.cfg.Cwd, time.Now())
+	subRollout, err := h.createSub(subID)
 	if err != nil {
 		return toolcall.Result{Output: fmt.Sprintf("failed to start the sub-agent: %v", err), Failed: true}
 	}
@@ -86,12 +84,7 @@ func (h toolHost) runSpawned(ctx context.Context, subID string, subRollout *sess
 			for _, o := range invoker.Fire(ctx, hooks.SubagentStart, agentType,
 				map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType}) {
 				// what the hook prints, plain or as additionalContext, is developer context for the sub-agent (hooks#subagentstart)
-				d := hooks.Interpret(hooks.SubagentStart, o)
-				text := d.Context
-				if text == "" && o.Exit == 0 && d.Error == "" && !strings.HasPrefix(strings.TrimSpace(o.Stdout), "{") {
-					text = strings.TrimSpace(o.Stdout)
-				}
-				if text != "" {
+				if text := hooks.StartContext(o); text != "" {
 					subRollout.Developer(text)
 				}
 			}

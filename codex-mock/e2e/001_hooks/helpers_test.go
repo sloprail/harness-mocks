@@ -25,6 +25,8 @@ type scenario struct {
 	Prompt string
 	// Env is added to the mock's environment.
 	Env []string
+	// Args are added to the exec command line (a -c override, say).
+	Args []string
 	// NoJSON runs `exec` without --json, so stdout carries the final message.
 	NoJSON bool
 	// BypassTrust passes --dangerously-bypass-hook-trust, as every recording does.
@@ -76,7 +78,7 @@ func execMock(t *testing.T, s scenario) result {
 	if s.BypassTrust {
 		args = append([]string{args[0], "--dangerously-bypass-hook-trust"}, args[1:]...)
 	}
-	cmd := exec.Command(mockBinary, args...)
+	cmd := exec.Command(mockBinary, append(args, s.Args...)...)
 	cmd.Dir = r.Repo
 	cmd.Env = append(env, s.Env...)
 	var out, errb bytes.Buffer
