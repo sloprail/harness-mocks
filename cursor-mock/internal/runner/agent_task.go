@@ -79,7 +79,7 @@ func (s *session) runSubagent(ctx context.Context, tu scenario.ToolUse, in taskI
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
 	sub.texts, sub.added, sub.named = nil, nil, false
 	var err error
-	if sub.tr, err = newTranscript(s.cfg.Home, s.cfg.Dir, sub.id); err != nil {
+	if sub.tr, err = newSubagentTranscript(s.tr, sub.id); err != nil {
 		sub.tr = s.tr
 	}
 	sub.hooks = &hooks.Hooks{Config: s.hooks.Config, Dir: s.cfg.Dir, Env: sub.hookEnv, Common: sub.common}

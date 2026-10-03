@@ -17,7 +17,12 @@ type Origin struct {
 // CreateSub starts the rollout of a sub-agent's thread: a file of its own in
 // the same day directory as the session's (so all of a session's threads sit
 // in one directory, named as Create names it), whose meta record names the
-// thread that spawned it and its depth (recorded: runs/nested-subagents).
+// thread that spawned it and its depth (recorded: runs/nested-subagents). The
+// sub-agent's records go there and not into the session's rollout; Codex keeps
+// no sidecar file, the meta record says what one would (recorded:
+// runs/subagent-transcripts-v2).
+//
+// sr:provides subagent-transcripts/codex
 func CreateSub(home, id, cwd string, now time.Time, o Origin) (*File, error) {
 	dir := filepath.Join(home, "sessions", now.Format("2006"), now.Format("01"), now.Format("02"))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
