@@ -10,7 +10,7 @@ import (
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
-	"github.com/sloprail/harness-mocks/internal/turnloop"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // session is one run's state, and the harness side (turnloop.Host) of its turn.
@@ -30,6 +30,8 @@ type session struct {
 	// additional_context), in the order their events fired and, within an event,
 	// the order the hooks are configured in.
 	added []string
+	// bg is the background sub-agents the agent launched.
+	bg *tasks.Registry
 }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
@@ -64,7 +66,8 @@ func (s *session) Context() string { return strings.Join(s.added, "\n") }
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: coresession.NewID(), started: time.Now()}
+	s := &session{cfg: cfg, id: coresession.NewID(), started: time.Now(), bg: tasks.NewRegistry()}
+	defer s.bg.Shutdown()
 	var err error
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
@@ -78,7 +81,7 @@ func Run(ctx context.Context, cfg Config) error {
 	s.forward(userFrame(s.id, cfg.Prompt))
 	s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
-	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
+	runErr := s.runTurns(ctx)
 	s.named = true
 	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
