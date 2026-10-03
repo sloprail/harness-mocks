@@ -40,6 +40,7 @@ providers:
       - https://cursor.com/docs/hooks#configuration
     runs:
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/pretool-refusal-file-tools
     deviations:
       - adr: modeled-surface
         statement: >-

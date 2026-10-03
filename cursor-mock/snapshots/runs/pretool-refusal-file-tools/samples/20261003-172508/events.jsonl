@@ -1,0 +1,33 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionStart","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/protected.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/protected.txt"},"tool_output":"{\"file_path\":\"<RUN>/protected.txt\",\"content_length\":9}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Write","tool_input":{"file_path":"<RUN>/protected.txt","content":"CHANGED\n"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Write","tool_input":{"file_path":"<RUN>/protected.txt","content":"CHANGED\n"},"error_message":"WRITE-DENY-MSG","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/secret.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":2}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/secret.txt"},"error_message":"Hook blocked with message: READ-BLOCK-MSG","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo FINE","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","exit":0}}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo FINE","output":"FINE\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterShellExecution","exit":0}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"tool_output":"{\"output\":\"FINE\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"files","protected":"ORIGINAL"}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","exit":0}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"editToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"editToolCall","outcome":"error"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}
