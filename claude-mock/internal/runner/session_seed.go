@@ -42,16 +42,6 @@ func mockPreambleRecords(sessionID string) [][]byte {
 		{"type": "mode", "mode": "normal", "sessionId": sessionID},
 		{"type": "last-prompt", "lastPrompt": "", "leafUuid": "", "sessionId": sessionID},
 	}
-	// A session started with --name carries its name in a custom-title and an
-	// agent-name record, ahead of everything (recorded: snapshots/runs/resume-name).
-	if name := os.Getenv(EnvSessionName); name != "" {
-		recs = []map[string]any{
-			{"type": "custom-title", "customTitle": name, "sessionId": sessionID},
-			{"type": "agent-name", "agentName": name, "sessionId": sessionID},
-			{"type": "mode", "mode": "normal", "sessionId": sessionID},
-			{"type": "last-prompt", "lastPrompt": "", "leafUuid": "", "sessionId": sessionID},
-		}
-	}
 	var out [][]byte
 	for _, r := range recs {
 		if line, err := marshalRecord(r); err == nil {

@@ -12,9 +12,7 @@ import (
 // (and of a fork, which resumes the source) carries seconds_since_last_response,
 // context_tokens, prompt_cache_likely_expired and estimated_cache_write_usd, as the
 // recorded forkresume and compact runs show (hooks#sessionstart-input); a fresh
-// session's does not. The mock counts no tokens: context_tokens is an estimate
-// from the transcript's size, priced as the recorded runs price theirs (2 dollars
-// per million tokens, test T017_78).
+// session's does not. The mock spends no tokens, so the token facts are 0.
 // sr:proves session-resume/claude
 func TestT017_31_ResumeStartPayloadCarriesTheResumeFacts(t *testing.T) {
 	dir := t.TempDir()
@@ -40,8 +38,8 @@ func TestT017_31_ResumeStartPayloadCarriesTheResumeFacts(t *testing.T) {
 		assert.Equal(t, src, p["source"])
 		assert.GreaterOrEqual(t, p["seconds_since_last_response"], float64(0))
 		assert.Less(t, p["seconds_since_last_response"], float64(60), "just written")
-		assert.Greater(t, p["context_tokens"], float64(0), "a resumed session has a context to send again")
+		assert.Equal(t, float64(0), p["context_tokens"])
 		assert.Equal(t, false, p["prompt_cache_likely_expired"])
-		assert.Greater(t, p["estimated_cache_write_usd"], float64(0))
+		assert.Equal(t, float64(0), p["estimated_cache_write_usd"])
 	}
 }

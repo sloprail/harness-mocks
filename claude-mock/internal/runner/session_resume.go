@@ -85,3 +85,58 @@ var claudeForkSchema = session.ForkSchema{
 func forkSegment(data []byte, newID string) []map[string]any {
 	return session.Fork(session.ParseRecords(data, chainUUID), newID, claudeForkSchema)
 }
+
+// ResumeTarget is the session id a `--resume` value names: the path of a session's
+// transcript file (claude 2.1.285 resumed one by its path and appended to that file;
+// recorded: snapshots/runs/resume-path), the id of a session (of this directory's project or another's), or the name a session was given (recorded: resume-name). A value that is
+// none of them is returned as it is, for the run to fail on as an unknown session.
+//
+// sr:provides session-resume/claude
+func ResumeTarget(configDir, cwd, value string) string {
+	if id, ok := session.IDOfPath(claudeLayout, value); ok {
+		return id
+	}
+	if session.Find(claudeLayout, resolveConfigDir(configDir), cwd, value) != "" {
+		return value
+	}
+	named := func(path string) bool {
+		data, err := os.ReadFile(path)
+		return err == nil && transcriptAgentName(data) == value
+	}
+	if id := session.Latest(claudeLayout, resolveConfigDir(configDir), cwd, named); id != "" {
+		return id
+	}
+	return value
+}
+
+// LatestSession is the id `--continue` resumes: the directory's most recently
+// written session, or "" (recorded: snapshots/runs/resume-continue).
+//
+// sr:provides session-resume/claude
+func LatestSession(configDir, cwd string) string {
+	return session.Latest(claudeLayout, resolveConfigDir(configDir), cwd, func(string) bool { return true })
+}
+
+// transcriptAgentName is the last agent-name a transcript records, a session's name.
+func transcriptAgentName(data []byte) string {
+	name := ""
+	for _, line := range strings.Split(string(data), "\n") {
+		var rec struct{ Type, AgentName string }
+		if strings.Contains(line, `"agent-name"`) && json.Unmarshal([]byte(line), &rec) == nil && rec.Type == "agent-name" {
+			name = rec.AgentName
+		}
+	}
+	return name
+}
+
+// ForgetSession removes what a session left on disk, its transcript and its
+// sub-agents' beside it: `--no-session-persistence` leaves nothing to resume
+// (recorded: snapshots/runs/no-session-persistence wrote no transcript at all).
+// The mock needs the file while it runs, so it is removed when the run is over.
+//
+// sr:provides session-resume/claude
+func ForgetSession(configDir, cwd, id string) {
+	path := sessionFilePath(resolveConfigDir(configDir), cwd, id)
+	_ = os.Remove(path)
+	_ = os.RemoveAll(strings.TrimSuffix(path, claudeLayout.Ext))
+}

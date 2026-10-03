@@ -14,5 +14,20 @@ providers:
       - claude-mock/snapshots/runs/resume-continue
       - claude-mock/snapshots/runs/resume-path
       - claude-mock/snapshots/runs/resume-name
+      - claude-mock/snapshots/runs/no-session-persistence
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock spends no tokens, so a resume's context_tokens and
+          estimated_cache_write_usd are 0, where the real ones (recorded in
+          every resume run) are the size of the context to send again and its
+          price.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model --name, naming a session when it starts: the
+          sessions it writes carry its fixed title and no agent-name record. It finds a
+          session by the name its transcript records (the real harness's, as in
+          runs/resume-name) and tells the resume's hooks that name as
+          session_title.
   codex: pending
   cursor: pending

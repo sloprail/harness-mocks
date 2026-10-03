@@ -5,7 +5,59 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
 )
+
+const (
+	flagContinue      = "continue"
+	flagNoPersistence = "no-session-persistence"
+)
+
+// forgetUnpersisted is what a run with --no-session-persistence ends with: no
+// session left to resume.
+//
+// sr:provides session-resume/claude
+func forgetUnpersisted(cmd *cobra.Command, _ []string) error {
+	if off, _ := cmd.Flags().GetBool(flagNoPersistence); !off {
+		return nil
+	}
+	id, _ := cmd.Flags().GetString(flagSessionID)
+	projectDir, _ := cmd.Flags().GetString(flagProjectDir)
+	if projectDir == "" {
+		projectDir, _ = os.Getwd()
+	}
+	configDir, _ := cmd.Flags().GetString(flagConfigDir)
+	runner.ForgetSession(configDir, projectDir, id)
+	return nil
+}
+
+// resolveSessionFlags names the session a run resumes before the run reads its
+// flags: --resume takes an id, the path of a session's transcript file or a
+// session's name, and --continue, with no --resume, resumes the directory's most
+// recent session. Both become the id --resume carries.
+//
+// sr:provides session-resume/claude
+func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
+	resume, _ := cmd.Flags().GetString(flagResume)
+	projectDir, _ := cmd.Flags().GetString(flagProjectDir)
+	if projectDir == "" {
+		var err error
+		if projectDir, err = os.Getwd(); err != nil {
+			return fmt.Errorf("claude-mock: getwd: %w", err)
+		}
+	}
+	configDir, _ := cmd.Flags().GetString(flagConfigDir)
+	if cont, _ := cmd.Flags().GetBool(flagContinue); cont && resume == "" {
+		if resume = runner.LatestSession(configDir, projectDir); resume == "" {
+			return fmt.Errorf("claude-mock: --continue: no conversation found to continue in %s", projectDir)
+		}
+	}
+	if resume == "" {
+		return nil
+	}
+	return cmd.Flags().Set(flagResume, runner.ResumeTarget(configDir, projectDir, resume))
+}
 
 func main() {
 	if err := newRoot().Execute(); err != nil {
@@ -35,8 +87,9 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// claude -p is the primary entrypoint; support it at the root.
-		PreRunE: resolveSessionFlags,
-		RunE:    rootRunE,
+		PreRunE:  resolveSessionFlags,
+		RunE:     rootRunE,
+		PostRunE: forgetUnpersisted,
 	}
 
 	addRunFlags(root)

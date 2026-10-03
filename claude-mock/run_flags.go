@@ -38,14 +38,14 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagScript, "", "Shell script to run as the mock agent (env: A10N_MOCK_SCRIPT)")
 	cmd.Flags().String(flagSessionID, "", "Session ID (--session-id, as used by claude CLI)")
 	cmd.Flags().String(flagResume, "", "Session ID to resume (--resume, as used by claude CLI)")
+	// --continue resumes the most recent session of the directory (headless#continue-conversations).
+	cmd.Flags().Bool(flagContinue, false, "Resume the most recent session of the project directory (--continue, as used by claude CLI)")
+	cmd.Flags().Bool(flagNoPersistence, false, "Leave no session to resume (--no-session-persistence, as used by claude CLI)")
 	// --fork-session: when resuming, continue under a NEW session id in a new
 	// transcript instead of appending to the original. The new id is
 	// --session-id when given, else generated. See runner.forkTranscript for the
 	// transcript shape a fork leaves.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--fork-session
-	// --continue resumes the most recent session of the directory (headless#continue-conversations).
-	cmd.Flags().Bool(flagContinue, false, "Resume the most recent session of the project directory (--continue, as used by claude CLI)")
-	cmd.Flags().String(flagName, "", "Name the session (--name, as used by claude CLI); --resume takes a name too")
 	cmd.Flags().Bool(flagForkSession, false, "With --resume: continue in a new session id and transcript")
 	cmd.Flags().String(flagOutputFormat, "stream-json", "Output format (must be stream-json)")
 	cmd.Flags().String(flagProjectDir, "", "Project root for settings.json resolution (default: cwd)")

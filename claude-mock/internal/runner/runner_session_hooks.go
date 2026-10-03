@@ -51,6 +51,12 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 		in.ResumeFields = resumeFields(cfg.sessionFile)
 	}
 	ssOut, runs, ferr := inv.FireRuns(ctx, in)
+	// Only the SessionStart of a session resumed from another directory is told
+	// the path under that directory's project folder; every hook after it is told
+	// the file the session really writes (recorded: snapshots/runs/forkresume, step 4).
+	if cfg.sessionFile != "" {
+		inv.SetTranscriptPath(cfg.sessionFile)
+	}
 	writeSessionStartFrames(cfg, in, runs)
 	var blockErr *hooks.BlockError
 	if errors.As(ferr, &blockErr) && corehooks.BlocksSessionStart(corehooks.Blocked) {
