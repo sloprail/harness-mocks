@@ -1,0 +1,1 @@
+Call your shell tool once to run: echo hi . After the tool result, end your turn with NO text at all: write no message, not even one word; an empty final reply.

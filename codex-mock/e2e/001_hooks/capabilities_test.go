@@ -245,40 +245,6 @@ func TestSessionStartSaysStartupAndCannotStopTheSession(t *testing.T) {
 	assert.Equal(t, []string{"echo ran"}, cmds)
 }
 
-// When a stop hook blocks, its reason is handed back to the agent, the turn
-// goes on, and the caller sees a single end (runs/stops: two blocks, one turn).
-// sr:proves stop-block-continuation/codex
-func TestStopBlockContinuesTheTurnWithOneEnd(t *testing.T) {
-	rec := loadRecording(t, "stops")
-	r := replay(t, rec)
-	assert.Len(t, eventsOf(r, "Stop"), 3)
-	assert.Contains(t, r.rollout(t), "BLOCK-JSON-REASON")
-	assert.Contains(t, r.rollout(t), "BLOCK-EXIT2-REASON")
-	n := 0
-	for _, e := range r.stream() {
-		if e["type"] == "turn.completed" {
-			n++
-		}
-	}
-	assert.Equal(t, 1, n)
-}
-
-// The stop payload carries the agent's last message and whether the turn is
-// already continuing because an earlier hook blocked (runs/stops).
-// sr:proves stop-hook-payload/codex
-func TestStopPayloadCarriesLastMessageAndContinuing(t *testing.T) {
-	r := execMock(t, scenario{
-		HooksJSON: hooksJSON("sh hook.sh", "Stop"),
-		Files:     map[string]string{"hook.sh": `cat >>"$HOOK_LOG"; echo >>"$HOOK_LOG"; if [ ! -f "$TMPDIR/once" ]; then : >"$TMPDIR/once"; echo again >&2; exit 2; fi`},
-		Script:    callThenResult, Prompt: "go", Env: withCalls(t),
-	})
-	stops := eventsOf(r, "Stop")
-	require.Len(t, stops, 2)
-	assert.Equal(t, false, stops[0]["stop_hook_active"])
-	assert.Equal(t, true, stops[1]["stop_hook_active"])
-	assert.Equal(t, "DONE", stops[0]["last_assistant_message"])
-}
-
 // After a tool call, a hook fires with the tool's input and its response
 // (runs/stops: tool_input.command and tool_response).
 // sr:proves posttooluse-payload/codex

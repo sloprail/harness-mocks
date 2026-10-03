@@ -17,6 +17,7 @@ providers:
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/stop-continue-false
   cursor:
     supported: false
     reason: cursor-agent in print mode never fires the stop hook (the run configured one answering with a followup_message), so nothing is handed back and the turn ends once with a single result.
