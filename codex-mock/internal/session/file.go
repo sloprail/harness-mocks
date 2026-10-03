@@ -12,8 +12,9 @@ import (
 
 // File is a session's append-only rollout: one JSON record per line.
 type File struct {
-	Path string
-	f    *os.File
+	Path    string
+	f       *os.File
+	windows *windows
 }
 
 // Create starts the rollout of session id at
