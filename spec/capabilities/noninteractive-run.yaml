@@ -63,6 +63,7 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/noninteractive-no-force
+      - cursor-mock/snapshots/runs/noninteractive-force-write
     deviations:
       - adr: modeled-surface
         statement: >-
