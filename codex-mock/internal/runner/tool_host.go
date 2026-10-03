@@ -24,7 +24,7 @@ func (h toolHost) Tool(name string) ([]string, bool) {
 	if name == agentTool {
 		return agentRequired, true
 	}
-	return []string{"command"}, name == toolName
+	return []string{"command"}, name == toolName || name == patchTool
 }
 
 func command(c toolcall.Call) string {
@@ -39,14 +39,14 @@ func (h toolHost) payload(c toolcall.Call) map[string]any {
 	if c.Name == agentTool {
 		return map[string]any{"turn_id": h.turnID, "tool_name": agentTool, "tool_use_id": c.ID, "tool_input": c.Input}
 	}
-	return map[string]any{"turn_id": h.turnID, "tool_name": toolName, "tool_use_id": c.ID,
+	return map[string]any{"turn_id": h.turnID, "tool_name": fileOrHookName(c), "tool_use_id": c.ID,
 		"tool_input": map[string]string{"command": command(c)}}
 }
 
 // Before fires PreToolUse and asks for the refusal of what the hooks decided.
 func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	var ds []hooks.Decision
-	for _, o := range h.hooks.Fire(ctx, hooks.PreToolUse, hookName(c), h.payload(c)) {
+	for _, o := range h.hooks.Fire(ctx, hooks.PreToolUse, fileOrHookName(c), h.payload(c)) {
 		ds = append(ds, hooks.Interpret(hooks.PreToolUse, o))
 	}
 	return hooks.Refusal(ds)
@@ -56,6 +56,9 @@ func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result {
 	if c.Name == agentTool {
 		return h.spawnAgent(ctx, c)
+	}
+	if c.Name == patchTool {
+		return h.applyPatch(c)
 	}
 	cmd := command(c)
 	id := h.events.CommandStarted(cmd)
@@ -79,7 +82,7 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
 	own := h.payload(c)
 	own["tool_response"] = r.Output
-	for _, o := range h.hooks.Fire(ctx, hooks.PostToolUse, toolName, own) {
+	for _, o := range h.hooks.Fire(ctx, hooks.PostToolUse, fileOrHookName(c), own) {
 		d := hooks.Interpret(hooks.PostToolUse, o)
 		if d.Context != "" {
 			h.rollout.Developer(d.Context)
@@ -111,6 +114,9 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 		fmt.Fprintf(h.cfg.Stderr, "ERROR codex_core::tools::router: error=%s\n", text)
 	case toolcall.Done:
 		text = a.Result.Output
+		if c.Name == patchTool && !a.Result.Failed {
+			text = patchTold
+		}
 		if a.Replaced {
 			text = a.Feedback
 			fmt.Fprintf(h.cfg.Stderr, "ERROR codex_core::tools::router: error=%s\n", text)

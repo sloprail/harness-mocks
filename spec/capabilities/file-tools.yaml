@@ -16,7 +16,32 @@ providers:
     runs:
       - claude-mock/snapshots/runs/file-tools
       - claude-mock/snapshots/runs/tool-errors
-  codex: pending
+  codex:
+    docs:
+      - https://developers.openai.com/api/docs/guides/tools-apply-patch#apply-patch-operations
+    runs:
+      - codex-mock/snapshots/runs/file-tools
+      - codex-mock/snapshots/runs/file-tools-failure
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex has no tool to read a file and none to write one whole: the
+          agent reads through the shell (sed, cat), which returns the file's
+          content, and writes with apply_patch, whose "Add File" creates a file
+          and whose "Update File" changes the lines a hunk names, the way the
+          recorded run replaced a file's one line (recorded: runs/file-tools).
+          A shell read of a file that is not there is not an error result: the
+          agent is told the shell's complaint as plain output, and only the
+          event stream's command_execution item shows the failure, with status
+          "failed" and exit code 1 (recorded: runs/file-tools-failure). A patch
+          that updates a missing file is an error told to the agent, and writes
+          nothing, and fires PreToolUse but no PostToolUse.
+      - adr: modeled-surface
+        statement: >-
+          The mock applies the three file sections of a patch (Add File, Update
+          File with its hunks, Delete File) and no more: it does not model
+          moving a file, the end-of-file marker, a patch's context-matching
+          leniency or a patch given through the shell.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#afterfileedit

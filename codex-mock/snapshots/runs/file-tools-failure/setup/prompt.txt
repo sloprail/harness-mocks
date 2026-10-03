@@ -1,0 +1,1 @@
+Run these two steps, in order, whatever happens, and do not skip the second even if you expect it to fail, and do not check for the files first: 1) the shell command: cat ./nothere.txt 2) call apply_patch with exactly this patch: "*** Begin Patch\n*** Update File: nothere2.txt\n@@\n-OLD\n+NEW\n*** End Patch". Then reply only DONE.
