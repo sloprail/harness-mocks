@@ -17,5 +17,13 @@ providers:
           the jitter the recorded wake-up times show beyond rounding up to a whole
           minute, are not modeled. A self-paced /loop (a slash command, interactive
           surface) is what Claude calls this tool for; no mock parses one.
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: Codex exec offers the agent no wake-up or timer tool; asked to schedule one it searched its tools for a wake-up tool, found none, and made no scheduling call.
+    runs:
+      - codex-mock/snapshots/runs/schedule-wakeup-ask
+  cursor:
+    supported: false
+    reason: Cursor's wake-up timer tool (subscribe_timer) exists only for Cloud Agents; a local agent searched for it, found none and said it has no such tool.
+    runs:
+      - cursor-mock/snapshots/runs/schedule-wakeup-ask

@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nUse your own tool, if you have one, to ask to be woken up in 30 seconds with the prompt 'check the build'. Do not use a shell command (sleep, at, cron) and do not wait yourself. If you have no such tool, say so. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll use the loop skill to schedule a wake-up in 30 seconds."},{"type":"tool_use","name":"Read","input":{"path":"<TMP>/home/.cursor/skills-cursor/loop/SKILL.md"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Checking whether a non-shell wake/timer tool is available."},{"type":"tool_use","name":"GetDynamicTools","input":{"pattern":"subscribe_timer|cursor-subscriptions"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"No such wake/timer tool is available in this session.\n\nDONE"}]}}
+{"type":"turn_ended","status":"success"}

@@ -1,0 +1,1 @@
+Use your own tool, if you have one, to ask to be woken up in 30 seconds with the prompt 'check the build'. Do not use a shell command (sleep, at, cron) and do not wait yourself. If you have no such tool, say so. Then reply only DONE.
