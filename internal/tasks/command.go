@@ -31,8 +31,6 @@ type CommandSpec struct {
 // command is not bound to the turn that started it, so it keeps running while
 // the agent works; it has its own process group, so ending it reaches whatever
 // it spawned. t.ExitCode is set when it ends.
-//
-// sr:capability background-bash
 func (r *Registry) StartCommand(t *Task, s CommandSpec) error {
 	p, err := procexec.Start(procexec.Spec{Argv: s.Argv, Dir: s.Dir, Env: s.Env}, s.Out)
 	if err != nil {
@@ -71,4 +69,14 @@ func (r *Registry) StartAgent(t *Task, run func(ctx context.Context)) {
 		run(r.ctx)
 		r.Finish(t)
 	})
+}
+
+// RunsInBackground reports whether a command or sub-agent that asked to run in
+// the background does: it does not when the harness has background tasks
+// turned off, and then it runs in the foreground like any other. It is the
+// entry to background-bash: StartCommand runs what this lets through.
+//
+// sr:capability background-bash
+func RunsInBackground(asked, disabled bool) bool {
+	return asked && !disabled
 }

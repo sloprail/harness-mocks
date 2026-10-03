@@ -128,3 +128,12 @@ func addRunFlags(cmd *cobra.Command) {
 	// deliberately NOT declared here — the mock accepts only flags real claude
 	// accepts.
 }
+
+// backgroundTasksDisabled is whether CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1
+// turns the background task functionality off. Read once here, with the rest
+// of the configuration.
+// sr:docs https://code.claude.com/docs/en/tools-reference#background-commands
+// sr:provides background-bash/claude
+func backgroundTasksDisabled() bool {
+	return os.Getenv("CLAUDE_CODE_DISABLE_BACKGROUND_TASKS") == "1"
+}
