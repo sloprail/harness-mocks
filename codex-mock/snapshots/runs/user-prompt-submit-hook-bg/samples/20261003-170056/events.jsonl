@@ -1,0 +1,9 @@
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Start a background task that runs 'sleep 5; echo BGDONE' without blocking on it, using your own background-task mechanism if you have one that tells you when it finishes. After starting it, end your turn at once by replying only LAUNCHED, and do not wait or poll. If you were told the task finished, reply with the word FINISHED. If you have no background-task mechanism, say so."}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

@@ -21,6 +21,17 @@ providers:
     runs:
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/prompt-blocked
+      - codex-mock/snapshots/runs/user-prompt-submit-hook-rewrite
+      - codex-mock/snapshots/runs/user-prompt-submit-hook-bg
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex does not hand a background-task notification to the agent, so
+          its UserPromptSubmit hook does not fire for one: recorded, the hook
+          fired once, for the submitted prompt, in a run whose agent started a
+          background command and ended its turn with nothing handed back
+          (runs/user-prompt-submit-hook-bg, runs/task-notifications-bg). The
+          mock does the same.
   cursor:
     supported: false
     reason: In print mode cursor-agent never fires a configured beforeSubmitPrompt hook; one that tries to refuse the prompt is not run and the prompt reaches the agent, which acts on it.
