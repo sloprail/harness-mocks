@@ -11,11 +11,9 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
-	"github.com/sloprail/harness-mocks/internal/scenario"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
-	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
 // spawnAgentTool is the tool that starts a sub-agent; agentType is the type of
@@ -27,6 +25,9 @@ const agentType = "default"
 type spawnInput struct {
 	Message string `json:"message"`
 	Script  string `json:"script"`
+	// Background (the mock's own parameter) is a dispatch that is not waited
+	// for: it returns at once, as Codex's spawn_agent does (spawn_background.go).
+	Background bool `json:"background"`
 }
 
 // spawnAgent starts a sub-agent for a dispatch that passed the checks, waits
@@ -48,6 +49,9 @@ type spawnInput struct {
 func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Result {
 	var in spawnInput
 	_ = json.Unmarshal(c.Input, &in)
+	if in.Background {
+		return h.spawnBackground(in)
+	}
 	subID := coresession.NewID()
 	subRollout, err := session.Create(h.cfg.CodexHome, subID, h.cfg.Cwd, time.Now())
 	if err != nil {
@@ -56,15 +60,28 @@ func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Resu
 	defer subRollout.Close()
 
 	spawn := h.events.CollabStarted(agentTool, h.id, nil, in.Message)
-	// the sub-agent is its own thread: its tools' hooks and its rollout are its own
+	out := h.runSpawned(ctx, subID, subRollout, in)
+
+	h.events.CollabCompleted(spawn, agentTool, h.id, []string{subID}, in.Message,
+		map[string]events.AgentState{subID: {Status: "pending_init"}})
+	wait := h.events.CollabStarted("wait", h.id, []string{subID}, nil)
+	h.events.CollabCompleted(wait, "wait", h.id, []string{subID}, nil,
+		map[string]events.AgentState{subID: {Status: "completed", Message: out.LastAssistant}})
+	return toolcall.Result{Output: fmt.Sprintf(`{"status":{%q:{"completed":%q}},"timed_out":false}`, subID, out.LastAssistant)}
+}
+
+// runSpawned runs a started sub-agent to its end, with the hooks of its life.
+// It is its own thread: its tools' hooks and its rollout are its own, and its
+// hooks name it (recorded: runs/background-agent).
+func (h toolHost) runSpawned(ctx context.Context, subID string, subRollout *session.File, in spawnInput) subagents.Outcome {
 	sub := *h.state
 	sub.id, sub.turnID, sub.rollout = subID, coresession.NewID(), subRollout
 	sub.events = events.New(io.Discard)
 	invoker := *h.hooks
-	invoker.Common.TranscriptPath = subRollout.Path
+	invoker.Common.TranscriptPath, invoker.Common.AgentID, invoker.Common.AgentType = subRollout.Path, subID, agentType
 	sub.hooks = &invoker
 
-	out := subagents.Execute(subagents.Hooks{
+	return subagents.Execute(subagents.Hooks{
 		Start: func() {
 			for _, o := range invoker.Fire(ctx, hooks.SubagentStart, agentType,
 				map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType}) {
@@ -104,45 +121,4 @@ func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Resu
 			subRollout.User(fmt.Sprintf(`<hook_prompt hook_run_id="subagent-stop">%s</hook_prompt>`, reason))
 		},
 	}, 0, func() subagents.Outcome { return runSubagent(ctx, &sub, in) })
-
-	h.events.CollabCompleted(spawn, agentTool, h.id, []string{subID}, in.Message,
-		map[string]events.AgentState{subID: {Status: "pending_init"}})
-	wait := h.events.CollabStarted("wait", h.id, []string{subID}, nil)
-	h.events.CollabCompleted(wait, "wait", h.id, []string{subID}, nil,
-		map[string]events.AgentState{subID: {Status: "completed", Message: out.LastAssistant}})
-	return toolcall.Result{Output: fmt.Sprintf(`{"status":{%q:{"completed":%q}},"timed_out":false}`, subID, out.LastAssistant)}
 }
-
-// runSubagent drives the sub-agent's script as a turn of its own and reports
-// its last message.
-func runSubagent(ctx context.Context, sub *state, in spawnInput) subagents.Outcome {
-	last, err := turnloop.Run(ctx, subHost{sub, in.Message}, turnloop.Params{
-		Script: in.Script, Dir: sub.cfg.Cwd, Environ: sub.cfg.Environ, Prompt: in.Message})
-	out := subagents.Outcome{LastAssistant: last, FinalText: last}
-	if err != nil {
-		out.Failure = err.Error()
-	}
-	return out
-}
-
-// subHost is a sub-agent's side of its turn: its task is its prompt, its tools
-// are the session's, and no end-of-turn hook runs for it (SubagentStop does).
-type subHost struct {
-	*state
-	task string
-}
-
-func (h subHost) SubmitPrompt(context.Context) (string, bool) {
-	h.rollout.User(h.task)
-	return "", false
-}
-func (h subHost) Say(text string) { h.rollout.Assistant(text) }
-func (h subHost) Tool(ctx context.Context, tu scenario.ToolUse) {
-	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
-	toolcall.Run(ctx, toolHost{h.state}, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
-		toolcall.Options{SeparateFailureHook: false})
-}
-func (h subHost) EndOfTurn(context.Context, string, bool) (string, bool) { return "", false }
-func (h subHost) Continue(string)                                        {}
-func (h subHost) CapOverridden(int)                                      {}
-func (h subHost) SessionFile() string                                    { return h.rollout.Path }

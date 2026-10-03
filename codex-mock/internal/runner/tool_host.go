@@ -127,4 +127,7 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 		}
 	}
 	h.rollout.ToolOutput(c.ID, text)
+	if c.Name == agentTool && a.Kind == toolcall.Done && !a.Replaced {
+		h.startBackground(c, a.Result.Output) // a dispatch not waited for runs once it is answered
+	}
 }

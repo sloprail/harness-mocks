@@ -7,5 +7,37 @@ providers:
       - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
     runs:
       - claude-mock/snapshots/runs/bgagent
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#common-input-fields
+    runs:
+      - codex-mock/snapshots/runs/background-agent
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex's spawn_agent has no foreground or background choice: it
+          always answers at once with a receipt (the sub-agent's id and a
+          nickname) and the sub-agent runs concurrently with the turn, its
+          hooks firing under the same session id with an agent_id and an
+          agent_type (recorded: runs/background-agent).
+      - adr: modeled-surface
+        statement: >-
+          The mock's spawn_agent is told by a parameter of its own, background,
+          that the dispatch is not waited for (without it the mock waits for
+          the sub-agent and answers as a following wait would); the sub-agent
+          runs on its own thread and rollout, driven by the scenario script it
+          is given, and is stopped if still running when the run ends. The
+          sub-agent's states after pending_init, and what the agent is told
+          when a hook refuses the spawn, are not modelled.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#subagentstart
+    runs:
+      - cursor-mock/snapshots/runs/background-agent
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock plays the sub-agent as a script it is given by a parameter
+          of its own, script (the real one is a model); only a Task that asks
+          for the background and carries that script is modelled, and no hook
+          of the call can refuse it.

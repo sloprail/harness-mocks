@@ -37,6 +37,8 @@ func startsBackgroundSubagent(tu scenario.ToolUse) (taskInput, bool) {
 // does not end while it runs (afterTurn); its end is announced and starts a
 // further turn. The call fires no postToolUse, and no hook of it can refuse it
 // here (recorded: runs/print-waits-for-background-agents; adr/modeled-surface).
+//
+// sr:provides background-agent/cursor
 func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) {
 	typ := in.SubagentType
 	if typ == "" {

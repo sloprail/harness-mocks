@@ -1,0 +1,18 @@
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"spawn_agent","tool_input":{"message":"Run the shell command: echo SUBDONE . Then reply with the single word SUBREPLY."}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"spawn_agent","tool_input":{"message":"Run the shell command: echo SUBDONE . Then reply with the single word SUBREPLY."},"tool_response":"{\"agent_id\":\"01a1023f-a7bb-7a21-87f6-210abb3754f3\",\"nickname\":\"Hypatia\"}"}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"sleep 10; echo PARENTDONE"}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","agent_id":"01a1023f-a7bb-7a21-87f6-210abb3754f3","agent_type":"default","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo SUBDONE"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","agent_id":"01a1023f-a7bb-7a21-87f6-210abb3754f3","agent_type":"default","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo SUBDONE"},"tool_response":"SUBDONE\n"}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"sleep 10; echo PARENTDONE"},"tool_response":"PARENTDONE\n"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

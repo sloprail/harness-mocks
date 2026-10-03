@@ -1,0 +1,1 @@
+Use your sub-agent tool to spawn one sub-agent with the task: 'Run the shell command: echo SUBDONE . Then reply with the single word SUBREPLY.' Do not wait for it or collect its result. Right after spawning it, run the shell command: sleep 10; echo PARENTDONE . Then reply only LAUNCHED.
