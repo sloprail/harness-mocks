@@ -133,6 +133,24 @@ func TestFilesAreReadByShellAndWrittenByPatch(t *testing.T) {
 	assert.True(t, resultTold(t, got.rollout(t), "{}", "Success"), "the agent is told {} of a patch")
 }
 
+// A patch's "Delete File" removes the file, and the stream shows it as a
+// file_change of kind delete (the doc's delete_file operation).
+// sr:proves file-tools/codex
+func TestPatchDeletesAFile(t *testing.T) {
+	rec := loadRecording(t, "file-tools")
+	got := replayCalls(t, rec, func(string) []toolCall {
+		return []toolCall{
+			{"apply_patch", map[string]any{"command": "*** Begin Patch\n*** Add File: gone.txt\n+X\n*** End Patch"}},
+			{"apply_patch", map[string]any{"command": "*** Begin Patch\n*** Delete File: gone.txt\n*** End Patch"}}}
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, []string{"item.started in_progress add <RUN>/gone.txt", "item.completed completed add <RUN>/gone.txt",
+		"item.started in_progress delete <RUN>/gone.txt", "item.completed completed delete <RUN>/gone.txt"},
+		fileChanges(got.stream(), got.Repo))
+	_, err := os.Stat(filepath.Join(got.Repo, "gone.txt"))
+	assert.True(t, os.IsNotExist(err))
+}
+
 // A call that fails is told to the agent as an error: a shell read of a file
 // that is not there prints the shell's complaint and fails the command (the
 // stream's item has status failed and exit 1), and a patch updating a file

@@ -47,7 +47,7 @@ func (h turnHost) Say(text string) {
 func (h turnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
 	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
 	toolcall.Run(ctx, toolHost{h.state}, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
-		toolcall.Options{SeparateFailureHook: false})
+		toolcall.Options{SeparateFailureHook: false, SilentFailure: failedPatch})
 }
 
 // EndOfTurn fires Stop. A hook that blocks (exit 2, or a block decision) asks

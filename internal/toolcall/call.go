@@ -87,6 +87,9 @@ type Options struct {
 	// hook (SeparateFailureHook), reporting the refusal as a failed call;
 	// without it, a refused call fires no after-tool hook.
 	FailureOnRefusal bool
+	// SilentFailure: whether a call of this tool that failed fires no
+	// after-tool hook (nil: every tool's does).
+	SilentFailure func(Call) bool
 }
 
 // Run carries out one call. A call to a tool the harness lacks, and one whose
@@ -125,6 +128,10 @@ func Run(ctx context.Context, h Host, c Call, o Options) {
 	outcome := hooks.ToolSucceeded
 	if r.Failed {
 		outcome = hooks.ToolFailed
+	}
+	if r.Failed && o.SilentFailure != nil && o.SilentFailure(c) {
+		h.Answer(c, Answer{Kind: Done, Result: r})
+		return
 	}
 	kind := hooks.AfterToolHook(outcome)
 	if kind == hooks.AfterFailure && !o.SeparateFailureHook {
