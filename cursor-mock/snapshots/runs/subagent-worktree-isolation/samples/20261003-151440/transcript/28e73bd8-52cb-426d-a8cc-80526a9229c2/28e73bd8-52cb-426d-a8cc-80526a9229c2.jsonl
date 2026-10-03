@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nUse your own tool, if you have one, to dispatch a sub-agent that runs in its own isolated worktree on a new branch, and have it run pwd. Do not create the worktree yourself with a shell command and do not run pwd yourself. If you have no such tool or option, say so. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll dispatch the isolated worktree sub-agent to run `pwd`."},{"type":"tool_use","name":"Task","input":{"description":"Run pwd in worktree","prompt":"Run the shell command `pwd` in your working directory and report the exact output. Do nothing else.","subagent_type":"best-of-n-runner","model":"inherit"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

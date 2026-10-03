@@ -1,0 +1,1 @@
+Use your own tool, if you have one, to dispatch a sub-agent that runs in its own isolated worktree on a new branch, and have it run pwd. Do not create the worktree yourself with a shell command and do not run pwd yourself. If you have no such tool or option, say so. Then reply only DONE.
