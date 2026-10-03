@@ -2,11 +2,14 @@
 
 A capability is harness behaviour the mocks model. Its statement is
 harness-neutral; each harness that provides it cites sections of that
-harness's own docs, frozen as snapshots. Judge every <subject>; fail if any
-one fails. A harness's cell is one of: supported (<doc kind="supports"> and
-<run>: the harness does it), unsupported (<absent>: the harness lacks it, and
-its <doc kind="absent"> pages are the evidence), or pending (<pending>: not
-mocked yet; nothing to judge, and it never counts as support).
+harness's own docs, frozen as snapshots, and runs, recordings of the real
+harness. Judge every <subject>; fail if any one fails. A harness's cell is one
+of: supported (<doc kind="supports"> and <run kind="supports">: the harness does
+it), unsupported (<absent>: the harness lacks it, and its <doc kind="absent">
+pages and <run kind="absent"> recordings are the evidence), or pending
+(<pending>: not mocked yet; nothing to judge, and it never counts as support).
+A recording outranks a doc: what the real harness was recorded doing is what it
+does, wherever a doc sentence says otherwise.
 
 Nothing is inlined here: read the files. Each <doc> is the harness's
 documentation page, frozen and verified at the captured version, as a local
@@ -24,7 +27,7 @@ Pass only if a citation below asks to stop mocking it.
 {% for a in subject.absent %}<absent harness="{{ a.harness }}">{{ a.reason }}</absent>
 {% endfor %}{% for p in subject.pending %}<pending harness="{{ p }}"/>
 {% endfor %}{% for d in subject.docs %}<doc harness="{{ d.harness }}" kind="{{ d.kind }}" ref="{{ d.ref }}" path="{{ d.path }}" section-line="{{ d.line }}" lines="{{ d.lines }}"/>
-{% endfor %}{% for r in subject.runs %}<run harness="{{ r.harness }}" path="{{ r.path }}"/>
+{% endfor %}{% for r in subject.runs %}<run harness="{{ r.harness }}" kind="{{ r.kind }}" path="{{ r.path }}"/>
 {% endfor %}{% endif %}</subject>
 {% endfor %}
 {% if changeset.citations %}<citations>
@@ -37,16 +40,27 @@ Pass only if a citation below asks to stop mocking it.
   that harness's doc, or, where its doc says nothing about that part, shown by
   one of its cited runs (a <run> is a directory in the project: `setup/` is the
   scenario, each `samples/<ts>/` holds what the real harness did: payloads,
-  stream, transcript). A run never grounds a part the doc contradicts.
-- The statement claims nothing any providing harness's doc leaves out; what
+  stream, transcript). A recording outranks a doc: where a run shows the real
+  harness doing (or not doing) a part and a doc sentence says otherwise, the
+  run decides, and the doc's sentence is not held against the cell.
+- The statement claims no part that a providing harness neither documents nor shows in a cited run
+  (a part its doc leaves out may be grounded by a run); what
   differs between harnesses (a default, a name) is left out of the statement.
 - For every <absent> harness, the claim "this harness lacks the behaviour"
-  is shown by its <doc kind="absent"> pages: read each in full, search it for
-  every part of the statement and its synonyms (the event, flag, command or
-  setting that would carry it), and pass only if the page says the behaviour
-  is unsupported, or documents this whole area (its complete list of events,
-  handlers, commands or options) and the behaviour is not in it. The
-  `reason` must say what the pages show, no more.
+  is shown by its evidence, both kinds counting: (a) its <run kind="absent">
+  recordings: the run's `setup/` scenario really attempts the behaviour (read
+  it: a scenario that never tries shows nothing), and the samples (payloads,
+  stream, transcript) show the real harness not doing the part of the statement
+  the reason names, even where a doc describes the behaviour; and/or (b) its
+  <doc kind="absent"> pages: read each in full, search it for every part of the
+  statement and its synonyms (the event, flag, command or setting that would
+  carry it), and pass if the page says the behaviour is unsupported, or
+  documents this whole area (its complete list of events, handlers, commands or
+  options) and the behaviour is not in it. A harness whose recordings show
+  only some parts of the statement is not absent: that cell belongs as
+  supported, with the missing parts as its `deviations`, so fail an absent
+  claim the recordings partly contradict. The `reason` must say what the
+  evidence shows, no more.
 - If the capability is newly added: a citation asks to mock this behaviour.
 
 ## How to decide
@@ -63,12 +77,14 @@ checklist is not a pass.
 
 ## Fail
 
-For an <absent> harness: fail if any of its pages documents the behaviour
-(even under another name, or in part), if the cited section does not cover
-the area at all (a page that is merely silent on an unrelated topic is not
-evidence of absence), or if the reason claims more than the pages show. Quote
-the line that documents the behaviour, or say which part of the area the page
-never lists. A <pending> harness is not a failure and not support: never count
+For an <absent> harness: fail if its recordings do not show the absence (a
+scenario that never attempts the behaviour, or samples in which the real
+harness does it) and its docs do not show it either; if a doc documents the
+behaviour and no cited recording shows the harness not doing it; if the
+evidence does not cover the area at all (a page that is merely silent on an
+unrelated topic is not evidence of absence); or if the reason claims more than
+the evidence shows. Quote the line or sample that documents or shows the
+behaviour, or say which part of the area the evidence never covers. A <pending> harness is not a failure and not support: never count
 it toward the statement.
 
 Name the harness, the part of the statement neither its doc nor its runs

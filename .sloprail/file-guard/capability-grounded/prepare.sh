@@ -9,9 +9,9 @@
 # and checked against the MANIFEST's sha256 by doc_copy; a page that cannot be
 # had fails this check closed) and the line its cited section starts at; and
 # each cited run's directory.
-# A harness whose cell is {supported: false, reason, docs} is a subject too:
-# its docs are listed as kind "absent", with the reason, for the judge to check
-# that they really show the feature absent. A "pending" cell has nothing to
+# A harness whose cell is {supported: false, reason, docs?, runs?} is a subject too:
+# its docs and runs are listed as kind "absent", with the reason, for the judge to check
+# that they really show the feature absent (a recording outranks a doc). A "pending" cell has nothing to
 # judge: it is listed (pending) and is never coverage.
 set -uo pipefail
 payload="$(cat)"
@@ -52,7 +52,7 @@ while IFS= read -r c; do
   done <<<"$refs"
   # each providing harness's cited runs (project paths: the judge reads their
   # setup and samples) ground what its docs leave unsaid
-  runs="$(jq -c '[.doc.providers // {} | to_entries[] | select(.value | type == "object" and .supported == null) | .key as $h | .value.runs[]? | {harness: $h, path: .}]' <<<"$c")"
+  runs="$(jq -c '[.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h | (if .value.supported == false then "absent" else "supports" end) as $k | .value.runs[]? | {harness: $h, kind: $k, path: .}]' <<<"$c")"
   absent="$(jq -c '[.doc.providers // {} | to_entries[] | select(.value | type == "object" and .supported == false) | {harness: .key, reason: .value.reason}]' <<<"$c")"
   pending="$(jq -c '[.doc.providers // {} | to_entries[] | select(.value == "pending") | .key]' <<<"$c")"
   subjects="$(jq -c --arg id "$id" --arg st "$(jq -r '.doc.statement // ""' <<<"$c")" --argjson d "$docs" --argjson r "$runs" --argjson ab "$absent" --argjson pe "$pending" --arg p "spec/capabilities/$id.yaml" \

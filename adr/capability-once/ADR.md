@@ -16,9 +16,10 @@ provide the same capability with different wire formats.
 - `spec/capabilities/<id>.yaml` holds each capability the mocks model: a
   harness-neutral statement, and for every harness mock one of: the doc
   sections and recorded runs of that harness that show it (supported);
-  `{supported: false, reason, docs}`, the docs being the sections that show the
-  feature absent or cover the area without it (a bare `false` is not a cell:
-  absence needs evidence); or `pending`: the harness mock has no adapter for
+  `{supported: false, reason, docs?, runs?}`, the evidence being recorded runs
+  that attempt the behaviour and show it absent and/or the doc sections that
+  show the feature absent or cover the area without it, at least one (a bare
+  `false` is not a cell: absence needs evidence); or `pending`: the harness mock has no adapter for
   it. A `pending` cell does not block a merge and is never coverage;
   `file-guard/capability-covered` lists every one on each run.
 - A capability's `<id>`, and so its file name, is kebab-case.

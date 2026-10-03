@@ -9,7 +9,8 @@
 #     <h>-mock/, and ≥1 `// sr:proves <id>/<h>` in a *_test.go
 #   - a cell that is not supported is one of: {supported: false, reason, docs}
 #     (the harness lacks it; absence needs evidence, so a bare `false` is
-#     refused) or "pending" (not mocked yet). Neither is coverage: no marker
+#     refused; the evidence is docs and/or recorded runs, at least one) or
+#     "pending" (not mocked yet). Neither is coverage: no marker
 #     may name it. Pending is allowed and does not block; it is listed on stderr.
 # And back: every sr:capability / sr:provides / sr:proves <x>/<h> names a
 # capability, and a harness whose cell is supported.
@@ -45,11 +46,11 @@ while IFS= read -r c; do
     case "$v" in
       '"missing"') add "capability '$id' has no cell for '$h': set it to {docs, runs}, {supported: false, reason, docs}, or \"pending\"" ;;
       '"pending"') pending="${pending}${id}/${h}"$'\n' ;;
-      false) add "capability '$id' × '$h' is a bare false: absence needs evidence. Set {supported: false, reason: <one line>, docs: [<URL#anchor showing it absent>]}, or \"pending\" if it is just not mocked yet" ;;
+      false) add "capability '$id' × '$h' is a bare false: absence needs evidence. Set {supported: false, reason: <one line>, docs: [<URL#anchor showing it absent>] and/or runs: [<recorded run showing it absent>]}, or \"pending\" if it is just not mocked yet" ;;
       *)
         if [ "$(cell_kind "$v")" = unsupported ]; then
-          jq -e '(.reason | type == "string" and test("\\S") and (test("\n") | not)) and (.docs | type == "array" and length > 0)' <<<"$v" >/dev/null ||
-            add "capability '$id' × '$h' is {supported: false} without a one-line reason and at least one doc that shows the feature absent"
+          jq -e '(.reason | type == "string" and test("\\S") and (test("\n") | not)) and (((.docs // []) | length) + ((.runs // []) | length) > 0)' <<<"$v" >/dev/null ||
+            add "capability '$id' × '$h' is {supported: false} without a one-line reason and at least one doc or recorded run that shows the feature absent"
           continue
         fi
         for a in $(jq -r '.deviations[]?.adr' <<<"$v"); do

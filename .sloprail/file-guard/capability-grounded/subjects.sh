@@ -19,8 +19,8 @@ arr="$(printf '%s' "$payload" | jq -c --argjson caps "$SPEC" --arg tt "$TOUCHED_
   | [$tt | split("\n")[] | select(length > 0) | split("\t") | {p: .[0], h: .[1]}] as $tr
   | ([$caps[] | .id as $id | "spec/capabilities/\($id).yaml" as $p
       | (.doc.providers // {} | to_entries | map(select(.value | type == "object"))) as $prov
-      | ($prov | map(select((.value.docs // []) | length > 0) | .key)) as $cited
-      | ($cited | map(select(. as $h | $changed | index("\($h)-mock/snapshots/MANIFEST.yaml")))) as $refrozen
+      | ($prov | map(select(((.value.docs // []) | length) + ((.value.runs // []) | length) > 0) | .key)) as $cited
+      | ($prov | map(select((.value.docs // []) | length > 0) | .key) | map(select(. as $h | $changed | index("\($h)-mock/snapshots/MANIFEST.yaml")))) as $refrozen
       | (if $changed | index($p) then [$tr[] | select(.p == $p) | .h] else [] end) as $cells
       | (($cells + $refrozen) | unique) as $hs
       | select($hs | length > 0)

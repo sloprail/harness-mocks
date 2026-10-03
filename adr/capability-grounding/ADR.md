@@ -1,6 +1,6 @@
 ---
 concern: "what grounds a capability: the real harness for what it does, the user for what is mocked"
-sloprails: [file-guard/capability-grounded]
+sloprails: [file-guard/capability-grounded, file-guard/capability-rigor]
 ---
 
 # A capability states only what its harnesses document or were recorded doing
@@ -25,11 +25,19 @@ quirks.
   nothing about it, shown by one of its cited runs
   (`providers.<harness>.runs`: `<harness>-mock/snapshots/runs/<name>/`, whose
   `samples/<ts>/` hold the real harness's payloads, stream and transcript).
-- A cell `{supported: false, reason, docs}` claims the harness lacks the
-  behaviour, and is grounded the same way: its `docs` must show the feature
-  absent, or cover the whole area without it; the judge reads them for that. A
-  `pending` cell claims nothing and grounds nothing.
-- A run never grounds a part its harness's docs contradict.
+- A cell `{supported: false, reason, docs?, runs?}` claims the harness lacks
+  the behaviour, and is grounded by evidence of the same two kinds, at least
+  one: `runs`, recordings whose scenario attempts the behaviour and whose
+  samples show the real harness not doing it, and/or `docs` that show the
+  feature absent or cover the whole area without it; the judge reads them for
+  that. A harness whose recordings show only some parts of the statement is
+  supported, and the parts it does not do are its `deviations`. A `pending`
+  cell claims nothing and grounds nothing.
+- A recording outranks a doc: where a recorded run and a doc sentence
+  disagree, what the real harness was recorded doing is what it does. A cell
+  is supported when its recordings show the behaviour, whatever a doc says
+  elsewhere, and unsupported when its recordings show the behaviour not
+  happening, even where a doc describes it.
 - Adding or removing a capability, or changing its `statement`, carries the
   user's words on its commit (`Sloprail-Cites-User`): the statement is the
   capability the user wants implemented.

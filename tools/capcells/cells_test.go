@@ -87,10 +87,17 @@ func TestFalseWithReasonAndDocsPasses(t *testing.T) {
 	}
 }
 
-func TestFalseWithoutDocsIsRefused(t *testing.T) {
+func TestFalseWithRunsAlonePasses(t *testing.T) {
+	code, out := check(t, "  other:\n    supported: false\n    reason: no such hook\n    runs:\n      - other-mock/snapshots/runs/r\n")
+	if code != 0 {
+		t.Fatalf("false with reason and a recorded run must pass the script check, got %d: %s", code, out)
+	}
+}
+
+func TestFalseWithoutDocsOrRunsIsRefused(t *testing.T) {
 	code, _ := check(t, "  other:\n    supported: false\n    reason: no such hook\n")
 	if code == 0 {
-		t.Fatal("false without docs must be refused")
+		t.Fatal("false without docs or runs must be refused")
 	}
 }
 
