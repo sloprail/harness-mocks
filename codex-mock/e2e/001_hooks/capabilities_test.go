@@ -163,6 +163,56 @@ func TestNonInteractiveRunStreamsEventsAndEndsOnce(t *testing.T) {
 	}
 	assert.Equal(t, 1, strings.Count(strings.Join(types, " "), "turn.completed"))
 	assert.Equal(t, "thread.started", types[0])
+
+	// The fields the recordings show (runs/stops, runs/bashfail): the thread id is
+	// the session's, a command is reported at its start (no output or exit status
+	// yet, in progress) and at its end (output, exit status, completed, or failed
+	// on a non-zero exit), and the turn's usage names its token counts.
+	stream := r.stream()
+	assert.Equal(t, sessionIDOf(t, r), stream[0]["thread_id"])
+	assert.Contains(t, r.rollout(t), stream[0]["thread_id"].(string))
+	var started, completed map[string]any
+	for _, e := range stream {
+		if item, ok := e["item"].(map[string]any); ok && item["type"] == "command_execution" {
+			if e["type"] == "item.started" {
+				started = item
+			} else {
+				completed = item
+			}
+		}
+	}
+	require.NotNil(t, started)
+	require.NotNil(t, completed)
+	assert.Contains(t, started["command"], "echo hi")
+	assert.Equal(t, "", started["aggregated_output"])
+	assert.Nil(t, started["exit_code"])
+	assert.Equal(t, "in_progress", started["status"])
+	assert.Equal(t, started["id"], completed["id"])
+	assert.Equal(t, started["command"], completed["command"])
+	assert.Equal(t, "hi\n", completed["aggregated_output"])
+	assert.Equal(t, float64(0), completed["exit_code"])
+	assert.Equal(t, "completed", completed["status"])
+	// The final message is an item.completed agent_message with an id and its
+	// text, the last item before the turn completes (runs/stops).
+	last := stream[len(stream)-2]
+	require.Equal(t, "item.completed", last["type"])
+	msg, _ := last["item"].(map[string]any)
+	assert.Equal(t, "agent_message", msg["type"])
+	assert.Equal(t, "DONE", msg["text"])
+	assert.NotEmpty(t, msg["id"])
+	usage, _ := stream[len(stream)-1]["usage"].(map[string]any)
+	for _, k := range []string{"input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens", "reasoning_output_tokens"} {
+		assert.Contains(t, usage, k)
+	}
+
+	failed := execMock(t, scenario{Script: callThenResult, Prompt: "go", Env: withCalls(t, "echo oops; exit 3")})
+	for _, e := range failed.stream() {
+		if item, ok := e["item"].(map[string]any); ok && item["type"] == "command_execution" && e["type"] == "item.completed" {
+			assert.Equal(t, float64(3), item["exit_code"])
+			assert.Equal(t, "failed", item["status"])
+			assert.Equal(t, "oops\n", item["aggregated_output"])
+		}
+	}
 }
 
 // The session-end hook fires once the turn is over, with the one reason a

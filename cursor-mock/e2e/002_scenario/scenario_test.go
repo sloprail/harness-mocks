@@ -126,6 +126,44 @@ func TestStreamPartialOutputIsAcceptedAndChangesNothing(t *testing.T) {
 	require.Equal(t, 1, strings.Count(partial, `"type":"result"`))
 }
 
+// TestTheStreamsFramesCarryTheFieldsTheRecordingShows: recorded
+// (runs/pretool-refusal), the init frame names the session, the working
+// directory, the model and the permission mode; the user frame echoes the
+// prompt; the result frame, last, carries the session, is_error false, the
+// durations, a request id and the usage counts.
+// sr:proves noninteractive-run/cursor
+func TestTheStreamsFramesCarryTheFieldsTheRecordingShows(t *testing.T) {
+	out, _, code := run(t, "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"DONE\"}]}}'\nprintf '%s\\n' '"+done+"'\n", "say", "hi")
+	require.Equal(t, 0, code, out)
+	var frames []map[string]any
+	for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
+		var f map[string]any
+		require.NoError(t, json.Unmarshal([]byte(l), &f))
+		frames = append(frames, f)
+	}
+	init, user, result := frames[0], frames[1], frames[len(frames)-1]
+	require.Equal(t, "system", init["type"])
+	require.Equal(t, "init", init["subtype"])
+	sid, _ := init["session_id"].(string)
+	require.NotEmpty(t, sid)
+	require.NotEmpty(t, init["cwd"])
+	require.NotEmpty(t, init["model"])
+	require.Equal(t, "default", init["permissionMode"])
+	require.Equal(t, sid, user["session_id"])
+	content := user["message"].(map[string]any)["content"].([]any)[0].(map[string]any)
+	require.Equal(t, "say hi", content["text"])
+	require.Equal(t, "result", result["type"])
+	require.Equal(t, sid, result["session_id"])
+	require.Equal(t, false, result["is_error"])
+	require.Equal(t, "DONE", result["result"])
+	require.NotEmpty(t, result["request_id"])
+	require.Contains(t, result, "duration_ms")
+	usage, _ := result["usage"].(map[string]any)
+	for _, k := range []string{"inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"} {
+		require.Contains(t, usage, k)
+	}
+}
+
 // TestAnOutputFormatOtherThanStreamJSONIsRefused: the mock models stream-json
 // only (the format the cursor docs describe for real-time progress); any other
 // --output-format ends the run with exit status 1, a message naming the format
