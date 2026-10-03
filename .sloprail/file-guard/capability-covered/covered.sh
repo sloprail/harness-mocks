@@ -5,14 +5,19 @@
 #   - a cell for EVERY harness mock (<h>-mock/ dirs); none for a harness that
 #     does not exist
 #   - exactly one `// sr:capability <id>`, under internal/
-#   - each harness set to a cell: ≥1 `// sr:provides <id>/<h>` under <h>-mock/,
-#     and ≥1 `// sr:proves <id>/<h>` in a *_test.go
+#   - each supported cell ({docs, runs}): ≥1 `// sr:provides <id>/<h>` under
+#     <h>-mock/, and ≥1 `// sr:proves <id>/<h>` in a *_test.go
+#   - a cell that is not supported is one of: {supported: false, reason, docs}
+#     (the harness lacks it; absence needs evidence, so a bare `false` is
+#     refused) or "pending" (not mocked yet). Neither is coverage: no marker
+#     may name it. Pending is allowed and does not block; it is listed on stderr.
 # And back: every sr:capability / sr:provides / sr:proves <x>/<h> names a
-# capability, and a harness whose cell is not false.
+# capability, and a harness whose cell is supported.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
+. "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 load_spec capabilities; caps="$SPEC"
 load_markers capability; impl="$MARKERS"
 load_markers provides; provides="$MARKERS"
@@ -20,6 +25,7 @@ load_markers proves; proves="$(printf '%s\n' "$MARKERS" | awk -F'\t' 'NF && $2 ~
 hs="$(harnesses)"
 
 problems=""
+pending=""
 add() { problems="${problems}- $1"$'\n'; }
 # `// "missing"` would read a false cell as missing: jq's // treats false as absent.
 cell() { jq -c --arg id "$1" --arg h "$2" '[.[] | select(.id == $id)][0].doc.providers | if has($h) then .[$h] else "missing" end' <<<"$caps"; }
@@ -37,9 +43,15 @@ while IFS= read -r c; do
   for h in $hs; do
     v="$(cell "$id" "$h")"
     case "$v" in
-      '"missing"') add "capability '$id' has no cell for '$h': set it to false, or {docs, runs}" ;;
-      false) ;;
+      '"missing"') add "capability '$id' has no cell for '$h': set it to {docs, runs}, {supported: false, reason, docs}, or \"pending\"" ;;
+      '"pending"') pending="${pending}${id}/${h}"$'\n' ;;
+      false) add "capability '$id' × '$h' is a bare false: absence needs evidence. Set {supported: false, reason: <one line>, docs: [<URL#anchor showing it absent>]}, or \"pending\" if it is just not mocked yet" ;;
       *)
+        if [ "$(cell_kind "$v")" = unsupported ]; then
+          jq -e '(.reason | type == "string" and test("\\S") and (test("\n") | not)) and (.docs | type == "array" and length > 0)' <<<"$v" >/dev/null ||
+            add "capability '$id' × '$h' is {supported: false} without a one-line reason and at least one doc that shows the feature absent"
+          continue
+        fi
         for a in $(jq -r '.deviations[]?.adr' <<<"$v"); do
           [ -f "$SR_TREE/adr/$a/ADR.md" ] || add "capability '$id' × '$h' deviates citing adr/$a, which does not exist"
         done
@@ -61,7 +73,8 @@ check_ref() {   # KIND PATH FQN WHERE-GLOB
   local kind="$1" path="$2" fqn="$3" id="${3%%/*}" h="${3#*/}" v
   case "$fqn" in */*) ;; *) add "$path: sr:$kind '$fqn' must be <capability>/<harness>"; return ;; esac
   v="$(cell "$id" "$h")"
-  case "$v" in '"missing"' | false) add "$path: sr:$kind $fqn, but '$id' has no cell for '$h' set to {docs, runs}"; return ;; esac
+  [ "$(cell_kind "$v")" = supported ] ||
+    { add "$path: sr:$kind $fqn, but '$id' has no supported cell for '$h' ({docs, runs}); a pending or unsupported cell is not coverage"; return; }
   case "$kind:$path" in
     provides:"$h"-mock/*) ;; provides:*) add "$path: sr:provides $fqn must sit under $h-mock/" ;;
     proves:*_test.go) ;; proves:*) add "$path: sr:proves belongs on a test, in a *_test.go" ;;
@@ -70,6 +83,7 @@ check_ref() {   # KIND PATH FQN WHERE-GLOB
 while IFS=$'\t' read -r path fqn; do [ -n "$path" ] && check_ref provides "$path" "$fqn"; done <<<"$provides"
 while IFS=$'\t' read -r path fqn; do [ -n "$path" ] && check_ref proves "$path" "$fqn"; done <<<"$proves"
 
+[ -z "$pending" ] || printf 'pending (not mocked yet, not coverage):\n%s' "$pending" >&2
 [ -z "$problems" ] && exit 0
 refuse "Capabilities not implemented, adapted or proven (adr/capability-once):
 ${problems}"

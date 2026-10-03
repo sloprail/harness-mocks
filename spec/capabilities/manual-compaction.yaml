@@ -23,5 +23,5 @@ providers:
           compaction that was triggered to recover from a context-limit error
           surfaces that error is not modeled. A blocked automatic compaction is
           skipped and the conversation continues uncompacted.
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

@@ -13,5 +13,13 @@ providers:
       - https://code.claude.com/docs/en/hooks#http-response-handling
     runs:
       - claude-mock/snapshots/runs/http-hook
-  codex: false
-  cursor: false
+  codex:
+    supported: false
+    reason: Codex hook handlers are only command and mcp_tool (prompt and agent are skipped); there is no HTTP endpoint handler.
+    docs:
+      - https://developers.openai.com/codex/hooks#config-shape
+  cursor:
+    supported: false
+    reason: Cursor hooks have two execution types, command-based and prompt-based; there is no HTTP endpoint hook.
+    docs:
+      - https://cursor.com/docs/hooks#hook-types

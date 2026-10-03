@@ -13,7 +13,7 @@ providers:
     runs:
       - claude-mock/snapshots/runs/bashfail
       - claude-mock/snapshots/runs/stops
-  codex: false
+  codex: pending
   cursor:
     docs:
       - https://cursor.com/docs/hooks#aftershellexecution

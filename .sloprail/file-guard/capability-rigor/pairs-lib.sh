@@ -17,7 +17,7 @@ rigor_pairs() {
     id="$(jq -r '.id' <<<"$c")"
     touched=""
     printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && touched="$(touched_harnesses "spec/capabilities/$id.yaml")"
-    for h in $(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key' <<<"$c"); do
+    for h in $(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object" and .supported == null) | .key' <<<"$c"); do
       cell="$(jq -c --arg h "$h" '.doc.providers[$h]' <<<"$c")"
       hit=0
       printf '%s\n' "$touched" | grep -Fxq -e '*' -e "$h" && hit=1

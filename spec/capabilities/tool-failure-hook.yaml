@@ -31,7 +31,11 @@ providers:
           can produce it. Of input validation, only a missing required
           parameter is modeled; a parameter of the wrong type or an unknown
           tool name is not.
-  codex: false
+  codex:
+    supported: false
+    reason: Codex's hook events list has no tool-failure event; PostToolUse is its only after-tool event.
+    docs:
+      - https://developers.openai.com/codex/hooks#hooks
   cursor:
     docs:
       - https://cursor.com/docs/hooks#posttoolusefailure

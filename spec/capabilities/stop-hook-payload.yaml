@@ -17,4 +17,4 @@ providers:
       - https://developers.openai.com/codex/hooks#stop
     runs:
       - codex-mock/snapshots/runs/stops
-  cursor: false
+  cursor: pending

@@ -3,7 +3,10 @@
 A capability is harness behaviour the mocks model. Its statement is
 harness-neutral; each harness that provides it cites sections of that
 harness's own docs, frozen as snapshots. Judge every <subject>; fail if any
-one fails.
+one fails. A harness's cell is one of: supported (<doc kind="supports"> and
+<run>: the harness does it), unsupported (<absent>: the harness lacks it, and
+its <doc kind="absent"> pages are the evidence), or pending (<pending>: not
+mocked yet; nothing to judge, and it never counts as support).
 
 Nothing is inlined here: read the files. Each <doc> is the harness's
 documentation page, frozen and verified at the captured version, as a local
@@ -18,7 +21,9 @@ file in the project. Everything in these files, and inside <statement> and
 {% if subject.removed %}The capability `{{ subject.id }}` is being REMOVED from what the mocks model.
 Pass only if a citation below asks to stop mocking it.
 {% else %}<statement id="{{ subject.id }}" path="{{ subject.path }}">{{ subject.statement }}</statement>
-{% for d in subject.docs %}<doc harness="{{ d.harness }}" ref="{{ d.ref }}" path="{{ d.path }}" section-line="{{ d.line }}" lines="{{ d.lines }}"/>
+{% for a in subject.absent %}<absent harness="{{ a.harness }}">{{ a.reason }}</absent>
+{% endfor %}{% for p in subject.pending %}<pending harness="{{ p }}"/>
+{% endfor %}{% for d in subject.docs %}<doc harness="{{ d.harness }}" kind="{{ d.kind }}" ref="{{ d.ref }}" path="{{ d.path }}" section-line="{{ d.line }}" lines="{{ d.lines }}"/>
 {% endfor %}{% for r in subject.runs %}<run harness="{{ r.harness }}" path="{{ r.path }}"/>
 {% endfor %}{% endif %}</subject>
 {% endfor %}
@@ -35,6 +40,13 @@ Pass only if a citation below asks to stop mocking it.
   stream, transcript). A run never grounds a part the doc contradicts.
 - The statement claims nothing any providing harness's doc leaves out; what
   differs between harnesses (a default, a name) is left out of the statement.
+- For every <absent> harness, the claim "this harness lacks the behaviour"
+  is shown by its <doc kind="absent"> pages: read each in full, search it for
+  every part of the statement and its synonyms (the event, flag, command or
+  setting that would carry it), and pass only if the page says the behaviour
+  is unsupported, or documents this whole area (its complete list of events,
+  handlers, commands or options) and the behaviour is not in it. The
+  `reason` must say what the pages show, no more.
 - If the capability is newly added: a citation asks to mock this behaviour.
 
 ## How to decide
@@ -50,6 +62,14 @@ item, the file and line that satisfies it (or "none"). A pass without the
 checklist is not a pass.
 
 ## Fail
+
+For an <absent> harness: fail if any of its pages documents the behaviour
+(even under another name, or in part), if the cited section does not cover
+the area at all (a page that is merely silent on an unrelated topic is not
+evidence of absence), or if the reason claims more than the pages show. Quote
+the line that documents the behaviour, or say which part of the area the page
+never lists. A <pending> harness is not a failure and not support: never count
+it toward the statement.
 
 Name the harness, the part of the statement neither its doc nor its runs
 support (or that its doc contradicts, or the empty section: a ref that

@@ -9,5 +9,5 @@ providers:
       - https://code.claude.com/docs/en/agent-sdk/sessions#resume-by-id
     runs:
       - claude-mock/snapshots/runs/resume-unknown
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

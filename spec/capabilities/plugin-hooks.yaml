@@ -10,5 +10,5 @@ providers:
       - https://code.claude.com/docs/en/plugin-marketplaces#add-plugin-entries
     runs:
       - claude-mock/snapshots/runs/plugin-hooks
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

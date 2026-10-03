@@ -25,7 +25,14 @@ quirks.
   nothing about it, shown by one of its cited runs
   (`providers.<harness>.runs`: `<harness>-mock/snapshots/runs/<name>/`, whose
   `samples/<ts>/` hold the real harness's payloads, stream and transcript).
+- A cell `{supported: false, reason, docs}` claims the harness lacks the
+  behaviour, and is grounded the same way: its `docs` must show the feature
+  absent, or cover the whole area without it; the judge reads them for that. A
+  `pending` cell claims nothing and grounds nothing.
 - A run never grounds a part its harness's docs contradict.
-- Adding or removing a capability, changing its `statement`, or changing any
-  line of a cell's `deviations` carries the user's words on its commit
-  (`Sloprail-Cites-User`).
+- Adding or removing a capability, or changing its `statement`, carries the
+  user's words on its commit (`Sloprail-Cites-User`): the statement is the
+  capability the user wants implemented.
+- A cell's `deviations` need no user words: they are found empirically or
+  follow from other ADRs (e.g. a mock does not wait out a 5-minute background
+  limit, so e2e stays fast).

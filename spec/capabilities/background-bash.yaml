@@ -27,5 +27,5 @@ providers:
           moved to the background', with the task id and output file), and that
           a foreground sub-agent's moved command still stops when that
           sub-agent's run ends. A mock's foreground command is never moved.
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

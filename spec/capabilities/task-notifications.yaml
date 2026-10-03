@@ -10,5 +10,5 @@ providers:
     runs:
       - claude-mock/snapshots/runs/midturn
       - claude-mock/snapshots/runs/bgagent
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

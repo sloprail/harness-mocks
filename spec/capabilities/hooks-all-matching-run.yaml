@@ -12,7 +12,7 @@ providers:
     runs:
       - claude-mock/snapshots/runs/all-hooks
       - claude-mock/snapshots/runs/all-hooks-slow-first
-  codex: false
+  codex: pending
   cursor:
     docs:
       - https://cursor.com/docs/hooks#configuration

@@ -13,7 +13,7 @@ providers:
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/symlinked-cwd
       - claude-mock/snapshots/runs/transcript-at-start
-  codex: false
+  codex: pending
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema
