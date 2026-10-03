@@ -17,7 +17,7 @@ type File struct {
 }
 
 // Create starts the rollout of session id at
-// <home>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl, with its meta record:
+// <home>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl, with its meta record (see meta),
 // keyed by the day and the session id, not by the working directory, and
 // already there when the start hook runs (recorded: runs/session-transcript-file).
 //
