@@ -50,10 +50,10 @@ func recordedReceipt(t *testing.T, rec recording) []string {
 	files, _ := filepath.Glob(filepath.Join(rec.sample, "transcript", "*.jsonl"))
 	m := regexp.MustCompile(`\{\\"start\\":(\{.*?\})\}`).FindStringSubmatch(readFile(t, files[0]))
 	require.NotNil(t, m, "no start receipt in the recording")
-	return keysOf(t, strings.ReplaceAll(m[1], `\"`, `"`))
+	return receiptKeys(t, strings.ReplaceAll(m[1], `\"`, `"`))
 }
 
-func keysOf(t *testing.T, js string) (keys []string) {
+func receiptKeys(t *testing.T, js string) (keys []string) {
 	var m map[string]any
 	require.NoError(t, json.Unmarshal([]byte(js), &m), js)
 	for k := range m {
@@ -120,7 +120,7 @@ func TestACommandStillRunningAfterItsYieldTimeIsAnsweredWithAReceiptAndKeepsRunn
 	// printed so far, no file; the ls result is plain
 	told := toolOutputs(t, got.rollout(t))
 	require.Len(t, told, 2)
-	assert.Equal(t, recordedReceipt(t, rec), keysOf(t, told[0]))
+	assert.Equal(t, recordedReceipt(t, rec), receiptKeys(t, told[0]))
 	assert.Regexp(t, `"session_id":\d+`, told[0])
 	assert.Equal(t, "hook.sh\n", told[1])
 
