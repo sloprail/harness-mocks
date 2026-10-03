@@ -28,6 +28,9 @@ type Result struct {
 	ErrorMessage string
 	// Output is what a shell command printed, for afterShellExecution.
 	Output string
+	// Background: the call started a background shell (no afterShellExecution
+	// follows it; its end comes as a task notification).
+	Background bool
 	// Edits are the changes a file write made, for afterFileEdit.
 	Edits []Edit
 	Took  time.Duration
@@ -68,6 +71,14 @@ func FromScript(name string, input json.RawMessage) Call {
 	switch c.Kind {
 	case "shellToolCall":
 		c.Args["command"] = str("command")
+		// block_until_ms 0 (or run_in_background) is a shell left running in the
+		// background (recorded: runs/task-notifications-bg).
+		if v, ok := in["block_until_ms"].(float64); (ok && v == 0) || in["run_in_background"] == true {
+			c.Args["isBackground"], c.Args["timeout"] = true, 0
+			if d := str("description"); d != "" {
+				c.Args["description"] = d
+			}
+		}
 	case "readToolCall":
 		c.Args["path"] = str("file_path")
 	case "editToolCall":
@@ -96,6 +107,12 @@ func (c Call) Path(dir string) string {
 	}
 	return p
 }
+
+// Background reports whether a Shell call asked to be left running.
+func (c Call) Background() bool { b, _ := c.Args["isBackground"].(bool); return b }
+
+// Description is what a Shell call says it does, if it says.
+func (c Call) Description() string { return c.str("description") }
 
 // Command is the shell line of a Shell call.
 func (c Call) Command() string { return c.str("command") }

@@ -10,5 +10,30 @@ providers:
     runs:
       - claude-mock/snapshots/runs/midturn
       - claude-mock/snapshots/runs/bgagent
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: Codex exec tells the agent nothing when a background command ends; the command was still running when its turn ended, no notification and no new turn followed, and the session ended.
+    runs:
+      - codex-mock/snapshots/runs/task-notifications-bg
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#posttooluse
+    runs:
+      - cursor-mock/snapshots/runs/task-notifications-bg
+      - cursor-mock/snapshots/runs/task-notifications-inturn
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor does not tell the agent inside its turn: a background shell that
+          ended while the agent was still working (2s against a 12s foreground
+          call) was handed over only after the agent's turn had ended, as a new
+          turn of its own (the "Briefly inform the user about the task result"
+          prompt) with a task_notification frame on the stream (recorded:
+          runs/task-notifications-inturn, runs/task-notifications-bg), and the
+          mock does the same.
+      - adr: modeled-surface
+        statement: >-
+          The mock's background shell has no output-file reading, no
+          kill or status tools and no pid of the child (it reports its own), and
+          a shell still running when the session has nothing else left is waited
+          for without bound; only a Shell with block_until_ms 0 is modeled.

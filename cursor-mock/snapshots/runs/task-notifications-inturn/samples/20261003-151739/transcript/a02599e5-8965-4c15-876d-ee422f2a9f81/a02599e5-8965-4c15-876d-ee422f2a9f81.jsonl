@@ -1,0 +1,7 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, in order. 1) Start a background task running 'sleep 2; echo BGDONE' without waiting for it (block_until_ms 0). 2) Then, as a normal foreground call, run 'sleep 12; echo FOREGROUND'. 3) After that, reply only with DONE, and add the word NOTIFIED if you were told the background task finished.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Starting the background task, then the foreground sleep."},{"type":"tool_use","name":"Shell","input":{"command":"sleep 2; echo BGDONE","block_until_ms":0,"description":"Background sleep 2 then BGDONE"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"sleep 12; echo FOREGROUND","block_until_ms":15000,"description":"Foreground sleep 12 then FOREGROUND"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n\n<user_query>Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"The background task finished successfully (`BGDONE`)."}]}}
+{"type":"turn_ended","status":"success"}
