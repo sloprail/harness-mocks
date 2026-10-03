@@ -47,7 +47,6 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		spawnDepth:              s.spawnDepth,
 		SpawnLimit:              s.parent.SpawnLimit,
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
-		MaxConcurrentSubagents:  s.parent.MaxConcurrentSubagents,
 	}
 	out := subagents.Outcome{}
 	if err := Run(subagents.WithLimit(ctx, s.limit), subCfg); err != nil {

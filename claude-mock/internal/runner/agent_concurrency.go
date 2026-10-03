@@ -9,14 +9,14 @@ import (
 )
 
 // concurrentLimitRefusal is the result of an Agent call made while the
-// session's running sub-agents are at the limit (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS,
-// 20 by default): a tool error telling the agent not to retry, the call
+// session's running sub-agents are at the limit (20, the docs' default): a tool error telling the agent not to retry, the call
 // answered with PostToolUseFailure, and nothing spawned (recorded:
-// snapshots/runs/bgagent-concurrent-limit). ok is false when it may spawn.
+// snapshots/runs/bgagent-concurrent-limit, which set the limit to 1 with
+// CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS). ok is false when it may spawn.
 //
 // sr:provides background-agent/claude
 func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
-	limit := subagents.ConcurrentLimit(cfg.MaxConcurrentSubagents)
+	limit := subagents.DefaultConcurrentLimit
 	running := 0
 	if cfg.bg != nil {
 		for _, t := range cfg.bg.Running() {

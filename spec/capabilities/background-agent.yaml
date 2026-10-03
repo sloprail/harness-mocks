@@ -53,6 +53,11 @@ providers:
           fork mode off.
       - adr: modeled-surface
         statement: >-
+          The mock's concurrent sub-agent limit is the default of 20: it does not
+          read CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS, which the docs give to change
+          it (the bgagent-concurrent-limit recording sets it to 1).
+      - adr: modeled-surface
+        statement: >-
           The mock does not model the sessions the docs exempt from the concurrent
           sub-agent limit: those with ultracode active, which is turned on through
           the effort level in an interactive session.

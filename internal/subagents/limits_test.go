@@ -58,12 +58,7 @@ func TestTallyCountsByClass(t *testing.T) {
 	assert.Equal(t, 6, c.Total())
 }
 
-func TestConcurrentLimit(t *testing.T) {
-	assert.Equal(t, 20, ConcurrentLimit(""))
-	assert.Equal(t, 3, ConcurrentLimit("3"))
-	for _, bad := range []string{"0", "-2", "1.5", "two", "1e3", " 4"} {
-		assert.Equal(t, DefaultConcurrentLimit, ConcurrentLimit(bad), bad)
-	}
-	assert.False(t, AtConcurrentLimit(19, 20))
-	assert.True(t, AtConcurrentLimit(20, 20))
+func TestAtConcurrentLimit(t *testing.T) {
+	assert.False(t, AtConcurrentLimit(DefaultConcurrentLimit-1, DefaultConcurrentLimit))
+	assert.True(t, AtConcurrentLimit(DefaultConcurrentLimit, DefaultConcurrentLimit))
 }
