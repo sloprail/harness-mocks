@@ -45,3 +45,10 @@ providers:
           The mock has no sub-agents (no Task tool and no subagentStart or
           subagentStop event), so the payload fields that name a sub-agent are not
           modeled.
+      - adr: modeled-surface
+        statement: >-
+          The mock fires no workspaceOpen event (an app-lifecycle event outside
+          any session, whose payload omits the conversation id, the session id
+          and the transcript path) and has no setting that disables
+          transcripts (which makes the transcript path null throughout), so
+          those two variants of the common schema are not modeled.
