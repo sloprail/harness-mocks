@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun the shell command: echo SHOULDNOTRUN. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll run that command, then reply with only DONE."},{"type":"tool_use","name":"Shell","input":{"command":"echo SHOULDNOTRUN","description":"Echo SHOULDNOTRUN to stdout"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}
