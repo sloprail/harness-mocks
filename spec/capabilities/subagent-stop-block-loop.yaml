@@ -19,7 +19,8 @@ providers:
       - codex-mock/snapshots/runs/subagent-stop-block-loop-cap
     deviations:
       - adr: capability-grounding
-        statement: Codex has no block cap for a sub-agent's stop hook: a hook that blocked 15 times in a row had the sub-agent run again each time, so the loop ends only when the hook lets it stop.
+        statement: >-
+          Codex has no block cap for a sub-agent's stop hook; a hook that blocked 15 times in a row had the sub-agent run again each time, so the loop ends only when the hook lets it stop.
   cursor:
     supported: false
     reason: cursor-agent in print mode never fires the subagentStart or subagentStop hook (the run configured both, the sub-agent ran and answered), so no block is read and the sub-agent runs once.
