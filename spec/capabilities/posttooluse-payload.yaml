@@ -17,6 +17,8 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/posttool-block
       - codex-mock/snapshots/runs/file-tools
+      - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/shell-exit-status
     deviations:
       - adr: capability-grounding
         statement: >-

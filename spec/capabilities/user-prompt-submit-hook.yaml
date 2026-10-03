@@ -24,6 +24,8 @@ providers:
       - codex-mock/snapshots/runs/user-prompt-submit-hook-rewrite
       - codex-mock/snapshots/runs/user-prompt-submit-hook-bg
       - codex-mock/snapshots/runs/user-prompt-submit-hook-json-block
+      - codex-mock/snapshots/runs/user-prompt-submit-json-context
+      - codex-mock/snapshots/runs/hook-matchers
     deviations:
       - adr: capability-grounding
         statement: >-

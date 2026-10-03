@@ -1,0 +1,5 @@
+{"ran":"start-omitted","event":"SessionStart","tool":""}
+{"ran":"prompt-omitted","event":"UserPromptSubmit","tool":""}
+{"ran":"pre-omitted","event":"PreToolUse","tool":"Bash"}
+{"ran":"post-omitted","event":"PostToolUse","tool":"Bash"}
+{"ran":"stop-omitted","event":"Stop","tool":""}

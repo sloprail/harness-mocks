@@ -24,6 +24,7 @@ providers:
       - https://developers.openai.com/codex/hooks#matcher-patterns
     runs:
       - codex-mock/snapshots/runs/hook-matchers
+      - codex-mock/snapshots/runs/hook-matcher-omitted
     deviations:
       - adr: modeled-surface
         statement: >-
