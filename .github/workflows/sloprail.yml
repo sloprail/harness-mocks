@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-      - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@3a6b7d71b226232b0a7c751c064ad2413345fbea
+      - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@84fb2cc5fb9ce9db7c4d4edcc3b33c339b6ed75c
       # sr-mark: ci-verify
       - env:
           EVENT: ${{ github.event_name }}
