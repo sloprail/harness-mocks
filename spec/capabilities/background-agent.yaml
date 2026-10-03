@@ -31,6 +31,13 @@ providers:
           sub-agent's last output.
       - adr: modeled-surface
         statement: >-
+          The mock has no permission prompts: the docs say a background sub-agent
+          surfaces each one in the main session, and that an answer lasting beyond
+          one call applies to the whole session. A prompt is an interactive-session
+          dialog, and a mock session only carries its permission mode in the hook
+          payloads.
+      - adr: modeled-surface
+        statement: >-
           The mock does not model the interactive-session variant of a sub-agent that
           launched background sub-agents: the docs say it waits for their results
           before it finishes there. A mock session is `-p`, where the launcher does
