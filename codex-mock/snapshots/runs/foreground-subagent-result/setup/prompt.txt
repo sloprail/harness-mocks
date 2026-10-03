@@ -1,0 +1,1 @@
+Spawn one sub-agent and ask it to reply with exactly the word PINEAPPLE-7 and nothing else. Wait for it to finish, then reply with the report it gave you, verbatim.
