@@ -122,14 +122,21 @@ func TestResumeByIDContinuesInTheTranscriptOfItsDirectoryOnly(t *testing.T) {
 		want = append(want, h["hook_event_name"].(string))
 	}
 	cwds := map[string]bool{}
+	var gotPayloads []any
 	for _, m := range readJSONL(t, hookLog) {
 		if ev, ok := m["hook_event_name"].(string); ok {
 			got = append(got, ev)
+			gotPayloads = append(gotPayloads, normalize(m, id, ws))
 			assert.Equal(t, id, m["session_id"])
 			roots, _ := m["workspace_roots"].([]any)
 			cwds[roots[0].(string)] = true
 		}
 	}
+	var wantPayloads []any
+	for _, h := range rec.hooks {
+		wantPayloads = append(wantPayloads, h)
+	}
+	assert.Equal(t, wantPayloads, gotPayloads, "the payloads too: reason, final status, the command and its output")
 	assert.Equal(t, []string{"sessionStart", "afterShellExecution", "sessionEnd", "sessionEnd", "sessionEnd"}, want)
 	assert.Equal(t, want, got, "one start hook, for the session's beginning only; an end hook for every run")
 	assert.Equal(t, map[string]bool{ws: true, other: true}, cwds, "the hooks of the directory it was resumed in fire")
@@ -139,13 +146,6 @@ func TestResumeByIDContinuesInTheTranscriptOfItsDirectoryOnly(t *testing.T) {
 		return filepath.Join(home, ".cursor", "projects", nonAlnum.ReplaceAllString(strings.TrimPrefix(dir, "/"), "-"), "agent-transcripts", id, id+".jsonl")
 	}
 	sample := newestSample(t, "session-resume")
-	for name, path := range map[string][2]string{
-		"its own directory": {filepath.Join(sample, "transcript", "repo", id), project(ws)},
-		"another directory": {filepath.Join(sample, "transcript", "elsewhere", id), project(other)},
-	} {
-		_ = name
-		_ = path
-	}
 	recorded := func(dir string) string {
 		files, _ := filepath.Glob(filepath.Join(sample, "transcript", dir, "*", "*.jsonl"))
 		require.Len(t, files, 1)
