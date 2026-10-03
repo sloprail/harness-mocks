@@ -5,6 +5,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/compaction"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -34,6 +35,7 @@ func (h turnHost) Compact(ctx context.Context, trigger string) error {
 		}
 		return stop
 	}
+	startStopped := false
 	res := compaction.Do(false, compaction.Steps{
 		Before:     func() bool { return stops(hooks.PreCompact) },
 		Boundary:   s.rollout.Compacted,
@@ -41,6 +43,7 @@ func (h turnHost) Compact(ctx context.Context, trigger string) error {
 		AfterStops: func() bool { return stops(hooks.PostCompact) },
 		Resume: func() {
 			for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, "compact", map[string]any{"source": "compact"}) {
+				startStopped = startStopped || hooks.Stops(o)
 				if d := hooks.Interpret(hooks.SessionStart, o); d.Context != "" {
 					s.rollout.Developer(d.Context)
 				}
@@ -52,6 +55,11 @@ func (h turnHost) Compact(ctx context.Context, trigger string) error {
 		s.rollout.TurnAborted(s.turnID)
 		s.events.Abort()
 		return turnloop.ErrAborted
+	}
+	// A session-start hook of the compaction that printed `continue: false` ends
+	// the turn, not the session, as it does at startup (runs/session-start-compact-continue-false).
+	if corehooks.StartHookEndsTurn(startStopped, true) {
+		return turnloop.ErrTurnEnded
 	}
 	return nil
 }
