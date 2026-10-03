@@ -1,0 +1,6 @@
+{"event":"hook","hook":null,"payload":{"hook_ran":"p1"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"project"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

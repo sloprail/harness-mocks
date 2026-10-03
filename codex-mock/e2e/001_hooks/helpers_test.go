@@ -18,6 +18,8 @@ type scenario struct {
 	HooksJSON string
 	// ProjectHooksJSON is the project layer's <repo>/.codex/hooks.json.
 	ProjectHooksJSON string
+	// HomeFiles are written into $CODEX_HOME (a config.toml, say), with {REPO} the repository path.
+	HomeFiles map[string]string
 	// Files are written into the repository (a hook script, say), mode 0755.
 	Files map[string]string
 	// Script is the scenario script.
@@ -60,7 +62,11 @@ func execMock(t *testing.T, s scenario) result {
 		require.NoError(t, os.WriteFile(filepath.Join(r.Repo, ".codex", "hooks.json"), []byte(s.ProjectHooksJSON), 0o644))
 	}
 	for name, body := range s.Files {
+		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(r.Repo, name)), 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(r.Repo, name), []byte(body), 0o755))
+	}
+	for name, body := range s.HomeFiles {
+		require.NoError(t, os.WriteFile(filepath.Join(r.Home, name), []byte(strings.ReplaceAll(body, "{REPO}", r.Repo)), 0o644))
 	}
 	script := filepath.Join(root, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte(s.Script), 0o755))

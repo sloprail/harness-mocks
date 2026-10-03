@@ -220,6 +220,13 @@ func copyFile(t *testing.T, from, to string, mode os.FileMode) {
 // showed beside what the recording showed.
 func replay(t *testing.T, run string) (got, want observed) {
 	t.Helper()
+	return replayWith(t, run)
+}
+
+// replayWith is replay with more arguments on the mock's command line, after
+// running the scenario's prepare.sh (if it has one) in the workspace.
+func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
+	t.Helper()
 	setup, want, calls, prompt := recording(t, run)
 	ws, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -228,6 +235,12 @@ func replay(t *testing.T, run string) (got, want observed) {
 	scripts, _ := filepath.Glob(filepath.Join(setup, "*.sh"))
 	for _, s := range scripts {
 		copyFile(t, s, filepath.Join(ws, ".cursor", "hooks", filepath.Base(s)), 0o755)
+	}
+	if _, err := os.Stat(filepath.Join(setup, "prepare.sh")); err == nil {
+		prep := exec.Command("sh", filepath.Join(setup, "prepare.sh"))
+		prep.Dir = ws
+		out, err := prep.CombinedOutput()
+		require.NoError(t, err, string(out))
 	}
 	writes := writtenContents(want)
 	for i, c := range calls {
@@ -252,7 +265,7 @@ func replay(t *testing.T, run string) (got, want observed) {
 	if _, err := os.Stat(filepath.Join(setup, "no-force")); err == nil { // a run captured without --force
 		flags = []string{"-p", "--trust", "--output-format", "stream-json"}
 	}
-	cmd := exec.Command(binary, append(flags, prompt)...)
+	cmd := exec.Command(binary, append(append(flags, args...), prompt)...)
 	cmd.Dir, cmd.Env = ws, env
 	out, err := cmd.Output()
 	require.NoError(t, err, "the mock failed: %s", out)

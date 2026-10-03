@@ -22,6 +22,9 @@
 #   runs/<name>/setup/args             optional: extra codex exec flags, one per line
 #   runs/<name>/setup/no-json          optional: run without --json, so stream.jsonl holds the
 #                                      final message (stdout) and stderr.txt the progress
+#   runs/<name>/setup/prepare.sh       optional: run in the scratch repo before codex, with
+#                                      HOME and CODEX_HOME the run's (e.g. to lay out a plugin
+#                                      marketplace and register it with `codex plugin`)
 #   runs/<name>/setup/env              optional: KEY=VALUE lines codex inherits on
 #                                      top of the hermetic env (e.g. an outer session's)
 #
@@ -87,6 +90,7 @@ capture_run() {
   [ -f "$run/setup/project-hooks.json" ] && mkdir -p "$work/repo/.codex" && cp "$run/setup/project-hooks.json" "$work/repo/.codex/hooks.json"
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
+  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" CODEX_HOME="$chome" TMPDIR="$work/tmp" sh "$run/setup/prepare.sh")
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
   jsonflag=(--json); [ -f "$run/setup/no-json" ] && jsonflag=()
   extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"

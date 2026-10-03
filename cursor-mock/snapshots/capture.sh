@@ -31,6 +31,8 @@
 #                                      hook.sh appends to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra cursor-agent flags, one per line
 #   runs/<name>/setup/no-force         optional: an empty file; the run leaves --force off
+#   runs/<name>/setup/prepare.sh       optional: run in the scratch repo before cursor-agent, with
+#                                      HOME the run's (e.g. to lay out a plugin directory)
 #   runs/<name>/setup/env              optional: KEY=VALUE lines cursor-agent inherits on
 #                                      top of the hermetic env
 set -euo pipefail
@@ -91,8 +93,9 @@ capture_run() {
   cp "$run/setup/hooks.json" "$work/repo/.cursor/hooks.json" 2>/dev/null || true
   # optional user source: setup/user-hooks.json is the user's ~/.cursor/hooks.json
   if [ -f "$run/setup/user-hooks.json" ]; then mkdir -p "$home/.cursor"; cp "$run/setup/user-hooks.json" "$home/.cursor/hooks.json"; fi
-  for s in "$run"/setup/*.sh; do [ -f "$s" ] && cp "$s" "$work/repo/.cursor/hooks/" && chmod +x "$work/repo/.cursor/hooks/$(basename "$s")"; done
+  for s in "$run"/setup/*.sh; do [ -f "$s" ] && [ "$(basename "$s")" != prepare.sh ] && cp "$s" "$work/repo/.cursor/hooks/" && chmod +x "$work/repo/.cursor/hooks/$(basename "$s")"; done
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
+  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" TMPDIR="$work/tmp" sh "$run/setup/prepare.sh")
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
   extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
   # Hermetic: cursor-agent starts from an EMPTY environment plus only what it needs

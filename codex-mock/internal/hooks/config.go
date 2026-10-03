@@ -51,7 +51,8 @@ type fileGroup struct {
 }
 
 // Load reads hooks.json from the user layer ($CODEX_HOME) and the project
-// layer (<cwd>/.codex), in that order; a missing file is no hooks. Only
+// layer (<cwd>/.codex), in that order, then the hooks of the plugins the user
+// layer's config.toml enables (plugins.go); a missing file is no hooks. Only
 // command handlers are kept: Codex skips the other handler types it parses.
 //
 // sr:docs https://developers.openai.com/codex/hooks#where-codex-looks-for-hooks
@@ -62,30 +63,41 @@ func Load(codexHome, cwd string) (Config, error) {
 		if dir == "" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, "hooks.json"))
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
+		if err := cfg.addFile(filepath.Join(dir, "hooks.json")); err != nil {
 			return nil, err
-		}
-		var f struct {
-			Hooks map[Event][]fileGroup `json:"hooks"`
-		}
-		if err := json.Unmarshal(data, &f); err != nil {
-			return nil, err
-		}
-		for ev, groups := range f.Hooks {
-			for _, g := range groups {
-				out := Group{Matcher: g.Matcher}
-				for _, h := range g.Hooks {
-					if h.Type == "command" {
-						out.Handlers = append(out.Handlers, Handler{Command: h.Command, Timeout: h.Timeout})
-					}
-				}
-				cfg[ev] = append(cfg[ev], out)
-			}
 		}
 	}
+	if err := cfg.addPlugins(codexHome); err != nil {
+		return nil, err
+	}
 	return cfg, nil
+}
+
+// addFile adds the hooks of one hooks.json; a missing file adds none.
+func (cfg Config) addFile(path string) error {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var f struct {
+		Hooks map[Event][]fileGroup `json:"hooks"`
+	}
+	if err := json.Unmarshal(data, &f); err != nil {
+		return err
+	}
+	for ev, groups := range f.Hooks {
+		for _, g := range groups {
+			out := Group{Matcher: g.Matcher}
+			for _, h := range g.Hooks {
+				if h.Type == "command" {
+					out.Handlers = append(out.Handlers, Handler{Command: h.Command, Timeout: h.Timeout})
+				}
+			}
+			cfg[ev] = append(cfg[ev], out)
+		}
+	}
+	return nil
 }
