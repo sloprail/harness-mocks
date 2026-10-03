@@ -74,7 +74,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
-	conf, err := hooks.Load(cfg.Dir)
+	conf, err := hooks.Load(cfg.Dir, cfg.PluginDirs...)
 	if err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}

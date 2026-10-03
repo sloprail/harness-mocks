@@ -10,6 +10,7 @@ import (
 type flags struct {
 	print, force, yolo, trust, streamPartial, plan, resume, cont  bool
 	outputFormat, model, workspace, script, apiKey, sandbox, mode string
+	pluginDirs                                                    []string
 }
 
 func newRoot() *cobra.Command {
@@ -46,5 +47,6 @@ the stream through:
 	p.StringVar(&f.apiKey, "api-key", "", "accepted, ignored")
 	p.StringVar(&f.sandbox, "sandbox", "", "accepted, ignored")
 	p.StringVar(&f.script, "script", "", "the scenario script (default: $A10N_MOCK_SCRIPT)")
+	p.StringArrayVar(&f.pluginDirs, "plugin-dir", nil, "load a local plugin directory: its hooks join the project's (repeatable)")
 	return root
 }

@@ -31,19 +31,34 @@ type Config struct {
 	entries map[Event][]Entry
 }
 
-// Load reads <dir>/.cursor/hooks.json. No file is no hooks. A hook's command,
+// Load reads <dir>/.cursor/hooks.json, then the hooks of each plugin directory
+// loaded with --plugin-dir (plugin.go). No file is no hooks. A hook's command,
 // failClosed, matcher and timeout are modeled; its loop_limit, the prompt type
 // of hook and the user, team and enterprise sources are not.
 //
 // sr:docs https://cursor.com/docs/hooks#configuration
-func Load(dir string) (Config, error) {
-	path := filepath.Join(dir, ".cursor", "hooks.json")
+func Load(dir string, pluginDirs ...string) (Config, error) {
+	c := Config{entries: map[Event][]Entry{}}
+	if err := c.addFile(filepath.Join(dir, ".cursor", "hooks.json")); err != nil {
+		return Config{}, err
+	}
+	for _, p := range pluginDirs {
+		if err := c.addPlugin(dir, p); err != nil {
+			return Config{}, err
+		}
+	}
+	return c, nil
+}
+
+// addFile adds the hooks of one hooks.json after those already configured; a
+// missing file adds none.
+func (c Config) addFile(path string) error {
 	raw, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return Config{}, nil
+		return nil
 	}
 	if err != nil {
-		return Config{}, err
+		return err
 	}
 	var file struct {
 		Hooks map[string][]struct {
@@ -54,9 +69,8 @@ func Load(dir string) (Config, error) {
 		} `json:"hooks"`
 	}
 	if err := json.Unmarshal(raw, &file); err != nil {
-		return Config{}, fmt.Errorf("%s: %w", path, err)
+		return fmt.Errorf("%s: %w", path, err)
 	}
-	c := Config{entries: map[Event][]Entry{}}
 	for name, defs := range file.Hooks {
 		for _, d := range defs {
 			if d.Command != "" {
@@ -64,7 +78,7 @@ func Load(dir string) (Config, error) {
 			}
 		}
 	}
-	return c, nil
+	return nil
 }
 
 // Entries are the hooks configured for the event, in order.

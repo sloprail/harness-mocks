@@ -12,3 +12,6 @@ docs:
   https://developers.openai.com/codex/cli/reference:
     version: 0.159.3
     sha256: 6dec20e0f916ad689f9fe6dde8f259835725ca5e3fd07c8bf6222b9bc5659ef7
+  https://developers.openai.com/plugins/build/plugins:
+    version: 0.159.3
+    sha256: cc5b62094f9c8fcd910c6ae72fa58c63a13191abdc29fb45b19500e241f71460

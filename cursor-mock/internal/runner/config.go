@@ -16,6 +16,8 @@ type Config struct {
 	Environ []string
 	// Home is the user's home, where Cursor keeps ~/.cursor.
 	Home string
+	// PluginDirs are the plugin directories loaded with --plugin-dir.
+	PluginDirs []string
 	// Version is the Cursor version the mock reports in hook payloads.
 	Version string
 	// Force: the run was started with --force or --yolo, which approves every
