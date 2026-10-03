@@ -200,3 +200,39 @@ func TestSubagentHookPayloadsAndMatcher(t *testing.T) {
 		assert.NotContains(t, r, "hook_prompt")
 	}
 }
+
+// Codex puts no cap on a sub-agent's blocks: a stop hook that blocked 15 times
+// in a row had the sub-agent run 15 more times, and it stopped only when the
+// hook let it (runs/subagent-stop-block-loop-cap); the mock does the same.
+// sr:proves subagent-stop-block-loop/codex
+func TestSubagentStopBlocksAreNotCapped(t *testing.T) {
+	rec := loadRecording(t, "subagent-stop-block-loop-cap")
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files:     map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh")), "sub.sh": subScript},
+		Script:    spawnThenResult, Prompt: "go",
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	count := func(lines []map[string]any) (stops, active int) {
+		for _, l := range lines {
+			if l["hook_event_name"] == "SubagentStop" {
+				stops++
+				if l["stop_hook_active"] == true {
+					active++
+				}
+			}
+		}
+		return
+	}
+	wantStops, wantActive := count(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
+	require.Equal(t, 16, wantStops)
+	gotStops, gotActive := count(got.hookLog())
+	assert.Equal(t, wantStops, gotStops)
+	assert.Equal(t, wantActive, gotActive)
+	feedback := 0
+	for _, r := range rollouts(t, got.Home) {
+		reasons, _ := feedbackOf(r)
+		feedback += len(reasons)
+	}
+	assert.Equal(t, 15, feedback, "every block was honoured")
+}
