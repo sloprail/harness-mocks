@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -10,8 +11,8 @@ import (
 )
 
 func main() {
-	runner.ConcurrentSubagentsSetting = os.Getenv("CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS")
-	if err := newRoot().Execute(); err != nil {
+	ctx := runner.WithConcurrentSubagents(context.Background(), os.Getenv("CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"))
+	if err := newRoot().ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
