@@ -21,6 +21,9 @@ type Decision struct {
 	// Permission is a before-tool decision the command accepted or denied
 	// ("allow", "deny"), for ranking when several hooks decide one call.
 	Permission string
+	// Halt: a Stop hook printed `continue: false`, which ends the turn whatever
+	// the other matching Stop hooks decided.
+	Halt bool
 	// Context is text the hook adds as developer context.
 	Context string
 	// Error is set when the hook failed without blocking anything: it could
@@ -86,6 +89,9 @@ func readOutput(ev Event, s string) Decision {
 	}
 	if out.Decision != nil && *out.Decision == "block" {
 		d.Denied, d.DenyReason, d.Permission = true, out.Reason, "deny"
+	}
+	if ev == Stop && out.Continue != nil && !*out.Continue {
+		d.Halt = true
 	}
 	if ev == PreToolUse {
 		return preToolOutput(d, out)

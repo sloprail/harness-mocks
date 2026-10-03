@@ -10,6 +10,32 @@ func Continues(blockedByStatus, blockedByDecision bool) bool {
 	return blockedByStatus || blockedByDecision
 }
 
+// Verdict is what one end-of-turn hook decided: to block (with the reason it
+// gives), or to halt, which ends the turn.
+type Verdict struct {
+	Block  bool
+	Reason string
+	Halt   bool
+}
+
+// Resolve is what all the end-of-turn hooks that ran decide together: whether
+// the turn goes on (see Continues), and with which reason, the first block's. A
+// hook that halts takes precedence over every block, however many there are and
+// whichever ran first: the turn ends.
+func Resolve(verdicts []Verdict) (reason string, again bool) {
+	for _, v := range verdicts {
+		if v.Halt {
+			return "", false
+		}
+	}
+	for _, v := range verdicts {
+		if v.Block {
+			return v.Reason, true
+		}
+	}
+	return "", false
+}
+
 // AfterBlock reports whether a block still continues the turn, given how many
 // blocks in a row there have been, this one included: the turn goes on only a
 // limited number of times in a row, and once blockCap blocks have continued it

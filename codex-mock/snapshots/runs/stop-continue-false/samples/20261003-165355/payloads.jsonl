@@ -1,0 +1,4 @@
+{"session_id":"01a102af-d03b-7ee0-a2d7-faa12b1d89ec","turn_id":"01a102af-d831-7ff0-9948-11851c0d0c7d","transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T18-54-00-01a102af-d03b-7ee0-a2d7-faa12b1d89ec.jsonl","cwd":"<RUN>","hook_event_name":"Stop","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","stop_hook_active":false,"last_assistant_message":"DONE"}
+{"hook_result":{"hook":"halt"}}
+{"session_id":"01a102af-d03b-7ee0-a2d7-faa12b1d89ec","turn_id":"01a102af-d831-7ff0-9948-11851c0d0c7d","transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T18-54-00-01a102af-d03b-7ee0-a2d7-faa12b1d89ec.jsonl","cwd":"<RUN>","hook_event_name":"Stop","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","stop_hook_active":false,"last_assistant_message":"DONE"}
+{"hook_result":{"hook":"block","call":1}}

@@ -17,6 +17,16 @@ providers:
       - https://developers.openai.com/codex/hooks#stop
     runs:
       - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/bg-bash-reaped-at-exit
+      - codex-mock/snapshots/runs/stop-no-message
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex's Stop payload lists no background tasks: the recorded Stop of
+          a turn that ended while a command was still running carries the same
+          fields (session, turn, transcript, cwd, model, permission mode,
+          stop_hook_active, last_assistant_message) as one with none running,
+          and the hooks doc lists no such field.
   cursor:
     supported: false
     reason: cursor-agent in print mode never fires the stop hook (the run configured one logging its payload), so no payload with a last message, continuation flag or background tasks is ever delivered.

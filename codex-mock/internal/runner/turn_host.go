@@ -8,6 +8,7 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/scenario"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
+	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
 // turnHost is Codex's side of a turn: its prompt and end-of-turn hooks, and
@@ -55,17 +56,24 @@ func (h turnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
 // sr:provides stop-block-continuation/codex
 // sr:provides stop-hook-payload/codex
 func (h turnHost) EndOfTurn(ctx context.Context, last string, continuing bool) (string, bool) {
-	own := map[string]any{"turn_id": h.turnID, "stop_hook_active": continuing, "last_assistant_message": last}
+	var message any = last
+	if last == "" { // recorded (runs/stop-no-message): an empty reply is a null message
+		message = nil
+	}
+	own := map[string]any{"turn_id": h.turnID, "stop_hook_active": continuing, "last_assistant_message": message}
+	var verdicts []turnloop.Verdict
 	for _, o := range h.hooks.Fire(ctx, hooks.Stop, "", own) {
 		d := hooks.Interpret(hooks.Stop, o)
+		v := turnloop.Verdict{Halt: d.Halt}
 		switch {
 		case d.Blocked:
-			return d.BlockReason, true
+			v.Block, v.Reason = true, d.BlockReason
 		case d.Denied:
-			return d.DenyReason, true
+			v.Block, v.Reason = true, d.DenyReason
 		}
+		verdicts = append(verdicts, v)
 	}
-	return "", false
+	return turnloop.Resolve(verdicts)
 }
 
 // Continue records the reason that continues the turn, as the user message
