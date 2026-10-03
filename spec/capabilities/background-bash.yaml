@@ -33,7 +33,9 @@ providers:
           background tasks, and no interactive session in which a command
           started by the main conversation keeps running after a final
           response: a mock's session is non-interactive, where the run ends
-          the command (background-bash-reaped-at-exit).
+          the command (background-bash-reaped-at-exit). Nor does it model a
+          command started by a background sub-agent that keeps running after
+          that sub-agent's final response, unlike a foreground sub-agent's.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#tool-coverage
