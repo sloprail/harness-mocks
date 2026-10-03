@@ -14,7 +14,7 @@ providers:
       - codex-mock/snapshots/runs/print-waits-for-background-agents
   cursor:
     docs:
-      - https://cursor.com/docs/subagents#foreground-vs-background
+      - https://cursor.com/docs/hooks#subagentstop
     runs:
       - cursor-mock/snapshots/runs/print-waits-for-background-agents
     deviations:

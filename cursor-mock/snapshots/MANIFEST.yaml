@@ -6,6 +6,3 @@ docs:
   https://cursor.com/docs/cli/headless:
     version: 2026.09.28
     sha256: d767966f4e86012bce9e358c80c8a8e056d4ad0c8e73d74fd036d5acdf32a7af
-  https://cursor.com/docs/subagents:
-    version: 2026.09.28
-    sha256: e1be8a37fe4244e970469fbe5e69555d1c56b6503fc0b1e662f68373157a65c8
