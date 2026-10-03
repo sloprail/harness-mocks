@@ -15,6 +15,9 @@ func runsInBackground(input json.RawMessage) bool {
 	if json.Unmarshal(input, &in) != nil {
 		return false
 	}
+	if isForkInput(input) { // fork mode runs every sub-agent in the background
+		return true
+	}
 	switch v := in.RunInBackground.(type) {
 	case bool:
 		return v

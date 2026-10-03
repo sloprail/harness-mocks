@@ -41,7 +41,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 
 	// At the spawn limit a sub-agent has no Agent tool to call.
 	if !(subagents.Parent{ID: cfg.AgentID, Depth: cfg.spawnDepth}).CanDispatch(cfg.SpawnLimit) {
-		return nil, in, toolexec.Result{Output: "Error: No such tool available: Agent", IsError: true}
+		return nil, in, atSpawnLimit(cfg)
 	}
 
 	if refusal, refused := concurrentLimitRefusal(cfg); refused {
@@ -107,6 +107,12 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		AgentType: agentType, Description: in.Description, ToolUseID: toolUseID,
 		ParentAgentID: place.ParentID, SpawnDepth: place.Depth,
 		RequestShape: shape, RequestNonInteractive: true, Model: in.Model,
+	}
+	if agentType == forkAgentType {
+		meta.IsFork = true
+		if meta.Model == "" {
+			meta.Model = "inherit"
+		}
 	}
 	if subCwd != cfg.Cwd {
 		meta.WorktreePath, meta.WorktreeBranch = subCwd, branch

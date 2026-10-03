@@ -68,6 +68,8 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	var preRuns, postRuns []hooks.HandlerRun
 	var sum map[string]any
 	var anchor, summaryText string
+	var boundaryFrames func()
+	var summaryLine []byte
 	happened := compaction.Run(trigger == "manual", compaction.Steps{
 		Before: func() bool {
 			preOut, preErr := inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { preRuns = runs }).Fire(ctx, hooks.Input{
@@ -91,16 +93,15 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 		},
 		Summarizer: func() { fireSummarizerStop(ctx, cfg, inv, tr, summaryText) },
 		Boundary: func() {
-			writeCompactBoundary(cfg, tr, compactionSpec{
+			boundaryFrames = writeCompactBoundary(cfg, tr, compactionSpec{
 				logicalParent: rec.LogicalParent, preserve: preserve, anchor: anchor, trigger: trigger,
 				preTokens: rec.PreTokens, postTokens: rec.PostTokens, durationMs: time.Since(started).Milliseconds(),
 				withSegment: rec.PreservedSegment == nil || *rec.PreservedSegment, tailOffset: rec.TailOffset,
 			})
 		},
 		Summary: func() {
-			sumLine, _ := marshalRecord(sum)
-			writeStreamLine(cfg, sumLine)
-			tr.persist(sumLine)
+			summaryLine, _ = marshalRecord(sum)
+			tr.persist(summaryLine)
 		},
 		Resume: func() {
 			ssInv := inv
@@ -108,6 +109,10 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 				ssInv = inv.WithRecorder(tr.holdHookRuns)
 			}
 			fireCompactedStart(ctx, cfg, ssInv)
+			// the stream: SessionStart:compact's hook frames, then the end status,
+			// init and boundary, then the summary (recorded: snapshots/runs/compact)
+			boundaryFrames()
+			writeStreamLine(cfg, summaryLine)
 		},
 		After: func() {
 			_, _ = inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { postRuns = runs }).Fire(ctx, hooks.Input{

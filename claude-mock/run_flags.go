@@ -38,6 +38,9 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagScript, "", "Shell script to run as the mock agent (env: A10N_MOCK_SCRIPT)")
 	cmd.Flags().String(flagSessionID, "", "Session ID (--session-id, as used by claude CLI)")
 	cmd.Flags().String(flagResume, "", "Session ID to resume (--resume, as used by claude CLI)")
+	// --continue resumes the most recent session of the directory (headless#continue-conversations).
+	cmd.Flags().Bool(flagContinue, false, "Resume the most recent session of the project directory (--continue, as used by claude CLI)")
+	cmd.Flags().Bool(flagNoPersistence, false, "Leave no session to resume (--no-session-persistence, as used by claude CLI)")
 	// --fork-session: when resuming, continue under a NEW session id in a new
 	// transcript instead of appending to the original. The new id is
 	// --session-id when given, else generated. See runner.forkTranscript for the

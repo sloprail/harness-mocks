@@ -1,0 +1,1 @@
+Use the Agent tool with subagent_type fork, description 'outerfork', prompt: 'Use the Agent tool with subagent_type general-purpose, description inner, prompt Reply with the single word INNER. Then reply with the exact text of the tool result you got back.' Then reply only DONE.

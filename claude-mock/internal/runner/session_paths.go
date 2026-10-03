@@ -3,6 +3,7 @@ package runner
 import (
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/sloprail/harness-mocks/internal/session"
 	coretranscript "github.com/sloprail/harness-mocks/internal/transcript"
@@ -70,3 +71,15 @@ func sessionFilePathIfExists(configDir, cwd, sessionID string) string {
 // NewSessionID returns a fresh session id, the shape real Claude Code uses (a
 // v4 uuid).
 func NewSessionID() string { return newRecordUUID() }
+
+// ForgetSession removes what a session left on disk, its transcript and its
+// sub-agents' beside it: `--no-session-persistence` leaves nothing to resume
+// (recorded: snapshots/runs/no-session-persistence wrote no transcript at all).
+// The mock needs the file while it runs, so it is removed when the run is over.
+//
+// sr:provides session-resume/claude
+func ForgetSession(configDir, cwd, id string) {
+	path := sessionFilePath(resolveConfigDir(configDir), cwd, id)
+	_ = os.Remove(path)
+	_ = os.RemoveAll(strings.TrimSuffix(path, claudeLayout.Ext))
+}

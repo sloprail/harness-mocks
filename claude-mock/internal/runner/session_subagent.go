@@ -16,6 +16,7 @@ import (
 // spawnedWithWorktree and worktreeBranch.
 type subagentMeta struct {
 	AgentType             string `json:"agentType"`
+	IsFork                bool   `json:"isFork,omitempty"`
 	WorktreePath          string `json:"worktreePath,omitempty"`
 	SpawnedWithWorktree   bool   `json:"spawnedWithWorktree,omitempty"`
 	WorktreeBranch        string `json:"worktreeBranch,omitempty"`

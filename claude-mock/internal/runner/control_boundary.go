@@ -8,7 +8,8 @@ import (
 	"github.com/sloprail/harness-mocks/internal/compaction"
 )
 
-// writeCompactBoundary appends the compact_boundary a compaction opens with.
+// writeCompactBoundary appends the compact_boundary a compaction opens with and
+// returns the writer of the stream frames that announce it.
 // It is APPENDED to the file the session is writing, not a new file: the file
 // a real compaction happened in holds its boundary part-way down (46 of the 65
 // real boundaries), and only a later resume moves the conversation to a new
@@ -27,7 +28,7 @@ import (
 //   - without one (F:compact-nohooks; 1 of 65): neither field.
 //
 // sr:provides compaction-transcript-continuity/claude
-func writeCompactBoundary(cfg Config, tr *transcript, spec compactionSpec) {
+func writeCompactBoundary(cfg Config, tr *transcript, spec compactionSpec) (streamFrames func()) {
 	plan := compaction.PlanBoundary(compaction.PlanInput{
 		WithSegment: spec.withSegment, Preserve: spec.preserve, TailOffset: spec.tailOffset,
 		LogicalParent: spec.logicalParent,
@@ -65,7 +66,10 @@ func writeCompactBoundary(cfg Config, tr *transcript, spec compactionSpec) {
 	asOrigin(boundary)
 	continuesFrom(boundary, plan.LogicalParent)
 	tr.persistMap(boundary)
-	writeCompactedFrames(cfg, meta, plan.LogicalParent)
+	// The stream's frames for it come later: SessionStart:compact streams its
+	// hook frames before the end status, init and boundary (recorded:
+	// snapshots/runs/compact).
+	return func() { writeCompactedFrames(cfg, meta, plan.LogicalParent) }
 }
 
 // lastCumulativeDropped is the cumulativeDroppedTokens of the last compact

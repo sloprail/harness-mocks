@@ -11,6 +11,18 @@ providers:
       - https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents
     runs:
       - claude-mock/snapshots/runs/meta
+      - claude-mock/snapshots/runs/nested-fork-limit
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          A fork (the fork sub-agent type, on by default in interactive
+          sessions and opt-in with CLAUDE_CODE_FORK_SUBAGENT in print mode)
+          inherits the whole conversation and keeps its Agent tool at the
+          depth limit, where a dispatch is refused with an error. The mock
+          models a fork as the recorded run shows it, run in the background
+          with a sidecar of agentType fork, isFork and model inherit and
+          refused at the limit with the recorded error, and does not model
+          the inherited conversation or the fork-mode switch.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields

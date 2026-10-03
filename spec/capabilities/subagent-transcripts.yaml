@@ -11,5 +11,21 @@ providers:
       - claude-mock/snapshots/runs/meta
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/bgagent
+      - claude-mock/snapshots/runs/transcript-retention
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The sub-agents doc describes resuming a finished sub-agent by
+          messaging it (SendMessage), which continues the same transcript file.
+          The mock does not model SendMessage or sub-agent resume: a sub-agent
+          runs once, writes its one file and sidecar, and is not continued.
+      - adr: capability-grounding
+        statement: >-
+          The docs say sub-agent transcripts are deleted with their session once
+          it is older than cleanupPeriodDays. In the recorded print-mode run, a
+          session of another project 63 days old with its sub-agent file and
+          sidecar, and cleanupPeriodDays set to 30, was left whole when the run
+          ended: the real harness did not sweep within the run, and the mock
+          has no sweep either.
   codex: pending
   cursor: pending

@@ -1,0 +1,11 @@
+8c8296091d4e28839b5985e6ef9f5d71af7d9714cb5a028d60f33c4e737ec660  ./events.jsonl
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  ./exit.txt
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./stderr.txt
+c15c6c1d2eeb192ec55fd036d9b86f4dd9112c528a2ffdcc4f155ac8c99855dd  ./stream.jsonl
+b743a5cbe4d0d67e81b095e14de700e00b540666cc0eb7b8f524c8c571b45bf0  ./transcript/e9cb98ea-3493-41d0-b050-eacce57c54a5.jsonl
+d9220e2b8730948cb3ae3bb59b82cd9e4004bf70a9ee8206735bb1973c7d3ef8  ./transcript/oldsess.jsonl
+51669939cf60f67dbd031c44cc0bb16ef86e1b29ae837b21a05948952e920752  ./transcript/oldsess/subagents/agent-aaaa.jsonl
+ddeecf0b81355aabd2be72f180672199842e7df0db8dcc81eefac5cbc37c490f  ./transcript/oldsess/subagents/agent-aaaa.meta.json
+2fa67cb25b0b5a557dc885052425363bb8d783611df8446292ae56e0dc88e172  ./transcript/recentsess.jsonl
+73434490be76e838e7eeca58184795601f4c52523599348cd4c5019fea9fc7f9  ./transcript/recentsess/subagents/agent-aaaa.jsonl
+ddeecf0b81355aabd2be72f180672199842e7df0db8dcc81eefac5cbc37c490f  ./transcript/recentsess/subagents/agent-aaaa.meta.json

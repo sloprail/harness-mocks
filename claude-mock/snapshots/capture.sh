@@ -106,6 +106,10 @@ capture_run() {
     # to the directory <target> (also in the repo), for a step that runs from <name>
     [ -f "$step/symlink" ] && { read -r lname ltarget <"$step/symlink"; mkdir -p "$work/repo/$ltarget"; ln -sfn "$work/repo/$ltarget" "$work/repo/$lname"; }
     sdir="$work/repo"; [ -f "$step/cwd" ] && sdir="$work/repo/$(cat "$step/cwd")" && { [ -L "$sdir" ] || mkdir -p "$sdir"; }
+    # @TRANSCRIPTS@ in an arg is the folder this step's sessions are written to, so a step can
+    # resume a session by the path of its transcript file (--resume @TRANSCRIPTS@/<id>.jsonl)
+    senc="$(printf '%s' "$sdir" | sed 's#[^A-Za-z0-9]#-#g')"
+    if [ "${#sargs[@]}" -gt 0 ]; then for i in "${!sargs[@]}"; do sargs[$i]="${sargs[$i]//@TRANSCRIPTS@/$home/.claude/projects/$senc}"; done; fi
     # a step's own settings.json and hook.sh are installed in its directory, which is
     # then a project of its own: the hooks of the repo root are not loaded from below it
     [ -f "$step/settings.json" ] && mkdir -p "$sdir/.claude" && cp "$step/settings.json" "$sdir/.claude/settings.json"

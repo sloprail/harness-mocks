@@ -1,9 +1,11 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sloprail/harness-mocks/internal/session"
 )
@@ -57,4 +59,39 @@ func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
 		buf = append(append(buf, b...), '\n')
 	}
 	return os.WriteFile(dest, buf, 0o644)
+}
+
+// ResumeTarget is the session id a `--resume` value names: the path of a session's
+// transcript file (claude 2.1.285 resumed one by its path and appended to that file;
+// recorded: snapshots/runs/resume-path), the id of a session, or the name a session
+// was given (recorded: resume-name).
+//
+// sr:provides session-resume/claude
+func ResumeTarget(configDir, cwd, value string) string {
+	return session.Target(claudeLayout, resolveConfigDir(configDir), cwd, value, func(path string) bool { return sessionTitleOf(path) == value })
+}
+
+// LatestSession is the id `--continue` resumes: the most recently written session of
+// the directory, or "" (recorded: snapshots/runs/resume-continue).
+//
+// sr:provides session-resume/claude
+func LatestSession(configDir, cwd string) string {
+	return session.Latest(claudeLayout, resolveConfigDir(configDir), cwd, func(string) bool { return true })
+}
+
+// sessionTitleOf is the name the transcript at path records for its session (its
+// last agent-name record), or "".
+func sessionTitleOf(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	name := ""
+	for _, line := range strings.Split(string(data), "\n") {
+		var rec struct{ Type, AgentName string }
+		if strings.Contains(line, `"agent-name"`) && json.Unmarshal([]byte(line), &rec) == nil && rec.Type == "agent-name" {
+			name = rec.AgentName
+		}
+	}
+	return name
 }

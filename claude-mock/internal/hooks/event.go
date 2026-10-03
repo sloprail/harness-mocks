@@ -49,6 +49,7 @@ type Input struct {
 	Cwd            string    `json:"cwd"`
 	HookEventName  EventName `json:"hook_event_name"`
 	PermissionMode string    `json:"permission_mode,omitempty"`
+	SessionTitle   string    `json:"session_title,omitempty"` // a named session's resume start (snapshots/runs/resume-name)
 
 	// SessionStart: Source is "startup" | "resume" | "clear" | "compact" |
 	// "fork". Verified against claude 2.1.282: a `--resume <id> --fork-session`

@@ -50,8 +50,20 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 	if kind == corehooks.StartResumed || kind == corehooks.StartForked {
 		in.ResumeFields = resumeFields(cfg.sessionFile)
 	}
+	if kind == corehooks.StartResumed {
+		in.SessionTitle = sessionTitleOf(cfg.sessionFile)
+	}
 	ssOut, runs, ferr := inv.FireRuns(ctx, in)
+	// Only the SessionStart of a session resumed from another directory is told
+	// the path under that directory's project folder; every hook after it is told
+	// the file the session really writes (recorded: snapshots/runs/forkresume, step 4).
+	if cfg.sessionFile != "" {
+		inv.SetTranscriptPath(cfg.sessionFile)
+	}
 	writeSessionStartFrames(cfg, in, runs)
+	if in.SessionTitle != "" { // after the hooks' frames, before init (recorded: snapshots/runs/resume-name)
+		writeFrame(cfg, map[string]any{"type": "system", "subtype": "session_title_changed", "title": in.SessionTitle})
+	}
 	var blockErr *hooks.BlockError
 	if errors.As(ferr, &blockErr) && corehooks.BlocksSessionStart(corehooks.Blocked) {
 		return "", ferr
