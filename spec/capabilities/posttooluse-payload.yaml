@@ -16,6 +16,12 @@ providers:
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/posttool-block
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex's PostToolUse payload does not say how long the call took: it
+          has no duration field, in its doc or in any recorded payload, and the
+          mock sends none.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#posttooluse
