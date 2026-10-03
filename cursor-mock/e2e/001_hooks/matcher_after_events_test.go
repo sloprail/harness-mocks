@@ -84,3 +84,61 @@ func TestAnEmptyStringMatcherMatchesEveryCall(t *testing.T) {
 		require.Equal(t, []string{"pre-empty"}, rans(o.results, "preToolUse", "Read"), name)
 	}
 }
+
+// ranFor are the hooks that ran for an event on a tool's calls, each once,
+// whatever the number of calls, by the name the scenario's hook script was given.
+func ranFor(results []string, event, tool string) []string {
+	seen := map[string]bool{}
+	for _, r := range results {
+		p := strings.Split(r, ":")
+		if p[0] == "ran" && len(p) >= 6 && p[2] == event && p[3] == tool {
+			seen[p[1]] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// The recorded run runs/hook-matchers has, on preToolUse, matchers for one
+// tool (Shell, Read, Write), a pattern ("Sh.*|Rea"), "*" and none; on
+// postToolUse matchers for Shell and Read; two Shell calls, a Write and two
+// Reads.
+
+// TestEachToolEventRunsTheHooksWhoseMatcherSelectsItsTool: recorded, a tool
+// event runs exactly the hooks whose matcher selects the tool's name: a
+// preToolUse for Shell runs the Shell, pattern, "*" and unmatched hooks; for
+// Write the Write, "*" and unmatched hooks, but not the pattern "Sh.*|Rea",
+// which matches neither name; for Read the Read, "*" and unmatched hooks and
+// the pattern, which selects Read by its unanchored part "Rea". postToolUse
+// runs the Shell hook after the Shell calls, the Read hook after the Reads and
+// none after the Write.
+// sr:proves hook-matcher-filter/cursor
+func TestEachToolEventRunsTheHooksWhoseMatcherSelectsItsTool(t *testing.T) {
+	got, want := replay(t, "hook-matchers")
+	conforms(t, got, want)
+
+	for name, o := range map[string]observed{"recorded": want, "mock": got} {
+		require.Equal(t, []string{"pre-Shell", "pre-none", "pre-regex", "pre-star"}, ranFor(o.results, "preToolUse", "Shell"), name)
+		require.Equal(t, []string{"pre-Write", "pre-none", "pre-star"}, ranFor(o.results, "preToolUse", "Write"), name+": the pattern selects neither Write nor Sh.*")
+		require.Equal(t, []string{"pre-Read", "pre-none", "pre-regex", "pre-star"}, ranFor(o.results, "preToolUse", "Read"), name+": the pattern selects Read by a partial match")
+		require.Equal(t, []string{"post-Shell"}, ranFor(o.results, "postToolUse", "Shell"), name)
+		require.Equal(t, []string{"post-Read"}, ranFor(o.results, "postToolUse", "Read"), name)
+		require.Empty(t, ranFor(o.results, "postToolUse", "Write"), name+": no postToolUse hook is configured for Write")
+		// the hooks without a matcher or with "*" ran on every one of the five calls
+		var star, none int
+		for _, r := range o.results {
+			if strings.HasPrefix(r, "ran:pre-star:preToolUse") {
+				star++
+			}
+			if strings.HasPrefix(r, "ran:pre-none:preToolUse") {
+				none++
+			}
+		}
+		require.Equal(t, 5, star, name)
+		require.Equal(t, 5, none, name)
+	}
+}
