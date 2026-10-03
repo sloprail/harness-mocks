@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      { "command": ".cursor/hooks/decide.sh first-block block BLOCKFIRST" },
+      { "command": ".cursor/hooks/decide.sh deny-one deny 'BOTH|BLOCKFIRST|TWODENY'" },
+      { "command": ".cursor/hooks/decide.sh block-two block 'BOTH'" },
+      { "command": ".cursor/hooks/decide.sh deny-two deny TWODENY" }
+    ],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/hook.sh" }],
+    "postToolUse": [{ "command": ".cursor/hooks/hook.sh" }]
+  }
+}

@@ -62,8 +62,11 @@ func TestAFailClosedHookBlocksOnAnyFailure(t *testing.T) {
 	}
 }
 
+// Recorded (runs/pretool-refusal-combined): hooks that refuse one call, by exit
+// status or by output, all have their messages told, in the order the hooks are
+// configured in, separated by a blank line, a rule and a blank line.
 // sr:proves pretooluse-refusal/cursor
-func TestRefusalDenyWinsAndABlockOutranksIt(t *testing.T) {
+func TestRefusalAnyRefusingHookRefusesAndEveryMessageIsTold(t *testing.T) {
 	deny := Decision{Permission: "deny", Message: "json says no"}
 	block := Decision{Permission: "deny", Blocked: true, Message: "exit says no"}
 	allow := Decision{Permission: "allow"}
@@ -80,8 +83,10 @@ func TestRefusalDenyWinsAndABlockOutranksIt(t *testing.T) {
 		{"deny after ask", []Decision{{Permission: "ask"}, deny}, true, "json says no"},
 		{"deny before ask", []Decision{deny, {Permission: "ask"}}, true, "json says no"},
 		{"deny after allow", []Decision{allow, deny}, true, "json says no"},
-		{"a block outranks a deny", []Decision{deny, block}, true, "exit says no"},
-		{"messages of denying hooks are concatenated", []Decision{deny, {Permission: "deny", Message: "and more"}}, true, "json says no\nand more"},
+		{"a deny then a block: both are told, in order", []Decision{deny, block}, true, "json says no\n\n---\n\nexit says no"},
+		{"a block then a deny: both are told, in order", []Decision{block, deny}, true, "exit says no\n\n---\n\njson says no"},
+		{"a hook that decided nothing between two that refused is not told", []Decision{deny, {}, {Permission: "deny", Message: "and more"}}, true, "json says no\n\n---\n\nand more"},
+		{"messages of denying hooks are concatenated", []Decision{deny, {Permission: "deny", Message: "and more"}}, true, "json says no\n\n---\n\nand more"},
 	} {
 		refused, msg := Refusal(tc.ds)
 		if refused != tc.wantRefused || msg != tc.wantMessage {

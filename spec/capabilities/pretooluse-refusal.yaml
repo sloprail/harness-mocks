@@ -41,6 +41,7 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/pretool-refusal-file-tools
+      - cursor-mock/snapshots/runs/pretool-refusal-combined
     deviations:
       - adr: modeled-surface
         statement: >-

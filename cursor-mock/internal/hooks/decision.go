@@ -107,27 +107,28 @@ func isOutputField(key string) bool {
 	return false
 }
 
+// refusalSeparator joins the messages of the hooks that refused one call
+// (recorded: runs/pretool-refusal-combined).
+const refusalSeparator = "\n\n---\n\n"
+
 // Refusal is whether several hooks' decisions refuse the call, and what the
-// refusal says: the core decides (a deny from any hook refuses, whatever the
-// others decided, and a block by exit status outranks a deny in output); the
-// messages of the hooks that refused are concatenated. An "ask" decides
-// nothing: the mock models a run that no one is there to ask.
+// refusal says: the core decides whether it is refused (one refusing hook
+// refuses it, whatever the others decided). Cursor's message is the messages of
+// every hook that refused, a block by exit status and a deny in output alike,
+// in the order the hooks are configured in, one after another. An "ask"
+// decides nothing: the mock models a run that no one is there to ask.
 //
 // sr:provides pretooluse-refusal/cursor
 // sr:docs https://cursor.com/docs/hooks#configuration
 func Refusal(ds []Decision) (refused bool, message string) {
-	var vote corehooks.PreToolVote
-	var blockMsgs, denyMsgs []string
+	var votes []corehooks.PreToolVote
+	var messages []string
 	for _, d := range ds {
-		switch {
-		case d.Blocked:
-			vote.Blocked = true
-			blockMsgs = append(blockMsgs, d.Message)
-		case d.Permission == "deny":
-			vote.Denied = true
-			denyMsgs = append(denyMsgs, d.Message)
+		votes = append(votes, corehooks.PreToolVote{Blocked: d.Blocked, BlockReason: d.Message, Denied: d.Permission == "deny", DenyReason: d.Message})
+		if r, _ := corehooks.PreToolDecision(d.Blocked, d.Message, d.Permission == "deny", d.Message); r {
+			messages = append(messages, d.Message)
 		}
 	}
-	vote.BlockReason, vote.DenyReason = strings.Join(blockMsgs, "\n"), strings.Join(denyMsgs, "\n")
-	return corehooks.PreToolRefusal([]corehooks.PreToolVote{vote})
+	refused, _ = corehooks.PreToolRefusal(votes)
+	return refused, strings.Join(messages, refusalSeparator)
 }
