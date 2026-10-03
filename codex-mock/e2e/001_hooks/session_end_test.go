@@ -7,6 +7,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Without --json, stdout carries only the final agent message (noninteractive,
+// "make output machine-readable"): no events, no tool output, nothing a hook
+// printed. (-o/--output-last-message is accepted but not modeled.)
+// sr:proves noninteractive-run/codex
+func TestExecWithoutJSONPrintsOnlyTheFinalMessage(t *testing.T) {
+	r := execMock(t, scenario{
+		NoJSON:    true,
+		HooksJSON: hooksJSON("sh hook.sh", "SessionStart", "SessionEnd"),
+		Files:     map[string]string{"hook.sh": `cat >/dev/null; echo HOOK-OUT`},
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "echo TOOL-OUT"),
+	})
+	require.Equal(t, 0, r.Code, r.Stderr)
+	assert.Equal(t, "DONE\n", r.Stdout)
+}
+
 // What a SessionEnd hook prints on stdout, plain text or JSON additionalContext,
 // is not recorded: it appears neither in the rollout nor as developer context,
 // nor in the run's output.
