@@ -7,5 +7,13 @@ providers:
       - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
     runs:
       - claude-mock/snapshots/runs/bashfail
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: Codex gives an output-less command the same wrapper text as any other with nothing after "Output:", no placeholder naming the tool.
+    runs:
+      - codex-mock/snapshots/runs/shell-exit-status
+  cursor:
+    supported: false
+    reason: Cursor's stream carries an output-less command's result as empty strings and its transcript records no tool results, so no placeholder naming the tool appears.
+    runs:
+      - cursor-mock/snapshots/runs/shell-exit-status
