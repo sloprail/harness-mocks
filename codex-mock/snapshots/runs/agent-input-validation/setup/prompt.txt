@@ -1,0 +1,1 @@
+This is a deliberate test of how the harness validates a tool call, so the call is expected to be refused. You MUST make the call, do not skip it: invoke the spawn_agent tool exactly once with the argument object {} (no message, no other field). Do not retry or fix it after the refusal. Then reply only DONE.

@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nThis is a test of input validation. Call your Task (sub-agent) tool exactly once with only this argument object, without a description: {\"prompt\": \"Reply with the word HI\"}. Do not retry or fix it. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Calling Task once with only the given argument, then replying DONE."},{"type":"tool_use","name":"Task","input":{"prompt":"Reply with the word HI"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

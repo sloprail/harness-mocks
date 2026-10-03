@@ -50,6 +50,9 @@ var toolTable = map[string]struct {
 	"Shell": {"shellToolCall", "Shell", []string{"command"}},
 	"Read":  {"readToolCall", "Read", []string{"file_path"}},
 	"Write": {"editToolCall", "Write", []string{"file_path", "content"}},
+	// a sub-agent dispatch, whichever name it goes by (Task is Agent's old name)
+	"Agent": {"taskToolCall", "Task", taskRequired},
+	"Task":  {"taskToolCall", "Task", taskRequired},
 }
 
 // Required is the parameters a call to the named tool must carry, and whether
@@ -72,6 +75,8 @@ func FromScript(name string, input json.RawMessage) Call {
 		c.Args["path"] = str("file_path")
 	case "editToolCall":
 		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
+	case "taskToolCall":
+		c.Args["description"], c.Args["prompt"] = str("description"), str("prompt")
 	}
 	return c
 }
@@ -107,6 +112,8 @@ func (c Call) HookInput(dir string) map[string]any {
 		return map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory"), "timeout": 30000}
 	case "readToolCall":
 		return map[string]any{"file_path": c.Path(dir)}
+	case "taskToolCall":
+		return map[string]any{"description": c.str("description"), "prompt": c.str("prompt"), "subagent_type": "generalPurpose"}
 	default:
 		return map[string]any{"file_path": c.Path(dir), "content": c.str("streamContent")}
 	}
@@ -120,6 +127,8 @@ func Execute(ctx context.Context, c Call, dir string, env []string) Result {
 		return shell(ctx, c, dir, env)
 	case "readToolCall":
 		return read(c, dir)
+	case "taskToolCall":
+		return task()
 	}
 	return write(c, dir)
 }

@@ -1,0 +1,1 @@
+Spawn one sub-agent (use your sub-agent spawning tool) with the task: reply with the word HI. Then reply only DONE.

@@ -1,0 +1,1 @@
+This is a test of input validation. Call your Task (sub-agent) tool exactly once with an empty argument object {}: no description, no prompt, nothing. Do not retry or fix it. Then reply only DONE.

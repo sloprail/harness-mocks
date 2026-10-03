@@ -19,7 +19,14 @@ const toolName = "Bash"
 type toolHost struct{ *state }
 
 // Tool: the one tool the mock runs is the shell, which needs a command.
-func (h toolHost) Tool(name string) ([]string, bool) { return []string{"command"}, name == toolName }
+// A sub-agent dispatch is known with nothing required up front: Codex checks
+// its input only after the hooks have run (agent_tool.go).
+func (h toolHost) Tool(name string) ([]string, bool) {
+	if name == agentTool {
+		return nil, true
+	}
+	return []string{"command"}, name == toolName
+}
 
 func command(c toolcall.Call) string {
 	var in struct {
@@ -36,6 +43,9 @@ func (h toolHost) payload(c toolcall.Call) map[string]any {
 
 // Before fires PreToolUse and asks for the refusal of what the hooks decided.
 func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
+	if c.Name == agentTool {
+		return h.beforeAgent(ctx, c)
+	}
 	var ds []hooks.Decision
 	for _, o := range h.hooks.Fire(ctx, hooks.PreToolUse, toolName, h.payload(c)) {
 		ds = append(ds, hooks.Interpret(hooks.PreToolUse, o))
@@ -45,6 +55,9 @@ func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 
 // Execute runs the command and shows it in the event stream.
 func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result {
+	if c.Name == agentTool {
+		return executeAgent(c)
+	}
 	cmd := command(c)
 	id := h.events.CommandStarted(cmd)
 	var r tools.BashResult
@@ -65,6 +78,9 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // gives the agent its feedback in place of the result.
 // sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
+	if c.Name == agentTool { // a failed dispatch fires no PostToolUse (recorded: runs/agent-input-validation)
+		return "", false
+	}
 	own := h.payload(c)
 	own["tool_response"] = r.Output
 	for _, o := range h.hooks.Fire(ctx, hooks.PostToolUse, toolName, own) {
