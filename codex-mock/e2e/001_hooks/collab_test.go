@@ -65,6 +65,27 @@ printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"
 	// and the command together
 	assert.Equal(t, want, collabShape(got.stream()))
 
+	// the shell command is no task: an ordinary command_execution item,
+	// started and completed with exit 0, and no stream item of any other kind
+	// than the real run's
+	var started, completed int
+	for _, e := range got.stream() {
+		item, _ := e["item"].(map[string]any)
+		switch item["type"] {
+		case "command_execution":
+			if e["type"] == "item.started" {
+				started++
+			} else {
+				completed++
+				assert.Equal(t, float64(0), item["exit_code"])
+			}
+		case "collab_tool_call", "agent_message", "error", nil:
+		default:
+			t.Errorf("unexpected stream item %v", item["type"])
+		}
+	}
+	assert.Equal(t, [2]int{1, 1}, [2]int{started, completed})
+
 	// the answer is what the agent was told by the wait
 	rollout := got.rollout(t)
 	assert.Contains(t, rollout, `\"completed\":\"PONG\"`)
