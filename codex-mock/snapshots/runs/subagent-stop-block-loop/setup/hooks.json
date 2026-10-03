@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh" } ] }
+    ],
+    "SubagentStart": [
+      { "hooks": [ { "type": "command", "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh" } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh" } ] }
+    ]
+  }
+}

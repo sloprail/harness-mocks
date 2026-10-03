@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nUse the Task tool to launch exactly one sub-agent with the prompt: reply only SUBDONE. Wait for it, then reply only DONE. If the sub-agent is told to continue, it should just reply SUBDONE2.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Launching one sub-agent with your prompt, then I'll reply DONE."},{"type":"tool_use","name":"Task","input":{"description":"Reply SUBDONE only","prompt":"reply only SUBDONE. If you are told to continue, reply only SUBDONE2.","subagent_type":"generalPurpose"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}
