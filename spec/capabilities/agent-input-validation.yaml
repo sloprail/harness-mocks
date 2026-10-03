@@ -30,7 +30,7 @@ providers:
         statement: >-
           The mock requires a message and does not model the items form of
           spawn_agent, and it runs no sub-agent: a complete dispatch passes
-          the check and is answered as an error.
+          the check, fires its hooks, and is answered as an error.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#pretooluse

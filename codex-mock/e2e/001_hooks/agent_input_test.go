@@ -40,7 +40,7 @@ printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"
 // fires. Unlike Claude Code, Codex checks the input only after the PreToolUse
 // hook has seen the call: the hook fires, with the empty input
 // (runs/agent-input-validation). A dispatch with its message passes the check
-// (the mock then answers it as unmodelled).
+// and fires both hooks.
 // sr:proves agent-input-validation/codex
 func TestDispatchWithoutMessageIsRefusedAfterThePreToolUseHook(t *testing.T) {
 	run := filepath.Join(runsDir, "agent-input-validation")
@@ -74,8 +74,27 @@ func TestDispatchWithoutMessageIsRefusedAfterThePreToolUseHook(t *testing.T) {
 		assert.NotContains(t, []any{"command_execution", "collab_tool_call"}, item["type"], "nothing ran")
 	}
 
-	// a dispatch with its message is not refused by validation
+	// a dispatch with its message passes the check, as in runs/agent-input-validation-spawn:
+	// both hooks fire for it (the mock then answers it as an error: it runs no sub-agent)
+	spawn := filepath.Join(runsDir, "agent-input-validation-spawn", "samples")
+	spawned, err := filepath.Glob(filepath.Join(spawn, "*", "payloads.jsonl"))
+	require.NoError(t, err)
+	var seen []string
+	for _, l := range jsonLines(readFile(t, spawned[len(spawned)-1])) {
+		if l["tool_name"] == "spawn_agent" {
+			seen = append(seen, l["hook_event_name"].(string))
+		}
+	}
+	require.Equal(t, []string{"PreToolUse", "PostToolUse"}, seen)
+
 	ok := dispatchScenario(t, filepath.Join(run, "setup"), `{"message":"hi"}`)
 	require.Equal(t, 0, ok.Code, ok.Stderr)
+	seen = nil
+	for _, l := range ok.hookLog() {
+		if l["tool_name"] == "spawn_agent" {
+			seen = append(seen, l["hook_event_name"].(string))
+		}
+	}
+	assert.Equal(t, []string{"PreToolUse", "PostToolUse"}, seen)
 	assert.False(t, resultTold(t, ok.rollout(t), "Provide one of", "never"), "no validation error for a complete dispatch")
 }

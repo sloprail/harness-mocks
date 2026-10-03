@@ -24,7 +24,7 @@ providers:
           mock sends none.
       - adr: modeled-surface
         statement: >-
-          The mock runs the shell tool only, so what PostToolUse reports for
+          The mock runs the shell tool and a sub-agent dispatch only, so what PostToolUse reports for
           apply_patch, MCP tool calls and other local function tools is not
           modeled.
   cursor:

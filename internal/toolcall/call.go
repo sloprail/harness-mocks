@@ -71,8 +71,6 @@ type Host interface {
 // input only after the before-tool hooks have run: the hooks then see a call
 // that lacks required parameters, which is refused as invalid afterwards
 // (and fires no after-tool hook), instead of being refused before any hook.
-//
-// sr:capability agent-input-validation
 type LateInputCheck interface {
 	// InputCheckedLate says whether the named tool's input is checked after
 	// the before-tool hooks.
