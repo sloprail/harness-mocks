@@ -10,6 +10,7 @@ providers:
       - claude-mock/snapshots/runs/bgagent
       - claude-mock/snapshots/runs/bgagent-definition
       - claude-mock/snapshots/runs/bgagent-concurrent-limit
+      - claude-mock/snapshots/runs/bgagent-nested-launcher
     deviations:
       - adr: modeled-surface
         statement: >-
