@@ -140,3 +140,12 @@ func ForgetSession(configDir, cwd, id string) {
 	_ = os.Remove(path)
 	_ = os.RemoveAll(strings.TrimSuffix(path, claudeLayout.Ext))
 }
+
+// sessionTitleOf is the name the transcript at path records for its session, or "".
+func sessionTitleOf(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return transcriptAgentName(data)
+}

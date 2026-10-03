@@ -10,5 +10,13 @@ providers:
     runs:
       - claude-mock/snapshots/runs/forkresume
       - claude-mock/snapshots/runs/resume-continue-fork
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The init frame at a session's start and the result frame that ends it,
+          which in the recorded runs name the fork's new session id, are the
+          scenario script's own in the mock, which writes neither (it writes an
+          init frame only after a compaction). The frames the mock writes itself
+          (the SessionStart hook's, a task's, a compaction's) carry the fork's id.
   codex: pending
   cursor: pending

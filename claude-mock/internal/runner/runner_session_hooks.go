@@ -50,6 +50,9 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 	if kind == corehooks.StartResumed || kind == corehooks.StartForked {
 		in.ResumeFields = resumeFields(cfg.sessionFile)
 	}
+	if kind == corehooks.StartResumed {
+		in.SessionTitle = sessionTitleOf(cfg.sessionFile)
+	}
 	ssOut, runs, ferr := inv.FireRuns(ctx, in)
 	// Only the SessionStart of a session resumed from another directory is told
 	// the path under that directory's project folder; every hook after it is told

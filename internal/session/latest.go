@@ -11,6 +11,8 @@ import (
 // Latest is the id of the session a harness's `--continue` resumes: the most
 // recently written transcript of the project of cwd (the current directory's,
 // not another's) that accept lets through, or "" when there is none.
+//
+// sr:capability session-resume
 func Latest(l transcript.Layout, configDir, cwd string, accept func(path string) bool) string {
 	dir := l.ProjectDir(configDir, cwd)
 	entries, err := os.ReadDir(dir)
@@ -32,6 +34,8 @@ func Latest(l transcript.Layout, configDir, cwd string, accept func(path string)
 
 // IDOfPath is the session id a transcript file's path names (its file name
 // without the layout's extension), and whether value is such a path.
+//
+// sr:capability session-resume
 func IDOfPath(l transcript.Layout, value string) (string, bool) {
 	if strings.HasSuffix(value, l.Ext) || strings.ContainsRune(value, filepath.Separator) {
 		return strings.TrimSuffix(filepath.Base(value), l.Ext), true

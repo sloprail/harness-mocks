@@ -41,14 +41,11 @@ const promptCacheLifetime = time.Hour
 
 // resumeFields is what the SessionStart of a resumed session carries beyond
 // source: the time since the transcript's last record, and the cost facts of
-// re-sending the context. The mock spends no tokens, so those are 0 (the recorded
-// runs' are the real context's: snapshots/runs/forkresume, compact), and the session's
-// name, when it has one (recorded: snapshots/runs/resume-name).
+// re-sending the context. The mock spends no tokens, so those are 0 (recorded:
+// snapshots/runs/forkresume, compact).
 func resumeFields(transcriptPath string) *hooks.ResumeFields {
 	var last time.Time
-	title := ""
 	if data, err := os.ReadFile(transcriptPath); err == nil {
-		title = transcriptAgentName(data)
 		for _, line := range strings.Split(string(data), "\n") {
 			var rec struct {
 				Timestamp string `json:"timestamp"`
@@ -62,7 +59,7 @@ func resumeFields(transcriptPath string) *hooks.ResumeFields {
 	}
 	stats := session.Stats(last, time.Now(), promptCacheLifetime, 0, 0)
 	return &hooks.ResumeFields{
-		SessionTitle: title, SecondsSinceLastResponse: stats.SecondsSinceLastResponse, ContextTokens: stats.ContextTokens,
+		SecondsSinceLastResponse: stats.SecondsSinceLastResponse, ContextTokens: stats.ContextTokens,
 		PromptCacheLikelyExpired: stats.CacheLikelyExpired, EstimatedCacheWriteUSD: stats.EstimatedCacheWriteUSD,
 	}
 }

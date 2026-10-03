@@ -49,6 +49,10 @@ type Input struct {
 	Cwd            string    `json:"cwd"`
 	HookEventName  EventName `json:"hook_event_name"`
 	PermissionMode string    `json:"permission_mode,omitempty"`
+	// SessionTitle is the name a session was given, on the SessionStart and the
+	// UserPromptSubmit of its resume; an unnamed session carries none (recorded:
+	// snapshots/runs/resume-name).
+	SessionTitle string `json:"session_title,omitempty"`
 
 	// SessionStart: Source is "startup" | "resume" | "clear" | "compact" |
 	// "fork". Verified against claude 2.1.282: a `--resume <id> --fork-session`

@@ -63,6 +63,12 @@ func TestT017_77_ForkWithoutAnIdGetsItsOwnAsRecorded(t *testing.T) {
 		}
 	}
 	require.NotEmpty(t, initID, "the stream's SessionStart:fork frame reports the session")
+	for _, l := range strings.Split(out, "\n") {
+		var f map[string]any
+		if json.Unmarshal([]byte(l), &f) == nil && f["type"] == "system" && f["session_id"] != nil {
+			assert.Equal(t, initID, f["session_id"], "every system frame the mock writes names the fork: %s", l)
+		}
+	}
 	assert.NotEqual(t, orig, initID, "a new id, not the original's")
 	ps := payloads(t, log)
 	require.Len(t, ps, 2)

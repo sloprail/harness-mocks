@@ -68,6 +68,12 @@ func TestT017_81_ContinueThenForkAsRecorded(t *testing.T) {
 	require.Len(t, ps, 2)
 	assert.Equal(t, "fork", ps[1]["source"])
 	assert.Equal(t, fork, ps[1]["session_id"])
+	for _, l := range strings.Split(out, "\n") {
+		var f map[string]any
+		if json.Unmarshal([]byte(l), &f) == nil && f["type"] == "system" && f["session_id"] != nil {
+			assert.Equal(t, fork, f["session_id"], "every system frame the mock writes names the fork: %s", l)
+		}
+	}
 	forked := readString(t, transcriptPath(t, cfg, dir, fork))
 	assert.Contains(t, forked, "Reply only ONE")
 	assert.Contains(t, forked, "Reply only TWO")
