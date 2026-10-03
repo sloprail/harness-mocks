@@ -40,7 +40,9 @@ type Task struct {
 	// Command is a Command task's command line, AgentType an Agent task's type.
 	Command, AgentType string
 	OutputFile         string
-	Started            time.Time
+	// Pid is a Command's process id, once started.
+	Pid     int
+	Started time.Time
 
 	// Meta is what the harness attaches for its own reports of the task (its
 	// stream frames); the core never reads it.

@@ -38,7 +38,7 @@ func (r *Registry) StartCommand(t *Task, s CommandSpec) error {
 		return err
 	}
 	t.Kind = Command
-	t.kill = p.Kill
+	t.kill, t.Pid = p.Kill, p.Pid()
 	r.Add(t)
 	if s.Started != nil {
 		s.Started(t)

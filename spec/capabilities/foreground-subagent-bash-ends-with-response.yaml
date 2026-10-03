@@ -8,5 +8,30 @@ providers:
       - https://code.claude.com/docs/en/tools-reference#background-commands
     runs:
       - claude-mock/snapshots/runs/fg-subagent-bash
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: Codex has no background-command receipt and its sub-agent does not end what it started; a command the sub-agent put in the background with a shell &, then answered, was still running after the sub-agent had finished.
+    runs:
+      - codex-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#subagentstop
+    runs:
+      - cursor-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor's receipt for the background command does not say it is
+          terminated at the sub-agent's final response: it is only the shell
+          and its process ({"shell_id", "pid"}). That the command ended is
+          reported afterwards, as a task_notification frame on the stream
+          whose status is "aborted" (recorded:
+          runs/foreground-subagent-bash-ends-with-response), and the mock does
+          the same.
+      - adr: modeled-surface
+        statement: >-
+          The mock dispatches a sub-agent only from a Task call that carries a
+          mock-only script playing it. A background Task is not dispatched, a
+          hook that refuses the Task call does not stop it, and the
+          subagentStart and subagentStop hooks (not recorded firing in a
+          print-mode run) do not fire.
