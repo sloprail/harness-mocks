@@ -29,13 +29,21 @@ type ToolUse struct {
 	Input json.RawMessage
 }
 
+// Compact is a request of the script to compact the session, naming what
+// triggered it ("manual" or "auto"; empty when it names none).
+type Compact struct {
+	Trigger string
+}
+
 // Turn is what one run of the script said: the agent's messages in order, and
 // how the turn ends, with a tool call or with the result that ends the run
 // (neither: the script ended without a tool call or a result).
 type Turn struct {
-	Texts  []string
-	Tool   *ToolUse
-	Result *string
+	Texts []string
+	Tool  *ToolUse
+	// Compact is the compaction the turn ends with, when it asked for one.
+	Compact *Compact
+	Result  *string
 }
 
 // Idents are the variables a script is given.

@@ -23,5 +23,35 @@ providers:
           compaction that was triggered to recover from a context-limit error
           surfaces that error is not modeled. A blocked automatic compaction is
           skipped and the conversation continues uncompacted.
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#precompact
+      - https://developers.openai.com/codex/hooks#postcompact
+    runs:
+      - codex-mock/snapshots/runs/manual-compaction-auto
+      - codex-mock/snapshots/runs/manual-compaction-auto-blocked
+      - codex-mock/snapshots/runs/manual-compaction-auto-post-stopped
+      - codex-mock/snapshots/runs/manual-compaction-slash
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          A non-interactive run cannot request a compaction: the real codex exec
+          sends /compact to the model as ordinary prompt text, and no hook fires
+          (recorded: runs/manual-compaction-slash). What was recorded is
+          Codex compacting by itself at its context limit, trigger "auto", with
+          PreCompact, then PostCompact, then SessionStart with source "compact"
+          (runs/manual-compaction-auto); the docs name the trigger "manual" for
+          the /compact command of an interactive session, which no run shows.
+      - adr: modeled-surface
+        statement: >-
+          /compact is a slash command, and no mock parses one: a scenario script
+          requests the compaction with a compact control record naming the
+          trigger ("manual" when it names none), and the mock has no context limit, so it
+          never compacts by itself.
+  cursor:
+    supported: false
+    reason: Cursor's headless agent has no compaction request (/compress is plain prompt text and no hook fires), preCompact is an observational hook that cannot stop a compaction, and no hook fires after one.
+    runs:
+      - cursor-mock/snapshots/runs/manual-compaction-slash
+    docs:
+      - https://cursor.com/docs/hooks#precompact

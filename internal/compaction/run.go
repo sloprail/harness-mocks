@@ -14,34 +14,61 @@ type Steps struct {
 	Resume func()
 	// After fires the hook after the compaction.
 	After func()
+	// AfterStops fires the hook after the compaction in place of After, and
+	// returns true when it stopped what follows: the session-start hook then
+	// does not fire.
+	AfterStops func() (stop bool)
+	// ResumeLast puts the session-start hook after the hook after the
+	// compaction, instead of before it.
+	ResumeLast bool
 	// Command records the command a manual compaction is, once everything else
 	// has run.
 	Command func()
+}
+
+// Result is how a compaction went.
+type Result struct {
+	// Happened is whether the compaction was made: not when the hook before it
+	// stopped it.
+	Happened bool
+	// Stopped is whether a hook stopped it, before the compaction or after.
+	Stopped bool
 }
 
 // Run compacts the session: the hook before it (which can stop it), the
 // summarizer (manual only), the boundary, the summary, the session-start hook,
 // the hook after it, and for a manual compaction the command's own records. It
 // reports whether the compaction happened.
+func Run(manual bool, s Steps) bool { return Do(manual, s).Happened }
+
+// Do is Run, reporting also whether a hook stopped it: a stop after the
+// compaction leaves it made and skips the session-start hook that follows.
 //
 // sr:capability manual-compaction
-func Run(manual bool, s Steps) bool {
+func Do(manual bool, s Steps) Result {
 	if s.Before != nil && s.Before() {
-		return false
+		return Result{Stopped: true}
 	}
 	if manual && s.Summarizer != nil {
 		s.Summarizer()
 	}
 	s.Boundary()
 	s.Summary()
-	if s.Resume != nil {
+	if s.Resume != nil && !s.ResumeLast {
 		s.Resume()
 	}
-	if s.After != nil {
+	stopped := false
+	switch {
+	case s.AfterStops != nil:
+		stopped = s.AfterStops()
+	case s.After != nil:
 		s.After()
+	}
+	if s.Resume != nil && s.ResumeLast && !stopped {
+		s.Resume()
 	}
 	if manual && s.Command != nil {
 		s.Command()
 	}
-	return true
+	return Result{Happened: true, Stopped: stopped}
 }

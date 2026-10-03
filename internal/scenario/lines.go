@@ -12,6 +12,7 @@ type block struct {
 
 type line struct {
 	Type    string `json:"type"`
+	Trigger string `json:"trigger"`
 	Result  string `json:"result"`
 	Message struct {
 		Content []block `json:"content"`
@@ -20,13 +21,17 @@ type line struct {
 
 // read takes one script line into the turn and reports whether it ends the
 // turn: an assistant line's text blocks are messages and its first tool_use
-// block is the call; a result line is the run's end.
+// block is the call; a result line is the run's end; a compact line asks for a
+// compaction of the session, which ends the turn like a call does.
 func (t *Turn) read(raw []byte) (done bool, err error) {
 	var l line
 	if err := json.Unmarshal(raw, &l); err != nil {
 		return false, err
 	}
 	switch l.Type {
+	case "compact":
+		t.Compact = &Compact{Trigger: l.Trigger}
+		return true, nil
 	case "result":
 		t.Result = &l.Result
 		return true, nil

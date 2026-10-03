@@ -1,0 +1,24 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"startup"}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Run these shell commands one at a time, each as its own tool call: 1) seq 1 1500 2) seq 1 1500 3) echo FINE. Then reply only DONE."}}
+{"event":"hook","hook":"PreCompact","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreCompact","trigger":"auto"}}
+{"event":"hook","hook":"PostCompact","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostCompact","trigger":"auto"}}
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"compact"}}
+{"event":"hook","hook":"PreCompact","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreCompact","trigger":"auto"}}
+{"event":"hook","hook":"PostCompact","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostCompact","trigger":"auto"}}
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"compact"}}
+{"event":"hook","hook":"PreCompact","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreCompact","trigger":"auto"}}
+{"event":"hook","hook":"PostCompact","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostCompact","trigger":"auto"}}
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"compact"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}
