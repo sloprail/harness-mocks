@@ -6,18 +6,6 @@ import (
 	"path/filepath"
 )
 
-// Any reports whether the config holds a command hook at all.
-func (c Config) Any() bool {
-	for _, groups := range c {
-		for _, g := range groups {
-			if len(g.Handlers) > 0 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // AsyncSessionEndFiles are the hooks files, in load order, that mark a
 // SessionEnd command handler async. Codex runs such a hook synchronously
 // all the same, and warns of it once per handler, naming the file (recorded:

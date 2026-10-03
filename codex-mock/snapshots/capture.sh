@@ -25,7 +25,12 @@
 #   runs/<name>/setup/prepare.sh       optional: run in the scratch repo before codex, with
 #                                      HOME and CODEX_HOME the run's (e.g. to lay out a plugin
 #                                      marketplace and register it with `codex plugin`)
-#   runs/<name>/setup/env              optional: KEY=VALUE lines codex inherits on
+#   runs/<name>/setup/no-skip-git-check optional: run without --skip-git-repo-check
+#   runs/<name>/setup/no-sandbox-bypass optional: run without --dangerously-bypass-approvals-and-sandbox
+#   runs/<name>/setup/no-git           optional: run in a directory that is not a git repository
+#   runs/<name>/setup/schema.json      optional: copied to the run's directory as schema.json
+#                                      (what an `args` line `--output-schema schema.json` names)
+#   runs/<name>/setup/env             optional: KEY=VALUE lines codex inherits on
 #                                      top of the hermetic env (e.g. an outer session's)
 #
 # Authentication: codex has no headless login but the user's. The run's fake
@@ -89,8 +94,13 @@ capture_run() {
   [ -f "$run/setup/hooks.json" ] && cp "$run/setup/hooks.json" "$chome/hooks.json"
   [ -f "$run/setup/project-hooks.json" ] && mkdir -p "$work/repo/.codex" && cp "$run/setup/project-hooks.json" "$work/repo/.codex/hooks.json"
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
-  git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
+  if [ ! -f "$run/setup/no-git" ]; then
+    git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
+  fi
+  [ -f "$run/setup/schema.json" ] && cp "$run/setup/schema.json" "$work/repo/schema.json"
   [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" CODEX_HOME="$chome" TMPDIR="$work/tmp" sh "$run/setup/prepare.sh")
+  bypassflag=(--dangerously-bypass-approvals-and-sandbox); [ -f "$run/setup/no-sandbox-bypass" ] && bypassflag=()
+  skipflag=(--skip-git-repo-check); [ -f "$run/setup/no-skip-git-check" ] && skipflag=()
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
   jsonflag=(--json); [ -f "$run/setup/no-json" ] && jsonflag=()
   extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
@@ -103,7 +113,7 @@ capture_run() {
   set +e
   (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
     TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-    "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust \
+    "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} --dangerously-bypass-hook-trust \
       -m gpt-5.6-luna -c 'model_reasoning_effort="low"' \
       ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
   echo $? >"$cap/exit.txt"
@@ -154,7 +164,7 @@ capture_run() {
       rm -rf "$cap"; echo "same events as $(basename "$other"): no new sample"; return 0
     fi
   done
-  printf 'version: %s\ncommand: codex exec %s--skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\n' "$v" "${jsonflag[*]:+--json }" >"$run/run.yaml"
+  printf 'version: %s\ncommand: codex exec %s%s%s--dangerously-bypass-hook-trust -m gpt-5.6-luna\n' "$v" "${jsonflag[*]:+--json }" "${skipflag[*]:+--skip-git-repo-check }" "${bypassflag[*]:+--dangerously-bypass-approvals-and-sandbox }" >"$run/run.yaml"
   seal "$cap"
   echo "captured runs/$name/samples/$ts"
 }

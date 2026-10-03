@@ -85,8 +85,8 @@ func Run(ctx context.Context, cfg Config) error {
 		s.events.Progress(cfg.Stderr, events.Header{Version: childenv.Version, Cwd: cfg.Cwd, Model: cfg.Model, Prompt: cfg.Prompt})
 	}
 	s.events.ThreadStarted(id)
-	if cfg.BypassHookTrust && hookCfg.Any() {
-		for range 2 { // as recorded: twice per run
+	if cfg.BypassHookTrust {
+		for range 2 { // as recorded: twice per run, with or without hooks (runs/noninteractive-run-no-git-check)
 			s.events.Warning("`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.")
 		}
 	}
