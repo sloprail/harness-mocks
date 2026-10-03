@@ -17,9 +17,27 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/prompt-blocked
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock accepts -o/--output-last-message and does nothing with it:
+          the final message is not written to a file. It calls no model and
+          has no failing turn or stream failure, so the turn.failed event and
+          the stream-level error event the docs name are not modeled. The
+          stream's item types are the agent message and the command execution
+          only: reasoning, file changes, MCP tool calls, web searches and plan
+          updates are not modeled.
   cursor:
     docs:
       - https://cursor.com/docs/cli/headless#how-it-works
       - https://cursor.com/docs/cli/headless#real-time-progress-tracking
     runs:
       - cursor-mock/snapshots/runs/pretool-refusal
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock models only the stream-json output format. The docs' default
+          text format (the final answer only), the json format and
+          --stream-partial-output (partial assistant text deltas as the agent
+          writes) are not modeled: another --output-format is refused, and
+          --stream-partial-output is accepted and ignored.

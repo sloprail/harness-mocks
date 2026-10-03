@@ -29,3 +29,9 @@ providers:
       - https://cursor.com/docs/hooks#posttoolusefailure
     runs:
       - cursor-mock/snapshots/runs/additional-context
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock models a tool failing by an error or by a refusal, not by
+          a timeout, so the postToolUseFailure hook's failure_type "timeout"
+          and the context its hook adds after a timed-out tool are not modeled.
