@@ -44,7 +44,7 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 		return failed(err)
 	}
 	t := tasks.NewTask(tasks.Command, id)
-	t.ToolUseID, t.Command, t.Description = useID, c.Command(), c.Description()
+	t.ToolUseID, t.Command, t.Description, t.Owner = useID, c.Command(), c.Description(), s.owner
 	if t.Description == "" {
 		t.Description = c.Command()
 	}
@@ -54,7 +54,7 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 	}); err != nil {
 		return failed(err)
 	}
-	pid := os.Getpid() // the mock does not expose the child's pid; any number says the shell has one
+	pid := t.Pid
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": "", "exitCode": 0, "signal": "", "stdout": "", "stderr": "",
 		"executionTime": time.Since(start).Milliseconds(), "shellId": id, "pid": pid,
@@ -82,6 +82,9 @@ func (s *session) terminalsFolder() string {
 var registries sync.Map // *session -> *tasks.Registry
 
 func (s *session) registry() *tasks.Registry {
+	if s.parent != nil {
+		return s.parent.registry()
+	}
 	r, _ := registries.LoadOrStore(s, tasks.NewRegistry())
 	return r.(*tasks.Registry)
 }
@@ -118,7 +121,9 @@ func (s *session) afterTurn(ctx context.Context) (string, bool) {
 // sr:provides task-stream-frames/cursor
 func notificationFrame(session string, t *tasks.Task) []byte {
 	status := "success"
-	if t.Status() != tasks.Completed {
+	if t.Killed() { // ended by the harness (recorded: runs/foreground-subagent-bash-ends-with-response)
+		status = "aborted"
+	} else if t.Status() != tasks.Completed {
 		status = "error"
 	}
 	return jsonLine(map[string]any{

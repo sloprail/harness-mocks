@@ -30,6 +30,11 @@ type session struct {
 	// additional_context), in the order their events fired and, within an event,
 	// the order the hooks are configured in.
 	added []string
+	// owner is the id of the sub-agent conversation this session is, "" for the
+	// main one, and parent the session that dispatched it: a sub-agent shares its
+	// parent's background shells, owning what it starts.
+	owner  string
+	parent *session
 }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
