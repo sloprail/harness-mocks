@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nUse the Task tool to start one sub-agent whose task is: run the shell command echo SUB-DONE and reply only SUB-DONE. Wait for it to finish, then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Starting a shell sub-agent to run the command, then I'll reply once it finishes."},{"type":"tool_use","name":"Task","input":{"description":"Echo SUB-DONE only","prompt":"Run this exact shell command: echo SUB-DONE\n\nWhen finished, reply with only this exact text and nothing else:\nSUB-DONE","subagent_type":"shell","run_in_background":false}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

@@ -1,0 +1,8 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Task","tool_input":{"description":"Echo SUB-DONE only","prompt":"Run this exact shell command: echo SUB-DONE\n\nWhen finished, reply with only this exact text and nothing else:\nSUB-DONE","subagent_type":"shell","run_in_background":false},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo SUB-DONE","timeout":30000},"session_id":"0965d081-554a-4ff4-a69e-35c6d8d2c594","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo SUB-DONE","timeout":30000},"tool_output":"{\"output\":\"SUB-DONE\\n\",\"exitCode\":0}","session_id":"0965d081-554a-4ff4-a69e-35c6d8d2c594","hook_event_name":"postToolUse"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"taskToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"taskToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}
