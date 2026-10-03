@@ -8,9 +8,9 @@ import (
 // that only matter to a real model or an interactive session are accepted and
 // ignored, so a command line written for cursor-agent runs unchanged.
 type flags struct {
-	print, force, yolo, trust, streamPartial, plan, resume, cont  bool
-	outputFormat, model, workspace, script, apiKey, sandbox, mode string
-	pluginDirs                                                    []string
+	print, force, yolo, trust, streamPartial, plan, cont                  bool
+	outputFormat, model, workspace, script, apiKey, sandbox, mode, resume string
+	pluginDirs                                                            []string
 }
 
 func newRoot() *cobra.Command {
@@ -37,7 +37,7 @@ the stream through:
 	p.BoolVar(&f.streamPartial, "stream-partial-output", false, "accepted, ignored")
 	p.StringVar(&f.mode, "mode", "", "accepted, ignored")
 	p.BoolVar(&f.plan, "plan", false, "accepted, ignored")
-	p.BoolVar(&f.resume, "resume", false, "not modeled")
+	p.StringVar(&f.resume, "resume", "", "resume the session with this id")
 	p.BoolVar(&f.cont, "continue", false, "not modeled")
 	p.StringVar(&f.model, "model", "", "accepted, ignored")
 	p.BoolVarP(&f.force, "force", "f", false, "accepted, ignored")

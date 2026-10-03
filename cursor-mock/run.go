@@ -17,15 +17,18 @@ import (
 const version = "2026.09.28-64d2043"
 
 // run reads the command line and the environment once, into the run's
-// configuration, and plays the run.
+// configuration, and plays the run. --resume <id> continues that session: the
+// run is told its id (recorded: runs/session-resume).
+//
+// sr:provides session-resume/cursor
 func run(cmd *cobra.Command, f flags, args []string) error {
 	switch {
 	case !f.print:
 		return errors.New("cursor-mock: only non-interactive runs are modeled: pass -p")
 	case f.outputFormat != "stream-json":
 		return fmt.Errorf("cursor-mock: output format %q is not modeled: pass --output-format stream-json", f.outputFormat)
-	case f.resume || f.cont:
-		return errors.New("cursor-mock: --resume and --continue are not modeled")
+	case f.cont:
+		return errors.New("cursor-mock: --continue is not modeled: pass --resume <session-id>")
 	}
 	script := f.script
 	if script == "" {
@@ -50,7 +53,7 @@ func run(cmd *cobra.Command, f flags, args []string) error {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
 	return runner.Run(cmd.Context(), runner.Config{
-		Script: script, Prompt: strings.Join(args, " "), Dir: dir, Environ: os.Environ(), Home: home,
+		Script: script, Prompt: strings.Join(args, " "), Resume: f.resume, Dir: dir, Environ: os.Environ(), Home: home,
 		Version: version, Force: f.force || f.yolo, Stdout: os.Stdout, Stderr: os.Stderr, PluginDirs: f.pluginDirs,
 	})
 }

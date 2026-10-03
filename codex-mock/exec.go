@@ -23,7 +23,7 @@ func newExec() *cobra.Command {
 		Short: "Run the scenario script as a non-interactive Codex session",
 		RunE:  runExec,
 	}
-	f := cmd.Flags()
+	f := cmd.PersistentFlags()
 	f.String("script", "", "Scenario script that drives the agent (env: A10N_MOCK_SCRIPT)")
 	f.Bool("json", false, "Print events to stdout as JSONL")
 	f.StringP("cd", "C", "", "Working directory of the session (default: the current one)")
@@ -42,10 +42,14 @@ func newExec() *cobra.Command {
 		"strict-config", "dangerously-bypass-approvals-and-sandbox", "dangerously-bypass-hook-trust", "approve-for-me"} {
 		f.Bool(name, false, "Accepted; no effect")
 	}
+	cmd.AddCommand(newResume())
 	return cmd
 }
 
-func runExec(cmd *cobra.Command, args []string) error {
+func runExec(cmd *cobra.Command, args []string) error { return execute(cmd, "", args) }
+
+// execute is a run of `exec`, resuming session resume when it is not empty.
+func execute(cmd *cobra.Command, resume string, args []string) error {
 	f := cmd.Flags()
 	script, _ := f.GetString("script")
 	if script == "" {
@@ -75,13 +79,15 @@ func runExec(cmd *cobra.Command, args []string) error {
 	asJSON, _ := f.GetBool("json")
 	bypass, _ := f.GetBool("dangerously-bypass-hook-trust")
 	model, _ := f.GetString("model")
-	if len(args) >= 2 && args[0] == "resume" { // `exec resume <session id> [prompt]`
-		return session.Resume(home, args[1])
+	if resume != "" { // an unknown session fails before anything starts: no hook fires
+		if err := session.ResumeUnknown(home, resume); err != nil {
+			return err
+		}
 	}
 	overrides, _ := f.GetStringArray("config")
 	runner.Agents = runner.AgentSettings{MaxDepth: maxDepthOf(overrides), Script: os.Getenv("A10N_MOCK_SUBAGENT_SCRIPT")}
 	return runner.Run(cmd.Context(), runner.Config{
-		Script: script, Prompt: strings.Join(args, " "), Cwd: cwd, CodexHome: home, Model: model,
+		Script: script, Prompt: strings.Join(args, " "), Resume: resume, Cwd: cwd, CodexHome: home, Model: model,
 		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
 }
@@ -127,4 +133,26 @@ func maxDepthOf(overrides []string) int {
 		}
 	}
 	return depth
+}
+
+// newResume is `exec resume <session-id> [prompt]`: the session continues from
+// its rollout, in whichever directory the command runs. Only a session named
+// by its id is modeled; `--last` (the newest session of the directory) is not.
+//
+// sr:provides session-resume/codex
+func newResume() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resume [flags] <session-id> [prompt]",
+		Short: "Continue a recorded session by its id",
+		Args:  cobra.RangeArgs(0, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if last, _ := cmd.Flags().GetBool("last"); last || len(args) == 0 {
+				return errors.New("codex-mock: only a session named by its id is modeled: pass `resume <session-id>`")
+			}
+			return execute(cmd, args[0], args[1:])
+		},
+	}
+	cmd.Flags().Bool("last", false, "not modeled")
+	cmd.Flags().Bool("all", false, "Accepted; no effect")
+	return cmd
 }

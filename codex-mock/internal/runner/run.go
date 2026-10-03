@@ -23,6 +23,8 @@ type Config struct {
 	// Script is the scenario script that drives the agent.
 	Script string
 	Prompt string
+	// Resume is the id of the session to continue, empty for a new one.
+	Resume string
 	// Cwd is the session's working directory.
 	Cwd string
 	// CodexHome holds the user's hooks.json and the session's rollout.
@@ -65,10 +67,9 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot load hooks: %w", err)
 	}
-	id := coresession.NewID()
-	rollout, err := session.Create(cfg.CodexHome, id, cfg.Cwd, time.Now())
+	id, rollout, resumed, err := session.Begin(cfg.CodexHome, cfg.Cwd, cfg.Resume, time.Now())
 	if err != nil {
-		return fmt.Errorf("codex-mock: cannot create the session file: %w", err)
+		return fmt.Errorf("codex-mock: cannot open the session file: %w", err)
 	}
 	defer rollout.Close()
 	out := cfg.Stdout
@@ -85,6 +86,7 @@ func Run(ctx context.Context, cfg Config) error {
 		s.events.Progress(cfg.Stderr, events.Header{Version: childenv.Version, Cwd: cfg.Cwd, Model: cfg.Model, Prompt: cfg.Prompt})
 	}
 	s.events.ThreadStarted(id)
+	start := session.Starts.For(resumed)
 	if cfg.BypassHookTrust {
 		for range 2 { // as recorded: twice per run, with or without hooks (runs/noninteractive-run-no-git-check)
 			s.events.Warning("`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.")
@@ -94,7 +96,7 @@ func Run(ctx context.Context, cfg Config) error {
 		s.events.Warning("running async SessionEnd hook synchronously in " + f)
 	}
 	halted := false
-	for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, "startup", map[string]any{"source": "startup"}) {
+	for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, start.Source, map[string]any{"source": start.Source}) {
 		d := hooks.Interpret(hooks.SessionStart, o)
 		halted = halted || d.Halt
 		if d.Context != "" {
