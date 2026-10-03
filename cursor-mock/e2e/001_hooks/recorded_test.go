@@ -28,7 +28,12 @@ func newestSample(t *testing.T, run string) string {
 // path (the stream's init cwd and the hook payloads' workspace_roots), the
 // project folder under the config directory is named after that resolved path,
 // never after the symlink, and no session transcript file exists when the
-// sessionStart hook runs; the file is there from the first tool call on.
+// sessionStart hook runs; the payloads' transcript_path is null, and the file
+// is not there, up to the first command's beforeShellExecution hook, and both
+// are there from its afterShellExecution on. The mock names the path in the
+// payloads from the first tool call's preToolUse on (cursor-agent races on
+// whether its first beforeShellExecution has it: runs/tool-failure shows it
+// named there), and holds no file at the start hook, as recorded.
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFromASymlinkedDirectoryIsKeyedByTheRealPathAndAbsentAtStart(t *testing.T) {
 	dir := newestSample(t, "symlinked-cwd")
@@ -40,7 +45,12 @@ func TestTheTranscriptFromASymlinkedDirectoryIsKeyedByTheRealPathAndAbsentAtStar
 		require.NotContains(t, string(b), "<LINK_DIRNAME>", f+" names the symlink's own folder")
 	}
 
-	var starts, ends int
+	// the recorded transition, event by event: no path in the payload and no file
+	// up to the first command's beforeShellExecution, both from its
+	// afterShellExecution on
+	seen := map[string]int{}
+	named := map[string]bool{"afterShellExecution": true, "postToolUse": true, "sessionEnd": true}
+	unnamed := map[string]bool{"sessionStart": true, "preToolUse": true, "beforeShellExecution": true}
 	for _, m := range readJSONL(t, filepath.Join(dir, "payloads.jsonl")) {
 		if roots, ok := m["workspace_roots"].([]any); ok {
 			require.Equal(t, []any{"<RUN>"}, roots)
@@ -48,32 +58,48 @@ func TestTheTranscriptFromASymlinkedDirectoryIsKeyedByTheRealPathAndAbsentAtStar
 		if tp, _ := m["transcript_path"].(string); tp != "" {
 			require.Contains(t, tp, "/.cursor/projects/<RUN_DIRNAME>/agent-transcripts/")
 		}
+		if ev, _ := m["hook_event_name"].(string); named[ev] || unnamed[ev] {
+			if named[ev] {
+				require.NotNil(t, m["transcript_path"], ev+": the payload names the transcript")
+			} else {
+				require.Nil(t, m["transcript_path"], ev+": the payload's transcript_path is null")
+			}
+		}
 		r, ok := m["hook_result"].(map[string]any)
 		if !ok || r["event"] == "afterAgentThought" {
 			continue
 		}
 		require.Equal(t, "<RUN>", r["pwd_physical"], "a hook runs in the resolved workspace")
-		if r["event"] == "sessionStart" {
-			starts++
-			require.Equal(t, false, r["transcript_path_set"])
-			require.EqualValues(t, 0, r["transcript_files"], "no transcript file exists when the start hook runs")
-		}
-		if r["event"] == "sessionEnd" {
-			ends++
-			require.Equal(t, true, r["transcript_exists"])
-			require.EqualValues(t, 1, r["transcript_files"])
+		ev, _ := r["event"].(string)
+		seen[ev]++
+		switch {
+		case unnamed[ev]:
+			require.Equal(t, false, r["transcript_path_set"], ev)
+			require.Equal(t, false, r["transcript_exists"], ev)
+			require.EqualValues(t, 0, r["transcript_files"], ev+": no transcript file exists yet")
+		case named[ev]:
+			require.Equal(t, true, r["transcript_path_set"], ev)
+			require.Equal(t, true, r["transcript_exists"], ev)
+			require.EqualValues(t, 1, r["transcript_files"], ev)
 		}
 	}
-	require.Equal(t, 1, starts)
-	require.Equal(t, 1, ends)
+	for _, ev := range []string{"sessionStart", "preToolUse", "beforeShellExecution", "afterShellExecution", "postToolUse", "sessionEnd"} {
+		require.Equal(t, 1, seen[ev], ev+" fired once")
+	}
 
-	// the mock, started from a symlink, keys the transcript the same way
-	c := runCustomAt(t, true, `{"version":1,"hooks":{"sessionStart":[{"command":"cat >/dev/null; find \"$HOME/.cursor/projects\" -name '*.jsonl' | wc -l | tr -d ' ' > \"$HOOK_LOG.count\""}]}}`, nil, "echo hi")
+	// the mock, started from a symlink, keys the transcript the same way, holds no
+	// file at the start hook, and names the file in the payloads and has it by the
+	// first command's afterShellExecution
+	c := runCustomAt(t, true, `{"version":1,"hooks":{"sessionStart":[{"command":"cat >/dev/null; find \"$HOME/.cursor/projects\" -name '*.jsonl' | wc -l | tr -d ' ' > \"$HOOK_LOG.count\""}],"afterShellExecution":[{"command":"cat > \"$HOOK_LOG.after\"; find \"$HOME/.cursor/projects\" -name '*.jsonl' | wc -l | tr -d ' ' > \"$HOOK_LOG.aftercount\""}]}}`, nil, "echo hi")
 	path, session := c.transcript(t)
 	project := strings.NewReplacer("/", "-", ".", "-", "_", "-").Replace(strings.TrimPrefix(c.ws, "/"))
 	require.Equal(t, filepath.Join(c.home, ".cursor", "projects", project, "agent-transcripts", session, session+".jsonl"), path, "keyed by the resolved path")
 	n, _ := os.ReadFile(c.log + ".count")
 	require.Equal(t, "0", strings.TrimSpace(string(n)), "no transcript file exists when the start hook runs")
+	after, _ := os.ReadFile(c.log + ".after")
+	require.Contains(t, string(after), `"transcript_path":"`+path+`"`, "afterShellExecution names the transcript")
+	n, _ = os.ReadFile(c.log + ".aftercount")
+	require.Equal(t, "1", strings.TrimSpace(string(n)), "the transcript file exists by afterShellExecution")
 }
 
 // TestValidJSONWithANonZeroStatusOtherThan2IsIgnored: recorded

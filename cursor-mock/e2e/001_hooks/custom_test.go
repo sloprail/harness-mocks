@@ -95,10 +95,12 @@ func TestAHookCommandRunsThroughTheShellInTheProjectRootWithThePayloadOnStdin(t 
 // TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart:
 // recorded, the transcript is .cursor/projects/<workspace path with every
 // non-alphanumeric character as "-">/agent-transcripts/<session>/<session>.jsonl;
-// the start hook's payload has no transcript path, and later ones have it.
+// the start hook's payload has no transcript path, and the payloads from the
+// first command's afterShellExecution on have it (runs/symlinked-cwd: the
+// beforeShellExecution before it does not yet).
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *testing.T) {
-	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"beforeShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
+	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
 	path, session := c.transcript(t)
 	project := strings.NewReplacer("/", "-", ".", "-", "_", "-").Replace(strings.TrimPrefix(c.ws, "/"))
 	require.Equal(t, filepath.Join(c.home, ".cursor", "projects", project, "agent-transcripts", session, session+".jsonl"), path)
@@ -167,12 +169,18 @@ func TestAfterAToolSucceedsTheHookGetsItsInputItsOutputAndHowLongItTook(t *testi
 			continue
 		}
 		n++
-		require.NotEmpty(t, h["tool_input"])
-		require.NotEmpty(t, h["tool_output"])
 		_, ok := h["duration"].(float64)
 		require.True(t, ok, "duration in ms: %v", h)
 	}
 	require.Equal(t, 4, n, "the write, the read, and the write that follows with the read it makes first")
+	// each call's tool_input and tool_output are the recorded ones, value for value
+	require.Equal(t, []map[string]any{
+		{"tool": "Write", "input": map[string]any{"file_path": "<RUN>/note.txt", "content": "hi\n"}, "output": `{"file_path":"<RUN>/note.txt","success":true}`},
+		{"tool": "Read", "input": map[string]any{"file_path": "<RUN>/note.txt"}, "output": `{"file_path":"<RUN>/note.txt","content_length":3}`},
+		{"tool": "Read", "input": map[string]any{"file_path": "<RUN>/note.txt"}, "output": `{"file_path":"<RUN>/note.txt","content_length":3}`},
+		{"tool": "Write", "input": map[string]any{"file_path": "<RUN>/note.txt", "content": "bye\n"}, "output": `{"file_path":"<RUN>/note.txt","success":true}`},
+	}, postToolUses(want), "recorded")
+	require.Equal(t, postToolUses(want), postToolUses(got), "mock")
 }
 
 // TestADenyFromOneHookRefusesTheCallWhateverAnotherHookAsks: docs, any deny
