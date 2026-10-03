@@ -43,6 +43,8 @@ func addRunFlags(cmd *cobra.Command) {
 	// --session-id when given, else generated. See runner.forkTranscript for the
 	// transcript shape a fork leaves.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--fork-session
+	// --continue resumes the most recent session of the directory (headless#continue-conversations).
+	cmd.Flags().Bool(flagContinue, false, "Resume the most recent session of the project directory (--continue, as used by claude CLI)")
 	cmd.Flags().Bool(flagForkSession, false, "With --resume: continue in a new session id and transcript")
 	cmd.Flags().String(flagOutputFormat, "stream-json", "Output format (must be stream-json)")
 	cmd.Flags().String(flagProjectDir, "", "Project root for settings.json resolution (default: cwd)")

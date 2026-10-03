@@ -11,5 +11,7 @@ providers:
     runs:
       - claude-mock/snapshots/runs/forkresume
       - claude-mock/snapshots/runs/compact
+      - claude-mock/snapshots/runs/resume-continue
+      - claude-mock/snapshots/runs/resume-path
   codex: pending
   cursor: pending
