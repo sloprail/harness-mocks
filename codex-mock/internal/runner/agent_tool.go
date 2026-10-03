@@ -32,9 +32,3 @@ func hookName(c toolcall.Call) string {
 // first.
 // sr:provides agent-input-validation/codex
 func (h toolHost) InputCheckedLate(name string) bool { return name == agentTool }
-
-// executeAgent is a dispatch that passed the check: the mock models no
-// sub-agents, so it is answered as an error.
-func executeAgent() toolcall.Result {
-	return toolcall.Result{Output: "sub-agents are not modelled by this mock", Failed: true}
-}

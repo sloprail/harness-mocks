@@ -84,7 +84,7 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}
 	s.events.TurnStarted()
-	last, err := turnloop.Run(ctx, agentTurnHost{turnHost{s}}, turnloop.Params{
+	last, err := turnloop.Run(ctx, turnHost{s}, turnloop.Params{
 		Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
 	s.events.TurnCompleted()
 	s.reapAtExit()

@@ -20,10 +20,7 @@ import (
 
 // spawnAgentTool is the tool that starts a sub-agent; agentType is the type of
 // one started without a profile (recorded: runs/subagent-lifecycle-hooks).
-const (
-	spawnAgentTool = "spawn_agent"
-	agentType      = "default"
-)
+const agentType = "default"
 
 // spawnInput is a spawn_agent call: the sub-agent's task, and (the mock's own
 // parameter) the scenario script that drives it.
@@ -32,9 +29,9 @@ type spawnInput struct {
 	Script  string `json:"script"`
 }
 
-// spawnAgent starts a sub-agent for the call, waits for it, and tells the
-// agent how it ended, as the stream and the rollout record a spawn_agent
-// followed by a wait. The sub-agent has a rollout of its own; its hooks are the
+// spawnAgent starts a sub-agent for a dispatch that passed the checks, waits
+// for it, and gives what the agent is told of how it ended, as the stream records
+// a spawn_agent followed by a wait. The sub-agent has a rollout of its own; its hooks are the
 // session's.
 //
 // SubagentStart fires when it starts, with the sub-agent's own rollout as its
@@ -45,18 +42,17 @@ type spawnInput struct {
 // background tasks: Codex lists none (recorded: runs/subagent-lifecycle-hooks).
 //
 // sr:provides subagent-lifecycle-hooks/codex
-func (h turnHost) spawnAgent(ctx context.Context, tu scenario.ToolUse) {
+func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Result {
 	var in spawnInput
-	_ = json.Unmarshal(tu.Input, &in)
+	_ = json.Unmarshal(c.Input, &in)
 	subID := coresession.NewID()
 	subRollout, err := session.Create(h.cfg.CodexHome, subID, h.cfg.Cwd, time.Now())
 	if err != nil {
-		h.rollout.ToolOutput(tu.ID, fmt.Sprintf("failed to start the sub-agent: %v", err))
-		return
+		return toolcall.Result{Output: fmt.Sprintf("failed to start the sub-agent: %v", err), Failed: true}
 	}
 	defer subRollout.Close()
 
-	spawn := h.events.CollabStarted(spawnAgentTool, h.id, nil, in.Message)
+	spawn := h.events.CollabStarted(agentTool, h.id, nil, in.Message)
 	// the sub-agent is its own thread: its tools' hooks and its rollout are its own
 	sub := *h.state
 	sub.id, sub.turnID, sub.rollout = subID, coresession.NewID(), subRollout
@@ -88,12 +84,12 @@ func (h turnHost) spawnAgent(ctx context.Context, tu scenario.ToolUse) {
 		},
 	}, 0, func() subagents.Outcome { return runSubagent(ctx, &sub, in) })
 
-	h.events.CollabCompleted(spawn, spawnAgentTool, h.id, []string{subID}, in.Message,
+	h.events.CollabCompleted(spawn, agentTool, h.id, []string{subID}, in.Message,
 		map[string]events.AgentState{subID: {Status: "pending_init"}})
 	wait := h.events.CollabStarted("wait", h.id, []string{subID}, nil)
 	h.events.CollabCompleted(wait, "wait", h.id, []string{subID}, nil,
 		map[string]events.AgentState{subID: {Status: "completed", Message: out.LastAssistant}})
-	h.rollout.ToolOutput(tu.ID, fmt.Sprintf(`{"status":{%q:{"completed":%q}},"timed_out":false}`, subID, out.LastAssistant))
+	return toolcall.Result{Output: fmt.Sprintf(`{"status":{%q:{"completed":%q}},"timed_out":false}`, subID, out.LastAssistant)}
 }
 
 // runSubagent drives the sub-agent's script as a turn of its own and reports
@@ -106,19 +102,6 @@ func runSubagent(ctx context.Context, sub *state, in spawnInput) subagents.Outco
 		out.Failure = err.Error()
 	}
 	return out
-}
-
-// agentTurnHost is the turn with the tool that starts a sub-agent: spawn_agent
-// is carried out by spawnAgent, every other call as the turn does.
-type agentTurnHost struct{ turnHost }
-
-func (h agentTurnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
-	if tu.Name != spawnAgentTool {
-		h.turnHost.Tool(ctx, tu)
-		return
-	}
-	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
-	h.spawnAgent(ctx, tu)
 }
 
 // subHost is a sub-agent's side of its turn: its task is its prompt, its tools
