@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/hook.sh" }],
+    "subagentStart": [{ "command": ".cursor/hooks/hook.sh" }],
+    "subagentStop": [{ "command": ".cursor/hooks/hook.sh" }],
+    "stop": [{ "command": ".cursor/hooks/hook.sh" }]
+  }
+}

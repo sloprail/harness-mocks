@@ -1,0 +1,17 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"startup"}}
+{"event":"hook","hook":"SubagentStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SubagentStart","permission_mode":"bypassPermissions","agent_id":"01a10255-0443-7812-a3e5-be8a6e88a1f3","agent_type":"default"}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","agent_transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T17-14-48-01a10255-0443-7812-a3e5-be8a6e88a1f3.jsonl","hook_event_name":"SubagentStop","permission_mode":"bypassPermissions","stop_hook_active":false,"agent_id":"01a10255-0443-7812-a3e5-be8a6e88a1f3","agent_type":"default"}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","agent_transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T17-14-48-01a10255-0443-7812-a3e5-be8a6e88a1f3.jsonl","hook_event_name":"SubagentStop","permission_mode":"bypassPermissions","stop_hook_active":true,"agent_id":"01a10255-0443-7812-a3e5-be8a6e88a1f3","agent_type":"default"}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","agent_transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T17-14-48-01a10255-0443-7812-a3e5-be8a6e88a1f3.jsonl","hook_event_name":"SubagentStop","permission_mode":"bypassPermissions","stop_hook_active":true,"agent_id":"01a10255-0443-7812-a3e5-be8a6e88a1f3","agent_type":"default"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

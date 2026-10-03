@@ -1,0 +1,1 @@
+Use the Task tool to launch exactly one sub-agent with the prompt: reply only SUBDONE. Wait for it, then reply only DONE. If the sub-agent is told to continue, it should just reply SUBDONE2.

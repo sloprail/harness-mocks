@@ -1,0 +1,3 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nreply only SUBDONE. If you are told to continue, reply only SUBDONE2.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"SUBDONE"}]}}
+{"type":"turn_ended","status":"success"}

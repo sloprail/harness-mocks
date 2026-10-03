@@ -40,8 +40,11 @@ type spawnInput struct {
 // when it stops, with the session's transcript_path, the sub-agent's own as
 // agent_transcript_path, and its last message. The payload names no
 // background tasks: Codex lists none (recorded: runs/subagent-lifecycle-hooks).
+// A SubagentStop hook that blocks runs the sub-agent again with its reason as
+// feedback until it lets it stop (recorded: runs/subagent-stop-block-loop).
 //
 // sr:provides subagent-lifecycle-hooks/codex
+// sr:provides subagent-stop-block-loop/codex
 func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Result {
 	var in spawnInput
 	_ = json.Unmarshal(c.Input, &in)
@@ -79,8 +82,26 @@ func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Resu
 		Stop: func(active bool, last string) (bool, string) {
 			own := map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType,
 				"agent_transcript_path": subRollout.Path, "stop_hook_active": active, "last_assistant_message": last}
-			h.hooks.Fire(ctx, hooks.SubagentStop, agentType, own) // what it answers is not read
+			outs := h.hooks.Fire(ctx, hooks.SubagentStop, agentType, own)
+			for _, o := range outs {
+				if stopsFor(o.Stdout) { // continue:false outranks any block (hooks#subagentstop)
+					return false, ""
+				}
+			}
+			for _, o := range outs {
+				// a block (exit 2, or a block decision) runs the sub-agent again, with the first reason as feedback
+				switch d := hooks.Interpret(hooks.SubagentStop, o); {
+				case d.Blocked:
+					return true, d.BlockReason
+				case d.Denied:
+					return true, d.DenyReason
+				}
+			}
 			return false, ""
+		},
+		OnRerun: func(reason string, _ int) {
+			// the feedback is a user message in the sub-agent's own rollout, wrapped as Codex wraps a hook's prompt
+			subRollout.User(fmt.Sprintf(`<hook_prompt hook_run_id="subagent-stop">%s</hook_prompt>`, reason))
 		},
 	}, 0, func() subagents.Outcome { return runSubagent(ctx, &sub, in) })
 
