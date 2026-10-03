@@ -1,0 +1,1 @@
+Use the Agent tool with subagent_type bgdef, description 'bgdef', run_in_background false (I want the foreground), prompt 'go'. Then reply only DONE.

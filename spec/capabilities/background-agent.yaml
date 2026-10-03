@@ -7,6 +7,17 @@ providers:
       - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
     runs:
       - claude-mock/snapshots/runs/bgagent
+      - claude-mock/snapshots/runs/bgagent-definition
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model an in-process agent team's teammates: the docs say
+          a sub-agent a teammate spawns runs in the foreground, that spawning one
+          whose definition sets `background: true` is refused with an error, and
+          that a teammate's `run_in_background` is refused where fork mode is off.
+          Agent teams are an interactive-session feature, and so is fork mode, which
+          makes every sub-agent run in the background: a mock session is `-p`, with
+          fork mode off.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields

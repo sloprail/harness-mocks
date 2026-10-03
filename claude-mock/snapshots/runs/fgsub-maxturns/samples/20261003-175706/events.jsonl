@@ -1,0 +1,49 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","source":"startup"}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Use the Agent tool (not in background) with subagent_type capped, description 'capped', prompt: 'Run these Bash commands one after another, each as its own tool call: echo ONE, echo TWO, echo THREE, echo FOUR.' Then reply only DONE."}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"prompt":"Run these Bash commands one after another, each as its own tool call: echo ONE, echo TWO, echo THREE, echo FOUR.","subagent_type":"capped","run_in_background":false}}}
+{"event":"hook","hook":"SubagentStart","payload":{"session_id":"<SESSION_ID>","agent_type":"capped","hook_event_name":"SubagentStart"}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo ONE"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo ONE"},"tool_response":{"stdout":"ONE","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo TWO"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo TWO"},"tool_response":{"stdout":"TWO","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"prompt":"Run these Bash commands one after another, each as its own tool call: echo ONE, echo TWO, echo THREE, echo FOUR.","subagent_type":"capped","run_in_background":false},"tool_response":{"status":"completed","prompt":"Run these Bash commands one after another, each as its own tool call: echo ONE, echo TWO, echo THREE, echo FOUR.","agentId":"ace3e0cb2655b9ca2","agentType":"capped","harnessNoteCount":1,"harnessTailCount":0,"harnessSectionHash":"34459eb126757321","content":[{"type":"text","text":"NOTE: this agent stopped at its 2-turn limit before finishing. It was still calling tools and had produced no report. Send the agent a message (SendMessage) to let it continue from where it stopped.\n"}],"resolvedModel":"claude-haiku-4-5-20251001","totalDurationMs":3667,"totalTokens":13737,"totalToolUseCount":2,"usage":{"output_tokens_details":{"thinking_tokens":21},"input_tokens":8,"cache_creation_input_tokens":1282,"cache_read_input_tokens":12350,"output_tokens":97,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":1282},"inference_geo":"not_available","iterations":[{"input_tokens":8,"output_tokens":97,"cache_read_input_tokens":12350,"cache_creation_input_tokens":1282,"cache_creation":{"ephemeral_5m_input_tokens":1282,"ephemeral_1h_input_tokens":0},"type":"message"}],"speed":"standard","fallback_credit":null},"toolStats":{"readCount":0,"searchCount":0,"bashCount":2,"editFileCount":0,"linesAdded":0,"linesRemoved":0,"otherToolCount":0}}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"SendMessage","tool_input":{"to":"ace3e0cb2655b9ca2","summary":"continue","message":"continue","type":"message","recipient":"ace3e0cb2655b9ca2","content":"continue"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"SendMessage","tool_input":{"to":"ace3e0cb2655b9ca2","summary":"continue","message":"continue"},"tool_response":{"success":true,"message":"Resuming agent ace3e0c","resumedAgentId":"ace3e0cb2655b9ca2","pin":{"id":"ace3e0cb2655b9ca2","name":"ace3e0cb2655b9ca2","ref":"34c40b"}}}}
+{"event":"hook","hook":"SubagentStart","payload":{"session_id":"<SESSION_ID>","agent_type":"capped","hook_event_name":"SubagentStart"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"Stop","stop_hook_active":false,"background_tasks":[{"id":"ace3e0cb2655b9ca2","type":"subagent","status":"running","description":"capped","agent_type":"capped"}],"session_crons":[]}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo THREE"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo THREE"},"tool_response":{"stdout":"THREE","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo FOUR"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"capped","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo FOUR"},"tool_response":{"stdout":"FOUR","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"<task-notification>\n<task-id>ace3e0cb2655b9ca2</task-id>\n<tool-use-id>toolu_01BjUjPFsV8m5DeHJ1bp54fP</tool-use-id>\n<output-file><TMP>/tmp/claude-501/<RUN_DIRNAME>/<SESSION_ID>/tasks/ace3e0cb2655b9ca2.output</output-file>\n<status>completed</status>\n<summary>Agent \"capped\" stopped at its 2-turn limit (partial result; SendMessage to task-id to continue)</summary>\n<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>\n<result>NOTE: this agent stopped at its 2-turn limit before finishing. It was still calling tools and had produced no report. Send the agent a message (SendMessage) to let it continue from where it stopped.\n</result>\n<usage><subagent_tokens>14142</subagent_tokens><tool_uses>2</tool_uses><duration_ms>3165</duration_ms></usage>\n</task-notification>"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"Stop","stop_hook_active":false,"background_tasks":[],"session_crons":[]}}
+{"event":"hook","hook":"SessionEnd","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionEnd","reason":"other"}}
+{"event":"stream","type":"system","subtype":"hook_started"}
+{"event":"stream","type":"system","subtype":"hook_response"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"task_started"}
+{"event":"stream","type":"system","subtype":"task_progress"}
+{"event":"stream","type":"system","subtype":"task_progress"}
+{"event":"stream","type":"system","subtype":"task_updated"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"system","subtype":"background_tasks_changed"}
+{"event":"stream","type":"system","subtype":"task_started"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"task_progress"}
+{"event":"stream","type":"system","subtype":"task_progress"}
+{"event":"stream","type":"system","subtype":"background_tasks_changed"}
+{"event":"stream","type":"system","subtype":"task_updated"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"result","subtype":"success"}
+{"event":"stream","type":"result","subtype":"success"}

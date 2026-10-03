@@ -11,5 +11,19 @@ providers:
       - claude-mock/snapshots/runs/meta
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/isolated-worktree
+      - claude-mock/snapshots/runs/fgsub-report-scan
+      - claude-mock/snapshots/runs/fgsub-report-scan-perm
+      - claude-mock/snapshots/runs/fgsub-report-scan-role
+      - claude-mock/snapshots/runs/fgsub-tool-stats
+      - claude-mock/snapshots/runs/fgsub-maxturns
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock has no model API to fail: it does not model the docs' hand-back of
+          a sub-agent cut off by an API error (a rate limit, overload or server
+          error), which returns the partial output with a note that it was cut off,
+          or fails with 'Agent terminated early due to an API error', and which
+          continues a cut-off response before ending the run.
   codex: pending
   cursor: pending

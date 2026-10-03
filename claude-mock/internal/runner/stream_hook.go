@@ -127,6 +127,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			bg.ReapAtExit(cfg.AgentID, printReapGrace)
 			return nil
 		}
+		if turnLimitOf(ctx).Step() { // a sub-agent at its maxTurns ends here, with no result
+			return nil
+		}
 		sig := turn.sig
 		if sig != "" && sig == lastSig {
 			repeats++

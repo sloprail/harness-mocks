@@ -124,6 +124,6 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
 		toolUseID: toolUseID, description: in.Description, outputFile: outFile,
-		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup,
+		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup, branch: branch, limit: definitionTurnLimit(cfg, in.SubagentType),
 	}, in, toolexec.Result{}
 }
