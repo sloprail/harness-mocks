@@ -1,0 +1,1 @@
+Make every shell command its own separate tool call. Run: seq 1 400 . Then run: seq 401 800 . Then run: echo FINAL . Then reply only DONE.
