@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ func TestT017_85_SubagentCompactionIsLoggedInItsOwnFile(t *testing.T) {
 	cfg := filepath.Join(dir, "config")
 	sub := script(t, dir, "sub",
 		toolUse("sb1", "Bash", `{"command":"true"}`),
-		`{"type":"compact","summary":"sub summary @MARK@","trigger":"auto"}`)
+		`{"type":"compact","summary":"sub summary @MARK@","trigger":"auto","pre_tokens":9000,"post_tokens":900}`)
 	orch := script(t, dir, "orch", toolUse("ag1", "Agent", `{"prompt":"work","description":"compacter","script":"`+sub+`"}`))
 	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "subcmp-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
@@ -35,6 +36,12 @@ func TestT017_85_SubagentCompactionIsLoggedInItsOwnFile(t *testing.T) {
 	for _, r := range readRecs(t, sides[0]) {
 		if r.Subtype == "compact_boundary" {
 			boundaries++
+			var full map[string]any
+			require.NoError(t, json.Unmarshal([]byte(r.Raw), &full))
+			assert.Equal(t, "system", full["type"])
+			meta := full["compactMetadata"].(map[string]any)
+			assert.Equal(t, "auto", meta["trigger"])
+			assert.EqualValues(t, 9000, meta["preTokens"])
 			assert.True(t, r.IsSidechain)
 			assert.Equal(t, agentID, r.AgentID)
 			assert.Equal(t, "subcmp-1", r.SessionID)

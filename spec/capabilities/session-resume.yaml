@@ -24,6 +24,11 @@ providers:
           price.
       - adr: modeled-surface
         statement: >-
+          Background sessions, which the CLI reference says --resume opens while
+          they run and --continue opens once finished, exist only in an
+          interactive session's agent view: the mock has none to open.
+      - adr: modeled-surface
+        statement: >-
           The mock does not model --name, naming a session when it starts: the
           sessions it writes carry its fixed title and no agent-name record. It
           finds a session by the name its transcript records (the real
