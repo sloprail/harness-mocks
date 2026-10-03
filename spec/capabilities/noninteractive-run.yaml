@@ -75,6 +75,15 @@ providers:
           rejection, which is the same as any other command's.
       - adr: modeled-surface
         statement: >-
+          The recorded streams (runs/pretool-refusal, runs/noninteractive-no-force)
+          carry thinking frames: "delta" frames with a piece of the model's
+          reasoning text, closed by a "completed" frame, each with a session id
+          and timestamp, and assistant text frames between tool calls. They are
+          the model's own words; the mock calls no model, so it emits none of
+          them. Its stream is the system init, the prompt, the tool-call frames
+          and the result, the same as the recorded sequence without those frames.
+      - adr: modeled-surface
+        statement: >-
           The mock models only the stream-json output format. The docs' default
           text format (the final answer only), the json format and
           --stream-partial-output (partial assistant text deltas as the agent
