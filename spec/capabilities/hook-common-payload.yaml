@@ -26,7 +26,20 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/file-tools
     deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor does not name the working directory as a cwd on every
+          payload: it names it as workspace_roots (the project's roots) on
+          every event, and a cwd field (recorded empty, the command having run
+          from the project root) is carried only by the events of a Shell call
+          (beforeShellExecution, and preToolUse, postToolUse and
+          postToolUseFailure of the Shell tool), not by a Read, Write or Task
+          call's or any other event. Its transcript path is null at
+          sessionStart and in the first events, until the conversation's
+          transcript file exists. The mock does the same (recorded:
+          runs/tool-failure, runs/file-tools, runs/pretool-refusal).
       - adr: modeled-surface
         statement: >-
           The mock has no sub-agents (no Task tool and no subagentStart or

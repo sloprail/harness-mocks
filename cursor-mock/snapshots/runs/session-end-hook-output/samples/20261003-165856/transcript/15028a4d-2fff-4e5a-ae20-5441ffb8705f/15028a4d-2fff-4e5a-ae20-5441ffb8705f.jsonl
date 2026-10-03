@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun this shell command, once, as one tool call: echo one. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the command now."},{"type":"tool_use","name":"Shell","input":{"command":"echo one","description":"Echo one to stdout"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

@@ -41,6 +41,7 @@ providers:
       - https://cursor.com/docs/hooks#sessionend
     runs:
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/session-end-hook-output
     deviations:
       - adr: modeled-surface
         statement: >-

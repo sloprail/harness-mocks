@@ -44,7 +44,13 @@ func (c Common) Payload(e Event, own map[string]any) []byte {
 	return b
 }
 
-// ToolFields are the fields a tool hook carries for its call.
+// ToolFields are the fields a tool hook carries for its call. Only a Shell
+// call carries a cwd (recorded empty: the command ran from the workspace
+// root); the Read, Write and Task events have none.
 func ToolFields(t Tool) map[string]any {
-	return map[string]any{"tool_name": t.Name, "tool_input": t.Input, "tool_use_id": t.UseID, "cwd": ""}
+	f := map[string]any{"tool_name": t.Name, "tool_input": t.Input, "tool_use_id": t.UseID}
+	if t.Name == "Shell" {
+		f["cwd"] = ""
+	}
+	return f
 }

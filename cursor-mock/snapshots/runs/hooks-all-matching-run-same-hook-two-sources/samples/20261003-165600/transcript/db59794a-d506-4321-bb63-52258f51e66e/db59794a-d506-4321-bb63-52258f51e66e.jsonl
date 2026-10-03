@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun this shell command, once, as one tool call: echo TWICE-OR-ONCE. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll run that once, then reply only DONE."},{"type":"tool_use","name":"Shell","input":{"command":"echo TWICE-OR-ONCE","description":"Echo TWICE-OR-ONCE once"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

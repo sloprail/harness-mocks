@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionEnd": [{ "command": ".cursor/hooks/end.sh" }]
+  }
+}

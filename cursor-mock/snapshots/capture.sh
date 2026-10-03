@@ -26,6 +26,7 @@
 # A scenario is hand-authored, and only its setup/ is:
 #   runs/<name>/setup/prompt.txt       the prompt
 #   runs/<name>/setup/hooks.json       the project's .cursor/hooks.json
+#   runs/<name>/setup/user-hooks.json  optional: the user's ~/.cursor/hooks.json (a second hook source)
 #   runs/<name>/setup/*.sh             optional: the hook scripts, installed in .cursor/hooks/;
 #                                      hook.sh appends to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra cursor-agent flags, one per line
@@ -87,6 +88,8 @@ capture_run() {
   mkdir -m 700 "$work/tmp"
   ln -s "$HOME/Library/Keychains" "$home/Library/Keychains" 2>/dev/null || true   # keeps the login, nothing else
   cp "$run/setup/hooks.json" "$work/repo/.cursor/hooks.json" 2>/dev/null || true
+  # optional user source: setup/user-hooks.json is the user's ~/.cursor/hooks.json
+  if [ -f "$run/setup/user-hooks.json" ]; then mkdir -p "$home/.cursor"; cp "$run/setup/user-hooks.json" "$home/.cursor/hooks.json"; fi
   for s in "$run"/setup/*.sh; do [ -f "$s" ] && cp "$s" "$work/repo/.cursor/hooks/" && chmod +x "$work/repo/.cursor/hooks/$(basename "$s")"; done
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"

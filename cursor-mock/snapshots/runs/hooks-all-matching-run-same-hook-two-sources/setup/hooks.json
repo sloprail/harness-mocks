@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterShellExecution": [{ "command": "(cat; echo) >>\"$HOOK_LOG\"" }]
+  }
+}

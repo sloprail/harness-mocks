@@ -1,0 +1,1 @@
+Run this shell command, once, as one tool call: echo EARLYOPEN. If the call is refused, do not retry it or look for a workaround. Then reply only DONE.

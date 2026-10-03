@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      { "command": ".cursor/hooks/early.sh EARLYOPEN", "timeout": 1, "matcher": "EARLYOPEN" }
+    ],
+    "afterShellExecution": [{ "command": ".cursor/hooks/log.sh" }]
+  }
+}
