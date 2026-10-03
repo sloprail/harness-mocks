@@ -6,9 +6,9 @@ import "strings"
 // reason of every hook that refused the call, not the first's alone: each
 // refusing hook's reason (a block's or a deny's, by PreToolDecision), in the
 // order given, one after another with sep between them. One refusal still
-// refuses the call, whatever the others decided.
-//
-// sr:capability pretooluse-refusal
+// refuses the call, whatever the others decided. It is the same capability as
+// PreToolRefusal (the pretooluse-refusal marked on PreToolDecision), told
+// differently.
 func PreToolRefusalAll(votes []PreToolVote, sep string) (refused bool, reason string) {
 	var reasons []string
 	for _, v := range votes {
