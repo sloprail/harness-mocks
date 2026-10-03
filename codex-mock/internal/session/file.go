@@ -17,7 +17,7 @@ type File struct {
 }
 
 // Create starts the rollout of session id at
-// <home>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl, with its meta record:
+// <home>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl, with its first record, the session's meta (see meta.go),
 // keyed by the day and the session id, not by the working directory, and
 // already there when the start hook runs (recorded: runs/session-transcript-file).
 //
@@ -33,8 +33,7 @@ func Create(home, id, cwd string, now time.Time) (*File, error) {
 		return nil, err
 	}
 	s := &File{Path: path, f: f}
-	s.append("session_meta", map[string]any{"id": id, "session_id": id, "cwd": cwd,
-		"originator": "codex_exec", "source": "exec", "cli_version": "mock"})
+	s.append("session_meta", meta(id, cwd, now))
 	return s, nil
 }
 

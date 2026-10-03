@@ -1,10 +1,12 @@
 package e2e
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +38,8 @@ func TestTranscriptIsADayAndSessionIDFileThatExistsAtStart(t *testing.T) {
 	require.Len(t, probes(want), 2)
 	assert.Equal(t, probes(want), probes(got.hookLog()), "the file exists at start and at stop")
 
-	layout := regexp.MustCompile(`^sessions/\d{4}/\d{2}/\d{2}/rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl$`)
+	layout := regexp.MustCompile(`^sessions/(\d{4})/(\d{2})/(\d{2})/rollout-(\d{4})-(\d{2})-(\d{2})T\d{2}-\d{2}-\d{2}-(.+)\.jsonl$`)
+	paths := map[string][]string{}
 	for _, p := range []struct {
 		name string
 		log  []map[string]any
@@ -50,7 +53,9 @@ func TestTranscriptIsADayAndSessionIDFileThatExistsAtStart(t *testing.T) {
 			rel := strings.TrimPrefix(path, p.home)
 			m := layout.FindStringSubmatch(rel)
 			require.NotNil(t, m, "%s: %s is not under the configuration directory as a dated rollout", p.name, path)
-			assert.Equal(t, l["session_id"], m[1], "%s: the file is keyed by the session id", p.name)
+			assert.Equal(t, l["session_id"], m[7], "%s: the file is keyed by the session id", p.name)
+			assert.Equal(t, m[1:4], m[4:7], "%s: the directory's day is the day in the file name", p.name)
+			paths[p.name] = append(paths[p.name], path)
 			assert.NotContains(t, rel, "repo", "%s: not keyed by the working directory", p.name)
 		}
 	}
@@ -58,4 +63,19 @@ func TestTranscriptIsADayAndSessionIDFileThatExistsAtStart(t *testing.T) {
 	first := jsonLines(got.rollout(t))[0]
 	assert.Equal(t, "session_meta", first["type"])
 	assert.Equal(t, got.Repo, first["payload"].(map[string]any)["cwd"], "the working directory is a field of the first record")
+
+	for name, ps := range paths {
+		require.Len(t, ps, 2, name+": the start and the stop payload name a file")
+		assert.Equal(t, ps[0], ps[1], name+": the same file at start and at stop")
+	}
+	var onDisk []string
+	require.NoError(t, filepath.Walk(filepath.Join(got.Home, "sessions"), func(p string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			onDisk = append(onDisk, p)
+		}
+		return nil
+	}))
+	assert.Equal(t, onDisk, paths["mock"][:1], "transcript_path names the file the session wrote")
+	day := time.Now().Format("2006/01/02")
+	assert.Contains(t, onDisk[0], "/sessions/"+day+"/", "kept under the day it started")
 }
