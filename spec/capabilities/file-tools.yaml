@@ -35,8 +35,7 @@ providers:
           event stream's command_execution item shows the failure, with status
           "failed" and exit code 1 (recorded: runs/file-tools-failure). A patch
           that updates a missing file is an error told to the agent, and writes
-          nothing; the recorded failing patch, made through Codex's code-mode
-          wrapper, fired no hook.
+          nothing, and fires PreToolUse but no PostToolUse.
       - adr: modeled-surface
         statement: >-
           The mock applies the three file sections of a patch (Add File, Update

@@ -80,6 +80,9 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // gives the agent its feedback in place of the result.
 // sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
+	if c.Name == patchTool && r.Failed {
+		return "", false // a patch that fails fires PreToolUse only (recorded: runs/file-tools-failure)
+	}
 	own := h.payload(c)
 	own["tool_response"] = r.Output
 	for _, o := range h.hooks.Fire(ctx, hooks.PostToolUse, fileOrHookName(c), own) {

@@ -167,18 +167,11 @@ func TestFailedFileCallsAreErrors(t *testing.T) {
 	assert.Equal(t, want["exit_code"], items[0]["exit_code"])
 	assert.Contains(t, items[0]["aggregated_output"], "nothere.txt: No such file or directory")
 
-	// the failed shell read fired both hooks, the response being the shell's complaint
-	bash := func(lines []map[string]any) (out []map[string]any) {
-		for _, l := range lines {
-			if l["tool_name"] == "Bash" {
-				out = append(out, l)
-			}
-		}
-		return
-	}
-	wantHooks := bash(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
-	require.Len(t, wantHooks, 2)
-	assert.Equal(t, sortedHookLines(wantHooks), sortedHookLines(bash(got.hookLog())))
+	// the failed shell read fired both hooks, the response being the shell's
+	// complaint; the failed patch fired PreToolUse and no PostToolUse
+	wantHooks := jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))
+	require.Len(t, wantHooks, 4)
+	assert.Equal(t, sortedHookLines(wantHooks), sortedHookLines(got.hookLog()))
 
 	rollout := got.rollout(t)
 	assert.True(t, resultTold(t, rollout, "apply_patch verification failed: Failed to read file to update "+got.Repo+"/nothere2.txt: No such file or directory", "{}"))
