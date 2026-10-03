@@ -7,5 +7,26 @@ providers:
       - https://code.claude.com/docs/en/headless#background-tasks-at-exit
     runs:
       - claude-mock/snapshots/runs/bgagent
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: codex exec exits when the turn that spawned a sub-agent ends, the sub-agent unfinished and no further turn started
+    runs:
+      - codex-mock/snapshots/runs/print-waits-for-background-agents
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#subagentstop
+    runs:
+      - cursor-mock/snapshots/runs/print-waits-for-background-agents
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock plays the sub-agent as a script that decides what it does
+          (the real one is a model), no hook of the Task call can refuse it,
+          and a limit on how long the session waits is not modeled.
+      - adr: capability-grounding
+        statement: >-
+          Cursor fires neither subagentStart nor subagentStop for the
+          background sub-agent in print mode, though both were configured
+          (recorded: runs/print-waits-for-background-agents), so what the
+          documented subagentStop hook can do, such as a follow-up message,
+          does not apply, and the mock fires neither.

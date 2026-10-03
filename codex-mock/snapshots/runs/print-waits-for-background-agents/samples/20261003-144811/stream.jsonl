@@ -1,0 +1,9 @@
+{"type":"thread.started","thread_id":"01a1023c-b084-7aa1-aaba-d145ad2cdf8a"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":""}}
+{"type":"item.started","item":{"id":"item_3","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a1023c-b084-7aa1-aaba-d145ad2cdf8a","receiver_thread_ids":[],"prompt":"Run the shell command: sleep 5; echo SUBDONE . Then reply with the single word SUBREPLY.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a1023c-b084-7aa1-aaba-d145ad2cdf8a","receiver_thread_ids":["01a1023c-de25-75b0-839e-0e8781ba7bc6"],"prompt":"Run the shell command: sleep 5; echo SUBDONE . Then reply with the single word SUBREPLY.","agents_states":{"01a1023c-de25-75b0-839e-0e8781ba7bc6":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"LAUNCHED"}}
+{"type":"turn.completed","usage":{"input_tokens":44359,"cached_input_tokens":36096,"cache_write_input_tokens":0,"output_tokens":177,"reasoning_output_tokens":69}}
