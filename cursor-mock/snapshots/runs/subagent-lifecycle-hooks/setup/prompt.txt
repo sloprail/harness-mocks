@@ -1,0 +1,1 @@
+Use the Task tool to start one sub-agent whose task is: run the shell command echo SUB-DONE and reply only SUB-DONE. Wait for it to finish, then reply only DONE.

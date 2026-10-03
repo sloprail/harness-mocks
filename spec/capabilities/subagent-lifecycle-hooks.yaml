@@ -14,5 +14,32 @@ providers:
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/bgagent
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#subagentstart
+      - https://developers.openai.com/codex/hooks#subagentstop
+    runs:
+      - codex-mock/snapshots/runs/subagent-lifecycle-hooks
+      - codex-mock/snapshots/runs/subagent-start-refused
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex's stop hook payload does not list the session's background tasks: it carries
+          the sub-agent's agent_transcript_path and last_assistant_message, and
+          no field naming the session's tasks (recorded:
+          runs/subagent-lifecycle-hooks), so the mock lists none either.
+      - adr: modeled-surface
+        statement: >-
+          The mock reads nothing a SubagentStop hook answers: Codex's docs let
+          it block (decision block, or exit 2) to continue the sub-agent, with
+          continue false taking precedence, none of which the recordings show
+          and the mock does not model. Only the stop hook's firing and payload
+          are modeled.
+  cursor:
+    supported: false
+    reason: >-
+      cursor-agent in print mode fires neither subagentStart nor subagentStop
+      when a Task sub-agent runs, though its other hooks fire for the
+      sub-agent's work.
+    runs:
+      - cursor-mock/snapshots/runs/subagent-lifecycle-hooks
