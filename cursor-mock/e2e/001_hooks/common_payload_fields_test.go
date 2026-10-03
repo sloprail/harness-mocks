@@ -74,6 +74,9 @@ func TestTheWorkingDirectoryIsNamedByWorkspaceRootsAndOnlyAShellEventHasACwd(t *
 			}
 			for _, p := range got.raw {
 				assert.Equal(t, []any{got.ws}, p["workspace_roots"])
+				if _, has := p["cwd"]; has {
+					assert.Equal(t, "", p["cwd"], "the mock reports the project root as the recorded empty cwd")
+				}
 			}
 		})
 	}

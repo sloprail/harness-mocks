@@ -30,6 +30,16 @@ func TestWhatTheRecordedSessionEndHookPrintedIsNotInTheTranscript(t *testing.T) 
 	last := got.raw[len(got.raw)-1]
 	require.Equal(t, "sessionEnd", last["hook_event_name"])
 	require.Equal(t, "completed", last["reason"])
+	require.Equal(t, "completed", last["final_status"])
+	require.Equal(t, false, last["is_background_agent"])
+	recorded := recordedRaw(t, "session-end-hook-output")
+	end := recorded[len(recorded)-1]
+	require.Equal(t, "sessionEnd", end["hook_event_name"])
+	for name, p := range map[string]map[string]any{"recorded": end, "mock": last} {
+		ms, ok := p["duration_ms"].(float64)
+		require.True(t, ok, "%s sessionEnd carries duration_ms: %v", name, p)
+		require.Greater(t, ms, float64(0), name)
+	}
 
 	samples, err := filepath.Glob(filepath.Join("..", "..", "snapshots", "runs", "session-end-hook-output", "samples", "*"))
 	require.NoError(t, err)
