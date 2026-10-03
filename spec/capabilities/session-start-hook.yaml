@@ -29,10 +29,11 @@ providers:
       - codex-mock/snapshots/runs/session-start-continue-false
       - codex-mock/snapshots/runs/session-start-compact-continue-false
       - codex-mock/snapshots/runs/manual-compaction-auto
+      - codex-mock/snapshots/runs/session-fork
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock never forks or clears a session (the sources clear), so a session start is the fresh one, source startup, the one after a compaction, source compact, or the one a session resumed by its id (`exec resume`) makes, source resume.
+          The mock never clears a session (the source clear), so a session start is the fresh one, source startup, the one after a compaction, source compact, the one a session resumed by its id (`exec resume`) makes, source resume, or the one `exec fork` makes, source fork (recorded: runs/session-fork).
       - adr: capability-grounding
         statement: >-
           Unlike the statement, a Codex SessionStart hook can stop the run: one

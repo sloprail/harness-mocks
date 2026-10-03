@@ -24,6 +24,11 @@ type File struct {
 //
 // sr:provides session-transcript-file/codex
 func Create(home, id, cwd string, now time.Time) (*File, error) {
+	return create(home, id, cwd, now, nil)
+}
+
+// create starts the rollout with extra fields in its meta record.
+func create(home, id, cwd string, now time.Time, extra map[string]any) (*File, error) {
 	dir := filepath.Join(home, "sessions", now.Format("2006"), now.Format("01"), now.Format("02"))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
@@ -34,7 +39,11 @@ func Create(home, id, cwd string, now time.Time) (*File, error) {
 		return nil, err
 	}
 	s := &File{Path: path, f: f}
-	s.append("session_meta", meta(id, cwd, now))
+	m := meta(id, cwd, now)
+	for k, v := range extra {
+		m[k] = v
+	}
+	s.append("session_meta", m)
 	return s, nil
 }
 

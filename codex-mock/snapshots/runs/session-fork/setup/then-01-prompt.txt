@@ -1,0 +1,1 @@
+Which word did the earlier shell command print? Reply only that word.

@@ -1,0 +1,14 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Remember the word ORIGINAL. Reply only OK."}]},"session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7"}
+{"type":"thinking","subtype":"delta","text":"I will reply only with","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","timestamp_ms":1791059637304}
+{"type":"thinking","subtype":"delta","text":" \"OK\".","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","timestamp_ms":1791059637304}
+{"type":"thinking","subtype":"completed","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","timestamp_ms":1791059637304}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"OK"}]},"session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7"}
+{"type":"result","subtype":"success","duration_ms":4336,"duration_api_ms":4336,"is_error":false,"result":"OK","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","request_id":"e5f3785a-fedb-424c-bb99-74721075b9ae","usage":{"inputTokens":14786,"outputTokens":42,"cacheReadTokens":0,"cacheWriteTokens":0}}
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Which word did I ask you to remember? Reply only that word."}]},"session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7"}
+{"type":"thinking","subtype":"delta","text":"The word to remember","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","timestamp_ms":1791059643507}
+{"type":"thinking","subtype":"delta","text":" is ORIGINAL.","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","timestamp_ms":1791059643508}
+{"type":"thinking","subtype":"completed","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","timestamp_ms":1791059643508}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ORIGINAL"}]},"session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7"}
+{"type":"result","subtype":"success","duration_ms":2413,"duration_api_ms":2413,"is_error":false,"result":"ORIGINAL","session_id":"43b7d922-e5b3-4498-9552-9d2ee64c78f7","request_id":"7ce00b4d-04b9-4d6b-be28-9ed03e4e18b3","usage":{"inputTokens":98,"outputTokens":22,"cacheReadTokens":14784,"cacheWriteTokens":0}}

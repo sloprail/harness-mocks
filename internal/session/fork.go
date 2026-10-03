@@ -1,6 +1,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 )
@@ -100,4 +101,23 @@ func forkSegment(recs []Record, s ForkSchema) []Record {
 		after[0][s.Parent] = prev
 	}
 	return append(segment, after...)
+}
+
+// HistoryBase is where the history of a fork stays when the fork's own file does
+// not copy it, as Fork's records do: the source session and how much of its
+// transcript the fork continues from. A harness whose forks carry the history by
+// reference writes it into the fork's header.
+type HistoryBase struct {
+	// From is the source session's id.
+	From string
+	// Records is how many records of the source the fork continues from, Bytes
+	// how long that part of the source is.
+	Records, Bytes int
+}
+
+// ForkBase is the history base of a fork of session from, taken now: the whole
+// of its transcript src as it stands. It is Fork's part for a harness that
+// carries the history by reference.
+func ForkBase(from string, src []byte) HistoryBase {
+	return HistoryBase{From: from, Records: bytes.Count(src, []byte("\n")), Bytes: len(src)}
 }

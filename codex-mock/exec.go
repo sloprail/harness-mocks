@@ -91,8 +91,13 @@ func runExec(cmd *cobra.Command, args []string) error {
 	}
 	overrides, _ := f.GetStringArray("config")
 	runner.Agents = runner.AgentSettings{MaxDepth: maxDepthOf(overrides), Script: os.Getenv("A10N_MOCK_SUBAGENT_SCRIPT")}
+	// `exec fork <session id> [prompt]` continues that session in a new one
+	var forkFrom string
+	if len(args) >= 2 && args[0] == "fork" {
+		forkFrom, args = args[1], args[2:]
+	}
 	return runner.Run(cmd.Context(), runner.Config{
-		Script: script, Prompt: strings.Join(args, " "), Resume: resume, Cwd: cwd, CodexHome: home, Model: model,
+		Script: script, Prompt: strings.Join(args, " "), Resume: resume, ForkFrom: forkFrom, Cwd: cwd, CodexHome: home, Model: model,
 		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
 }
