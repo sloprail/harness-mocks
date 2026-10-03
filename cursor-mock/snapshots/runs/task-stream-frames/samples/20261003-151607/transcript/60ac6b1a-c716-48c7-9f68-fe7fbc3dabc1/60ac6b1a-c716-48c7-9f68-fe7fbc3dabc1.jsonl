@@ -1,0 +1,7 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo two things. First, launch a sub-agent with your Task tool (not a shell command) and ask it to reply with the single word PONG. Second, start a long-running shell command in the background (for example sh -c 'sleep 5; echo BGDONE' running detached) and then wait for it to finish. Reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll launch the sub-agent and start the background shell in parallel, then wait for the shell to finish."},{"type":"tool_use","name":"Task","input":{"description":"Reply with PONG","prompt":"Reply with the single word PONG. Nothing else.","subagent_type":"generalPurpose","model":"inherit"}},{"type":"tool_use","name":"Shell","input":{"command":"sh -c 'sleep 5; echo BGDONE'","description":"Background sleep then echo","block_until_ms":0}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"AwaitShell","input":{"shell_id":"339917","block_until_ms":10000}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n\n<user_query>Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"The background command finished successfully (`BGDONE`, exit 0)."}]}}
+{"type":"turn_ended","status":"success"}

@@ -112,7 +112,10 @@ func (s *session) afterTurn(ctx context.Context) (string, bool) {
 	return notificationPrompt, true
 }
 
-// notificationFrame announces a finished shell on the stream.
+// notificationFrame announces a finished shell on the stream: the only frame of
+// a task of its own, with its id, a status and its title; a task's start is the
+// frame of the call that launched it (recorded: runs/task-stream-frames).
+// sr:provides task-stream-frames/cursor
 func notificationFrame(session string, t *tasks.Task) []byte {
 	status := "success"
 	if t.Status() != tasks.Completed {
