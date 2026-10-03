@@ -1,0 +1,1 @@
+Use the Agent tool (not in background) with subagent_type capped, description 'capped', prompt: 'Run these Bash commands one after another, each as its own tool call: echo ONE, echo TWO, echo THREE, echo FOUR.' Then reply only DONE.

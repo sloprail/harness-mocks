@@ -1,0 +1,1 @@
+Use the Agent tool (not in background) with subagent_type general-purpose, description 'outer', prompt: 'Use the Agent tool with subagent_type general-purpose, description inner, run_in_background true, prompt: Run the Bash command sleep 6; echo INNERDONE . Then reply INNERREPLY. After launching it, immediately reply LAUNCHED and do not wait for it.' Then reply only DONE.

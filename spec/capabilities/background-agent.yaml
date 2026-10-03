@@ -5,8 +5,75 @@ providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
+      - https://code.claude.com/docs/en/sub-agents#concurrent-subagent-limit
     runs:
       - claude-mock/snapshots/runs/bgagent
+      - claude-mock/snapshots/runs/bgagent-definition
+      - claude-mock/snapshots/runs/bgagent-concurrent-limit
+      - claude-mock/snapshots/runs/bgagent-nested-launcher
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock's executor does not implement the SendMessage tool, so it does not
+          model a finished sub-agent resumed in the background by a message, nor
+          that a resume takes a slot without the concurrent limit refusing it.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model what the docs say of a background sub-agent's
+          background shell command that runs past the end of its turn: that Claude
+          Code sends the sub-agent a notification when the command ends. A mock
+          sub-agent is a script run to its result, which nothing wakes again.
+      - adr: modeled-surface
+        statement: >-
+          The mock has no model API to fail: it does not model the docs' hand-back of
+          a background sub-agent whose run ends on an API error, which is marked
+          failed, the message Claude receives naming the error and including the
+          sub-agent's last output.
+      - adr: modeled-surface
+        statement: >-
+          The mock has no permission prompts: the docs say a background sub-agent
+          surfaces each one in the main session, and that an answer lasting beyond
+          one call applies to the whole session. A prompt is an interactive-session
+          dialog, and a mock session only carries its permission mode in the hook
+          payloads.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model the interactive-session variant of a sub-agent that
+          launched background sub-agents: the docs say it waits for their results
+          before it finishes there. A mock session is `-p`, where the launcher does
+          not wait, which the nested-launcher recording shows.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model conversation forks: `/subtask` and `/fork` are
+          slash commands of an interactive session, and the docs' rule that a fork
+          takes a slot of the concurrent limit while it runs, and is never refused
+          by it, is theirs.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not take tools away from a background sub-agent: the docs
+          give it a smaller built-in tool set than a foreground one (Read, Grep,
+          Glob, LSP, Bash, Edit, Write, WebFetch, Monitor, SendMessage and a few
+          more), but every tool the docs remove from it is one the mock's
+          executor does not implement for any sub-agent.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model an in-process agent team's teammates: the docs say
+          a sub-agent a teammate spawns runs in the foreground, that spawning one
+          whose definition sets `background: true` is refused with an error, and
+          that a teammate's `run_in_background` is refused where fork mode is off.
+          Agent teams are an interactive-session feature, and so is fork mode, which
+          makes every sub-agent run in the background: a mock session is `-p`, with
+          fork mode off.
+      - adr: modeled-surface
+        statement: >-
+          The mock's concurrent sub-agent limit is the default of 20: it does not
+          read CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS, which the docs give to change
+          it (the bgagent-concurrent-limit recording sets it to 1).
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model the sessions the docs exempt from the concurrent
+          sub-agent limit: those with ultracode active, which is turned on through
+          the effort level in an interactive session.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields

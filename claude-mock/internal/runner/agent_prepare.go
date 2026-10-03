@@ -44,6 +44,9 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		return nil, in, toolexec.Result{Output: "Error: No such tool available: Agent", IsError: true}
 	}
 
+	if refusal, refused := concurrentLimitRefusal(cfg); refused {
+		return nil, in, refusal
+	}
 	agentType := in.SubagentType
 	if agentType == "" {
 		agentType = "general-purpose"
@@ -120,10 +123,11 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 	_ = os.Remove(outFile)
 	_ = os.Symlink(sidechain, outFile)
 
+	cfg.bg.stats.Spawn(askOf(rawInput), background, meta.SpawnDepth, cfg.AgentID != "", agentType)
 	return &subagentRun{
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
 		toolUseID: toolUseID, description: in.Description, outputFile: outFile,
-		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup,
+		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup, branch: branch, limit: definitionTurnLimit(cfg, in.SubagentType),
 	}, in, toolexec.Result{}
 }

@@ -1,0 +1,1 @@
+Use the Agent tool twice in a row, both with subagent_type general-purpose and run_in_background true: first description 'one', prompt 'Run the Bash command: sleep 6; echo ONE . Then reply ONE.'; then immediately description 'two', prompt 'Reply TWO.'. If the second launch fails, do not retry it. Then end your turn by replying only LAUNCHED.

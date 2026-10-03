@@ -103,37 +103,48 @@ const noOutput = "(Subagent completed but returned no output.)"
 //	<usage>subagent_tokens: N\ntool_uses: N\nduration_ms: N</usage>
 //
 // Its toolUseResult (also PostToolUse's tool_response) carries status
-// "completed", the report as content, and the run's counts. The mock spends no
-// tokens: subagent_tokens is 0.
-//
+// "completed", the report as content, the run's counts and toolStats. The mock
+// spends no tokens: subagent_tokens is 0.
 // sr:provides foreground-subagent-result/claude
 func buildAgentResult(sub *subagentRun, in agentToolInput, model string, out subagentOutcome, durationMs int64, worktreePath string) toolexec.Result {
-	report := out.finalText
-	content := []map[string]any{{"type": "text", "text": report}}
-	if report == "" {
-		content = []map[string]any{}
+	report, notice := headedReport(out.finalText, sub.limit)
+	content := textBlocks(report)
+	text := subagents.HandBack(handbackFrame, noOutput, report)
+	notes := 0
+	if notice != "" {
+		// The notice heads the report: a content block of its own, a line (and an
+		// empty one) ahead of the frame, which a report that never came lacks.
+		content = append([]map[string]any{{"type": "text", "text": notice + "\n"}}, content...)
+		text, notes = "  "+notice+"\n  \n"+text, 1
+		if report == "" {
+			text = "  " + notice + "\n  "
+		}
 	}
-	text := subagents.HandBack(handbackFrame, noOutput, out.finalText)
 	wt := ""
 	if worktreePath != "" {
 		wt = "\nworktreePath: " + worktreePath
 	}
 	text += "\nagentId: " + sub.agentID + " (use SendMessage with to: '" + sub.agentID + "', summary: '<5-10 word recap>' to continue this agent)" + wt +
 		fmt.Sprintf("\n<usage>subagent_tokens: 0\ntool_uses: %d\nduration_ms: %d</usage>", out.toolUses, durationMs)
-	if model == "" {
-		model = "default"
-	}
 	if in.Model != "" {
 		model = in.Model
+	} else if model == "" {
+		model = "default"
 	}
 	tur := map[string]any{
 		"status": "completed", "prompt": in.Prompt, "agentId": sub.agentID, "agentType": sub.agentType,
-		"harnessNoteCount": 0, "harnessTailCount": 0, "harnessSectionHash": sectionHash(content),
+		"harnessNoteCount": notes, "harnessTailCount": 0, "harnessSectionHash": sectionHash(content),
 		"content": content, "resolvedModel": model, "totalDurationMs": durationMs, "totalTokens": 0,
-		"totalToolUseCount": out.toolUses,
+		"totalToolUseCount": out.toolUses, "usage": zeroUsage(),
+	}
+	if ts := toolStatsOf(sub.sidechain); ts != nil {
+		tur["toolStats"] = ts
 	}
 	if worktreePath != "" {
 		tur["worktreePath"] = worktreePath
+		if sub.branch != "" {
+			tur["worktreeBranch"] = sub.branch
+		}
 	}
 	return toolexec.Result{Output: text, ContentAsBlocks: true, ToolUseResult: tur}
 }

@@ -39,7 +39,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	pending := sc.pending
 	if pending.ToolName == "" {
 		if sc.done || sc.compactSig == "" {
-			return turnResult{done: true, lastText: sc.lastText, resultLine: sc.resultLine}, nil
+			return turnResult{done: true, lastText: sc.lastText, resultLine: withSubagentStats(sc.resultLine, bg)}, nil
 		}
 		// The invocation compacted the context and stopped: the turn goes on
 		// after a compaction, so the script runs again.
@@ -90,7 +90,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var startAgent func()
 	toolStarted := time.Now()
 	switch {
-	case isAgentTool(pending.ToolName) && tasks.RunsInBackground(runsInBackground(pending.ToolInput), cfg.BackgroundTasksDisabled):
+	case isAgentTool(pending.ToolName) && agentRunsInBackground(cfg, pending.ToolInput):
 		res, startAgent = bg.launchAgent(cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isAgentTool(pending.ToolName):
 		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
@@ -130,5 +130,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// inside the turn.
 	bg.deliverMidTurn(ctx, cfg, inv, tr)
 
-	return turnResult{sig: pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
+	// A sub-agent at its maxTurns ends here, with no result frame.
+	atLimit := cfg.TurnLimit.Step()
+	return turnResult{sig: pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText, done: atLimit}, nil
 }
