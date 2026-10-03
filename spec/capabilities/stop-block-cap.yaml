@@ -14,5 +14,21 @@ providers:
     runs:
       - claude-mock/snapshots/runs/cap
       - claude-mock/snapshots/runs/cap-sub
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: >-
+      Codex has no cap on stop blocks: a Stop hook that blocked 30 times in a
+      row kept the turn going each time, and the turn ended only when the
+      hook stopped blocking.
+    docs:
+      - https://developers.openai.com/codex/hooks#stop
+    runs:
+      - codex-mock/snapshots/runs/stop-block-cap-30
+  cursor:
+    supported: false
+    reason: >-
+      In the non-interactive run the stop hook never fires, even after a tool
+      call, so a stop hook cannot block the turn and there is nothing for a
+      cap to limit.
+    runs:
+      - cursor-mock/snapshots/runs/stop-block-cap-always

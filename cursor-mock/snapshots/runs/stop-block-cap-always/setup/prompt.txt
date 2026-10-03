@@ -1,0 +1,1 @@
+Run the shell command: echo HI. Then reply only DONE. Whenever you are told to keep going, reply only DONE again.
