@@ -260,7 +260,7 @@ func TestCommandHookRunsInASubdirectoryAndResolvesTheGitRoot(t *testing.T) {
 		}
 		return
 	}
-	assert.Equal(t, []string{"<RUN>/.codex", "<RUN>/.codex", "<RUN>/.codex", "<RUN>/.codex"}, recPwd(recorded), "the recording: every hook ran in the subdirectory")
+	assert.Equal(t, []string{"<RUN>/.codex", "<RUN>/.codex", "<RUN>/.codex", "<RUN>/.codex", "<RUN>/.codex"}, recPwd(recorded), "the recording: every hook ran in the subdirectory")
 	for _, p := range recorded {
 		if p["hook_event_name"] != nil {
 			assert.Equal(t, "<RUN>/.codex", p["cwd"], p["hook_event_name"])
@@ -273,7 +273,7 @@ func TestCommandHookRunsInASubdirectoryAndResolvesTheGitRoot(t *testing.T) {
 	want, err := filepath.EvalSymlinks(filepath.Join(got.Repo, ".codex"))
 	require.NoError(t, err)
 	pwds := recPwd(log)
-	require.Len(t, pwds, 4, "the hook was found through the git root from the subdirectory, for every event")
+	require.Len(t, pwds, 5, "the hook was found through the git root from the subdirectory, for every event")
 	for _, p := range pwds {
 		assert.Equal(t, want, p)
 	}
@@ -287,9 +287,13 @@ func TestCommandHookRunsInASubdirectoryAndResolvesTheGitRoot(t *testing.T) {
 			assert.Equal(t, sessionIDOf(t, got), p["session_id"], ev)
 		}
 	}
-	assert.Equal(t, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"}, events)
+	assert.Equal(t, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"}, events)
 	post := payloadsOf(log, "PostToolUse")
 	assert.Equal(t, map[string]any{"command": "echo SUBDIR"}, post[0]["tool_input"], "the payload reached the hook's stdin")
+	stop := payloadsOf(log, "Stop")
+	require.Len(t, stop, 1)
+	assert.Equal(t, false, stop[0]["stop_hook_active"], "the Stop payload reached the hook's stdin")
+	assert.Equal(t, "DONE", stop[0]["last_assistant_message"])
 	// the agent's own command runs in the session directory too
 	cmds, _ := got.commands()
 	assert.Equal(t, []string{"echo SUBDIR"}, cmds)
