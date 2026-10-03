@@ -1,7 +1,8 @@
 package session
 
 import (
-	"os/exec"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -22,11 +23,18 @@ func meta(id, cwd string, now time.Time) map[string]any {
 	return m
 }
 
-// gitBranch is the branch checked out in dir, or "" outside a repository.
+// gitBranch is the branch checked out in the repository containing dir, read
+// from its HEAD, or "" outside a repository or on a detached HEAD.
 func gitBranch(dir string) string {
-	out, err := exec.Command("git", "-C", dir, "symbolic-ref", "--short", "-q", "HEAD").Output()
-	if err != nil {
-		return ""
+	for d := dir; ; d = filepath.Dir(d) {
+		if b, err := os.ReadFile(filepath.Join(d, ".git", "HEAD")); err == nil {
+			if ref, ok := strings.CutPrefix(strings.TrimSpace(string(b)), "ref: refs/heads/"); ok {
+				return ref
+			}
+			return ""
+		}
+		if d == filepath.Dir(d) {
+			return ""
+		}
 	}
-	return strings.TrimSpace(string(out))
 }

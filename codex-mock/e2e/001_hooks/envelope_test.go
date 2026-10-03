@@ -35,8 +35,13 @@ func TestRolloutBookkeepingIsTheFirstRecordsAndEveryRecordIsTimestamped(t *testi
 		for i, r := range p.records {
 			assert.NotEmpty(t, r["timestamp"], "%s: record %d is timestamped", p.name, i)
 			if i > 0 {
-				for _, k := range []string{"session_id", "cwd", "git", "cli_version", "source"} {
+				payload, _ := r["payload"].(map[string]any)
+				for _, k := range []string{"session_id", "git", "cli_version", "source", "originator"} {
 					assert.NotContains(t, r, k, "%s: record %d does not repeat the bookkeeping", p.name, i)
+					assert.NotContains(t, payload, k, "%s: record %d's payload does not repeat the bookkeeping", p.name, i)
+				}
+				if p.name == "mock" { // the recording's turn_context repeats the working directory
+					assert.NotContains(t, payload, "cwd", "mock: record %d", i)
 				}
 			}
 		}
@@ -47,6 +52,8 @@ func TestRolloutBookkeepingIsTheFirstRecordsAndEveryRecordIsTimestamped(t *testi
 			assert.NotEmpty(t, meta[k], "%s: session_meta carries %s", p.name, k)
 		}
 		assert.Equal(t, "exec", meta["source"], "%s: a non-interactive run says so in the session record", p.name)
+		assert.Equal(t, "codex_exec", meta["originator"], p.name)
+		assert.Equal(t, meta["session_id"], meta["id"], p.name)
 		git, _ := meta["git"].(map[string]any)
 		assert.NotEmpty(t, git["branch"], "%s: session_meta names the git branch", p.name)
 
