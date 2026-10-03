@@ -26,12 +26,15 @@ func Defaults() map[string]string {
 // HookIdentity is what a hook command sees whatever it inherited: how the
 // harness was started, the project dir under Claude Code's name too, and the
 // conversation's transcript file once it is named in the payloads (recorded:
-// runs/nested-session-env, launched over decoys).
+// runs/nested-session-env, launched over decoys). A hook runs from the project
+// root, which is its working directory by every name: the PWD it sees is the
+// root, not the directory (a symlink to it, say) the harness was started from
+// (recorded: runs/symlinked-cwd).
 //
 // sr:provides subprocess-session-env/cursor
 // sr:docs https://cursor.com/docs/hooks#environment-variables
 func HookIdentity(dir, transcript string) map[string]string {
-	m := map[string]string{"CURSOR_INVOKED_AS": "cursor-agent", "CLAUDE_PROJECT_DIR": dir}
+	m := map[string]string{"CURSOR_INVOKED_AS": "cursor-agent", "CLAUDE_PROJECT_DIR": dir, "PWD": dir}
 	if transcript != "" {
 		m["CURSOR_TRANSCRIPT_PATH"] = transcript
 	}

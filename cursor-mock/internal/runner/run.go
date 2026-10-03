@@ -100,14 +100,9 @@ func Run(ctx context.Context, cfg Config) error {
 // hookEnv is the environment of a hook command: the harness's own, with the
 // facts Cursor gives a hook (recorded: runs/subprocess-session-env,
 // runs/nested-session-env).
-//
-// A hook runs from the project root, which is its working directory by every
-// name: the PWD it inherits is the root, not the directory (a symlink to it,
-// say) the mock was started from (recorded: runs/symlinked-cwd).
 func (s *session) hookEnv() []string {
-	return append(procexec.Env(s.cfg.Environ,
-		childenv.HookIdentity(s.cfg.Dir, s.common().TranscriptPath), childenv.HookDefaults(s.cfg.Dir, s.cfg.Version)),
-		"PWD="+s.cfg.Dir)
+	return procexec.Env(s.cfg.Environ,
+		childenv.HookIdentity(s.cfg.Dir, s.common().TranscriptPath), childenv.HookDefaults(s.cfg.Dir, s.cfg.Version))
 }
 
 // common is what every hook payload carries now: the transcript path only once
