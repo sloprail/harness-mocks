@@ -17,7 +17,12 @@ func (s *Stream) CollabStarted(tool, sender string, receivers []string, prompt a
 }
 
 // CollabCompleted reports how that call ended: the sub-agents it concerns and
-// how each stands (recorded: runs/subagent-lifecycle-hooks).
+// how each stands (recorded: runs/subagent-lifecycle-hooks). A sub-agent is
+// announced by the spawn call's item completing with its thread pending, and its
+// status and end are told by the item completing the wait, as its state with its
+// answer as the message; there is no frame of a task of its own (recorded:
+// runs/task-stream-frames).
+// sr:provides task-stream-frames/codex
 func (s *Stream) CollabCompleted(id, tool, sender string, receivers []string, prompt any, states map[string]AgentState) {
 	s.emit(map[string]any{"type": "item.completed", "item": collabItem(id, tool, sender, receivers, prompt, states, "completed")})
 }

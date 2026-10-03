@@ -1,0 +1,1 @@
+Do two things. First, spawn a sub-agent (use your sub-agent / multi-agent tool, not a shell command) and ask it to reply with the single word PONG. Second, start a long-running shell command in the background (for example sh -c 'sleep 5; echo BGDONE' running detached) and then wait for it to finish. Reply only DONE.
