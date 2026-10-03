@@ -1,0 +1,1 @@
+Call the spawn_agent tool to start a sub-agent A, with this message: "Call the spawn_agent tool to start a sub-agent B whose message is: run the shell command sleep 25 and then reply LATE. Do NOT wait for B and do not call wait: reply only STARTED straight after spawning it." Do not call wait for A either: as soon as A is spawned, reply only DONE.

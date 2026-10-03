@@ -1,0 +1,8 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Task","tool_input":{"description":"Sub-agent A nested Task","prompt":"You must use your Task tool yourself to start a sub-agent B whose prompt is: reply only LEAF. Do not answer from your own knowledge: wait for B, then reply with what B replied, or with the exact error if you cannot start a sub-agent.","subagent_type":"generalPurpose"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Task","tool_input":{"description":"Sub-agent B LEAF","prompt":"reply only LEAF","subagent_type":"generalPurpose"},"session_id":"dd008f06-162c-4f69-8e76-33217359fb04","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"taskToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"taskToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

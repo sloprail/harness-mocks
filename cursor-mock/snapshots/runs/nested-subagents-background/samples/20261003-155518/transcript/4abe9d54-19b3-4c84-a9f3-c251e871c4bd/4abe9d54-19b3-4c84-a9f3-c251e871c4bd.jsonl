@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nrun the shell command sleep 25 and then reply LATE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running `sleep 25`, then replying LATE."},{"type":"tool_use","name":"Shell","input":{"command":"sleep 25","description":"Sleep for 25 seconds","block_until_ms":35000}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"LATE"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"<|eos|>"}]}}
+{"type":"turn_ended","status":"success"}

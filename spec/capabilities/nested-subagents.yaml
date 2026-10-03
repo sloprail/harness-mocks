@@ -11,5 +11,70 @@ providers:
       - https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents
     runs:
       - claude-mock/snapshots/runs/meta
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#common-input-fields
+    runs:
+      - codex-mock/snapshots/runs/nested-subagents
+      - codex-mock/snapshots/runs/nested-subagents-limit
+      - codex-mock/snapshots/runs/nested-subagents-nowait
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          The statement's three layers and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
+          are Claude Code's. Codex's depth limit is the config key
+          agents.max_depth, and its default is one layer: a
+          sub-agent cannot spawn its own until it is raised (recorded:
+          runs/nested-subagents with 3, runs/nested-subagents-limit with 2,
+          where the sub-agent at depth 2 found no spawn tool and said so). At
+          the limit the tool is not offered rather than a dispatch ending in an
+          error, and the mock answers a spawn_agent call there as the unknown
+          tool it is ("unsupported call: spawn_agent"). Where the depth and the
+          parent are recorded is the thread's own rollout meta record
+          (source.subagent.thread_spawn: parent_thread_id, depth), not a
+          sidecar, and all the session's rollouts, sub-agents' included, sit in
+          the one day directory under sessions/.
+      - adr: modeled-surface
+        statement: >-
+          The mock has no separate wait tool: its spawn_agent runs the
+          sub-agent to its end and answers with what a wait would, unless the
+          dispatch is the mock's own background one, which answers at once
+          with a receipt as Codex's spawn_agent does. Recorded, the main thread
+          spawned a sub-agent and ended the run without waiting for it, and
+          `codex exec` ended with the sub-agent still running, aborted
+          (runs/nested-subagents-nowait, turn_aborted); no recording has a
+          sub-agent leave its own sub-agents running. The wait tool's own
+          hooks (multi_agent_v1wait_agent) are not modeled.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#subagentstart
+    runs:
+      - cursor-mock/snapshots/runs/nested-subagents
+      - cursor-mock/snapshots/runs/nested-subagents-depth
+      - cursor-mock/snapshots/runs/nested-subagents-background
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor records neither a sub-agent's depth nor its parent: its
+          transcript is a file like the main agent's, agent-transcripts/<id>/<id>.jsonl
+          beside the others of the session (the one directory, as the statement
+          says), with no sidecar and no depth or parent field, and its hooks
+          report its own conversation id as their session (recorded:
+          runs/nested-subagents). The mock does the same.
+      - adr: capability-grounding
+        statement: >-
+          The statement's three layers and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
+          are Claude Code's. Cursor's limit is two layers of sub-agents and has
+          no environment variable: a sub-agent of a sub-agent is not offered the Task tool
+          (it said no Task tool is available, runs/nested-subagents-depth),
+          rather than a dispatch ending in an error. The mock answers a Task
+          call there as an unknown tool and nests two layers.
+      - adr: modeled-surface
+        statement: >-
+          The Await tool, which the recorded main agent used to collect the
+          background sub-agent a sub-agent launched, is not implemented: the
+          mock's agents are scripts, and a session simply ends when the
+          background sub-agents it started are done. Recorded, the sub-agent
+          ended with its own report (STARTED) while the one it launched kept
+          running, and the run lasted until that one was done
+          (runs/nested-subagents-background).

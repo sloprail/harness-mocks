@@ -1,0 +1,10 @@
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"spawn_agent","tool_input":{"message":"Call the spawn_agent tool to start a sub-agent B whose message is: run the shell command sleep 25 and then reply LATE. Do NOT wait for B and do not call wait: reply only STARTED straight after spawning it."}}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

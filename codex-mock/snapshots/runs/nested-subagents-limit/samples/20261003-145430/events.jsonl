@@ -1,0 +1,15 @@
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"spawn_agent","tool_input":{"message":"You must call the spawn_agent tool yourself to start a sub-agent B, with this message: 'You must call the spawn_agent tool yourself to start a sub-agent C whose message is: reply only LEAF. Do not answer from your own knowledge: wait for C, then reply with what C replied, or with the exact error if you cannot spawn.' Wait for B, then reply with what B replied, or the exact error if you cannot spawn."}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"multi_agent_v1wait_agent","tool_input":{"targets":["01a10242-90f5-7a42-9b96-0632c3aeb611"],"timeout_ms":3600000}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","agent_id":"01a10242-90f5-7a42-9b96-0632c3aeb611","agent_type":"default","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"spawn_agent","tool_input":{"message":"You must call the spawn_agent tool yourself to start a sub-agent C whose message is: reply only LEAF. Do not answer from your own knowledge: wait for C, then reply with what C replied, or with the exact error if you cannot spawn."}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","agent_id":"01a10242-90f5-7a42-9b96-0632c3aeb611","agent_type":"default","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"multi_agent_v1wait_agent","tool_input":{"targets":["01a10242-ac01-7fa1-8d36-be9c2dade9c0"],"timeout_ms":3600000}}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}
