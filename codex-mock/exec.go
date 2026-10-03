@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,7 +36,7 @@ func newExec() *cobra.Command {
 	f.StringP("profile", "p", "", "Accepted; no effect")
 	f.String("color", "", "Accepted; no effect")
 	f.StringP("output-last-message", "o", "", "Accepted; no effect")
-	f.String("output-schema", "", "Accepted; no effect")
+	f.String("output-schema", "", "Accepted; the final message is the script's, not shaped by the schema")
 	f.String("thread-source", "", "Accepted; no effect")
 	for _, name := range []string{"skip-git-repo-check", "ephemeral", "ignore-user-config", "ignore-rules",
 		"strict-config", "dangerously-bypass-approvals-and-sandbox", "dangerously-bypass-hook-trust", "approve-for-me"} {
@@ -60,6 +61,9 @@ func runExec(cmd *cobra.Command, args []string) error {
 	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = resolved
 	}
+	if err := checkRepo(cmd, cwd); err != nil {
+		return err
+	}
 	home := os.Getenv("CODEX_HOME")
 	if home == "" {
 		user, err := os.UserHomeDir()
@@ -80,6 +84,35 @@ func runExec(cmd *cobra.Command, args []string) error {
 		Script: script, Prompt: strings.Join(args, " "), Cwd: cwd, CodexHome: home, Model: model,
 		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
+}
+
+// errNotTrusted is what Codex prints, and exits 1 on, when a run starts
+// outside a repository without being told it may
+// (runs/noninteractive-run-git-check-refused).
+var errNotTrusted = errors.New("Not inside a trusted directory and --skip-git-repo-check was not specified.")
+
+// checkRepo refuses a run whose directory is not inside a repository, unless
+// --skip-git-repo-check is given or the run bypasses approvals and the
+// sandbox: the recording of that flag (runs/noninteractive-run-no-git-check)
+// shows Codex running outside a repository without complaint. Trusting a
+// directory through the user's config is not modeled.
+// sr:provides noninteractive-run/codex
+func checkRepo(cmd *cobra.Command, cwd string) error {
+	f := cmd.Flags()
+	if skip, _ := f.GetBool("skip-git-repo-check"); skip {
+		return nil
+	}
+	if bypass, _ := f.GetBool("dangerously-bypass-approvals-and-sandbox"); bypass {
+		return nil
+	}
+	for dir := cwd; ; dir = filepath.Dir(dir) {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil { // a directory, or a file in a worktree
+			return nil
+		}
+		if filepath.Dir(dir) == dir {
+			return errNotTrusted
+		}
+	}
 }
 
 // maxDepthOf is the agents.max_depth a -c override sets (the last one wins),

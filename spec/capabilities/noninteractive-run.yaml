@@ -19,11 +19,22 @@ providers:
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/prompt-blocked
       - codex-mock/snapshots/runs/noninteractive-run-text-output
+      - codex-mock/snapshots/runs/noninteractive-run-git-check-refused
+      - codex-mock/snapshots/runs/noninteractive-run-no-git-check
+      - codex-mock/snapshots/runs/noninteractive-run-output-schema
     deviations:
       - adr: modeled-surface
         statement: >-
           The mock accepts -o/--output-last-message and does nothing with it:
-          the final message is not written to a file. It calls no model and
+          the final message is not written to a file. It accepts --output-schema
+          and does nothing with it either: it has no model, so the final
+          message is the scenario's own, not shaped by the schema (the real
+          run's message conforms to it and the stream is otherwise unchanged,
+          as recorded in runs/noninteractive-run-output-schema). The
+          refusal of a run outside a git repository (runs/noninteractive-run-git-check-refused,
+          lifted by --skip-git-repo-check or by bypassing the sandbox,
+          runs/noninteractive-run-no-git-check) is modeled; a directory trusted
+          through the user's configuration is not. It calls no model and
           has no failing turn or stream failure, so the turn.failed event and
           the stream-level error event the docs name are not modeled. The
           stream's item types are the agent message and the command execution

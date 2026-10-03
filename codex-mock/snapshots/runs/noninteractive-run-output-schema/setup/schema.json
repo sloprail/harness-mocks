@@ -1,0 +1,6 @@
+{
+  "type": "object",
+  "properties": {"answer": {"type": "string"}, "count": {"type": "integer"}},
+  "required": ["answer", "count"],
+  "additionalProperties": false
+}
