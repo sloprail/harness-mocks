@@ -31,7 +31,7 @@ providers:
       - adr: modeled-surface
         statement: >-
           The mock dispatches a sub-agent only from a Task call that carries a
-          mock-only script playing it. A background Task is not dispatched, a
-          hook that refuses the Task call does not stop it, and the
+          mock-only script playing it, and always in the foreground (a Task that
+          asks run_in_background is not run in the background). A hook that refuses the Task call does not stop it, and the
           subagentStart and subagentStop hooks (not recorded firing in a
           print-mode run) do not fire.

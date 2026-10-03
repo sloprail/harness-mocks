@@ -22,7 +22,6 @@ type taskInput struct {
 	Description  string `json:"description"`
 	Prompt       string `json:"prompt"`
 	SubagentType string `json:"subagent_type"`
-	Background   bool   `json:"run_in_background"`
 	Script       string `json:"script"`
 }
 
@@ -36,7 +35,7 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil {
 		return in, false
 	}
-	return in, in.Description != "" && in.Prompt != "" && in.Script != "" && !in.Background
+	return in, in.Description != "" && in.Prompt != "" && in.Script != ""
 }
 
 // runSubagent is a foreground Task call: the parent's preToolUse hooks, the
@@ -99,7 +98,7 @@ func (s *session) runSubagent(ctx context.Context, tu scenario.ToolUse, in taskI
 	}
 	s.registry().EndOfResponse(sub.owner)
 	for _, t := range ending {
-		s.forward(abortedFrame(s.id, t))
+		s.forward(notificationFrame(s.id, t))
 	}
 }
 

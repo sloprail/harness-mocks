@@ -118,7 +118,9 @@ func (s *session) afterTurn(ctx context.Context) (string, bool) {
 // notificationFrame announces a finished shell on the stream.
 func notificationFrame(session string, t *tasks.Task) []byte {
 	status := "success"
-	if t.Status() != tasks.Completed {
+	if t.Killed() { // ended by the harness (recorded: runs/foreground-subagent-bash-ends-with-response)
+		status = "aborted"
+	} else if t.Status() != tasks.Completed {
 		status = "error"
 	}
 	return jsonLine(map[string]any{
