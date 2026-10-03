@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/hook.sh" }],
+    "sessionEnd": [{ "command": ".cursor/hooks/hook.sh" }],
+    "preToolUse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "postToolUse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/hook.sh" }],
+    "subagentStart": [{ "command": ".cursor/hooks/hook.sh" }],
+    "subagentStop": [{ "command": ".cursor/hooks/hook.sh" }],
+    "beforeShellExecution": [{ "command": ".cursor/hooks/hook.sh" }],
+    "afterShellExecution": [{ "command": ".cursor/hooks/hook.sh" }],
+    "beforeMCPExecution": [{ "command": ".cursor/hooks/hook.sh" }],
+    "afterMCPExecution": [{ "command": ".cursor/hooks/hook.sh" }],
+    "beforeReadFile": [{ "command": ".cursor/hooks/hook.sh" }],
+    "afterFileEdit": [{ "command": ".cursor/hooks/hook.sh" }],
+    "beforeSubmitPrompt": [{ "command": ".cursor/hooks/hook.sh" }],
+    "preCompact": [{ "command": ".cursor/hooks/hook.sh" }],
+    "stop": [{ "command": ".cursor/hooks/hook.sh" }],
+    "afterAgentResponse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "afterAgentThought": [{ "command": ".cursor/hooks/hook.sh" }]
+  }
+}
