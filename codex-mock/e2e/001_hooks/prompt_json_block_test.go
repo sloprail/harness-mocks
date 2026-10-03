@@ -41,6 +41,7 @@ func TestAPromptRefusedByJSONRunsNothingAndSaysNothing(t *testing.T) {
 	assert.Empty(t, cmds, "the refused prompt's command ran")
 	assert.NotContains(t, got.Stdout, "agent_message")
 	assert.NotContains(t, got.rollout(t), "SHOULDNOTRUN")
+	assert.NotContains(t, got.rollout(t), "PROMPT-REFUSED-BY-JSON", "the reason does not reach the agent")
 	var gotFired []string
 	for _, l := range got.hookLog() {
 		gotFired = append(gotFired, l["hook_event_name"].(string))
@@ -64,4 +65,14 @@ func TestWhatAPromptHookPrintsAsPlainTextReachesTheAgentBesideThePrompt(t *testi
 	rollout := r.rollout(t)
 	assert.Contains(t, rollout, "the original prompt")
 	assert.Contains(t, rollout, "CTX-FROM-PROMPT-HOOK", "the hook's text reached the agent")
+
+	j := execMock(t, scenario{
+		HooksJSON: hooksJSON("sh hook.sh", "UserPromptSubmit"),
+		Files:     map[string]string{"hook.sh": `cat >/dev/null; echo '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"CTX-FROM-JSON-HOOK"}}'`},
+		Script:    callThenResult, Prompt: "the original prompt", Env: withCalls(t),
+	})
+	require.Equal(t, 0, j.Code, j.Stderr)
+	assert.Contains(t, j.rollout(t), "the original prompt")
+	assert.Contains(t, j.rollout(t), "CTX-FROM-JSON-HOOK", "additionalContext reached the agent (hooks#userpromptsubmit)")
+	assert.NotContains(t, j.rollout(t), "hookSpecificOutput", "the JSON itself is not passed on")
 }

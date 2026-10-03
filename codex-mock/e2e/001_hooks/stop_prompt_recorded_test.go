@@ -75,6 +75,7 @@ func TestARefusedPromptRunsNothingAndSaysNothing(t *testing.T) {
 	assert.Empty(t, cmds, "the refused prompt's command ran")
 	assert.NotContains(t, got.Stdout, "agent_message")
 	assert.NotContains(t, got.rollout(t), "SHOULDNOTRUN")
+	assert.NotContains(t, got.rollout(t), "PROMPT-BLOCK-MSG", "the exit-2 reason does not reach the agent")
 	var gotFired []string
 	for _, l := range got.hookLog() {
 		gotFired = append(gotFired, l["hook_event_name"].(string))
