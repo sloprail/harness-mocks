@@ -172,6 +172,7 @@ func TestSubagentHookMatcherAndContinueFalse(t *testing.T) {
 // context in the sub-agent's own rollout, not the session's; and SessionEnd,
 // which does not run for sub-agents, fires once (hooks#subagentstart, hooks#sessionend).
 // sr:proves subagent-lifecycle-hooks/codex
+// sr:proves session-end-hook/codex
 func TestSubagentStartContextAndNoSessionEndForIt(t *testing.T) {
 	cmd := `[{"hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]`
 	hook := "#!/bin/sh\ncat >>\"$HOOK_LOG\"\necho >>\"$HOOK_LOG\"\n" +
