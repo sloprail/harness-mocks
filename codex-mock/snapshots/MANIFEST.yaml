@@ -6,6 +6,3 @@ docs:
   https://developers.openai.com/codex/noninteractive:
     version: 0.159.3
     sha256: c83fe9259825a206d1d4f7a0ac669e5697d270ce2bebd28c5d36ad829c9a2a08
-  https://developers.openai.com/codex/subagents:
-    version: 0.159.3
-    sha256: c5ef4eda3d9f876c8f35c697e720a3e7c760b5cf8c4943c97e82d1d8fe1b0054

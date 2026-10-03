@@ -40,8 +40,6 @@ func taskCall(in taskInput) toolexec.Call {
 // runs in the background: the call is answered at once, with the sub-agent's
 // id, and the sub-agent runs while the agent's turn goes on. Only preToolUse
 // fires for it; no postToolUse does (recorded).
-//
-// sr:provides background-agent/cursor
 func (s *session) launchTask(ctx context.Context, tu scenario.ToolUse) {
 	var in taskInput
 	_ = json.Unmarshal(tu.Input, &in)
