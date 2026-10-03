@@ -45,6 +45,10 @@ func (s *session) SessionFile() string { return s.tr.path }
 // the file it is about to change: a call of its own to the hooks (recorded:
 // runs/tool-failure, runs/file-tools), which is not shown on the stream.
 func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) {
+	if in, ok := startsBackgroundSubagent(tu); ok {
+		s.launchSubagent(ctx, tu, in)
+		return
+	}
 	if in, ok := dispatchesSubagent(tu); ok {
 		s.runSubagent(ctx, tu, in)
 		return

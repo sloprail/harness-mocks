@@ -1,0 +1,1 @@
+Spawn a sub-agent (spawn_agent) with the task: 'Run the shell command: sleep 5; echo SUBDONE . Then reply with the single word SUBREPLY.' After spawning it, do NOT wait for it (never call wait_agent): immediately end your turn by replying only LAUNCHED.

@@ -111,8 +111,9 @@ func (s *session) afterTurn(ctx context.Context) (string, bool) {
 		}
 		t = r.AwaitAfterTurn(ctx, "")
 	}
-	s.forward(notificationFrame(s.id, t))
-	return notificationPrompt, true
+	frame, prompt := s.notification(t)
+	s.forward(frame)
+	return prompt, true
 }
 
 // notificationFrame announces a finished shell on the stream: the only frame of

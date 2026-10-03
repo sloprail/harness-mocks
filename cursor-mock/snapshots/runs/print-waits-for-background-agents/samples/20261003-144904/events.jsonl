@@ -1,0 +1,12 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Task","tool_input":{"description":"Background sleep then reply","prompt":"Run the shell command: sleep 8; echo SUBDONE . Then reply with the single word SUBREPLY.","subagent_type":"shell","run_in_background":true},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"sleep 8; echo SUBDONE","timeout":15000},"session_id":"2751b8ea-0d6c-4423-a9db-5dde30e23213","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"sleep 8; echo SUBDONE","sandbox":false,"session_id":"2751b8ea-0d6c-4423-a9db-5dde30e23213","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"sleep 8; echo SUBDONE","output":"SUBDONE\n","sandbox":false,"session_id":"2751b8ea-0d6c-4423-a9db-5dde30e23213","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"sleep 8; echo SUBDONE","timeout":15000},"tool_output":"{\"output\":\"SUBDONE\\n\",\"exitCode\":0}","session_id":"2751b8ea-0d6c-4423-a9db-5dde30e23213","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"taskToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"taskToolCall","outcome":"success"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"result","subtype":"success"}
