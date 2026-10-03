@@ -9,3 +9,6 @@ docs:
   https://developers.openai.com/api/docs/guides/tools-apply-patch:
     version: 0.159.3
     sha256: 03abda199cdbc60628a95416b118e274123c478659c9277f0df6ad13f099e910
+  https://developers.openai.com/codex/cli/reference:
+    version: 0.159.3
+    sha256: 6dec20e0f916ad689f9fe6dde8f259835725ca5e3fd07c8bf6222b9bc5659ef7
