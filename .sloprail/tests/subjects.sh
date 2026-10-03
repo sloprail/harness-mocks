@@ -233,5 +233,42 @@ eq "coverage: a widened glob is growth" "$(has "$M5" "exceptions grew")" yes
 back; w internal/other/other.go <<<$'package other\n// edited'; M6="$(mc "$(step edit-excepted)")"
 eq "coverage: editing an excepted file is fine" "$(has "$M6" "added under")$(has "$M6" "exceptions grew")" nono
 
+# --- narrowed touches: a re-frozen doc page or an edited declaration touches only what reads it ----------------
+# (touched.sh) a MANIFEST entry that changed touches the capabilities citing that page, not every capability of the
+# harness; a function edited in a file that carries several capabilities' markers touches those on that function;
+# and a verdict's key still carries every page it reads (its frozen hash) and every file it reads, so nothing is
+# reused stale (a page's hash moving moves the key of each capability citing it).
+OLDBASE="$BASE"
+back; cap a ra; cap b rb
+w claude-mock/snapshots/MANIFEST.yaml <<<$'version: "1"\ndocs:\n  https://d.example/a:\n    version: "1"\n    sha256: aa\n  https://d.example/b:\n    version: "1"\n    sha256: bb'
+w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'
+BASE="$(step narrow-base)"
+mani() { w claude-mock/snapshots/MANIFEST.yaml <<<$'version: "'"$1"$'"\ndocs:\n  https://d.example/a:\n    version: "'"$1"$'"\n    sha256: '"$2"$'\n  https://d.example/b:\n    version: "'"$1"$'"\n    sha256: '"$3"; }
+back; mani 1 aa2 bb; N1="$(step refreeze-a)"
+back; mani 1 aa bb2; N2="$(step refreeze-b)"
+back; mani 1 aa2 bb2; N3="$(step refreeze-both)"
+back; mani 2 aa bb; N4="$(step version-bump)"
+for rule in capability-grounded capability-rigor; do
+  K1="$(keys $rule "$N1")"; K2="$(keys $rule "$N2")"; K3="$(keys $rule "$N3")"; K4="$(keys $rule "$N4")"
+  eq "$rule: re-freezing a's page touches a alone" "$(ids "$K1")" "a "
+  eq "$rule: re-freezing b's page touches b alone" "$(ids "$K2")" "b "
+  eq "$rule: re-freezing both pages touches both" "$(ids "$K3")" "a b "
+  eq "$rule: a harness version bump touches every capability citing its docs" "$(ids "$K4")" "a b "
+  ne "$rule: a's page re-frozen again with another hash, a's key moves" "$(key "$K1" a)" "$(key "$(keys $rule "$N4")" a)"
+done
+# an edited declaration touches the capabilities marked on it, and a file edit outside every declaration none
+back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n\tmore()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'; X1="$(step edit-A)"
+back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n\tmore()\n}\n'; X2="$(step edit-B)"
+back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n\tmore()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n\tmore()\n}\n'; X3="$(step edit-both)"
+back; w claude-mock/internal/x/x.go <<<$'package x\n\nfunc helper() {}\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'; X4="$(step add-unmarked-func)"
+back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n'; X5="$(step drop-B)"
+KX1="$(keys capability-rigor "$X1")"; KX2="$(keys capability-rigor "$X2")"; KX3="$(keys capability-rigor "$X3")"
+eq "cap-rigor: editing A's declaration touches a alone" "$(ids "$KX1")" "a "
+eq "cap-rigor: editing B's declaration touches b alone" "$(ids "$KX2")" "b "
+eq "cap-rigor: editing both touches both" "$(ids "$KX3")" "a b "
+eq "cap-rigor: an unmarked function added in the file touches no capability" "$(ids "$(keys capability-rigor "$X4")")" "unclaimed "
+eq "cap-rigor: removing B's marked declaration touches b (its old marker), not a" "$(ids "$(keys capability-rigor "$X5")")" "b "
+BASE="$OLDBASE"
+
 echo "subjects tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
