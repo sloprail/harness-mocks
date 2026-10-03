@@ -165,7 +165,11 @@ func TestT017_78d_TheDefaultLimitIsTwenty(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
 	var calls []string
-	slow := slowReply(t, dir, "SLOW")
+	// the sub-agents run until the 21st call has been answered, whatever the machine's speed
+	released := filepath.Join(dir, "released")
+	h := payloadLogger(t, dir, "log.sh", filepath.Join(dir, "payloads.log"), `case "$IN" in *'"tool_use_id":"aguturn'*) touch `+released+`;; esac`)
+	settings(t, dir, map[string]string{"PostToolUse": h, "PostToolUseFailure": h})
+	slow := write(t, filepath.Join(dir, "slow.sh"), "#!/bin/sh\nwhile [ ! -f "+released+" ]; do sleep 0.05; done\nexec sh "+replyScript(t, dir, "slowReply", "SLOW")+"\n", 0o755)
 	for i := 0; i < 21; i++ {
 		calls = append(calls, toolUse("ag"+string(rune('a'+i)), "Agent", `{"prompt":"p","description":"d`+string(rune('a'+i))+`","run_in_background":true,"script":"`+slow+`"}`))
 	}

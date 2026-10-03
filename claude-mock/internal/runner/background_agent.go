@@ -20,8 +20,8 @@ import (
 // SubagentStart has fired by then, with the launch.
 //
 // sr:provides background-agent/claude
-func (b *backgroundTasks) launchAgent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func()) {
-	sub, in, errRes := prepareSubagent(ctx, cfg, inv, toolUseID, raw, tr, true)
+func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func()) {
+	sub, in, errRes := prepareSubagent(b.Context(), cfg, inv, toolUseID, raw, tr, true)
 	if sub == nil {
 		return errRes, nil
 	}

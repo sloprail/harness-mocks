@@ -1,18 +1,14 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
-
-	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
 )
 
 func main() {
-	ctx := runner.WithConcurrentSubagents(context.Background(), os.Getenv("CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"))
-	if err := newRoot().ExecuteContext(ctx); err != nil {
+	if err := newRoot().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

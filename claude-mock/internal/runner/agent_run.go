@@ -31,8 +31,6 @@ type subagentRun struct {
 	branch string
 	// limit is the sub-agent's turn limit (its definition's maxTurns), nil when none.
 	limit *subagents.TurnLimit
-	// concurrent is the concurrent sub-agent setting its own sub-agents are held to.
-	concurrent string
 	// cleanup removes an isolated sub-agent's clean worktree once it has finished
 	// (subagents.Isolation.Cleanup); nil when it has no real worktree.
 	cleanup func(context.Context) bool
