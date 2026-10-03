@@ -72,3 +72,26 @@ func TestAHooksAdditionalContextReachesTheAgentFromTheStartAndAfterEveryToolCall
 		"CTX-S1 CTX-P1 CTX-P2 CTX-F1",
 	}, runs, "what the agent had before each of its steps")
 }
+
+// TestAPostToolUseFailureHooksContextAlsoReachesTheAgentAfterARefusedCall: docs
+// (#posttoolusefailure, failure_type permission_denied), a call a preToolUse
+// hook refused counts as a failed tool, and the additional_context of the
+// postToolUseFailure hook is handed to the agent as after any other failure.
+// Not recorded: the mock's reading of the docs. A tool that timed out is not
+// modeled (a failure is only an error or a refusal).
+// sr:proves hook-additional-context/cursor
+func TestAPostToolUseFailureHooksContextAlsoReachesTheAgentAfterARefusedCall(t *testing.T) {
+	c := runCustom(t, `{"version":1,"hooks":{"preToolUse":[{"command":".cursor/hooks/deny.sh"}],"postToolUseFailure":[{"command":".cursor/hooks/ctx.sh"}]}}`,
+		map[string]string{
+			"deny.sh": "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"deny\",\"user_message\":\"NO\"}'\n",
+			"ctx.sh":  "#!/bin/sh\ncat >/dev/null\necho '{\"additional_context\":\"CTX-DENIED\"}'\n",
+		}, "echo REFUSED")
+	seen, err := os.ReadFile(c.log + ".ctx")
+	require.NoError(t, err)
+	var runs []string
+	for _, l := range strings.Split(strings.TrimSpace(string(seen)), "\n") {
+		runs = append(runs, strings.Join(strings.Fields(l), " "))
+	}
+	// the agent's first step had nothing (a blank line, trimmed above); its next had the context
+	require.Equal(t, []string{"CTX-DENIED"}, runs, "what the agent had at its step after the refusal")
+}

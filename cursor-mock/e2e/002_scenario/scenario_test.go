@@ -103,3 +103,39 @@ func TestFiveIdenticalToolCallsInARowAbortTheRun(t *testing.T) {
 	require.Contains(t, stderr, "5 turns in a row")
 	require.NotContains(t, out, `"type":"result"`, "an aborted run reports no result")
 }
+
+// TestStreamPartialOutputIsAcceptedAndChangesNothing: --stream-partial-output
+// is accepted and ignored: the stream has the same frame types, and a single
+// result frame, with or without it (no partial assistant deltas are modeled).
+// sr:proves noninteractive-run/cursor
+func TestStreamPartialOutputIsAcceptedAndChangesNothing(t *testing.T) {
+	script := "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}}'\nprintf '%s\\n' '" + done + "'\n"
+	types := func(out string) (ts []string) {
+		for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
+			var f struct{ Type string }
+			require.NoError(t, json.Unmarshal([]byte(l), &f))
+			ts = append(ts, f.Type)
+		}
+		return ts
+	}
+	plain, _, code := run(t, script, "go")
+	require.Equal(t, 0, code, plain)
+	partial, _, code := run(t, script, "--stream-partial-output", "go")
+	require.Equal(t, 0, code, partial)
+	require.Equal(t, types(plain), types(partial))
+	require.Equal(t, 1, strings.Count(partial, `"type":"result"`))
+}
+
+// TestAnOutputFormatOtherThanStreamJSONIsRefused: the mock models stream-json
+// only (the format the cursor docs describe for real-time progress); any other
+// --output-format ends the run with exit status 1, a message naming the format
+// on stderr and nothing on stdout.
+// sr:proves noninteractive-run/cursor
+func TestAnOutputFormatOtherThanStreamJSONIsRefused(t *testing.T) {
+	for _, format := range []string{"text", "json"} {
+		out, errOut, code := run(t, "#!/bin/sh\ntouch ran\nprintf '%s\\n' '"+done+"'\n", "--output-format", format, "go")
+		require.Equal(t, 1, code, format)
+		require.Empty(t, out, format)
+		require.Contains(t, errOut, `output format "`+format+`" is not modeled`, format)
+	}
+}
