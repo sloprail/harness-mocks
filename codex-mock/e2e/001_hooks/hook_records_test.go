@@ -73,6 +73,31 @@ func TestHookRunsLeaveOnlyWhatTheAgentWasTold(t *testing.T) {
 	}
 }
 
+// A session start's context (JSON additionalContext), a before-tool refusal by
+// JSON or by exit 2, and a stop hook's block by JSON and then by exit 2 are
+// recorded the same way (runs/stops, runs/pretool-decisions): the context as a
+// developer message, a refusal as the call's result, each stop block as its own
+// hook_prompt user message.
+// sr:proves hook-output-transcript-records/codex
+func TestSessionStartContextPreToolRefusalAndStopBlocksAreRecorded(t *testing.T) {
+	for _, name := range []string{"stops", "pretool-decisions"} {
+		rec := loadRecording(t, name)
+		for who, rollout := range map[string]string{"recorded": recordedRollout(t, rec), "mock": replay(t, rec).rollout(t)} {
+			switch name {
+			case "stops":
+				assert.Equal(t, []string{"SS-CTX"}, addedContext(t, rollout), who)
+				assert.True(t, resultTold(t, rollout, "DENY-REASON", "exit status"), who+": a JSON refusal")
+				assert.True(t, resultTold(t, rollout, "PRE-BLOCK-MSG", "exit status"), who+": an exit 2 refusal")
+				assert.Equal(t, 2, strings.Count(rollout, "<hook_prompt"), who+": each stop block")
+				assert.Contains(t, rollout, "BLOCK-JSON-REASON", who)
+				assert.Contains(t, rollout, "BLOCK-EXIT2-REASON", who)
+			case "pretool-decisions":
+				assert.True(t, resultTold(t, rollout, "Command blocked by PreToolUse hook: deny by hook deny", "exit status"), who)
+			}
+		}
+	}
+}
+
 // The same holds for the other ways a hook decides, which the docs describe
 // (hooks#userpromptsubmit): context by JSON
 // additionalContext is a developer message; a PostToolUse block, by exit 2

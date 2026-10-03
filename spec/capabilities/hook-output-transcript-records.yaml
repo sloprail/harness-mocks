@@ -24,6 +24,8 @@ providers:
       - codex-mock/snapshots/runs/hook-timeout
       - codex-mock/snapshots/runs/posttool-block
       - codex-mock/snapshots/runs/prompt-blocked
+      - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/pretool-decisions
     deviations:
       - adr: capability-grounding
         statement: >-
