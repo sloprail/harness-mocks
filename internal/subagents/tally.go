@@ -2,6 +2,8 @@ package subagents
 
 import "strings"
 
+// Part of the foreground-subagent-result capability (its core marker is on HandBack).
+//
 // Class is the kind of work a tool call is, for the tally of a sub-agent's
 // calls: the harness names which tools are which.
 type Class int

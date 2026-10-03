@@ -30,16 +30,17 @@ func TestT017_71_NestedAndIsolatedForegroundAgents(t *testing.T) {
 	settings(t, dir, allHooks(payloadLogger(t, dir, "log.sh", log, "")))
 	inner := replyScript(t, dir, "inner", "INNER")
 	outer := callThenReply(t, dir, "outer", "OUTER",
-		toolUse("in1", "Agent", `{"prompt":"inner","description":"inner","script":"`+inner+`"}`))
+		toolUse("in1", "Agent", `{"prompt":"inner","description":"inner","run_in_background":false,"script":"`+inner+`"}`))
 	iso := replyScript(t, dir, "iso", "ISO")
 	orch := script(t, dir, "orch",
-		toolUse("ag1", "Agent", `{"prompt":"outer","description":"outer","script":"`+outer+`"}`),
-		toolUse("ag2", "Agent", `{"prompt":"iso","description":"iso","isolation":"worktree","script":"`+iso+`"}`),
+		toolUse("ag1", "Agent", `{"prompt":"outer","description":"outer","run_in_background":false,"script":"`+outer+`"}`),
+		toolUse("ag2", "Agent", `{"prompt":"iso","description":"iso","run_in_background":false,"isolation":"worktree","script":"`+iso+`"}`),
 	)
 	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "nest-1",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
 
+	assert.Equal(t, recordedResultStats(t, "meta"), lastResultStats(t, out), "the sub-agents counted in the result frame: three, one spawned by a sub-agent, two deep")
 	got := payloads(t, log)
 	want := recordedHooks(t, "meta")
 	assert.Equal(t, hookLabels(want), hookLabels(got), "the hooks fire in the order the real claude fired them")

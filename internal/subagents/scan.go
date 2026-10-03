@@ -2,6 +2,8 @@ package subagents
 
 import "regexp"
 
+// Part of the foreground-subagent-result capability (its core marker is on HandBack).
+//
 // ScanRule is one pattern of a harness's sub-agent output scan: text that
 // imitates the harness's own output or names a permission setting.
 type ScanRule struct {

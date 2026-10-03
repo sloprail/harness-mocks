@@ -109,6 +109,7 @@ func runAgentTool(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUseID
 	}
 	started := time.Now()
 	out := sub.execute(ctx, inv, cfg.bg, sub.prompt)
+	cfg.bg.stats.End(out.failure != "")
 	var in agentToolInput
 	_ = json.Unmarshal(rawInput, &in)
 	worktree := ""

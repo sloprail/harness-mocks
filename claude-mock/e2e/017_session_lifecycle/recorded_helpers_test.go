@@ -171,3 +171,26 @@ func recordedNotificationSummary(t *testing.T, run string) string {
 	require.True(t, found, "run %s has no task_notification", run)
 	return summary
 }
+
+// lastResultStats is the subagent_stats of the last result frame in a stream.
+func lastResultStats(t *testing.T, stream string) map[string]any {
+	t.Helper()
+	var stats map[string]any
+	for _, l := range strings.Split(stream, "\n") {
+		var m map[string]any
+		if json.Unmarshal([]byte(l), &m) == nil && m["type"] == "result" {
+			stats, _ = m["subagent_stats"].(map[string]any)
+		}
+	}
+	require.NotNil(t, stats, "the last result frame carries subagent_stats")
+	return stats
+}
+
+// recordedResultStats is the subagent_stats the real claude's last result frame of
+// a recorded run carried.
+func recordedResultStats(t *testing.T, run string) map[string]any {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(recordedSample(t, run), "stream.jsonl"))
+	require.NoError(t, err)
+	return lastResultStats(t, string(raw))
+}

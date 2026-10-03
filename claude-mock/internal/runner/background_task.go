@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
@@ -12,6 +13,8 @@ import (
 // Claude Code's about them (their receipts, notifications and stream frames).
 type backgroundTasks struct {
 	*tasks.Registry
+	// stats is the session's count of its sub-agents (the result's subagent_stats).
+	stats subagents.Stats
 }
 
 func newBackgroundTasks() *backgroundTasks {

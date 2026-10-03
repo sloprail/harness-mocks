@@ -44,11 +44,12 @@ func TestT017_79_NestedBackgroundAgentReportsToTheMainConversation(t *testing.T)
 	settings(t, dir, allHooks(h))
 	inner := write(t, filepath.Join(dir, "inner.sh"), "#!/bin/sh\nwhile [ ! -f "+dir+"/stopped ]; do sleep 0.05; done\nexec sh "+replyScript(t, dir, "innerReply", "INNERREPLY")+"\n", 0o755)
 	outer := script(t, dir, "outer", toolUse("out1", "Agent", `{"prompt":"deep","description":"inner","script":"`+inner+`","run_in_background":true}`))
-	root := script(t, dir, "root", toolUse("r1", "Agent", `{"prompt":"layer","description":"outer","script":"`+outer+`"}`))
+	root := script(t, dir, "root", toolUse("r1", "Agent", `{"prompt":"layer","description":"outer","run_in_background":false,"script":"`+outer+`"}`))
 	out, code := runInDir(t, dir, nil, "--script", root, "--session-id", "nest-rep",
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
 
+	assert.Equal(t, recordedResultStats(t, "bgagent-nested-launcher"), lastResultStats(t, out))
 	got, want := payloads(t, log), recordedHooks(t, "bgagent-nested-launcher")
 	assert.Equal(t, mainThreadLabels(want), mainThreadLabels(got))
 	var notified bool

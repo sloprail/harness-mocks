@@ -60,7 +60,9 @@ func TestT017_78_ConcurrentSubagentLimit(t *testing.T) {
 	cfg := filepath.Join(dir, "config")
 	log := filepath.Join(dir, "payloads.log")
 	released := filepath.Join(dir, "released")
-	settings(t, dir, allHooks(releasedBy(t, dir, released, "agv")))
+	// no SubagentStop hook: twenty sub-agents ending at once would interleave the log
+	rel := releasedBy(t, dir, released, "agv")
+	settings(t, dir, map[string]string{"PreToolUse": rel, "PostToolUse": rel, "PostToolUseFailure": rel, "SubagentStart": rel})
 	foreground := toolUse("agv", "Agent", `{"prompt":"p","description":"fg","script":"`+replyScript(t, dir, "fg", "FG")+`"}`)
 	calls := agentCalls(t, dir, released, 21, foreground)
 	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "orch", calls...), "--session-id", "lim-1",
@@ -115,6 +117,10 @@ func TestT017_78_ConcurrentSubagentLimit(t *testing.T) {
 		assert.Equal(t, keysOf(wantFailure), keysOf(f))
 	}
 	assert.Equal(t, 20, starts, "only the twenty before the limit started")
+	stats := lastResultStats(t, out)
+	assert.Equal(t, map[string]any{"depth_limit": 0.0, "concurrency_limit": 2.0, "budget": 0.0}, stats["refused"], "the two refusals are counted, as the recorded run counted its one")
+	assert.EqualValues(t, 20, stats["spawned"])
+	assert.Equal(t, keysOf(recordedResultStats(t, "bgagent-concurrent-limit")), keysOf(stats))
 }
 
 // TestT017_78b_ASubagentMayBeSpawnedOnceRunningOnesHaveFinished: the limit counts

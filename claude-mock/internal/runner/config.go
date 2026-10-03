@@ -4,6 +4,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/sloprail/harness-mocks/internal/subagents"
 	coretools "github.com/sloprail/harness-mocks/internal/tools"
 )
 
@@ -81,10 +82,7 @@ type Config struct {
 	// PrintMode activates --print mode: the script runs in cfg.Cwd as its working
 	// directory, its raw stdout is captured (no JSONL parsing, no session
 	// persistence), and written to cfg.Out. Only SessionStart, UserPromptSubmit,
-	// and Stop hooks fire. This mirrors the real `claude --print` non-interactive
-	// mode used by the autopilot supervisor.
-	//
-	// The supervisor (RunSupervisor in services/task-executor) invokes claude with
+	// and Stop hooks fire. The supervisor (RunSupervisor in services/task-executor) invokes claude with
 	// --print and expects:
 	//  - cmd.Dir = session dir (the script writes memory files there)
 	//  - stdout = raw text (the unclassified user prompt remainder), not JSONL
@@ -114,6 +112,9 @@ type Config struct {
 	// BackgroundTasksDisabled turns run_in_background off for Bash: the command
 	// runs in the foreground. The harness's CLAUDE_CODE_DISABLE_BACKGROUND_TASKS.
 	BackgroundTasksDisabled bool
+
+	// TurnLimit is a sub-agent's maxTurns: its nested run ends at it. Nil: none.
+	TurnLimit *subagents.TurnLimit
 
 	// bg is the session's background-task registry, shared by the root run
 	// and every nested sub-agent run (Stop and SubagentStop list the whole

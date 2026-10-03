@@ -1,7 +1,6 @@
 package subagents
 
 import (
-	"context"
 	"regexp"
 	"testing"
 
@@ -31,8 +30,6 @@ func TestTurnLimitStopsAtMax(t *testing.T) {
 	assert.False(t, l.Reached())
 	assert.True(t, l.Step())
 	assert.True(t, l.Reached())
-	assert.Same(t, l, LimitOf(WithLimit(context.Background(), l)))
-	assert.Nil(t, LimitOf(WithLimit(WithLimit(context.Background(), l), nil)), "nil lifts an enclosing limit")
 }
 
 func TestLimitedSkipsTheStopHookOnceAtTheLimit(t *testing.T) {
@@ -61,4 +58,18 @@ func TestTallyCountsByClass(t *testing.T) {
 func TestAtConcurrentLimit(t *testing.T) {
 	assert.False(t, AtConcurrentLimit(DefaultConcurrentLimit-1, DefaultConcurrentLimit))
 	assert.True(t, AtConcurrentLimit(DefaultConcurrentLimit, DefaultConcurrentLimit))
+}
+
+func TestStatsCountsSpawnsEndsAndRefusals(t *testing.T) {
+	var s Stats
+	s.Spawn(AskedForeground, true, 1, false, "bgdef")
+	s.Spawn(Unset, false, 2, true, "general-purpose")
+	s.End(false)
+	s.End(true)
+	s.RefuseConcurrent()
+	c := s.Count()
+	assert.Equal(t, Count{
+		Spawned: 2, StartedInBackground: 1, MaxDepth: 2, SpawnedBySubagents: 1, Completed: 1, Failed: 1, RefusedConcurrency: 1,
+		Requested: map[Ask]int{AskedForeground: 1, Unset: 1}, ByType: map[string]int{"bgdef": 1, "general-purpose": 1},
+	}, c)
 }

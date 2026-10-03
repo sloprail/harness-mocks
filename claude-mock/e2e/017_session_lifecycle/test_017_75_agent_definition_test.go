@@ -61,6 +61,7 @@ func TestT017_75_DefinitionBackgroundKeepsAForegroundCallInTheBackground(t *test
 	assert.Equal(t, keysOf(agentPosts(want)[0]["tool_response"].(map[string]any)), keysOf(post))
 	assert.Equal(t, "bgdef", agentPosts(got)[0]["tool_input"].(map[string]any)["subagent_type"])
 
+	assert.Equal(t, recordedResultStats(t, "bgagent-definition"), lastResultStats(t, out), "asked for the foreground, started in the background")
 	frames := framesOf(t, out, post["agentId"].(string))
 	require.NotEmpty(t, frames)
 	assert.Equal(t, "task_started", frames[0]["subtype"])

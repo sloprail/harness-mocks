@@ -25,6 +25,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 	subCfg := Config{
 		ScriptPath:              s.script,
 		SessionID:               s.parent.SessionID,
+		TurnLimit:               s.limit,
 		AgentID:                 s.agentID,
 		AgentType:               s.agentType,
 		IsResume:                true,
@@ -49,7 +50,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
 	out := subagents.Outcome{}
-	if err := Run(subagents.WithLimit(ctx, s.limit), subCfg); err != nil {
+	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
 		out.Failure = err.Error()
 	}

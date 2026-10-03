@@ -28,6 +28,7 @@ func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
 	if !subagents.AtConcurrentLimit(running, limit) {
 		return res, false
 	}
+	cfg.bg.stats.RefuseConcurrent()
 	msg := fmt.Sprintf("Concurrent subagent limit reached. You can run %d subagents at once. Do not retry. If the user wants more concurrent subagents, ask them to increase CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS.", limit)
 	return toolexec.Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}, true
 }

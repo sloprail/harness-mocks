@@ -58,6 +58,7 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 	start := func() {
 		b.StartAgent(task, func(ctx context.Context) {
 			out := sub.execute(ctx, inv, b, in.Prompt)
+			b.stats.End(out.failure != "")
 			sub.cleanupWorktree(ctx)
 			task.Result, task.Failure = out.finalText, out.failure
 			task.ToolUses, task.DurationMs = out.toolUses, time.Since(task.Started).Milliseconds()

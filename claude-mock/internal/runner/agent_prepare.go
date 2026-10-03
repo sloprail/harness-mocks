@@ -123,6 +123,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 	_ = os.Remove(outFile)
 	_ = os.Symlink(sidechain, outFile)
 
+	cfg.bg.stats.Spawn(askOf(rawInput), background, meta.SpawnDepth, cfg.AgentID != "", agentType)
 	return &subagentRun{
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,

@@ -31,6 +31,12 @@ providers:
           sub-agent's last output.
       - adr: modeled-surface
         statement: >-
+          The mock does not model the interactive-session variant of a sub-agent that
+          launched background sub-agents: the docs say it waits for their results
+          before it finishes there. A mock session is `-p`, where the launcher does
+          not wait, which the nested-launcher recording shows.
+      - adr: modeled-surface
+        statement: >-
           The mock does not model conversation forks: `/subtask` and `/fork` are
           slash commands of an interactive session, and the docs' rule that a fork
           takes a slot of the concurrent limit while it runs, and is never refused

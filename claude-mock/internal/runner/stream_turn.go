@@ -8,7 +8,6 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
-	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
@@ -40,7 +39,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	pending := sc.pending
 	if pending.ToolName == "" {
 		if sc.done || sc.compactSig == "" {
-			return turnResult{done: true, lastText: sc.lastText, resultLine: sc.resultLine}, nil
+			return turnResult{done: true, lastText: sc.lastText, resultLine: withSubagentStats(sc.resultLine, bg)}, nil
 		}
 		// The invocation compacted the context and stopped: the turn goes on
 		// after a compaction, so the script runs again.
@@ -132,6 +131,6 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	bg.deliverMidTurn(ctx, cfg, inv, tr)
 
 	// A sub-agent at its maxTurns ends here, with no result frame.
-	atLimit := subagents.LimitOf(ctx).Step()
+	atLimit := cfg.TurnLimit.Step()
 	return turnResult{sig: pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText, done: atLimit}, nil
 }
