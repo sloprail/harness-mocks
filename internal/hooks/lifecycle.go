@@ -36,6 +36,14 @@ func SessionStartKind(resumed, forked, compacted bool) StartKind {
 // starting. None does: the session starts whatever its start hooks say.
 func BlocksSessionStart(Verdict) bool { return false }
 
+// StartHookEndsTurn reports whether a session-start hook that said it wants no
+// more ("continue: false") ends the first turn: the session has started all
+// the same, but no prompt hook fires and the model is not asked. Whether a
+// harness honours it is the harness's: honoured.
+//
+// sr:capability session-start-hook
+func StartHookEndsTurn(saidStop, honoured bool) bool { return saidStop && honoured }
+
 // EndReason is why a session ended.
 type EndReason int
 

@@ -12,6 +12,7 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
@@ -102,7 +103,8 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	s.events.TurnStarted()
 	last, err := "", error(nil)
-	if !halted { // a start hook's `continue: false` ends the turn before any prompt hook or model request
+	// Codex honours a start hook's `continue: false` (runs/session-start-continue-false).
+	if !corehooks.StartHookEndsTurn(halted, true) {
 		last, err = turnloop.Run(ctx, turnHost{s}, turnloop.Params{
 			Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
 	}

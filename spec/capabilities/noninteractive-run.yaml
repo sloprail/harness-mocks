@@ -39,6 +39,12 @@ providers:
           provider, approval, sandbox and reasoning lines, which are
           configuration the mock does not have, the stdin notice, or a line per
           hook run.
+      - adr: modeled-surface
+        statement: >-
+          The mock accepts --ephemeral and does nothing with it (it always
+          writes the session's rollout file), and reads no piped stdin: a
+          prompt argument plus piped input is not combined as additional
+          context.
   cursor:
     docs:
       - https://cursor.com/docs/cli/headless#how-it-works
