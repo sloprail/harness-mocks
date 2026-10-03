@@ -73,3 +73,28 @@ func TestSameHookInTwoFilesRunsOncePerFile(t *testing.T) {
 	require.Equal(t, 0, got.Code, got.Stderr)
 	assert.Equal(t, want, ran(got))
 }
+
+// Every hook of the event runs for every call, whatever the others decide:
+// three hooks (allow, deny, ask) on each of three commands are nine runs, three
+// per command, the denied command's included (runs/pretool-decisions).
+// sr:proves hooks-all-matching-run/codex
+func TestEveryMatchingHookRunsWhateverTheOthersDecide(t *testing.T) {
+	rec := loadRecording(t, "pretool-decisions")
+	perCommand := func(lines []map[string]any) map[string]int {
+		n := map[string]int{}
+		for _, l := range lines {
+			in, _ := l["tool_input"].(map[string]any)
+			if l["hook_event_name"] == "PreToolUse" {
+				n[in["command"].(string)]++
+			}
+		}
+		return n
+	}
+	want := map[string]int{"echo ONLYALLOW": 3, "echo ALLOWDENY": 3, "echo ASKME": 3}
+	assert.Equal(t, want, perCommand(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))))
+
+	got := replay(t, rec)
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, want, perCommand(got.hookLog()))
+	assert.Contains(t, got.Stderr, "Command blocked by PreToolUse hook: deny by hook deny. Command: echo ALLOWDENY")
+}

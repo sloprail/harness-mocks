@@ -37,6 +37,12 @@ providers:
           hooks.json runs once per file, twice in all (recorded:
           runs/hooks-all-matching-run-same-hook-two-files), and the mock does
           the same.
+      - adr: modeled-surface
+        statement: >-
+          The mock reads hooks only from the user's and the project's
+          hooks.json: the inline [hooks] tables of config.toml (user and
+          project), plugin-bundled hooks and managed hooks, which Codex also
+          loads and runs beside them, are not modeled.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#configuration
