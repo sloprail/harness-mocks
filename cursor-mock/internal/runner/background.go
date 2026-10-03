@@ -30,7 +30,10 @@ import (
 const notificationPrompt = "Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that."
 
 // launch starts the shell of a background Shell call and returns its result: the
-// shell id and pid, and no output.
+// shell id and pid, and no output (the file its output goes to is
+// <terminals>/<shell id>.txt, named by the result's terminalsFolder).
+//
+// sr:provides background-bash/cursor
 func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.Result {
 	id := strconv.Itoa(100000 + rand.Intn(900000))
 	folder := s.terminalsFolder()
@@ -54,13 +57,13 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 	}); err != nil {
 		return failed(err)
 	}
+	shellID, _ := strconv.Atoi(id)
 	pid := t.Pid
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": "", "exitCode": 0, "signal": "", "stdout": "", "stderr": "",
-		"executionTime": time.Since(start).Milliseconds(), "shellId": id, "pid": pid,
+		"executionTime": time.Since(start).Milliseconds(), "shellId": shellID, "pid": pid,
 		"backgroundReason": "SHELL_BACKGROUND_REASON_USER_REQUEST",
 	}
-	shellID, _ := strconv.Atoi(id)
 	output, _ := json.Marshal(map[string]any{"shell_id": shellID, "pid": pid})
 	return toolexec.Result{
 		Background: true,

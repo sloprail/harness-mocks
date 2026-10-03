@@ -1,9 +1,12 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/sloprail/harness-mocks/internal/tasks"
@@ -22,30 +25,48 @@ func yieldTime(c toolcall.Call) time.Duration {
 	return time.Duration(in.Yield) * time.Millisecond
 }
 
-// runYielding runs cmd for a call that yields: when the command ends within
+// runYielding runs cmd for call c that yields: when the command ends within
 // the yield time its result is the ordinary one; when it is still running the
-// call returns what it printed so far and a session id, and the command goes
-// on running, as a background task of the run (recorded:
-// runs/bg-bash-reaped-at-exit).
-func (h toolHost) runYielding(cmd string, yield time.Duration) (r tools.BashResult, running bool) {
+// call returns a receipt, {chunk_id, wall_time_seconds, session_id,
+// original_token_count, output}: the session id of the command and what it has
+// printed so far, and no file its output goes to. The command goes on running
+// as a background task of the run, tied to the call (task Meta), and the call
+// fires no PostToolUse while it does (recorded: runs/background-bash-start).
+//
+// sr:provides background-bash/codex
+// sr:docs https://developers.openai.com/codex/hooks#tool-coverage
+func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, cmd string, yield time.Duration) (r tools.BashResult, running bool) {
+	start := time.Now()
 	out, err := os.CreateTemp("", "codex-session-*")
 	if err != nil {
 		return tools.BashResult{Output: err.Error(), ExitCode: -1}, false
 	}
 	defer os.Remove(out.Name())
-	t := tasks.NewTask(tasks.Command, fmt.Sprint(len(h.bg.Running())+1))
-	if err := h.bg.StartCommand(t, tasks.CommandSpec{Argv: []string{"/bin/sh", "-c", cmd}, Dir: h.cfg.Cwd, Env: h.toolEnv, Out: out}); err != nil {
+	session := 10000 + rand.Intn(90000)
+	t := tasks.NewTask(tasks.Command, strconv.Itoa(session))
+	t.Meta = c.ID
+	ended, err := h.bg.StartYielding(ctx, t, tasks.CommandSpec{Argv: []string{"/bin/sh", "-c", cmd}, Dir: h.cfg.Cwd, Env: h.toolEnv, Out: out}, yield)
+	if err != nil {
 		return tools.BashResult{Output: err.Error(), ExitCode: -1}, false
 	}
-	select {
-	case <-t.Done():
-	case <-time.After(yield):
-	}
 	printed, _ := os.ReadFile(out.Name())
-	if !t.Finished() {
-		return tools.BashResult{Output: string(printed) + "\nsession_id=" + t.ID}, true
+	if !ended {
+		receipt, _ := json.Marshal(map[string]any{
+			"chunk_id": fmt.Sprintf("%06x", rand.Intn(1<<24)), "wall_time_seconds": time.Since(start).Seconds(),
+			"session_id": session, "original_token_count": len(printed) / 4, "output": string(printed)})
+		return tools.BashResult{Output: string(receipt)}, true
 	}
 	return tools.BashResult{Output: string(printed), ExitCode: t.ExitCode}, false
+}
+
+// stillRunning reports whether call id has a command left running.
+func (h toolHost) stillRunning(id string) bool {
+	for _, t := range h.bg.Running() {
+		if t.Meta == id {
+			return true
+		}
+	}
+	return false
 }
 
 // reapAtExit ends the commands still running when the run's other work is

@@ -30,6 +30,9 @@ func Start(s Spec, out io.Writer) (*Proc, error) {
 	return &Proc{cmd: cmd}, nil
 }
 
+// Pid is the child's process id.
+func (p *Proc) Pid() int { return p.cmd.Process.Pid }
+
 // Wait waits for the child and returns its exit status: 1 when it ended without
 // one (it was killed by a signal).
 func (p *Proc) Wait() int {
@@ -41,9 +44,6 @@ func (p *Proc) Wait() int {
 	}
 	return 0
 }
-
-// Pid is the child's process id.
-func (p *Proc) Pid() int { return p.cmd.Process.Pid }
 
 // Kill kills the child's whole process group (see KillGroup).
 func (p *Proc) Kill() {

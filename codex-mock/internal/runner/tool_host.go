@@ -7,6 +7,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
@@ -65,7 +66,7 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 	var r tools.BashResult
 	if y := yieldTime(c); y > 0 {
 		var running bool
-		if r, running = h.runYielding(cmd, y); running {
+		if r, running = h.runYielding(ctx, c, cmd, y); running {
 			return toolcall.Result{Output: r.Output} // still running: no end to report
 		}
 	} else {
@@ -80,6 +81,9 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // gives the agent its feedback in place of the result.
 // sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
+	if !tasks.AfterHookFires(h.stillRunning(c.ID)) { // its PostToolUse comes when it ends, if ever
+		return "", false
+	}
 	own := h.payload(c)
 	own["tool_response"] = r.Output
 	for _, o := range h.hooks.Fire(ctx, hooks.PostToolUse, fileOrHookName(c), own) {
