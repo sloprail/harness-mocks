@@ -54,8 +54,11 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 
 // After fires PostToolUse, which Codex fires for every command that ran,
 // whatever its exit status; a hook that blocks (exit 2, or a block decision)
-// gives the agent its feedback in place of the result.
+// gives the agent its feedback in place of the result. What a hook adds as
+// context is recorded as a developer message; a hook that fails without
+// blocking, or is stopped by its timeout, leaves no record.
 // sr:provides posttooluse-payload/codex
+// sr:provides hook-output-transcript-records/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
 	own := h.payload(c)
 	own["tool_response"] = r.Output
