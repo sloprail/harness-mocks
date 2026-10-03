@@ -82,7 +82,13 @@ func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Resu
 		Stop: func(active bool, last string) (bool, string) {
 			own := map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType,
 				"agent_transcript_path": subRollout.Path, "stop_hook_active": active, "last_assistant_message": last}
-			for _, o := range h.hooks.Fire(ctx, hooks.SubagentStop, agentType, own) {
+			outs := h.hooks.Fire(ctx, hooks.SubagentStop, agentType, own)
+			for _, o := range outs {
+				if stopsFor(o.Stdout) { // continue:false outranks any block (hooks#subagentstop)
+					return false, ""
+				}
+			}
+			for _, o := range outs {
 				// a block (exit 2, or a block decision) runs the sub-agent again, with the first reason as feedback
 				switch d := hooks.Interpret(hooks.SubagentStop, o); {
 				case d.Blocked:
