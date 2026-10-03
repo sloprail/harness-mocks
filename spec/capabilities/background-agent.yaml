@@ -25,6 +25,12 @@ providers:
           sub-agent is a script run to its result, which nothing wakes again.
       - adr: modeled-surface
         statement: >-
+          The mock has no model API to fail: it does not model the docs' hand-back of
+          a background sub-agent whose run ends on an API error, which is marked
+          failed, the message Claude receives naming the error and including the
+          sub-agent's last output.
+      - adr: modeled-surface
+        statement: >-
           The mock does not model conversation forks: `/subtask` and `/fork` are
           slash commands of an interactive session, and the docs' rule that a fork
           takes a slot of the concurrent limit while it runs, and is never refused
