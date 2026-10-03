@@ -248,7 +248,11 @@ func replay(t *testing.T, run string) (got, want observed) {
 			}
 		}
 	}
-	cmd := exec.Command(binary, "-p", "--force", "--trust", "--output-format", "stream-json", prompt)
+	flags := []string{"-p", "--force", "--trust", "--output-format", "stream-json"}
+	if _, err := os.Stat(filepath.Join(setup, "no-force")); err == nil { // a run captured without --force
+		flags = []string{"-p", "--trust", "--output-format", "stream-json"}
+	}
+	cmd := exec.Command(binary, append(flags, prompt)...)
 	cmd.Dir, cmd.Env = ws, env
 	out, err := cmd.Output()
 	require.NoError(t, err, "the mock failed: %s", out)

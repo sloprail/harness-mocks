@@ -22,7 +22,10 @@ func runsInBackground(tu scenario.ToolUse) bool {
 	return toolexec.FromScript(tu.Name, tu.Input).Background()
 }
 
-func (h *bgToolHost) Execute(_ context.Context, _ toolcall.Call) toolcall.Result {
+func (h *bgToolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result {
+	if !h.s.cfg.Force { // not approved: rejected, and not started, as any other command
+		return h.toolHost.Execute(ctx, c)
+	}
 	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id), childenv.Defaults())
 	h.res = h.s.launch(h.call, h.tool.UseID, env)
 	h.emit(completedFrame(h.s.id, h.tool.UseID, h.call, h.res.Frame))
@@ -30,7 +33,7 @@ func (h *bgToolHost) Execute(_ context.Context, _ toolcall.Call) toolcall.Result
 }
 
 func (h *bgToolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, kind corehooks.AfterTool) (string, bool) {
-	if h.refused || h.res.Failed {
+	if h.refused || h.res.Failed || !h.s.cfg.Force {
 		return h.toolHost.After(ctx, c, r, kind)
 	}
 	own := hooks.ToolFields(h.tool)

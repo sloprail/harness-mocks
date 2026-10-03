@@ -23,7 +23,7 @@ func run(t *testing.T, script string, args ...string) (stdout, stderr string, co
 	dir := t.TempDir()
 	path := filepath.Join(dir, "scenario.sh")
 	require.NoError(t, os.WriteFile(path, []byte(script), 0o755))
-	cmd := exec.Command(binary, append([]string{"-p", "--output-format", "stream-json", "--script", path}, args...)...)
+	cmd := exec.Command(binary, append([]string{"-p", "--force", "--output-format", "stream-json", "--script", path}, args...)...)
 	cmd.Dir, cmd.Env = dir, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir()}
 	var out, errb strings.Builder
 	cmd.Stdout, cmd.Stderr = &out, &errb

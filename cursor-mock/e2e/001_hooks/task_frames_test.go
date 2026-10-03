@@ -59,7 +59,7 @@ else cat `+scratch+`/call.json; fi
 `), 0o755))
 	ws, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	cmd := exec.Command(binary, "-p", "--output-format", "stream-json", "--script", script, "go")
+	cmd := exec.Command(binary, "-p", "--force", "--output-format", "stream-json", "--script", script, "go")
 	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir()}
 	out, err := cmd.Output()
 	require.NoError(t, err, string(out))

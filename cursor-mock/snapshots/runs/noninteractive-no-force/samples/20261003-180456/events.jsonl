@@ -1,0 +1,22 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"error_message":"File not found: <RUN>/note.txt","failure_type":"error","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Write","tool_input":{"file_path":"<RUN>/note.txt","content":"hi\n"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"afterFileEdit","payload":{"file_path":"<RUN>/note.txt","edits":[{"old_string":"","new_string":"hi\n"}],"session_id":"<SESSION_ID>","hook_event_name":"afterFileEdit"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Write","tool_input":{"file_path":"<RUN>/note.txt","content":"hi\n"},"tool_output":"{\"file_path\":\"<RUN>/note.txt\",\"success\":true}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo FINE","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo FINE","output":"","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo FINE","timeout":30000},"tool_output":"{\"output\":\"\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"tool_output":"{\"file_path\":\"<RUN>/note.txt\",\"content_length\":3}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"files","note_exists":true,"note":"hi"}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"editToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"editToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"rejected"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

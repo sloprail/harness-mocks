@@ -18,6 +18,10 @@ type Config struct {
 	Home string
 	// Version is the Cursor version the mock reports in hook payloads.
 	Version string
-	Stdout  io.Writer
-	Stderr  io.Writer
+	// Force: the run was started with --force or --yolo, which approves every
+	// shell command; without it a command is rejected (recorded:
+	// runs/noninteractive-no-force).
+	Force  bool
+	Stdout io.Writer
+	Stderr io.Writer
 }
