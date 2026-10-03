@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun the shell command: echo FIRST . Then reply only DONE. If you are told to continue after that, run the shell command: echo SECOND , then reply only DONE2.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo FIRST","description":"Echo FIRST to shell"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}
