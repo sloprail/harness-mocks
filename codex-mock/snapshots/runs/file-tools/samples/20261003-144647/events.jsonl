@@ -1,0 +1,23 @@
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"test -f ./nothere.txt && sed -n '1,200p' ./nothere.txt || true"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"test -f ./nothere.txt && sed -n '1,200p' ./nothere.txt || true"},"tool_response":""}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Add File: <RUN>/hello.txt\n+HELLO-FILE\n*** End Patch"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Add File: <RUN>/hello.txt\n+HELLO-FILE\n*** End Patch"},"tool_response":"Exit code: 0\nWall time: 0 seconds\nOutput:\nSuccess. Updated the following files:\nA <RUN>/hello.txt\n"}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"sed -n '1,20p' hello.txt"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"sed -n '1,20p' hello.txt"},"tool_response":"HELLO-FILE\n"}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: <RUN>/hello.txt\n@@\n-HELLO-FILE\n+HELLO-AGAIN\n*** End Patch"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: <RUN>/hello.txt\n@@\n-HELLO-FILE\n+HELLO-AGAIN\n*** End Patch"},"tool_response":"Exit code: 0\nWall time: 0 seconds\nOutput:\nSuccess. Updated the following files:\nM <RUN>/hello.txt\n"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"file_change"}
+{"event":"stream","type":"item.completed","subtype":"file_change"}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.started","subtype":"file_change"}
+{"event":"stream","type":"item.completed","subtype":"file_change"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

@@ -1,0 +1,1 @@
+Do these in order, using whatever file tools you have (prefer a dedicated file tool over a shell command): 1) read the file ./nothere.txt (it does not exist) 2) create a file hello.txt containing exactly: HELLO-FILE 3) read hello.txt back 4) replace hello.txt whole with exactly: HELLO-AGAIN. Then reply only DONE.
