@@ -7,5 +7,22 @@ providers:
       - https://code.claude.com/docs/en/headless#background-tasks-at-exit
     runs:
       - claude-mock/snapshots/runs/bgbash
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/noninteractive#when-to-use-codex-exec
+    runs:
+      - codex-mock/snapshots/runs/bg-bash-reaped-at-exit
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The recorded model started its command through Codex's script tool
+          (exec calling exec_command), and the rollout notes the terminated
+          command as a failed command item with exit code -1. The mock's one
+          shell tool takes the call's yield_time_ms itself, leaves the command
+          running when it passes, and terminates it at the end of the run, but
+          writes no such rollout item.
+  cursor:
+    supported: false
+    reason: cursor-agent -p waits for a background shell command to finish, delivers its task notification, and only then prints its result; it does not terminate it.
+    runs:
+      - cursor-mock/snapshots/runs/bg-bash-reaped-at-exit
