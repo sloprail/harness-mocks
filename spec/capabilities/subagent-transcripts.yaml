@@ -27,5 +27,42 @@ providers:
           sidecar, and cleanupPeriodDays set to 30, was left whole when the run
           ended: the real harness did not sweep within the run, and the mock
           has no sweep either.
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/subagents#core-terms
+    runs:
+      - codex-mock/snapshots/runs/subagent-transcripts-v2
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex keeps no sidecar file: the sub-agent's rollout is a file beside
+          the session's (same day directory, named by the sub-agent's own thread
+          id) and its first record says what a sidecar would, as the thread that
+          spawned it (parent_thread_id) and its depth, with a path in the tree
+          of agents (/root/<task name>). It names no call that spawned it and no
+          type beyond a role that was null in the recording
+          (recorded: runs/subagent-transcripts-v2). The mock does the same, but
+          leaves the agent path null.
+      - adr: capability-grounding
+        statement: >-
+          Codex records the sub-agent's final answer in the session's rollout,
+          as a message from the sub-agent (recorded: runs/subagent-transcripts-v2);
+          the mock records it as the output of the spawn call.
+  cursor:
+    docs:
+      - https://cursor.com/docs/subagents#how-subagents-work
+    runs:
+      - cursor-mock/snapshots/runs/subagent-transcripts
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor keeps no sidecar: nothing names the sub-agent's type, the call
+          that spawned it or its depth. Its transcript is a conversation of its
+          own under agent-transcripts, in a directory named by its own id next
+          to the session's, and the only link is the Task call's completed
+          frame on the stream, which gives that id as the result's agentId
+          (recorded: runs/subagent-transcripts). The mock does the same.
+      - adr: modeled-surface
+        statement: >-
+          The subagentStart and subagentStop hooks are not fired for the
+          sub-agent.

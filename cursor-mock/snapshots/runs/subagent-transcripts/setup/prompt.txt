@@ -1,0 +1,1 @@
+Use your Task/sub-agent tool to spawn one sub-agent that replies with the word PONG; wait for it. If you have no sub-agent tool, say so. Then reply only DONE.

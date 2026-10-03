@@ -17,6 +17,10 @@ type Layout struct {
 	// SidecarExt replaces Ext on a sub-agent's transcript path to name the
 	// metadata file that sits beside it.
 	SidecarExt string
+	// For a harness with no sub-agent directory (Dir empty), the transcript is
+	// kept with the session's: next to its file, or with OwnDir in a directory
+	// named by the sub-agent's id next to the session's directory.
+	OwnDir bool
 }
 
 // Path is the transcript of sub-agent id for a session whose transcript is
@@ -26,6 +30,13 @@ type Layout struct {
 //
 // sr:capability subagent-transcripts
 func (l Layout) Path(sessionFile, id string) string {
+	if l.Dir == "" {
+		dir := filepath.Dir(sessionFile)
+		if l.OwnDir {
+			dir = filepath.Join(filepath.Dir(dir), id)
+		}
+		return filepath.Join(dir, l.Prefix+id+l.Ext)
+	}
 	return filepath.Join(strings.TrimSuffix(sessionFile, l.SessionExt), l.Dir, l.Prefix+id+l.Ext)
 }
 
