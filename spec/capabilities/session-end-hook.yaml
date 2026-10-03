@@ -30,6 +30,12 @@ providers:
           or deleting it, and 30 minutes of idleness. The mock models a
           non-interactive run, which ends with its turn, so it fires SessionEnd
           for that only.
+      - adr: capability-grounding
+        statement: >-
+          That what the hook prints is not recorded in the transcript is not
+          shown for Codex: the docs say only that SessionEnd hooks are advisory
+          and their output does not steer Codex, and the recorded run's hook
+          prints nothing. The mock does not record it.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionend
