@@ -46,6 +46,19 @@ func TestAllBlockersRunAndTheFirstConfiguredIsActedOn(t *testing.T) {
 			got := replay(t, rec)
 			require.Equal(t, 0, got.Code, got.Stderr)
 			assert.Equal(t, []string{"fast", "slow"}, ran(got), "a hook did not run")
+			// they run together, not one after another in configuration order: the
+			// fast one finishes, and logs, first even when it is configured second
+			// (the recording's log is in that order too, whichever is first)
+			var finished []string
+			for _, l := range got.hookLog() {
+				finished = append(finished, l["ran"].(string))
+			}
+			assert.Equal(t, []string{"fast", "slow"}, finished, "the hooks did not run together")
+			var recFinished []string
+			for _, l := range jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))) {
+				recFinished = append(recFinished, l["ran"].(string))
+			}
+			assert.Equal(t, finished, recFinished)
 			assert.Contains(t, got.Stderr, "Command blocked by PreToolUse hook: denied by "+first+". Command: echo BLOCKME")
 			cmds, _ := got.commands()
 			assert.Empty(t, cmds, "the refused command ran")
