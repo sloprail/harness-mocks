@@ -1,0 +1,1 @@
+Start a background task that runs 'sleep 5; echo BGDONE' without blocking on it, using your own background-task mechanism if you have one that tells you when it finishes. After starting it, end your turn at once by replying only LAUNCHED, and do not wait or poll. If you were told the task finished, reply with the word FINISHED. If you have no background-task mechanism, say so.

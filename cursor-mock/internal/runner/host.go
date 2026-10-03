@@ -19,12 +19,16 @@ func (s *session) Say(text string) {
 	s.forward(assistantFrame(s.id, text))
 }
 
-// EndOfTurn fires nothing: cursor-agent in print mode was recorded not firing
-// the stop hook, so nothing blocks the end of the turn.
-func (s *session) EndOfTurn(context.Context, string, bool) (string, bool) { return "", false }
+// EndOfTurn fires no hook: cursor-agent in print mode was recorded not firing
+// the stop hook, so nothing blocks the end of the turn. What can continue it is
+// a background shell's end (afterTurn).
+func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
+	return s.afterTurn(ctx)
+}
 
-// Continue is never asked for: no end-of-turn hook blocks.
-func (s *session) Continue(string) {}
+// Continue records the turn a finished background shell gives the agent, as the
+// user message it is in the transcript.
+func (s *session) Continue(prompt string) { s.tr.user(prompt) }
 
 // CapOverridden is never asked for: no end-of-turn hook blocks, so there is no
 // cap to reach.
@@ -52,6 +56,10 @@ func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) {
 // stream.
 func (s *session) runTool(ctx context.Context, tu scenario.ToolUse, quiet bool) {
 	h := &toolHost{s: s, quiet: quiet}
-	toolcall.Run(ctx, h, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
+	var host toolcall.Host = h
+	if runsInBackground(tu) {
+		host = &bgToolHost{h}
+	}
+	toolcall.Run(ctx, host, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
 		toolcall.Options{SeparateFailureHook: true, FailureOnRefusal: true})
 }

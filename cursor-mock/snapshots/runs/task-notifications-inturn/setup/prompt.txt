@@ -1,0 +1,1 @@
+Do these as separate shell tool calls, in order. 1) Start a background task running 'sleep 2; echo BGDONE' without waiting for it (block_until_ms 0). 2) Then, as a normal foreground call, run 'sleep 12; echo FOREGROUND'. 3) After that, reply only with DONE, and add the word NOTIFIED if you were told the background task finished.
