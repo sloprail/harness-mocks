@@ -33,3 +33,27 @@ func TestSessionStartAfterCompactionContinueFalseEndsTheTurn(t *testing.T) {
 	cmds, _ := got.commands()
 	assert.Len(t, cmds, 1, "no command after the one that led to the compaction (the recording ran one of three)")
 }
+
+// A PostCompact hook's matcher selects on the trigger as PreCompact's does
+// (hooks#postcompact): one matching "manual" fires for the manual compaction,
+// carrying that trigger, and not for the auto one.
+// sr:proves manual-compaction/codex
+func TestPostCompactMatcherSelectsOnTheTrigger(t *testing.T) {
+	hooks := `{"hooks":{"PostCompact":[{"matcher":"^manual$","hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]}}`
+	got := execMock(t, scenario{
+		HooksJSON: hooks,
+		Files:     map[string]string{"hook.sh": "#!/bin/sh\ncat >>\"$HOOK_LOG\"\necho >>\"$HOOK_LOG\"\n"},
+		Script: `#!/bin/sh
+c=$(grep -c '"type":"compacted"' "$A10N_MOCK_SESSION_FILE")
+case "$c" in
+0) printf '%s\n' '{"type":"compact"}' ;;
+1) printf '%s\n' '{"type":"compact","trigger":"auto"}' ;;
+*) printf '%s\n' '{"type":"result","subtype":"success","result":"DONE"}' ;;
+esac
+`,
+		Prompt: "compact",
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, []string{"PostCompact:manual"}, hookShape(got.hookLog()), "only the manual trigger matched")
+	assert.Equal(t, 2, compactedRecords(got.rollout(t)))
+}
