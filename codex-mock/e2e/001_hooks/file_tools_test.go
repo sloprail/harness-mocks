@@ -198,3 +198,37 @@ func TestFailedFileCallsAreErrors(t *testing.T) {
 	_, err := os.Stat(filepath.Join(got.Repo, "nothere2.txt"))
 	assert.True(t, os.IsNotExist(err))
 }
+
+// A PostToolUse hook whose matcher is Edit or Write is run for an apply_patch
+// call (the payload still names apply_patch), and not for a shell command (the
+// doc's hooks#posttooluse matcher aliases).
+// sr:proves posttooluse-payload/codex
+func TestEditMatcherSelectsPatchCalls(t *testing.T) {
+	for _, matcher := range []string{"Edit", "Write"} {
+		t.Run(matcher, func(t *testing.T) {
+			rec := loadRecording(t, "file-tools")
+			hooks := map[string]any{"hooks": map[string]any{"PostToolUse": []any{map[string]any{
+				"matcher": matcher,
+				"hooks":   []any{map[string]any{"type": "command", "command": `"$(git rev-parse --show-toplevel)"/hook.sh`}}}}}}
+			hj, err := json.Marshal(hooks)
+			require.NoError(t, err)
+			var lines []string
+			for _, c := range []toolCall{
+				{"Bash", map[string]any{"command": "echo hi"}},
+				{"apply_patch", map[string]any{"command": "*** Begin Patch\n*** Add File: m.txt\n+X\n*** End Patch"}}} {
+				b, _ := json.Marshal(c)
+				lines = append(lines, string(b))
+			}
+			f := filepath.Join(t.TempDir(), "calls")
+			require.NoError(t, os.WriteFile(f, []byte(strings.Join(lines, "\n")+"\n"), 0o644))
+			got := execMock(t, scenario{HooksJSON: string(hj),
+				Files:  map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh"))},
+				Script: patchScript, Prompt: "go", Env: []string{"CALLS=" + f}})
+			require.Equal(t, 0, got.Code, got.Stderr)
+			log := got.hookLog()
+			require.Len(t, log, 1)
+			assert.Equal(t, "PostToolUse", log[0]["hook_event_name"])
+			assert.Equal(t, "apply_patch", log[0]["tool_name"])
+		})
+	}
+}
