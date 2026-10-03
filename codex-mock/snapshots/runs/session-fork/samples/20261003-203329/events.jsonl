@@ -2,9 +2,9 @@
 {"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Run the shell command: echo ORIGINAL . Then reply only OK."}}
 {"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo ORIGINAL"},"tool_response":"ORIGINAL\n"}}
 {"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
-{"event":"hook","hook":"SessionStart","payload":{"session_id":"01a10241-f42d-79c3-a7da-f73a7b2ee02b","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"fork"}}
-{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"01a10241-f42d-79c3-a7da-f73a7b2ee02b","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Which word did the earlier shell command print? Reply only that word."}}
-{"event":"hook","hook":"Stop","payload":{"session_id":"01a10241-f42d-79c3-a7da-f73a7b2ee02b","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"01a10378-ea00-7cd1-a8ba-bdd5221915cb","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"fork"}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"01a10378-ea00-7cd1-a8ba-bdd5221915cb","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Which word did the earlier shell command print? Reply only that word."}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"01a10378-ea00-7cd1-a8ba-bdd5221915cb","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
 {"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"resume"}}
 {"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Reply only RESUMED"}}
 {"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}

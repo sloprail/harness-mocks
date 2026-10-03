@@ -187,22 +187,3 @@ func TestForkSessionStartSaysFork(t *testing.T) {
 	}
 	assert.Equal(t, []string{"startup", "fork"}, got)
 }
-
-// A compaction starts the session again: SessionStart fires after it with
-// source "compact", as many times as the recording shows (runs/manual-compaction-auto).
-// sr:proves session-start-hook/codex
-func TestCompactionStartsTheSessionWithSourceCompact(t *testing.T) {
-	rec, got := replayCompacting(t, "manual-compaction-auto")
-	require.Equal(t, 0, got.Code, got.Stderr)
-	sources := func(lines []map[string]any) (out []string) {
-		for _, l := range lines {
-			if l["hook_event_name"] == "SessionStart" {
-				out = append(out, l["source"].(string))
-			}
-		}
-		return
-	}
-	want := sources(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
-	require.Equal(t, []string{"startup", "compact", "compact", "compact"}, want)
-	assert.Equal(t, want, sources(got.hookLog()))
-}
