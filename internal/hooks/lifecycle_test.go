@@ -28,6 +28,16 @@ func TestBlocksSessionStart(t *testing.T) {
 	}
 }
 
+func TestStartHookEndsTurn(t *testing.T) {
+	for _, tc := range []struct{ said, honoured, want bool }{
+		{true, true, true}, {true, false, false}, {false, true, false}, {false, false, false},
+	} {
+		if got := StartHookEndsTurn(tc.said, tc.honoured); got != tc.want {
+			t.Errorf("StartHookEndsTurn(%v, %v) = %v, want %v", tc.said, tc.honoured, got, tc.want)
+		}
+	}
+}
+
 func TestSessionEndReason(t *testing.T) {
 	if got := SessionEndReason(false, EndInteractive); got != EndOther {
 		t.Errorf("non-interactive: %d", got)

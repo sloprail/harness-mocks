@@ -23,6 +23,8 @@ providers:
       - https://developers.openai.com/codex/hooks#sessionend
     runs:
       - codex-mock/snapshots/runs/session-end
+      - codex-mock/snapshots/runs/session-end-hook-output
+      - codex-mock/snapshots/runs/session-end-hook-failure
     deviations:
       - adr: modeled-surface
         statement: >-
@@ -32,10 +34,12 @@ providers:
           for that only.
       - adr: capability-grounding
         statement: >-
-          That what the hook prints is not recorded in the transcript is not
-          shown for Codex: the docs say only that SessionEnd hooks are advisory
-          and their output does not steer Codex, and the recorded run's hook
-          prints nothing. The mock does not record it.
+          Codex reports a SessionEnd hook that times out or exits with an
+          error as a hook failure (the docs). A non-interactive run shows no
+          such report: of handlers that exited 1, exited 2 and outlived their
+          timeout, none appears in the event stream, on stderr or in the
+          transcript (recorded: runs/session-end-hook-failure). The mock reports
+          none either.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionend

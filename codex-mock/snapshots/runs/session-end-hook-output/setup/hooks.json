@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {"type": "command", "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh plain"},
+          {"type": "command", "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh context"},
+          {"type": "command", "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh message"}
+        ]
+      }
+    ]
+  }
+}

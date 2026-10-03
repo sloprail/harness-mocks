@@ -27,6 +27,8 @@ type scenario struct {
 	Env []string
 	// NoJSON runs `exec` without --json, so stdout carries the final message.
 	NoJSON bool
+	// BypassTrust passes --dangerously-bypass-hook-trust, as every recording does.
+	BypassTrust bool
 }
 
 // result is what a run left.
@@ -70,6 +72,9 @@ func execMock(t *testing.T, s scenario) result {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt}
 	if s.NoJSON {
 		args = append(args[:1], args[2:]...)
+	}
+	if s.BypassTrust {
+		args = append([]string{args[0], "--dangerously-bypass-hook-trust"}, args[1:]...)
 	}
 	cmd := exec.Command(mockBinary, args...)
 	cmd.Dir = r.Repo
@@ -125,12 +130,21 @@ func innerCommand(shellLine string) string {
 	return strings.ReplaceAll(strings.TrimSuffix(shellLine[i+1:], "'"), `'\''`, "'")
 }
 
-// rollout is the session file the run wrote.
+// rollout is the session file the run wrote: the main session's when the run
+// streamed one (a sub-agent's file is another, whose name sorts either side of
+// it within the second), else the last there is.
 func (r result) rollout(t *testing.T) string {
 	t.Helper()
+	main := ""
+	for _, e := range r.stream() {
+		if e["type"] == "thread.started" {
+			main, _ = e["thread_id"].(string)
+			break
+		}
+	}
 	var text string
 	require.NoError(t, filepath.Walk(filepath.Join(r.Home, "sessions"), func(p string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() {
+		if err == nil && !info.IsDir() && (main == "" || strings.Contains(filepath.Base(p), main) || text == "") {
 			b, _ := os.ReadFile(p)
 			text = string(b)
 		}

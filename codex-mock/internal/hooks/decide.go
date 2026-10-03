@@ -22,7 +22,9 @@ type Decision struct {
 	// ("allow", "deny"), for ranking when several hooks decide one call.
 	Permission string
 	// Halt: a Stop hook printed `continue: false`, which ends the turn whatever
-	// the other matching Stop hooks decided.
+	// the other matching Stop hooks decided; a SessionStart hook's, which ends
+	// the turn before it begins, the session having started all the same
+	// (recorded: runs/session-start-continue-false).
 	Halt bool
 	// Context is text the hook adds as developer context.
 	Context string
@@ -90,7 +92,7 @@ func readOutput(ev Event, s string) Decision {
 	if out.Decision != nil && *out.Decision == "block" {
 		d.Denied, d.DenyReason, d.Permission = true, out.Reason, "deny"
 	}
-	if ev == Stop && out.Continue != nil && !*out.Continue {
+	if (ev == Stop || ev == SessionStart) && out.Continue != nil && !*out.Continue {
 		d.Halt = true
 	}
 	if ev == PreToolUse {

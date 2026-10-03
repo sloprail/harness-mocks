@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -9,15 +10,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// sessionVars are the variables of the command's output that name the harness
-// and the session, with the session's id as <SESSION_ID>.
-func sessionVars(output, sid string) []string {
+// codexVars are the CODEX* variables of the command's output (env | grep
+// ^CODEX | sort), with what differs between hosts and runs masked: the
+// session's id as <SESSION_ID>, the configuration directory and the package
+// root (the install directory of the launcher) as <CODEX_HOME> and <ROOT>.
+func codexVars(output, sid string) []string {
 	var out []string
 	for _, l := range strings.Split(strings.TrimSpace(output), "\n") {
-		switch strings.SplitN(l, "=", 2)[0] {
-		case "CODEX_CI", "CODEX_SESSION_ID", "CODEX_THREAD_ID", "CODEX_VERSION":
-			out = append(out, strings.ReplaceAll(l, sid, "<SESSION_ID>"))
+		k, v, _ := strings.Cut(l, "=")
+		switch k {
+		case "CODEX_HOME":
+			v = "<CODEX_HOME>"
+		case "CODEX_MANAGED_PACKAGE_ROOT":
+			v = "<ROOT>"
 		}
+		if sid != "" {
+			v = strings.ReplaceAll(v, sid, "<SESSION_ID>")
+		}
+		out = append(out, k+"="+v)
 	}
 	return out
 }
@@ -45,10 +55,11 @@ func sessionIDOf(t *testing.T, r result) string {
 }
 
 // The recorded runs of `env | grep ^CODEX` as a tool command, replayed on the
-// mock (hooks on every event as recorded): the command sees the harness and
-// the session as Codex's did, launched bare and launched inside another
-// session over decoys (this run's session id replaces the decoys', a decoy
-// CODEX_CI passes through).
+// mock (hooks on every event as recorded): the command sees every CODEX
+// variable as Codex's did, launched bare and launched inside another session
+// over decoys (this run's session id replaces the decoys', the launcher's
+// CODEX_MANAGED_BY_NPM=1 replaces a decoy, a decoy CODEX_CI and CODEX_SANDBOX
+// pass through).
 // sr:proves subprocess-session-env/codex
 func TestToolCommandSeesTheSessionAsRecorded(t *testing.T) {
 	for _, name := range []string{"subprocess-session-env", "nested-session-env"} {
@@ -63,9 +74,15 @@ func TestToolCommandSeesTheSessionAsRecorded(t *testing.T) {
 			got := replay(t, rec, extra...)
 			require.Equal(t, 0, got.Code, got.Stderr)
 			recStream := result{Stdout: readFile(t, filepath.Join(rec.sample, "stream.jsonl"))}
-			want := sessionVars(lastOutput(t, recStream), sessionIDOf(t, recStream))
+			want := codexVars(lastOutput(t, recStream), sessionIDOf(t, recStream))
 			require.NotEmpty(t, want)
-			assert.Equal(t, want, sessionVars(lastOutput(t, got), sessionIDOf(t, got)))
+			// All of them as recorded: the launcher's CODEX_MANAGED_BY_NPM=1
+			// (over a decoy in the nested run) and CODEX_MANAGED_PACKAGE_ROOT
+			// included, CODEX_SANDBOX only where inherited.
+			assert.Equal(t, want, codexVars(lastOutput(t, got), sessionIDOf(t, got)))
+			assert.Contains(t, want, "CODEX_MANAGED_BY_NPM=1")
+			assert.Contains(t, lastOutput(t, got), "CODEX_HOME="+got.Home+"\n")
+			assert.Regexp(t, `(?m)^CODEX_MANAGED_PACKAGE_ROOT=/.+$`, lastOutput(t, got), "the launcher's package root")
 		})
 	}
 }
@@ -100,6 +117,46 @@ func TestHookCommandGetsNoSessionVariable(t *testing.T) {
 				}
 			}
 			assert.True(t, sawPayload, "the payload carries the session id")
+		})
+	}
+}
+
+// The recorded hook processes' own CODEX* variables (hook.sh logs them on every
+// event), replayed: a hook is handed the configuration directory and the
+// launcher's variables, never the session's, whether launched bare or over
+// decoys (a decoy CODEX_MANAGED_BY_NPM is replaced by 1, the other inherited
+// decoys reach it unchanged).
+// sr:proves subprocess-session-env/codex
+func TestHookEnvironmentAsRecorded(t *testing.T) {
+	hookEnvs := func(log []map[string]any) (out []string) {
+		for _, l := range log {
+			if env, ok := l["hook_env"].(map[string]any); ok {
+				var kv []string
+				for k, v := range env {
+					kv = append(kv, k+"="+v.(string))
+				}
+				sort.Strings(kv)
+				out = append(out, strings.Join(codexVars(strings.Join(kv, "\n"), ""), "\n"))
+			}
+		}
+		return
+	}
+	for _, name := range []string{"subprocess-session-env", "nested-session-env"} {
+		t.Run(name, func(t *testing.T) {
+			rec := loadRecording(t, name)
+			var extra []string
+			for _, kv := range strings.Split(readFile(t, filepath.Join(rec.setup, "env")), "\n") {
+				if kv != "" {
+					extra = append(extra, kv)
+				}
+			}
+			want := hookEnvs(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
+			got := replay(t, rec, extra...)
+			require.Equal(t, 0, got.Code, got.Stderr)
+			require.NotEmpty(t, want)
+			assert.Equal(t, want, hookEnvs(got.hookLog()))
+			assert.Contains(t, want[0], "CODEX_MANAGED_BY_NPM=1")
+			assert.NotContains(t, want[0], "CODEX_SESSION_ID")
 		})
 	}
 }

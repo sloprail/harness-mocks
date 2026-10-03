@@ -12,11 +12,13 @@ providers:
       - claude-mock/snapshots/runs/bashfail
   codex:
     docs:
+      - https://developers.openai.com/codex/noninteractive#basic-usage
       - https://developers.openai.com/codex/noninteractive#make-output-machine-readable
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/prompt-blocked
+      - codex-mock/snapshots/runs/noninteractive-run-text-output
     deviations:
       - adr: modeled-surface
         statement: >-
@@ -27,6 +29,22 @@ providers:
           stream's item types are the agent message and the command execution
           only: reasoning, file changes, MCP tool calls, web searches and plan
           updates are not modeled.
+      - adr: modeled-surface
+        statement: >-
+          Without --json the mock prints Codex's progress on stderr (banner with
+          release, directory, model and session; the prompt; the notices; each
+          command with how it ended and what it printed; the agent's message;
+          the tokens used, always 0), as recorded in
+          runs/noninteractive-run-text-output. It does not print the banner's
+          provider, approval, sandbox and reasoning lines, which are
+          configuration the mock does not have, the stdin notice, or a line per
+          hook run.
+      - adr: modeled-surface
+        statement: >-
+          The mock accepts --ephemeral and does nothing with it (it always
+          writes the session's rollout file), and reads no piped stdin: a
+          prompt argument plus piped input is not combined as additional
+          context.
   cursor:
     docs:
       - https://cursor.com/docs/cli/headless#how-it-works

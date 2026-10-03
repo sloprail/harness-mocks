@@ -26,6 +26,7 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/hook-matchers
+      - codex-mock/snapshots/runs/session-start-continue-false
     deviations:
       - adr: modeled-surface
         statement: >-

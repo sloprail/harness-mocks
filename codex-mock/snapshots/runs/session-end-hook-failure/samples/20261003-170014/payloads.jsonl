@@ -1,0 +1,9 @@
+{"session_id":"01a102b5-8fc3-7ac1-98c6-fcf06fe532ec","transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T19-00-16-01a102b5-8fc3-7ac1-98c6-fcf06fe532ec.jsonl","cwd":"<RUN>","hook_event_name":"SessionEnd","reason":"other"}
+{"ran":"async"}
+{"session_id":"01a102b5-8fc3-7ac1-98c6-fcf06fe532ec","transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T19-00-16-01a102b5-8fc3-7ac1-98c6-fcf06fe532ec.jsonl","cwd":"<RUN>","hook_event_name":"SessionEnd","reason":"other"}
+{"ran":"slow"}
+{"session_id":"01a102b5-8fc3-7ac1-98c6-fcf06fe532ec","transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T19-00-16-01a102b5-8fc3-7ac1-98c6-fcf06fe532ec.jsonl","cwd":"<RUN>","hook_event_name":"SessionEnd","reason":"other"}
+{"ran":"exit2"}
+{"session_id":"01a102b5-8fc3-7ac1-98c6-fcf06fe532ec","transcript_path":"<TMP>/home/.codex/sessions/2026/10/03/rollout-2026-10-03T19-00-16-01a102b5-8fc3-7ac1-98c6-fcf06fe532ec.jsonl","cwd":"<RUN>","hook_event_name":"SessionEnd","reason":"other"}
+{"ran":"exit1"}
+{"done":"async"}
