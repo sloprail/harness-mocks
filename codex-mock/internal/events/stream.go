@@ -64,8 +64,11 @@ func (s *Stream) CommandStarted(command string) string {
 	return id
 }
 
-// CommandCompleted reports how a started command ended: completed on exit 0,
-// failed otherwise.
+// CommandCompleted reports how a started command ended: its exit status and
+// everything it printed, and a status of completed on exit 0, failed otherwise
+// (recorded: runs/shell-exit-status). The agent is told the output as it is,
+// failed or not; the failure shows only here.
+// sr:provides bash-tool-result/codex
 func (s *Stream) CommandCompleted(id, command, output string, exit int) {
 	status := "completed"
 	if exit != 0 {
