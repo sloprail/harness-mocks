@@ -1,8 +1,6 @@
 package runner
 
 import (
-	"crypto/rand"
-	"fmt"
 	"os"
 	"regexp"
 
@@ -56,24 +54,9 @@ func sessionFilePath(configDir, cwd, sessionID string) string {
 // form), not only in the transcript path.
 func resolveEncodingCwd(cwd string) string { return coretranscript.ResolveDir(cwd) }
 
-// newRecordUUID returns a random RFC-4122 v4 uuid, the shape real Claude Code
-// stamps on every transcript record.
-//
-// The format matters and not merely the uniqueness: a consumer that parses the
-// field, or matches a transcript's records against a uuid it was handed
-// elsewhere, is entitled to a uuid rather than an arbitrary token. On a failure
-// of the random source it returns the empty string, and the caller's record
-// simply carries no uuid — the pre-existing behaviour, and better than a
-// predictable constant that would make two sub-agents share an identity.
-func newRecordUUID() string {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return ""
-	}
-	b[6] = (b[6] & 0x0f) | 0x40 // version 4
-	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
-}
+// newRecordUUID is the uuid real Claude Code stamps on every transcript record;
+// the shared session core makes it.
+func newRecordUUID() string { return session.NewID() }
 
 // sessionFilePathIfExists is the existing transcript of sessionID, found the way
 // `claude --resume <id>` finds it (in whichever project directory holds it), or
