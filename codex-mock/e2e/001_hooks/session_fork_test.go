@@ -116,6 +116,9 @@ func TestForkContinuesTheConversationUnderANewSessionAndLeavesTheOriginal(t *tes
 	require.Len(t, recRollouts, 2)
 	assert.Equal(t, recIDs[0], recMeta[recIDs[1]]["forked_from_id"])
 	assert.Equal(t, recIDs[0], recMeta[recIDs[1]]["history_base"].(map[string]any)["thread_id"])
+	recBase := recMeta[recIDs[1]]["history_base"].(map[string]any)
+	assert.Positive(t, recBase["end_ordinal_exclusive"], "the recorded fork names how much of the original it continues")
+	assert.Equal(t, recBase["end_ordinal_exclusive"], recMeta[recIDs[1]]["forked_from_ordinal_exclusive"])
 	assert.NotContains(t, recRollouts[recIDs[1]], "echo ORIGINAL", "the recorded fork's file does not copy the history")
 	assert.NotContains(t, recRollouts[recIDs[0]], forkPrompt, "the recorded original has none of the fork")
 
@@ -140,6 +143,10 @@ func TestForkContinuesTheConversationUnderANewSessionAndLeavesTheOriginal(t *tes
 	text, meta := rolloutOf(t, fork.Home, forkID)
 	assert.Equal(t, origID, meta["forked_from_id"])
 	assert.Equal(t, origID, meta["history_base"].(map[string]any)["thread_id"])
+	// how much of the original it continues: all of it, as it stood at the fork
+	records := float64(len(jsonLines(before)))
+	assert.Equal(t, records, meta["history_base"].(map[string]any)["end_ordinal_exclusive"])
+	assert.Equal(t, records, meta["forked_from_ordinal_exclusive"])
 	assert.NotContains(t, text, "echo ORIGINAL", "the fork's file does not copy the history")
 	assert.Contains(t, text, forkPrompt)
 
