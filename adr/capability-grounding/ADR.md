@@ -19,12 +19,12 @@ quirks.
 - A capability's `statement` (`spec/capabilities/<id>.yaml`) is
   harness-neutral: what differs between providing harnesses (a default, a
   name, a wire format) is left out of it.
-- Each part of the statement is stated by every providing harness's cited doc
-  sections (`providers.<harness>.docs`, frozen by sha256 in
-  `<harness>-mock/snapshots/MANIFEST.yaml`), or, where that harness's docs say
-  nothing about it, shown by one of its cited runs
+- For a supported cell, each part of the statement is either stated by the
+  harness's cited doc sections (`providers.<harness>.docs`, frozen by sha256 in
+  `<harness>-mock/snapshots/MANIFEST.yaml`), or shown by one of its cited runs
   (`providers.<harness>.runs`: `<harness>-mock/snapshots/runs/<name>/`, whose
-  `samples/<ts>/` hold the real harness's payloads, stream and transcript).
+  `samples/<ts>/` hold the real harness's payloads, stream and transcript), or
+  listed in the cell's `deviations` as a part the harness does not do.
 - A cell `{supported: false, reason, docs?, runs?}` claims the harness lacks
   the behaviour, and is grounded by evidence of the same two kinds, at least
   one: `runs`, recordings whose scenario attempts the behaviour and whose

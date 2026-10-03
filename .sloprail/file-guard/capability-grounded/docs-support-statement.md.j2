@@ -36,14 +36,14 @@ Pass only if a citation below asks to stop mocking it.
 
 ## Pass
 
-- For every harness, each part of the statement is stated (not implied) by
-  that harness's doc, or, where its doc says nothing about that part, shown by
-  one of its cited runs (a <run> is a directory in the project: `setup/` is the
+- For every supported harness, each part of the statement is stated (not
+  implied) by that harness's doc, or shown by one of its cited runs, or listed
+  in the cell's `deviations` as a part the harness does not do (cited runs: a <run> is a directory in the project: `setup/` is the
   scenario, each `samples/<ts>/` holds what the real harness did: payloads,
   stream, transcript). A recording outranks a doc: where a run shows the real
   harness doing (or not doing) a part and a doc sentence says otherwise, the
   run decides, and the doc's sentence is not held against the cell.
-- The statement claims no part that a providing harness neither documents nor shows in a cited run
+- The statement claims no part that a providing harness neither documents, shows in a cited run, nor lists as a deviation
   (a part its doc leaves out may be grounded by a run); what
   differs between harnesses (a default, a name) is left out of the statement.
 - For every <absent> harness, the claim "this harness lacks the behaviour"
