@@ -1,13 +1,17 @@
 package toolexec
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/subagents"
+)
 
 // taskRequired is what a Task call (Cursor's sub-agent dispatch) must carry:
 // its prompt. Its description is not required: a call without one runs, with
 // the description empty (recorded: runs/agent-input-validation and
 // runs/agent-input-validation-description).
 // sr:provides agent-input-validation/cursor
-var taskRequired = []string{"prompt"}
+var taskRequired = subagents.PromptRequired
 
 // InvalidArguments is what Cursor tells the agent of a Task call that lacks
 // required parameters: "Invalid arguments:" and a line "<name>: Required" for

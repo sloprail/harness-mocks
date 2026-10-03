@@ -67,6 +67,18 @@ type Host interface {
 	Answer(c Call, a Answer)
 }
 
+// LateInputCheck is implemented by a host whose harness checks some tools'
+// input only after the before-tool hooks have run: the hooks then see a call
+// that lacks required parameters, which is refused as invalid afterwards
+// (and fires no after-tool hook), instead of being refused before any hook.
+//
+// sr:capability agent-input-validation
+type LateInputCheck interface {
+	// InputCheckedLate says whether the named tool's input is checked after
+	// the before-tool hooks.
+	InputCheckedLate(name string) bool
+}
+
 // Options are the parts of the order that differ between harnesses.
 type Options struct {
 	// SeparateFailureHook: the harness has a hook for a call that failed, which
@@ -91,7 +103,12 @@ func Run(ctx context.Context, h Host, c Call, o Options) {
 		h.Answer(c, Answer{Kind: Unknown})
 		return
 	}
-	if missing := hooks.RejectedInput(c.Input, required); len(missing) > 0 {
+	missing := hooks.RejectedInput(c.Input, required)
+	late := false
+	if l, ok := h.(LateInputCheck); ok {
+		late = l.InputCheckedLate(c.Name)
+	}
+	if len(missing) > 0 && !late {
 		h.Answer(c, Answer{Kind: Invalid, Missing: missing})
 		return
 	}
@@ -100,6 +117,10 @@ func Run(ctx context.Context, h Host, c Call, o Options) {
 			h.After(ctx, c, Result{Output: reason, Failed: true}, hooks.AfterFailure)
 		}
 		h.Answer(c, Answer{Kind: Refused, Reason: reason})
+		return
+	}
+	if len(missing) > 0 { // checked late: the hooks have seen the call
+		h.Answer(c, Answer{Kind: Invalid, Missing: missing})
 		return
 	}
 	r := h.Execute(ctx, c)
