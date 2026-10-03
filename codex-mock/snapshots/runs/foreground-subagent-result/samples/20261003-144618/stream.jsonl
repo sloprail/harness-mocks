@@ -1,0 +1,11 @@
+{"type":"thread.started","thread_id":"01a1023a-f7cc-7592-8a30-27e854e7ad1d"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"I’m checking whether a sub-agent tool is available in this session."}}
+{"type":"item.started","item":{"id":"item_3","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a1023a-f7cc-7592-8a30-27e854e7ad1d","receiver_thread_ids":[],"prompt":"Reply with exactly the word PINEAPPLE-7 and nothing else.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a1023a-f7cc-7592-8a30-27e854e7ad1d","receiver_thread_ids":["01a1023b-24a4-7f71-9ed4-d8c0fa16792b"],"prompt":"Reply with exactly the word PINEAPPLE-7 and nothing else.","agents_states":{"01a1023b-24a4-7f71-9ed4-d8c0fa16792b":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.started","item":{"id":"item_4","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a1023a-f7cc-7592-8a30-27e854e7ad1d","receiver_thread_ids":["01a1023b-24a4-7f71-9ed4-d8c0fa16792b"],"prompt":null,"agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_4","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a1023a-f7cc-7592-8a30-27e854e7ad1d","receiver_thread_ids":["01a1023b-24a4-7f71-9ed4-d8c0fa16792b"],"prompt":null,"agents_states":{"01a1023b-24a4-7f71-9ed4-d8c0fa16792b":{"status":"completed","message":"PINEAPPLE-7"}},"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"PINEAPPLE-7"}}
+{"type":"turn.completed","usage":{"input_tokens":60567,"cached_input_tokens":39936,"cache_write_input_tokens":0,"output_tokens":229,"reasoning_output_tokens":54}}

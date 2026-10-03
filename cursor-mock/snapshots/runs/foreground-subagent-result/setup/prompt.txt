@@ -1,0 +1,1 @@
+Use the Task tool to launch one sub-agent (foreground, not background) asking it to reply with exactly the word PINEAPPLE-7 and nothing else. Wait for it to finish, then reply with the report it gave you, verbatim.

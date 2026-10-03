@@ -1,0 +1,7 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Task","tool_input":{"description":"Reply PINEAPPLE-7 only","prompt":"Reply with exactly the word PINEAPPLE-7 and nothing else. No punctuation, no explanation, no extra whitespace or lines—only: PINEAPPLE-7","subagent_type":"generalPurpose","run_in_background":false},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"taskToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"taskToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

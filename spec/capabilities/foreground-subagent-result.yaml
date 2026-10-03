@@ -32,5 +32,44 @@ providers:
           error), which returns the partial output with a note that it was cut off,
           or fails with 'Agent terminated early due to an API error', and which
           continues a cut-off response before ending the run.
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/subagents#orchestration-and-thread-controls
+    runs:
+      - codex-mock/snapshots/runs/foreground-subagent-result
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex does not block its parent by spawning: spawn_agent returns the
+          sub-agent's id at once (its state pending), and the parent blocks in
+          a call of its own, wait, which returns the sub-agent's final report
+          as its result when it has finished: a status map of the sub-agent's id
+          to its completion with the report as text, not a report with a
+          trailer naming the sub-agent and its usage (recorded:
+          runs/foreground-subagent-result). The mock does the same.
+      - adr: modeled-surface
+        statement: >-
+          The mock carries out spawn_agent and the wait that follows as one
+          call: it returns the wait's result as its own, and no wait_agent call
+          of the script is modelled.
+  cursor:
+    docs:
+      - https://cursor.com/docs/subagents#foreground-vs-background
+    runs:
+      - cursor-mock/snapshots/runs/foreground-subagent-result
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor's result of a foreground sub-agent is the Task call's
+          structured result, not a text with a trailer: the sub-agent's
+          conversation steps (its final report the last), its agent id, that it
+          did not run in the background and its duration; no usage is stated
+          (recorded: runs/foreground-subagent-result). The mock does the same.
+      - adr: modeled-surface
+        statement: >-
+          The mock runs only a foreground Task that carries a description, a
+          prompt and the scenario script that plays the sub-agent; a background
+          Task is not modelled. The call's args on the stream carry the sub-agent's
+          description, prompt, type, model and id, not the other fields the
+          recording shows (attachments, mode, environment, machine and the ids of
+          the messages it answers).

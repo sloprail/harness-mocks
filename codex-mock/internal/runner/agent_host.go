@@ -42,8 +42,13 @@ type spawnInput struct {
 // A SubagentStop hook that blocks runs the sub-agent again with its reason as
 // feedback until it lets it stop (recorded: runs/subagent-stop-block-loop).
 //
+// The call's result is the sub-agent's final report, as Codex's wait call
+// returns it: a status map of the sub-agent's id to its completion with the
+// report as text (recorded: runs/foreground-subagent-result).
+//
 // sr:provides subagent-lifecycle-hooks/codex
 // sr:provides subagent-stop-block-loop/codex
+// sr:provides foreground-subagent-result/codex
 func (h toolHost) spawnAgent(ctx context.Context, c toolcall.Call) toolcall.Result {
 	var in spawnInput
 	_ = json.Unmarshal(c.Input, &in)
