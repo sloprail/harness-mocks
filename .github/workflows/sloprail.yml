@@ -1,0 +1,36 @@
+name: sloprail
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  sloprail-verify:
+    name: sloprail verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@c9c98da7c7951c1750bd574d41e4485368f7ae39
+      # sr-mark: ci-verify
+      - env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            ~/.local/bin/sr-checks verify --base "origin/$BASE_REF" --head "$PR_HEAD"
+          else
+            # new branch / force push: before is all zeros or a missing object -> merge-base with the default branch, else the root commit
+            if [ -z "${BEFORE//0/}" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              BEFORE=$(git merge-base origin/main "$GITHUB_SHA" 2>/dev/null || git rev-list --max-parents=0 "$GITHUB_SHA" | tail -1)
+            fi
+            ~/.local/bin/sr-checks verify --base "$BEFORE" --head "$GITHUB_SHA"
+          fi
