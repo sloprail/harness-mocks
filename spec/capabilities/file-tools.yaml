@@ -35,16 +35,14 @@ providers:
           event stream's command_execution item shows the failure, with status
           "failed" and exit code 1 (recorded: runs/file-tools-failure). A patch
           that updates a missing file is an error told to the agent, and writes
-          nothing.
+          nothing; the recorded failing patch, made through Codex's code-mode
+          wrapper, fired no hook.
       - adr: modeled-surface
         statement: >-
           The mock applies the three file sections of a patch (Add File, Update
           File with its hunks, Delete File) and no more: it does not model
           moving a file, the end-of-file marker, a patch's context-matching
-          leniency or a patch given through the shell; and it fires PreToolUse
-          and PostToolUse for a patch that fails, as it does for one that
-          succeeds, whereas the recorded failing patch (made through Codex's
-          code-mode wrapper) fired no hook.
+          leniency or a patch given through the shell.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#afterfileedit

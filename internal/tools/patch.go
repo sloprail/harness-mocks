@@ -31,9 +31,8 @@ type patchWrite struct {
 // lines; "*** Update File:" replaces, for each "@@" hunk, the lines the hunk's
 // context and "-" lines name with its context and "+" lines; "*** Delete File:"
 // removes a file. Nothing is written unless every section applies; the error
-// of one that does not wraps a Patch error and names the file.
-//
-// sr:capability file-tools
+// of one that does not wraps a Patch error and names the file. It is the
+// multi-file writing of the same capability as Edit.
 func ApplyPatch(patch, dir string) ([]FileChange, error) {
 	lines := strings.Split(strings.TrimRight(patch, "\n"), "\n")
 	if len(lines) < 2 || lines[0] != "*** Begin Patch" || lines[len(lines)-1] != "*** End Patch" {
