@@ -1,0 +1,1 @@
+Run this shell command, once: echo BLOCKME. If it is refused, say what the refusal said, then reply DONE.

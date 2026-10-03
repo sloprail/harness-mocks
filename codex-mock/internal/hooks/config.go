@@ -35,7 +35,8 @@ type Group struct {
 }
 
 // Config is every hook Codex loads, by event: all of them run, a higher
-// layer does not replace a lower one.
+// layer does not replace a lower one, and a hook listed in two files is two
+// hooks, run twice.
 type Config map[Event][]Group
 
 type fileGroup struct {
@@ -52,6 +53,7 @@ type fileGroup struct {
 // command handlers are kept: Codex skips the other handler types it parses.
 //
 // sr:docs https://developers.openai.com/codex/hooks#where-codex-looks-for-hooks
+// sr:provides hooks-all-matching-run/codex
 func Load(codexHome, cwd string) (Config, error) {
 	cfg := Config{}
 	for _, dir := range []string{codexHome, filepath.Join(cwd, ".codex")} {
