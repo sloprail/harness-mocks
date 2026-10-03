@@ -1,10 +1,12 @@
 package session
 
 import (
+	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // meta is the payload of a rollout's first record, the one place codex writes
@@ -23,18 +25,14 @@ func meta(id, cwd string, now time.Time) map[string]any {
 	return m
 }
 
-// gitBranch is the branch checked out in the repository containing dir, read
-// from its HEAD, or "" outside a repository or on a detached HEAD.
+// gitBranch is the branch checked out in the repository containing dir, or ""
+// outside a repository or on a detached HEAD.
 func gitBranch(dir string) string {
-	for d := dir; ; d = filepath.Dir(d) {
-		if b, err := os.ReadFile(filepath.Join(d, ".git", "HEAD")); err == nil {
-			if ref, ok := strings.CutPrefix(strings.TrimSpace(string(b)), "ref: refs/heads/"); ok {
-				return ref
-			}
-			return ""
-		}
-		if d == filepath.Dir(d) {
-			return ""
-		}
+	res, err := procexec.Run(context.Background(), procexec.Spec{
+		Argv: []string{"git", "symbolic-ref", "--short", "-q", "HEAD"}, Dir: dir,
+		Env: os.Environ(), Timeout: 5 * time.Second})
+	if err != nil || res.ExitCode != 0 {
+		return ""
 	}
+	return strings.TrimSpace(string(res.Stdout))
 }
