@@ -40,6 +40,7 @@ providers:
       - https://cursor.com/docs/hooks#per-script-configuration-options
     runs:
       - cursor-mock/snapshots/runs/hook-matchers
+      - cursor-mock/snapshots/runs/hook-matchers-after-events
     deviations:
       - adr: modeled-surface
         statement: >-

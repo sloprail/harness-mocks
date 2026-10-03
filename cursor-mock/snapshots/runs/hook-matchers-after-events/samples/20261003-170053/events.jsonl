@@ -1,0 +1,22 @@
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-empty","event":"preToolUse","tool":"Shell","command":"echo MATCH-ME"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"after-MATCH","event":"afterShellExecution","tool":"","command":"echo MATCH-ME"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"after-empty","event":"afterShellExecution","tool":"","command":"echo MATCH-ME"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-empty","event":"preToolUse","tool":"Shell","command":"echo OTHER"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"after-empty","event":"afterShellExecution","tool":"","command":"echo OTHER"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-empty","event":"preToolUse","tool":"Shell","command":"false"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"after-empty","event":"afterShellExecution","tool":"","command":"false"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"fail-empty","event":"postToolUseFailure","tool":"Shell","command":"false"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"fail-Shell","event":"postToolUseFailure","tool":"Shell","command":"false"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-empty","event":"preToolUse","tool":"Read","command":""}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"fail-Read","event":"postToolUseFailure","tool":"Read","command":""}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"fail-empty","event":"postToolUseFailure","tool":"Read","command":""}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"failure"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"result","subtype":"success"}

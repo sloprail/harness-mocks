@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [{ "command": ".cursor/hooks/ran.sh pre-empty", "matcher": "" }],
+    "afterShellExecution": [
+      { "command": ".cursor/hooks/ran.sh after-MATCH", "matcher": "echo MATCH" },
+      { "command": ".cursor/hooks/ran.sh after-OTHER", "matcher": "nomatch" },
+      { "command": ".cursor/hooks/ran.sh after-empty", "matcher": "" }
+    ],
+    "postToolUseFailure": [
+      { "command": ".cursor/hooks/ran.sh fail-Shell", "matcher": "Shell" },
+      { "command": ".cursor/hooks/ran.sh fail-Read", "matcher": "Read" },
+      { "command": ".cursor/hooks/ran.sh fail-Write", "matcher": "Write" },
+      { "command": ".cursor/hooks/ran.sh fail-empty", "matcher": "" }
+    ]
+  }
+}
