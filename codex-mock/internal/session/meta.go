@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"os"
 	"strings"
 	"time"
 
@@ -30,7 +29,7 @@ func meta(id, cwd string, now time.Time) map[string]any {
 func gitBranch(dir string) string {
 	res, err := procexec.Run(context.Background(), procexec.Spec{
 		Argv: []string{"git", "symbolic-ref", "--short", "-q", "HEAD"}, Dir: dir,
-		Env: os.Environ(), Timeout: 5 * time.Second})
+		Env: []string{"LC_ALL=C"}, Timeout: 5 * time.Second})
 	if err != nil || res.ExitCode != 0 {
 		return ""
 	}
