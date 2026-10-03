@@ -1,0 +1,1 @@
+Make every shell command its own separate tool call, never combined with another command or put in a script. Run these shell commands one at a time, in order, whatever happens: 1) grep zzz /dev/null 2) sh -c 'echo SOME-OUTPUT; exit 1' 3) sh -c 'echo MORE-OUTPUT; echo ERR-OUTPUT >&2; exit 2' 4) sh -c 'exit 3' 5) echo FINE. Then reply only DONE.
