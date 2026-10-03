@@ -30,6 +30,9 @@ func Payload(c Common, ev Event, own map[string]any) []byte {
 		delete(p, "model")
 		delete(p, "permission_mode")
 	}
+	if ev == PreCompact || ev == PostCompact { // recorded: a compaction's payload names no permission mode
+		delete(p, "permission_mode")
+	}
 	for k, v := range own {
 		p[k] = v
 	}

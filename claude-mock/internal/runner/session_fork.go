@@ -58,3 +58,16 @@ func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
 	}
 	return os.WriteFile(dest, buf, 0o644)
 }
+
+// claudeForkSchema is how Claude Code's records show a fork what to carry: the
+// compaction's boundary, its summary, and the records the boundary preserved.
+var claudeForkSchema = session.ForkSchema{
+	UUID: chainUUID, Parent: chainParent, SessionKey: "sessionId",
+	IsBoundary: isCompactBoundary, IsSummary: isCompactSummary, Preserved: preservedUUIDs,
+}
+
+// forkSegment is the records of a transcript a fork carries, under session id
+// newID (see forkTranscript).
+func forkSegment(data []byte, newID string) []map[string]any {
+	return session.Fork(session.ParseRecords(data, chainUUID), newID, claudeForkSchema)
+}

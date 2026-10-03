@@ -1,0 +1,9 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"5c916b45-35b3-40f4-8012-103b46829e6e","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"/compress\n\nUse no tool for this. Reply only DONE."}]},"session_id":"5c916b45-35b3-40f4-8012-103b46829e6e"}
+{"type":"thinking","subtype":"delta","text":"The user wants me to","session_id":"5c916b45-35b3-40f4-8012-103b46829e6e","timestamp_ms":1791039534661}
+{"type":"thinking","subtype":"delta","text":" run /compress without","session_id":"5c916b45-35b3-40f4-8012-103b46829e6e","timestamp_ms":1791039534662}
+{"type":"thinking","subtype":"delta","text":" using any tools and","session_id":"5c916b45-35b3-40f4-8012-103b46829e6e","timestamp_ms":1791039534662}
+{"type":"thinking","subtype":"delta","text":" reply only with DONE.","session_id":"5c916b45-35b3-40f4-8012-103b46829e6e","timestamp_ms":1791039534662}
+{"type":"thinking","subtype":"completed","session_id":"5c916b45-35b3-40f4-8012-103b46829e6e","timestamp_ms":1791039534662}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"DONE"}]},"session_id":"5c916b45-35b3-40f4-8012-103b46829e6e"}
+{"type":"result","subtype":"success","duration_ms":5328,"duration_api_ms":5328,"is_error":false,"result":"DONE","session_id":"5c916b45-35b3-40f4-8012-103b46829e6e","request_id":"27654311-2b28-4d22-826d-caae6ff144c3","usage":{"inputTokens":14769,"outputTokens":44,"cacheReadTokens":0,"cacheWriteTokens":0}}

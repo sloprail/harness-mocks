@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
 # Its core is internal/compaction (the sequence and the boundary plan); claude-mock's adapter lives in the claude-mock files below.
 concern: "the compaction sequence and what it preserves"
-home: ["internal/compaction/**", "claude-mock/internal/runner/control*.go"]   # everything about the concern lives here
+home: ["internal/compaction/**", "claude-mock/internal/runner/control_boundary.go", "claude-mock/internal/runner/control_records.go", "claude-mock/internal/runner/control_compact.go", "claude-mock/internal/runner/control_frames.go", "claude-mock/internal/runner/control_summary.go", "codex-mock/internal/runner/control_compact.go"]   # everything about the concern lives here
 api: ["internal/compaction"]       # the only packages others may import

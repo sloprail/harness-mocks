@@ -18,6 +18,8 @@ const (
 	PreToolUse       Event = "PreToolUse"
 	PostToolUse      Event = "PostToolUse"
 	Stop             Event = "Stop"
+	PreCompact       Event = "PreCompact"
+	PostCompact      Event = "PostCompact"
 	SessionEnd       Event = "SessionEnd"
 )
 
