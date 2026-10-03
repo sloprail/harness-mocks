@@ -69,8 +69,7 @@ func (h turnHost) EndOfTurn(ctx context.Context, last string, continuing bool) (
 }
 
 // Continue records the reason that continues the turn, as the user message
-// Codex makes of it. A stop hook that ran leaves nothing else: no summary.
-// sr:provides hook-output-transcript-records/codex
+// Codex makes of it.
 func (h turnHost) Continue(reason string) {
 	h.rollout.User(fmt.Sprintf(`<hook_prompt hook_run_id="stop">%s</hook_prompt>`, reason))
 }

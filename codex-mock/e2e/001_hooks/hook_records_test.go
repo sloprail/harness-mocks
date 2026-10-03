@@ -72,3 +72,43 @@ func TestHookRunsLeaveOnlyWhatTheAgentWasTold(t *testing.T) {
 		assert.Len(t, toolOutputs(t, rollout), 1, name+": one result, for the one command")
 	}
 }
+
+// The same holds for the other ways a hook decides, which the docs describe
+// (hooks#userpromptsubmit, hooks#posttooluse): context by JSON
+// additionalContext is a developer message; a PostToolUse block, by exit 2
+// (runs/posttool-block) or by a JSON decision, is recorded as the call's result
+// in place of the output; a UserPromptSubmit block, by exit 2
+// (runs/prompt-blocked) or by a JSON decision, leaves no record of the prompt
+// or of the reason.
+// sr:proves hook-output-transcript-records/codex
+func TestOtherHookDecisionsAreRecordedTheSameWay(t *testing.T) {
+	post := loadRecording(t, "posttool-block")
+	for name, rollout := range map[string]string{"recorded": recordedRollout(t, post), "mock": replay(t, post).rollout(t)} {
+		assert.True(t, resultTold(t, rollout, "POST-FEEDBACK-MSG", "POSTBLOCK"), name+": the feedback replaces the output")
+	}
+	prompt := loadRecording(t, "prompt-blocked")
+	for name, rollout := range map[string]string{"recorded": recordedRollout(t, prompt), "mock": replay(t, prompt).rollout(t)} {
+		assert.NotContains(t, rollout, "PROMPT-BLOCK-MSG", name+": the reason of a blocked prompt was recorded")
+		assert.NotContains(t, rollout, "SHOULDNOTRUN", name+": a blocked prompt was recorded")
+	}
+
+	byJSON := execMock(t, scenario{
+		HooksJSON: hooksJSON("sh hook.sh", "UserPromptSubmit", "PostToolUse"),
+		Files: map[string]string{"hook.sh": `in=$(cat); case "$in" in
+  *UserPromptSubmit*) echo '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"CTX-PROMPT"}}' ;;
+  *PostToolUse*) echo '{"decision":"block","reason":"POST-JSON-REASON"}' ;;
+esac`},
+		Script: callThenResult, Prompt: "go", Env: withCalls(t, "echo OUT"),
+	})
+	rollout := byJSON.rollout(t)
+	assert.Equal(t, []string{"CTX-PROMPT"}, addedContext(t, rollout))
+	assert.True(t, resultTold(t, rollout, "POST-JSON-REASON", "OUT"))
+
+	blocked := execMock(t, scenario{
+		HooksJSON: hooksJSON("sh hook.sh", "UserPromptSubmit"),
+		Files:     map[string]string{"hook.sh": `echo '{"decision":"block","reason":"PROMPT-JSON-REASON"}'`},
+		Script:    callThenResult, Prompt: "SECRET-PROMPT", Env: withCalls(t),
+	})
+	assert.NotContains(t, blocked.rollout(t), "PROMPT-JSON-REASON")
+	assert.NotContains(t, blocked.rollout(t), "SECRET-PROMPT")
+}

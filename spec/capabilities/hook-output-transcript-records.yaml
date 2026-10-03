@@ -20,16 +20,18 @@ providers:
     docs:
       - https://developers.openai.com/codex/hooks#userpromptsubmit
       - https://developers.openai.com/codex/hooks#posttooluse
-      - https://developers.openai.com/codex/hooks#stop
     runs:
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/hook-timeout
+      - codex-mock/snapshots/runs/posttool-block
+      - codex-mock/snapshots/runs/prompt-blocked
     deviations:
       - adr: capability-grounding
         statement: >-
           Codex records less than the statement says: a hook that fails
           without blocking (exit 1, a failure at SessionStart) and a hook
-          stopped by its timeout leave no record, and the end of a turn that
+          stopped by its timeout leave no record, a prompt a hook blocks leaves
+          no record of the reason (runs/prompt-blocked), and the end of a turn that
           ran hooks gets no summary record (recorded: runs/hook-exit-codes,
           runs/hook-timeout). What it records is the context a hook adds (a
           developer message), a block of a tool call (that call's result) and

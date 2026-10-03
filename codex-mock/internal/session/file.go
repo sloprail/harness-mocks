@@ -49,10 +49,14 @@ func message(role, ctype, text string) map[string]any {
 		"content": []map[string]string{{"type": ctype, "text": text}}}
 }
 
-// User records a user message: the prompt, or the text a hook sent in its place.
+// User records a user message: the prompt, or the text a hook sent in its place
+// (the reason a stop hook blocks with). It is all a hook leaves of its own:
+// nothing records a hook that succeeded silently, failed or timed out.
+// sr:provides hook-output-transcript-records/codex
 func (s *File) User(text string) { s.append("response_item", message("user", "input_text", text)) }
 
 // Developer records context a hook added.
+// sr:provides hook-output-transcript-records/codex
 func (s *File) Developer(text string) {
 	s.append("response_item", message("developer", "input_text", text))
 }
