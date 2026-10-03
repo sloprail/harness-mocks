@@ -94,6 +94,7 @@ func fileChanges(events []map[string]any, dir string) (out []string) {
 // command and a success report as the response, and the agent is told {}
 // (runs/file-tools). The file written is on disk, as the patch left it.
 // sr:proves file-tools/codex
+// sr:proves posttooluse-payload/codex
 func TestFilesAreReadByShellAndWrittenByPatch(t *testing.T) {
 	rec := loadRecording(t, "file-tools")
 	got := replayCalls(t, rec, func(repo string) []toolCall { return recordedToolCalls(t, rec, repo) })

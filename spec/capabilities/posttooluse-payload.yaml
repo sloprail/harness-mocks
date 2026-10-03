@@ -16,6 +16,7 @@ providers:
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/posttool-block
+      - codex-mock/snapshots/runs/file-tools
     deviations:
       - adr: capability-grounding
         statement: >-
@@ -24,8 +25,8 @@ providers:
           mock sends none.
       - adr: modeled-surface
         statement: >-
-          The mock runs the shell tool and a sub-agent dispatch only, so what
-          PostToolUse reports for apply_patch, MCP tool calls and other local
+          The mock runs the shell tool, apply_patch and a sub-agent dispatch
+          only, so what PostToolUse reports for MCP tool calls and other local
           function tools is not modeled.
   cursor:
     docs:
