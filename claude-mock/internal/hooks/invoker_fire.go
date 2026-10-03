@@ -32,7 +32,6 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 		corehooks.Common{TranscriptPath: input.TranscriptPath, Cwd: input.Cwd, Agent: corehooks.Agent{ID: input.AgentID, Type: input.AgentType}},
 		corehooks.Common{TranscriptPath: inv.transcriptPath, Cwd: inv.cwd},
 		corehooks.Agent{ID: inv.agentID, Type: inv.agentType})
-	input = inv.titled(input)
 	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
 	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
 	handlers := inv.settings.EntriesFor(input.HookEventName, matcherSubject(input))

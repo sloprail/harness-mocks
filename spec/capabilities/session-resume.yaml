@@ -25,9 +25,11 @@ providers:
       - adr: modeled-surface
         statement: >-
           The mock does not model --name, naming a session when it starts: the
-          sessions it writes carry its fixed title and no agent-name record. It finds a
-          session by the name its transcript records (the real harness's, as in
-          runs/resume-name) and tells the resume's hooks that name as
-          session_title.
+          sessions it writes carry its fixed title and no agent-name record. It
+          finds a session by the name its transcript records (the real
+          harness's, as in runs/resume-name) and tells the resume's SessionStart
+          that name as session_title, with the stream's session_title_changed
+          frame. The recorded resume's UserPromptSubmit carries the name as
+          well, which the mock's does not.
   codex: pending
   cursor: pending

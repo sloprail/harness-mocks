@@ -64,47 +64,19 @@ func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
 // ResumeTarget is the session id a `--resume` value names: the path of a session's
 // transcript file (claude 2.1.285 resumed one by its path and appended to that file;
 // recorded: snapshots/runs/resume-path), the id of a session, or the name a session
-// was given (recorded: resume-name). A value that is none of them is returned as it
-// is, for the run to fail on as an unknown session.
+// was given (recorded: resume-name).
 //
 // sr:provides session-resume/claude
 func ResumeTarget(configDir, cwd, value string) string {
-	if strings.HasSuffix(value, claudeLayout.Ext) || strings.ContainsRune(value, filepath.Separator) {
-		return strings.TrimSuffix(filepath.Base(value), claudeLayout.Ext)
-	}
-	if sessionFilePathIfExists(resolveConfigDir(configDir), cwd, value) != "" {
-		return value
-	}
-	if id := newestSession(configDir, cwd, func(path string) bool { return sessionTitleOf(path) == value }); id != "" {
-		return id
-	}
-	return value
+	return session.Target(claudeLayout, resolveConfigDir(configDir), cwd, value, func(path string) bool { return sessionTitleOf(path) == value })
 }
 
 // LatestSession is the id `--continue` resumes: the most recently written session of
-// the directory (not of another), or "" (recorded: snapshots/runs/resume-continue).
+// the directory, or "" (recorded: snapshots/runs/resume-continue).
 //
 // sr:provides session-resume/claude
 func LatestSession(configDir, cwd string) string {
-	return newestSession(configDir, cwd, func(string) bool { return true })
-}
-
-// newestSession is the most recently written transcript of cwd's project that
-// match accepts.
-func newestSession(configDir, cwd string, match func(path string) bool) string {
-	dir := claudeLayout.ProjectDir(resolveConfigDir(configDir), cwd)
-	entries, _ := os.ReadDir(dir)
-	best, bestTime := "", int64(0)
-	for _, e := range entries {
-		info, err := e.Info()
-		if err != nil || e.IsDir() || !strings.HasSuffix(e.Name(), claudeLayout.Ext) || !match(filepath.Join(dir, e.Name())) {
-			continue
-		}
-		if t := info.ModTime().UnixNano(); best == "" || t > bestTime {
-			best, bestTime = strings.TrimSuffix(e.Name(), claudeLayout.Ext), t
-		}
-	}
-	return best
+	return session.Latest(claudeLayout, resolveConfigDir(configDir), cwd, func(string) bool { return true })
 }
 
 // sessionTitleOf is the name the transcript at path records for its session (its

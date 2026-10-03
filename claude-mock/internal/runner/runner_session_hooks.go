@@ -51,7 +51,7 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 		in.ResumeFields = resumeFields(cfg.sessionFile)
 	}
 	if kind == corehooks.StartResumed {
-		inv.SetSessionTitle(sessionTitleOf(cfg.sessionFile))
+		in.SessionTitle = sessionTitleOf(cfg.sessionFile)
 	}
 	ssOut, runs, ferr := inv.FireRuns(ctx, in)
 	// Only the SessionStart of a session resumed from another directory is told
@@ -61,6 +61,9 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 		inv.SetTranscriptPath(cfg.sessionFile)
 	}
 	writeSessionStartFrames(cfg, in, runs)
+	if in.SessionTitle != "" { // after the hooks' frames, before init (recorded: snapshots/runs/resume-name)
+		writeFrame(cfg, map[string]any{"type": "system", "subtype": "session_title_changed", "title": in.SessionTitle})
+	}
 	var blockErr *hooks.BlockError
 	if errors.As(ferr, &blockErr) && corehooks.BlocksSessionStart(corehooks.Blocked) {
 		return "", ferr
