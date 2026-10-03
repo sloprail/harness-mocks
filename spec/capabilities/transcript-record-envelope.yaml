@@ -25,11 +25,12 @@ providers:
           launched (originator and source "exec"); every record carries just
           its timestamp (recorded: runs/session-transcript-file). The mock does
           the same.
-      - adr: modeled-surface
+      - adr: capability-grounding
         statement: >-
-          Codex repeats the working directory in each turn's turn_context
-          record (recorded: runs/session-transcript-file); the mock writes no
-          turn_context record, so its working directory is only in session_meta.
+          Codex repeats the working directory on each turn's turn_context
+          record, a record of its own beside the conversation's
+          (recorded: runs/session-transcript-file); beyond that the first
+          record is the only one that names it.
       - adr: capability-grounding
         statement: >-
           Codex does not mark the prompt record of a non-interactive run: the
