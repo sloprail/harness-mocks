@@ -19,7 +19,7 @@ providers:
           surface) is what Claude calls this tool for; no mock parses one.
   codex:
     supported: false
-    reason: Codex exec offers the agent no wake-up or timer tool; asked to schedule one it made no tool call at all.
+    reason: Codex exec offers the agent no wake-up or timer tool; asked to schedule one it searched its tools for a wake-up tool, found none, and made no scheduling call.
     runs:
       - codex-mock/snapshots/runs/schedule-wakeup-ask
   cursor:
