@@ -27,6 +27,13 @@ providers:
           moved to the background', with the task id and output file), and that
           a foreground sub-agent's moved command still stops when that
           sub-agent's run ends. A mock's foreground command is never moved.
+      - adr: modeled-surface
+        statement: >-
+          The mock has no /tasks command (interactive only) to list and stop
+          background tasks, and no interactive session in which a command
+          started by the main conversation keeps running after a final
+          response: a mock's session is non-interactive, where the run ends
+          the command (background-bash-reaped-at-exit).
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#tool-coverage
