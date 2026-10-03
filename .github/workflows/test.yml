@@ -18,6 +18,17 @@ jobs:
           cache: true
       - run: go test -race -count=1 ./claude-mock/internal/...
 
+  rules:
+    name: capability rule tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -count=1 ./tools/capcells/
+
   e2e:
     name: e2e tests
     runs-on: ubuntu-latest

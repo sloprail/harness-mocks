@@ -7,5 +7,5 @@ providers:
       - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
     runs:
       - claude-mock/snapshots/runs/bashfail
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

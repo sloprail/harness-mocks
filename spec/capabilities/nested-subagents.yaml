@@ -11,5 +11,5 @@ providers:
       - https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents
     runs:
       - claude-mock/snapshots/runs/meta
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

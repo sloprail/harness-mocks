@@ -66,7 +66,7 @@ for h in $(harnesses); do
       seen="$seen$hv $ts"$'\n'
     done
     [ "$n" -gt 0 ] || add "run $h/$name has no samples"
-    jq -e --arg n "$h-mock/snapshots/runs/$name" 'any(.[]; .runs | index($n))' <<<"$cited" >/dev/null ||
+    jq -e --arg n "$h-mock/snapshots/runs/$name" 'any(.[]; (.runs // []) | index($n))' <<<"$cited" >/dev/null ||
       add "run $h/$name is cited by no capability: cite it, or delete it"
   done
 

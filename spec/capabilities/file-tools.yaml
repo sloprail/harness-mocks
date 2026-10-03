@@ -16,7 +16,7 @@ providers:
     runs:
       - claude-mock/snapshots/runs/file-tools
       - claude-mock/snapshots/runs/tool-errors
-  codex: false
+  codex: pending
   cursor:
     docs:
       - https://cursor.com/docs/hooks#afterfileedit

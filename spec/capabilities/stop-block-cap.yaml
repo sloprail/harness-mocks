@@ -14,5 +14,5 @@ providers:
     runs:
       - claude-mock/snapshots/runs/cap
       - claude-mock/snapshots/runs/cap-sub
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

@@ -18,3 +18,18 @@ touched_harnesses() {
     '(($b.providers // {}) + ($h.providers // {})) | keys[] as $k
      | select(($b.providers // {})[$k] != ($h.providers // {})[$k]) | $k' 2>/dev/null || echo '*'
 }
+
+# cell_kind CELL_JSON: what a providers cell is, one word.
+#   supported    {docs, runs, deviations?}: mocked; covered, proven, judged
+#   unsupported  {supported: false, reason, docs}: the harness lacks it, with evidence
+#   pending      "pending": not mocked yet; tracked, never coverage
+#   bare-false   false: absence without evidence; refused
+#   invalid      anything else (shapes owns the details)
+cell_kind() {
+  jq -r 'if . == "pending" then "pending"
+         elif . == false then "bare-false"
+         elif type == "object" and .supported == false then "unsupported"
+         elif type == "object" and (.supported == null) then "supported"
+         else "invalid" end' <<<"$1"
+}
+

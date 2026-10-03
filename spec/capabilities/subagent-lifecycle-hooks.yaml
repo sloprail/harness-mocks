@@ -14,5 +14,5 @@ providers:
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/bgagent
-  codex: false
-  cursor: false
+  codex: pending
+  cursor: pending

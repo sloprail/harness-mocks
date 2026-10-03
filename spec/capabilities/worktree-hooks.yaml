@@ -25,5 +25,13 @@ providers:
           counterpart in the mock, and neither do the path screening of a hook's
           returned path (a path through a symlink, or with . or .. segments, is
           refused) and the .worktreeinclude copy that the default creation does.
-  codex: false
-  cursor: false
+  codex:
+    supported: false
+    reason: Codex's hook events list has no worktree create or remove event.
+    docs:
+      - https://developers.openai.com/codex/hooks#hooks
+  cursor:
+    supported: false
+    reason: Cursor's hook events list has no worktree create or remove event.
+    docs:
+      - https://cursor.com/docs/hooks#hook-events
