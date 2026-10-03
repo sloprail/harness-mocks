@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -46,7 +47,11 @@ func TestABackgroundShellCommandIsAnsweredAtOnceAndKeepsRunning(t *testing.T) {
 
 	const cmd = "sh -c 'sleep 25; echo BG-FINISHED > bg.out'"
 	var tool map[string]any
+	var events []string
 	for _, h := range got.hooks {
+		if commandOf(h) == cmd || h["command"] == cmd {
+			events = append(events, h["hook_event_name"].(string))
+		}
 		if h["hook_event_name"] == "afterShellExecution" {
 			require.NotEqual(t, cmd, h["command"], "no end of its own to report")
 		}
@@ -54,10 +59,18 @@ func TestABackgroundShellCommandIsAnsweredAtOnceAndKeepsRunning(t *testing.T) {
 			require.NoError(t, json.Unmarshal([]byte(h["tool_output"].(string)), &tool))
 		}
 	}
+	require.Equal(t, []string{"preToolUse", "beforeShellExecution", "postToolUse"}, events, "the hooks around it, and no afterShellExecution")
 	require.EqualValues(t, receipt["shellId"], tool["shell_id"])
 	require.EqualValues(t, receipt["pid"], tool["pid"])
 
 	// it ran on while the agent worked: the ls came after it, and the
 	// notification names the command's end
 	require.Equal(t, id, notificationOf(t, got.frames)["task_id"])
+
+	// the command really ran to its end: it wrote bg.out in the workspace
+	roots, _ := got.hooks[0]["workspace_roots"].([]any)
+	require.NotEmpty(t, roots)
+	b, err := os.ReadFile(filepath.Join(roots[0].(string), "bg.out"))
+	require.NoError(t, err)
+	require.Equal(t, "BG-FINISHED\n", string(b))
 }
