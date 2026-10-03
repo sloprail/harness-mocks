@@ -1,0 +1,3 @@
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"result","subtype":"success"}

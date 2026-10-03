@@ -9,5 +9,21 @@ providers:
       - https://code.claude.com/docs/en/agent-sdk/sessions#resume-by-id
     runs:
       - claude-mock/snapshots/runs/resume-unknown
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/noninteractive#resume-a-non-interactive-session
+    runs:
+      - codex-mock/snapshots/runs/session-resume-unknown
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex fails the resume before it starts any session, so no hook
+          fires at all: the end-of-session hook the statement has does not
+          fire (recorded: runs/session-resume-unknown, no hook payload at
+          all), and the mock fires none either. The message is a no-rollout
+          one on stderr, and the exit is 1.
+  cursor:
+    supported: false
+    reason: cursor-agent --resume with an unknown session id does not fail; it runs a new session under that id and exits 0.
+    runs:
+      - cursor-mock/snapshots/runs/session-resume-unknown
