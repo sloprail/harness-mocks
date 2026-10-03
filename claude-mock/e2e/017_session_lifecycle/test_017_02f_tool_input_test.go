@@ -29,6 +29,7 @@ const recordedReadIssues = `InputValidationError: [
 // does not run, and the turn goes on (recorded: snapshots/runs/tool-invalid-input).
 // sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
 // sr:proves tool-failure-hook/claude
+// sr:proves agent-input-validation/claude
 func TestT017_29c_InvalidInputFiresNoHook(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")
@@ -49,4 +50,10 @@ func TestT017_29c_InvalidInputFiresNoHook(t *testing.T) {
 	_, err = os.Stat(log)
 	assert.True(t, os.IsNotExist(err), "no hook fired")
 	assert.Contains(t, out, `"result":"done"`, "the turn goes on")
+	// The stream carries the same refusal as an error result, and the tool did
+	// not run: the only tool_result is the validation error.
+	frames := toolResultFrames(out)
+	require.Len(t, frames, 1)
+	assert.Equal(t, true, frames[0]["is_error"])
+	assert.Contains(t, frames[0]["content"], "InputValidationError: Read failed")
 }
