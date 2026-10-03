@@ -1,0 +1,2 @@
+version: 2026.09.28
+command: cursor-agent -p --trust --model auto --output-format stream-json

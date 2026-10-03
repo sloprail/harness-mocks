@@ -34,6 +34,8 @@ type observed struct {
 	// envs are the environments the hook scripts logged of themselves.
 	envs     []map[string]any
 	ws, home string
+	// stdout is the mock's whole stream, as printed (set on the mock's side only).
+	stdout string
 }
 
 // dropped are the fields a capture's normalizer removes (capture.sh): what
@@ -246,7 +248,11 @@ func replay(t *testing.T, run string) (got, want observed) {
 			}
 		}
 	}
-	cmd := exec.Command(binary, "-p", "--force", "--trust", "--output-format", "stream-json", prompt)
+	flags := []string{"-p", "--force", "--trust", "--output-format", "stream-json"}
+	if _, err := os.Stat(filepath.Join(setup, "no-force")); err == nil { // a run captured without --force
+		flags = []string{"-p", "--trust", "--output-format", "stream-json"}
+	}
+	cmd := exec.Command(binary, append(flags, prompt)...)
 	cmd.Dir, cmd.Env = ws, env
 	out, err := cmd.Output()
 	require.NoError(t, err, "the mock failed: %s", out)
@@ -271,7 +277,7 @@ func replay(t *testing.T, run string) (got, want observed) {
 		}
 	}
 	sort.Strings(got.results)
-	got.ws, got.home = ws, home
+	got.ws, got.home, got.stdout = ws, home, string(out)
 	for _, l := range strings.Split(string(out), "\n") {
 		var f map[string]any
 		if json.Unmarshal([]byte(l), &f) == nil {

@@ -63,7 +63,11 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 // command's environment, and prints its completed frame.
 func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result {
 	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id), childenv.Defaults())
-	h.res = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, env)
+	if h.call.Kind == "shellToolCall" && !h.s.cfg.Force {
+		h.res = toolexec.Unapproved(h.call, h.s.cfg.Dir)
+	} else {
+		h.res = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, env)
+	}
 	h.emit(completedFrame(h.s.id, h.tool.UseID, h.call, h.res.Frame))
 	return toolcall.Result{Output: h.res.Output, Failed: h.res.Failed}
 }

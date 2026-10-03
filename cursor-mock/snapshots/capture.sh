@@ -30,6 +30,7 @@
 #   runs/<name>/setup/*.sh             optional: the hook scripts, installed in .cursor/hooks/;
 #                                      hook.sh appends to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra cursor-agent flags, one per line
+#   runs/<name>/setup/no-force         optional: an empty file; the run leaves --force off
 #   runs/<name>/setup/env              optional: KEY=VALUE lines cursor-agent inherits on
 #                                      top of the hermetic env
 set -euo pipefail
@@ -105,9 +106,12 @@ capture_run() {
   # starts from it, so cursor-agent's working directory is a symlinked path.
   cwd="$work/repo"
   if [ -f "$run/setup/symlink" ]; then read -r lname <"$run/setup/symlink"; ln -s "$work/repo" "$work/$lname"; cwd="$work/$lname"; fi
+  # A scenario's `no-force` file leaves --force off: print mode as the headless doc
+  # describes it without the flag (the run's command is recorded as it ran).
+  force="--force"; [ -f "$run/setup/no-force" ] && force=""
   (cd "$cwd" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
     TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-    "$bin" -p --force --trust --model auto --output-format stream-json \
+    "$bin" -p ${force:+"$force"} --trust --model auto --output-format stream-json \
       ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
   echo $? >"$cap/exit.txt"
   set -e
@@ -154,7 +158,7 @@ capture_run() {
       rm -rf "$cap" "$work"; echo "same events as $(basename "$other"): no new sample"; return 0
     fi
   done
-  printf 'version: %s\ncommand: cursor-agent -p --force --trust --model auto --output-format stream-json\n' "$v" >"$run/run.yaml"
+  printf 'version: %s\ncommand: cursor-agent -p %s--trust --model auto --output-format stream-json\n' "$v" "${force:+$force }" >"$run/run.yaml"
   seal "$cap"
   rm -rf "$work"
   echo "captured runs/$name/samples/$ts"

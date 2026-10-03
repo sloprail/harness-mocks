@@ -33,7 +33,17 @@ providers:
       - https://cursor.com/docs/cli/headless#real-time-progress-tracking
     runs:
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/noninteractive-no-force
     deviations:
+      - adr: modeled-surface
+        statement: >-
+          Without --force or --yolo the mock rejects every shell command, run
+          unprompted, and applies every file write, the two outcomes recorded
+          for a command and a write (the headless doc's file changes that are
+          only proposed were not what the recording shows). Which other
+          commands cursor-agent would run without being asked (an allowlist,
+          read-only commands) is not modeled, nor a background command's
+          rejection, which is the same as any other command's.
       - adr: modeled-surface
         statement: >-
           The mock models only the stream-json output format. The docs' default
