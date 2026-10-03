@@ -74,7 +74,7 @@ func TestHookRunsLeaveOnlyWhatTheAgentWasTold(t *testing.T) {
 }
 
 // The same holds for the other ways a hook decides, which the docs describe
-// (hooks#userpromptsubmit, hooks#posttooluse): context by JSON
+// (hooks#userpromptsubmit): context by JSON
 // additionalContext is a developer message; a PostToolUse block, by exit 2
 // (runs/posttool-block) or by a JSON decision, is recorded as the call's result
 // in place of the output; a UserPromptSubmit block, by exit 2

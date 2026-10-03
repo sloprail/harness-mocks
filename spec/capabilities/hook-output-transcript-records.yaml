@@ -19,7 +19,6 @@ providers:
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#userpromptsubmit
-      - https://developers.openai.com/codex/hooks#posttooluse
     runs:
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/hook-timeout
