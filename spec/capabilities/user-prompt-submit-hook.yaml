@@ -21,4 +21,9 @@ providers:
     runs:
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/prompt-blocked
-  cursor: pending
+  cursor:
+    supported: false
+    reason: In print mode cursor-agent never fires a configured beforeSubmitPrompt hook; one that tries to refuse the prompt is not run and the prompt reaches the agent, which acts on it.
+    runs:
+      - cursor-mock/snapshots/runs/user-prompt-submit-hook
+      - cursor-mock/snapshots/runs/hook-exit-codes
