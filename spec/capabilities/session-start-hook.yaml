@@ -30,7 +30,13 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock never resumes, forks or compacts a session, so a session start is always the fresh one, source startup.
+          The mock never forks, compacts or clears a session (the sources clear and compact), so a session start is the fresh one, source startup, or the one a session resumed by its id (`exec resume`) makes, source resume.
+      - adr: capability-grounding
+        statement: >-
+          Unlike the statement, a Codex SessionStart hook can stop the run: one
+          returning {"continue":false} ends it at once, with no prompt hook,
+          tool call or model request after it (recorded:
+          runs/session-start-continue-false).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionstart
@@ -41,5 +47,10 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock never resumes, forks or compacts a conversation, so it fires
-          one sessionStart hook per run, at the fresh start.
+          The mock never forks or compacts a conversation, so it fires one
+          sessionStart hook per run, at the fresh start.
+      - adr: capability-grounding
+        statement: >-
+          A conversation resumed by its id (`--resume`) fires no sessionStart
+          hook in cursor-agent, and the mock does the same
+          (recorded: runs/session-resume).

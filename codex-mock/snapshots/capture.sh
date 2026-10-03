@@ -30,6 +30,10 @@
 #   runs/<name>/setup/no-git           optional: run in a directory that is not a git repository
 #   runs/<name>/setup/schema.json      optional: copied to the run's directory as schema.json
 #                                      (what an `args` line `--output-schema schema.json` names)
+#   runs/<name>/setup/then-<NN>-prompt.txt   optional later steps, run in name order under the
+#                                      same CODEX_HOME, with then-<NN>-args (a line "<SESSION>"
+#                                      is the first step's session id) and then-<NN>-cwd (a
+#                                      directory name, next to the repo, to run from)
 #   runs/<name>/setup/env             optional: KEY=VALUE lines codex inherits on
 #                                      top of the hermetic env (e.g. an outer session's)
 #
@@ -111,12 +115,29 @@ capture_run() {
   # user config, skills or AGENTS.md exist in the fake home.
   local codex_bin; codex_bin="$(command -v codex)" || die "codex is not on PATH"
   set +e
-  (cd "$work/repo" && env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
-    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-    "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} --dangerously-bypass-hook-trust \
-      -m gpt-5.6-luna -c 'model_reasoning_effort="low"' \
-      ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
-  echo $? >"$cap/exit.txt"
+  # One codex invocation per step: the scenario's own prompt.txt and args are step
+  # 1, and each setup/then-<NN>-prompt.txt (with then-<NN>-args, then-<NN>-cwd) is
+  # a later one, in name order, under the same fake CODEX_HOME, so a later step can
+  # resume what an earlier one left. A step's args may name the first step's
+  # session as <SESSION> (it is not known before the run), and its cwd file names
+  # a directory next to the repo to run it from (created empty). exit.txt has one
+  # line per step.
+  : >"$cap/stream.jsonl"; : >"$cap/stderr.txt"; : >"$cap/exit.txt"
+  steps=(""); for f in "$run"/setup/then-*-prompt.txt; do [ -f "$f" ] && steps+=("$(basename "$f" prompt.txt)"); done
+  for step in "${steps[@]}"; do
+    sargs=(); [ -f "$run/setup/${step}args" ] && while IFS= read -r a; do
+      [ -n "$a" ] || continue
+      [ "$a" != "<SESSION>" ] || a="$(jq -r 'select(.type == "thread.started") | .thread_id' "$cap/stream.jsonl" | head -n1)"
+      sargs+=("$a")
+    done <"$run/setup/${step}args"
+    sdir="$work/repo"; [ -f "$run/setup/${step}cwd" ] && sdir="$work/$(cat "$run/setup/${step}cwd")" && mkdir -p "$sdir"
+    (cd "$sdir" && env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+      TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
+      "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} --dangerously-bypass-hook-trust \
+        -m gpt-5.6-luna -c 'model_reasoning_effort="low"' \
+        ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt")
+    echo $? >>"$cap/exit.txt"
+  done
   set -e
   # a token codex refreshed replaced the link: put it back, so the login stays valid
   if [ -f "$chome/auth.json" ] && [ ! -L "$chome/auth.json" ]; then mv "$chome/auth.json" "$auth_src"; fi

@@ -52,6 +52,12 @@ func (s *session) keep(ds []hooks.Decision) {
 // Context is what the agent has been handed by hooks, all of it (turnloop.Params.Added).
 func (s *session) Context() string { return strings.Join(s.added, "\n") }
 
+// startHook is Cursor's sessionStart: it fires when a session begins, and a
+// resumed one fires none (recorded: runs/session-resume).
+//
+// sr:provides session-resume/cursor
+var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true}}
+
 // Run plays one run: the stream's opening frames, the sessionStart hooks, the
 // script's turns until its result, the sessionEnd hooks, and then the result
 // frame, last on the stream. A single prompt runs to completion without
@@ -69,7 +75,10 @@ func (s *session) Context() string { return strings.Join(s.added, "\n") }
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: coresession.NewID(), started: time.Now()}
+	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now()}
+	if s.id == "" {
+		s.id = coresession.NewID()
+	}
 	var err error
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
@@ -79,9 +88,14 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
 	s.hooks = &hooks.Hooks{Config: conf, Dir: cfg.Dir, Env: s.hookEnv, Common: s.common}
+	if cfg.Resume != "" { // the workspace holds the session's transcript only if it was begun there
+		_ = coresession.ContinueTranscript(s.tr.path, func(l string) bool { return strings.Contains(l, `"turn_ended"`) })
+	}
 	s.forward(initFrame(s.id, cfg.Dir))
 	s.forward(userFrame(s.id, cfg.Prompt))
-	s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
+	if startHook.For(cfg.Resume != "").Fires {
+		s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
+	}
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
 	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
 	s.named = true

@@ -33,6 +33,10 @@
 #   runs/<name>/setup/no-force         optional: an empty file; the run leaves --force off
 #   runs/<name>/setup/prepare.sh       optional: run in the scratch repo before cursor-agent, with
 #                                      HOME the run's (e.g. to lay out a plugin directory)
+#   runs/<name>/setup/then-<NN>-prompt.txt   optional later steps, run in name order under the
+#                                      same HOME, with then-<NN>-args (a line "<SESSION>" is the
+#                                      first step's session id) and then-<NN>-cwd (a directory
+#                                      name, next to the repo, to run from)
 #   runs/<name>/setup/env              optional: KEY=VALUE lines cursor-agent inherits on
 #                                      top of the hermetic env
 set -euo pipefail
@@ -112,14 +116,44 @@ capture_run() {
   # A scenario's `no-force` file leaves --force off: print mode as the headless doc
   # describes it without the flag (the run's command is recorded as it ran).
   force="--force"; [ -f "$run/setup/no-force" ] && force=""
-  (cd "$cwd" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
-    TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-    "$bin" -p ${force:+"$force"} --trust --model auto --output-format stream-json \
-      ${args[@]+"${args[@]}"} "$(cat "$run/setup/prompt.txt")" </dev/null >"$cap/stream.jsonl" 2>"$cap/stderr.txt")
-  echo $? >"$cap/exit.txt"
+  # One cursor-agent invocation per step: the scenario's own prompt.txt and args
+  # are step 1, and each setup/then-<NN>-prompt.txt (with then-<NN>-args, then-<NN>-cwd)
+  # is a later one, in name order, under the same fake HOME, so a later step can
+  # resume what an earlier one left. A step's args may name the first step's
+  # session as <SESSION> (it is not known before the run), and its cwd file names
+  # a directory next to the repo to run it from (created, with the repo's .cursor
+  # hooks). exit.txt has one line per step.
+  : >"$cap/stream.jsonl"; : >"$cap/stderr.txt"; : >"$cap/exit.txt"
+  steps=(""); for f in "$run"/setup/then-*-prompt.txt; do [ -f "$f" ] && steps+=("$(basename "$f" prompt.txt)"); done
+  for step in "${steps[@]}"; do
+    sargs=(); if [ -z "$step" ]; then sargs=(${args[@]+"${args[@]}"}); elif [ -f "$run/setup/${step}args" ]; then
+      while IFS= read -r a; do
+        [ -n "$a" ] || continue
+        [ "$a" != "<SESSION>" ] || a="$(jq -r 'select(.session_id) | .session_id' "$cap/stream.jsonl" | head -n1)"
+        sargs+=("$a")
+      done <"$run/setup/${step}args"
+    fi
+    sdir="$cwd"
+    if [ -f "$run/setup/${step}cwd" ]; then sdir="$work/$(cat "$run/setup/${step}cwd")"; mkdir -p "$sdir"; cp -R "$work/repo/.cursor" "$sdir/"; fi
+    (cd "$sdir" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+      TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
+      "$bin" -p ${force:+"$force"} --trust --model auto --output-format stream-json \
+        ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt")
+    echo $? >>"$cap/exit.txt"
+  done
   set -e
   mkdir -p "$cap/transcript"
-  cp -R "$home/.cursor/projects/"*/agent-transcripts/* "$cap/transcript/" 2>/dev/null || true
+  # a conversation resumed from another directory has a transcript there too: with
+  # several projects, each is kept apart under the name of its directory
+  local enc_work; enc_work="$(printf '%s' "${work#/}" | sed 's#[^A-Za-z0-9]#-#g')"
+  local projs=("$home/.cursor/projects/"*/agent-transcripts)
+  if [ "${#projs[@]}" -gt 1 ]; then
+    local p; for p in "${projs[@]}"; do
+      mkdir -p "$cap/transcript/$(basename "$(dirname "$p")" | sed "s#^${enc_work}-##")"; cp -R "$p/"* "$cap/transcript/$(basename "$(dirname "$p")" | sed "s#^${enc_work}-##")/"
+    done
+  else
+    cp -R "$home/.cursor/projects/"*/agent-transcripts/* "$cap/transcript/" 2>/dev/null || true
+  fi
   # the transcript stamps the wall clock and the user's timezone into the prompt
   find "$cap/transcript" -name '*.jsonl' -type f | while IFS= read -r f; do
     jq -c 'walk(if type == "string" then gsub("<timestamp>[^<]*</timestamp>"; "<timestamp/>") else . end)' "$f" >"$f.tmp" && mv "$f.tmp" "$f"

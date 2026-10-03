@@ -47,5 +47,39 @@ providers:
           that name as session_title, with the stream's session_title_changed
           frame. The recorded resume's UserPromptSubmit carries the name as
           well, which the mock's does not.
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/noninteractive#resume-a-non-interactive-session
+      - https://developers.openai.com/codex/hooks#sessionstart
+    runs:
+      - codex-mock/snapshots/runs/session-resume
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          Only a session named by its id (`codex exec resume <id>`) is
+          modeled: resuming the newest session (`--last`), a session by its
+          thread name, and the interactive resume picker are not.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#sessionstart
+      - https://cursor.com/docs/hooks#sessionend
+    runs:
+      - cursor-mock/snapshots/runs/session-resume
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Resumed from another working directory, cursor-agent keeps the
+          session's id and fires that directory's session hooks, but it does
+          not continue the conversation: the agent has none of the earlier
+          messages, and the transcript it writes there holds only the new
+          ones. Only a session resumed from the directory it was begun in
+          continues in its existing transcript (recorded: runs/session-resume).
+      - adr: capability-grounding
+        statement: >-
+          A resumed session fires cursor-agent's end hook (sessionEnd) but not
+          its start hook (sessionStart): the start hook fires only when a
+          session begins (recorded: runs/session-resume).
+      - adr: modeled-surface
+        statement: >-
+          Only `--resume <session-id>` is modeled: `--continue`, the resume
+          picker and `agent resume` are not.

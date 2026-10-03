@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"'" }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"'" }] }],
+    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"'" }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"'" }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"'" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"'" }] }]
+  }
+}

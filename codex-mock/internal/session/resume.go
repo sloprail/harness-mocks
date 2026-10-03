@@ -47,16 +47,3 @@ func ResumeUnknown(home, id string) error {
 	}
 	return nil
 }
-
-// ErrResumeNotModeled is the resume of a session that does exist: only the
-// failure of resuming an unknown one is modeled.
-var ErrResumeNotModeled = errors.New("codex-mock: resuming an existing session is not modeled")
-
-// Resume is `codex exec resume <id>`: it fails for an unknown session, with no
-// hook fired, and for a known one is not modeled.
-func Resume(home, id string) error {
-	if err := ResumeUnknown(home, id); err != nil {
-		return err
-	}
-	return ErrResumeNotModeled
-}

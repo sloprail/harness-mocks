@@ -10,6 +10,8 @@ type Config struct {
 	Script string
 	// Prompt is the user's prompt.
 	Prompt string
+	// Resume is the id of the session to continue, empty for a new one.
+	Resume string
 	// Dir is the workspace: where the run starts and where project hooks live.
 	Dir string
 	// Environ is the mock's own environment, which its children inherit.

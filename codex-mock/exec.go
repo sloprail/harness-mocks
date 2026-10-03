@@ -23,7 +23,7 @@ func newExec() *cobra.Command {
 		Short: "Run the scenario script as a non-interactive Codex session",
 		RunE:  runExec,
 	}
-	f := cmd.Flags()
+	f := cmd.PersistentFlags()
 	f.String("script", "", "Scenario script that drives the agent (env: A10N_MOCK_SCRIPT)")
 	f.Bool("json", false, "Print events to stdout as JSONL")
 	f.StringP("cd", "C", "", "Working directory of the session (default: the current one)")
@@ -45,7 +45,16 @@ func newExec() *cobra.Command {
 	return cmd
 }
 
+// runExec is a run of `exec`; `exec resume <session id> [prompt]` continues that
+// session, in whichever directory it runs (only a session named by its id is
+// modeled, not `--last`).
+//
+// sr:provides session-resume/codex
 func runExec(cmd *cobra.Command, args []string) error {
+	resume := ""
+	if len(args) >= 2 && args[0] == "resume" {
+		resume, args = args[1], args[2:]
+	}
 	f := cmd.Flags()
 	script, _ := f.GetString("script")
 	if script == "" {
@@ -75,13 +84,15 @@ func runExec(cmd *cobra.Command, args []string) error {
 	asJSON, _ := f.GetBool("json")
 	bypass, _ := f.GetBool("dangerously-bypass-hook-trust")
 	model, _ := f.GetString("model")
-	if len(args) >= 2 && args[0] == "resume" { // `exec resume <session id> [prompt]`
-		return session.Resume(home, args[1])
+	if resume != "" { // an unknown session fails before anything starts: no hook fires
+		if err := session.ResumeUnknown(home, resume); err != nil {
+			return err
+		}
 	}
 	overrides, _ := f.GetStringArray("config")
 	runner.Agents = runner.AgentSettings{MaxDepth: maxDepthOf(overrides), Script: os.Getenv("A10N_MOCK_SUBAGENT_SCRIPT")}
 	return runner.Run(cmd.Context(), runner.Config{
-		Script: script, Prompt: strings.Join(args, " "), Cwd: cwd, CodexHome: home, Model: model,
+		Script: script, Prompt: strings.Join(args, " "), Resume: resume, Cwd: cwd, CodexHome: home, Model: model,
 		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
 }

@@ -1,0 +1,6 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun the shell command: echo ORIGINAL-WORD . Then reply only OK.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo ORIGINAL-WORD","description":"Echo ORIGINAL-WORD"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"OK"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nWithout running any command, reply only with the word the earlier shell command echoed.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"ORIGINAL-WORD"}]}}
+{"type":"turn_ended","status":"success"}
