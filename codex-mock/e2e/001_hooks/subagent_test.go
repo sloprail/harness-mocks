@@ -175,7 +175,9 @@ func TestSubagentHookMatcherAndContinueFalse(t *testing.T) {
 // sr:proves session-end-hook/codex
 func TestSubagentStartContextAndNoSessionEndForIt(t *testing.T) {
 	cmd := `[{"hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]`
-	hook := "#!/bin/sh\ncat >>\"$HOOK_LOG\"\necho >>\"$HOOK_LOG\"\n" +
+	hook := "#!/bin/sh\nIN=$(cat)\nprintf '%s\\n' \"$IN\" >>\"$HOOK_LOG\"\n" +
+		// a SessionEnd hook can still read the session's transcript
+		`case "$IN" in *'"SessionEnd"'*) P=$(printf '%s' "$IN" | jq -r .transcript_path); [ -s "$P" ] && echo '{"hook_event_name":"probe","session_end_reads_transcript":true}' >>"$HOOK_LOG"; exit 0;; esac` + "\n" +
 		`if [ "$1" = json ]; then echo '{"hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"CTX-JSON"}}'; else echo CTX-PLAIN; fi` + "\n"
 	for form, want := range map[string]string{"plain": "CTX-PLAIN", "json": "CTX-JSON"} {
 		t.Run(form, func(t *testing.T) {
@@ -200,6 +202,7 @@ func TestSubagentStartContextAndNoSessionEndForIt(t *testing.T) {
 			assert.Contains(t, sub, want, "the sub-agent's rollout")
 			assert.NotContains(t, session, want, "not the session's")
 			assert.Len(t, byEvent(got.hookLog())["SessionEnd"], 1, "SessionEnd fires for the session only")
+			assert.Len(t, byEvent(got.hookLog())["probe"], 1, "the SessionEnd hook could read the session's transcript")
 		})
 	}
 }

@@ -23,6 +23,13 @@ providers:
       - https://developers.openai.com/codex/hooks#sessionend
     runs:
       - codex-mock/snapshots/runs/session-end
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The docs name SessionEnd triggers of an app-managed thread: archiving
+          or deleting it, and 30 minutes of idleness. The mock models a
+          non-interactive run, which ends with its turn, so it fires SessionEnd
+          for that only.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionend
