@@ -33,8 +33,7 @@ func Create(home, id, cwd string, now time.Time) (*File, error) {
 		return nil, err
 	}
 	s := &File{Path: path, f: f}
-	s.append("session_meta", map[string]any{"id": id, "session_id": id, "cwd": cwd,
-		"originator": "codex_exec", "source": "exec", "cli_version": "mock"})
+	s.append("session_meta", meta(id, cwd, now))
 	return s, nil
 }
 

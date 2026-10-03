@@ -11,5 +11,33 @@ providers:
       - claude-mock/snapshots/runs/bgbash
       - claude-mock/snapshots/runs/midturn
       - claude-mock/snapshots/runs/bgagent
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#common-input-fields
+    runs:
+      - codex-mock/snapshots/runs/session-transcript-file
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex does not stamp the bookkeeping on every record: only the
+          rollout's first record (session_meta) carries the session id, start
+          time, working directory, git branch, version and how the run was
+          launched (originator and source "exec"); every record carries just
+          its timestamp (recorded: runs/session-transcript-file). The mock does
+          the same.
+      - adr: capability-grounding
+        statement: >-
+          Codex does not mark the prompt record of a non-interactive run: the
+          user message is the same as a typed one, and the run's mode is only
+          the session_meta's source "exec" (recorded: runs/session-transcript-file).
+          The mock does the same.
+  cursor:
+    supported: false
+    reason: >-
+      Cursor's transcript records carry only a role and a message, and its
+      turn_ended record only a status: no session, working directory, branch,
+      timestamp, version or launch mode on any of them, for a -p run's prompt
+      included.
+    runs:
+      - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/symlinked-cwd
