@@ -111,7 +111,7 @@ capture_run() {
            | select(((.payload.type // "") == "token_count") | not)
            | if .type == "session_meta" then .payload |= del(.creator_user_id, .creator_account_id, .base_instructions)
              elif (.payload.type // "") == "reasoning" then .payload |= del(.encrypted_content) else . end' "$f" >"$cap/transcript/$(basename "$f")"
-  done
+  done || true   # a run that never started a session (a failed resume) has no rollout
   # redact: the value of every secret-named variable a child saw
   { jq -r 'select(.hook_env) | .hook_env | to_entries[] | select(.key | test("TOKEN|SECRET|KEY|PASSWORD")) | .value' "$cap/payloads.jsonl" 2>/dev/null || true
     grep -rhoE '[A-Z0-9_]*(TOKEN|SECRET|KEY|PASSWORD)[A-Z0-9_]*=[A-Za-z0-9._/+-]{8,}' "$cap" 2>/dev/null | cut -d= -f2- || true   # no secret is fine

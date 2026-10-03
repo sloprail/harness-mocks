@@ -38,9 +38,21 @@ type Resumed struct {
 //
 // sr:capability session-resume-unknown
 func Resume(l transcript.Layout, configDir, cwd, id string) (Resumed, error) {
-	path := Find(l, configDir, cwd, id)
-	if path == "" {
-		return Resumed{}, &NoConversationError{SessionID: id, Fire: []Phase{End}}
+	r, err := ResumeAt(Find(l, configDir, cwd, id), id, End)
+	if err != nil {
+		return Resumed{}, err
 	}
-	return Resumed{Path: path, Reported: l.FilePath(configDir, cwd, id)}, nil
+	r.Reported = l.FilePath(configDir, cwd, id)
+	return r, nil
+}
+
+// ResumeAt is the resume of session id whose transcript a harness found at
+// path ("" when it holds none): the session, or a *NoConversationError whose
+// Fire is the phases whose hooks still fire on that failure, which differ per
+// harness (none at all, for one that fails before it starts a session).
+func ResumeAt(path, id string, fire ...Phase) (Resumed, error) {
+	if path == "" {
+		return Resumed{}, &NoConversationError{SessionID: id, Fire: fire}
+	}
+	return Resumed{Path: path}, nil
 }

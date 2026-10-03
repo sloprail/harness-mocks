@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/runner"
+	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
 )
 
 // newExec is `exec`, the non-interactive run. It accepts the flags a real
@@ -68,6 +69,9 @@ func runExec(cmd *cobra.Command, args []string) error {
 	}
 	asJSON, _ := f.GetBool("json")
 	model, _ := f.GetString("model")
+	if len(args) >= 2 && args[0] == "resume" { // `exec resume <session id> [prompt]`
+		return session.Resume(home, args[1])
+	}
 	return runner.Run(cmd.Context(), runner.Config{
 		Script: script, Prompt: strings.Join(args, " "), Cwd: cwd, CodexHome: home, Model: model,
 		Environ: os.Environ(), JSON: asJSON, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,

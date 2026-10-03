@@ -1,0 +1,7 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"00000000-0000-4000-8000-0000000000ff","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Reply only OK."}]},"session_id":"00000000-0000-4000-8000-0000000000ff"}
+{"type":"thinking","subtype":"delta","text":"The user requested a","session_id":"00000000-0000-4000-8000-0000000000ff","timestamp_ms":1791039095689}
+{"type":"thinking","subtype":"delta","text":" reply of only \"OK.\"","session_id":"00000000-0000-4000-8000-0000000000ff","timestamp_ms":1791039095690}
+{"type":"thinking","subtype":"completed","session_id":"00000000-0000-4000-8000-0000000000ff","timestamp_ms":1791039095690}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"OK."}]},"session_id":"00000000-0000-4000-8000-0000000000ff"}
+{"type":"result","subtype":"success","duration_ms":2647,"duration_api_ms":2647,"is_error":false,"result":"OK.","session_id":"00000000-0000-4000-8000-0000000000ff","request_id":"271b07f4-4ff3-46d9-b05e-6cbe9c1fdc20","usage":{"inputTokens":14781,"outputTokens":19,"cacheReadTokens":0,"cacheWriteTokens":0}}
