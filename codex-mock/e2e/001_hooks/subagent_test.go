@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -165,4 +166,39 @@ func TestSubagentHookMatcherAndContinueFalse(t *testing.T) {
 	assert.Len(t, have["SubagentStart"], 1, "its matcher matches the sub-agent's type")
 	assert.Empty(t, have["SubagentStop"], "its matcher does not")
 	assert.Contains(t, got.Stdout, `"message":"SUB-DONE"`, "the sub-agent ran to its end whatever the start hook said")
+}
+
+// What a start hook prints, as plain text or as additionalContext, is developer
+// context in the sub-agent's own rollout, not the session's; and SessionEnd,
+// which does not run for sub-agents, fires once (hooks#subagentstart, hooks#sessionend).
+// sr:proves subagent-lifecycle-hooks/codex
+func TestSubagentStartContextAndNoSessionEndForIt(t *testing.T) {
+	cmd := `[{"hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]`
+	hook := "#!/bin/sh\ncat >>\"$HOOK_LOG\"\necho >>\"$HOOK_LOG\"\n" +
+		`if [ "$1" = json ]; then echo '{"hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"CTX-JSON"}}'; else echo CTX-PLAIN; fi` + "\n"
+	for form, want := range map[string]string{"plain": "CTX-PLAIN", "json": "CTX-JSON"} {
+		t.Run(form, func(t *testing.T) {
+			got := execMock(t, scenario{
+				HooksJSON: strings.ReplaceAll(`{"hooks":{"SubagentStart":C,"SessionEnd":C}}`, "C", strings.ReplaceAll(cmd, "hook.sh", "hook.sh "+form)),
+				Files:     map[string]string{"sub.sh": subScript, "hook.sh": hook},
+				Script:    spawnThenResult, Prompt: "go",
+			})
+			require.Equal(t, 0, got.Code, got.Stderr)
+			var sub, session string
+			require.NoError(t, filepath.Walk(filepath.Join(got.Home, "sessions"), func(p string, info os.FileInfo, err error) error {
+				if err == nil && !info.IsDir() {
+					b, _ := os.ReadFile(p)
+					if strings.Contains(string(b), "spawn_agent") {
+						session = string(b)
+					} else {
+						sub = string(b)
+					}
+				}
+				return nil
+			}))
+			assert.Contains(t, sub, want, "the sub-agent's rollout")
+			assert.NotContains(t, session, want, "not the session's")
+			assert.Len(t, byEvent(got.hookLog())["SessionEnd"], 1, "SessionEnd fires for the session only")
+		})
+	}
 }

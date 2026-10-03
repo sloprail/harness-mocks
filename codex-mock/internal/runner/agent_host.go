@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
@@ -66,7 +67,18 @@ func (h turnHost) spawnAgent(ctx context.Context, tu scenario.ToolUse) {
 
 	out := subagents.Execute(subagents.Hooks{
 		Start: func() {
-			invoker.Fire(ctx, hooks.SubagentStart, agentType, map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType})
+			for _, o := range invoker.Fire(ctx, hooks.SubagentStart, agentType,
+				map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType}) {
+				// what the hook prints, plain or as additionalContext, is developer context for the sub-agent (hooks#subagentstart)
+				d := hooks.Interpret(hooks.SubagentStart, o)
+				text := d.Context
+				if text == "" && o.Exit == 0 && d.Error == "" && !strings.HasPrefix(strings.TrimSpace(o.Stdout), "{") {
+					text = strings.TrimSpace(o.Stdout)
+				}
+				if text != "" {
+					subRollout.Developer(text)
+				}
+			}
 		},
 		Stop: func(active bool, last string) (bool, string) {
 			own := map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType,
