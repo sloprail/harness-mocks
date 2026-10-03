@@ -5,6 +5,7 @@ package turnloop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/sloprail/harness-mocks/internal/scenario"
@@ -67,6 +68,9 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 	blocks := 0
 	for {
 		last, err := agent(ctx, h, p, extra)
+		if errors.Is(err, ErrTurnEnded) {
+			return last, nil
+		}
 		if err != nil {
 			return "", err
 		}

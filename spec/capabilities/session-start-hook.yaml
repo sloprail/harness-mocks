@@ -27,16 +27,20 @@ providers:
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/hook-matchers
       - codex-mock/snapshots/runs/session-start-continue-false
+      - codex-mock/snapshots/runs/session-start-compact-continue-false
+      - codex-mock/snapshots/runs/manual-compaction-auto
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock never forks, compacts or clears a session (the sources clear and compact), so a session start is the fresh one, source startup, or the one a session resumed by its id (`exec resume`) makes, source resume.
+          The mock never forks or clears a session (the sources clear), so a session start is the fresh one, source startup, the one after a compaction, source compact, or the one a session resumed by its id (`exec resume`) makes, source resume.
       - adr: capability-grounding
         statement: >-
           Unlike the statement, a Codex SessionStart hook can stop the run: one
-          returning {"continue":false} ends it at once, with no prompt hook,
-          tool call or model request after it (recorded:
-          runs/session-start-continue-false).
+          returning {"continue":false} ends the turn at once, with no prompt
+          hook, tool call or model request after it (recorded:
+          runs/session-start-continue-false), and the same for the start that
+          follows a compaction, which ends the turn cleanly (recorded:
+          runs/session-start-compact-continue-false).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionstart
