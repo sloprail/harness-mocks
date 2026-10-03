@@ -1,0 +1,6 @@
+{"event":"hook","hook":null,"payload":{"hook_ran":"EARLYOPEN","phase":"started"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo EARLYOPEN","output":"EARLYOPEN\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

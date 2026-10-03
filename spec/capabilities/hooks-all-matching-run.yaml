@@ -49,7 +49,16 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/hooks-together
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/hooks-all-matching-run-same-hook-two-sources
     deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor does not run a hook configured in several sources once: the
+          same command in the user's ~/.cursor/hooks.json and the project's
+          .cursor/hooks.json ran once per source, twice in all (recorded:
+          runs/hooks-all-matching-run-same-hook-two-sources), as the docs say
+          all matching hooks from every source run. The mock reads only the
+          project source (below), so it runs such a hook once.
       - adr: modeled-surface
         statement: >-
           The mock reads only the project's .cursor/hooks.json: the user, team

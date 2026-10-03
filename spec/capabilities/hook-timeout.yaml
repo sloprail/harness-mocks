@@ -41,3 +41,13 @@ providers:
       - https://cursor.com/docs/hooks#per-script-configuration-options
     runs:
       - cursor-mock/snapshots/runs/hook-timeout
+      - cursor-mock/snapshots/runs/hook-timeout-early-output
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          A hook configured with failClosed does not let the event carry on
+          when it times out: Cursor blocks the action instead (recorded: a
+          failClosed hook that outlived its 1 s timeout made the shell call
+          end rejected, with postToolUseFailure saying the hook timed out
+          after 1000ms, in runs/hook-timeout). A hook without failClosed
+          carries on, as the statement says, and the mock does both.
