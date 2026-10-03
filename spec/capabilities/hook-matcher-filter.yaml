@@ -9,6 +9,16 @@ providers:
       - https://code.claude.com/docs/en/hooks#matcher-patterns
     runs:
       - claude-mock/snapshots/runs/matcher
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The mock defines only the events named in
+          claude-mock/internal/hooks/event.go (SessionStart, SessionEnd, Stop,
+          StopFailure, SubagentStart, SubagentStop, PreToolUse, PostToolUse,
+          PostToolUseFailure, WorktreeCreate, WorktreeRemove, PreCompact,
+          PostCompact, UserPromptSubmit), so the matcher rows of the docs'
+          table for the other events (Notification, Setup, ConfigChange and
+          the like) are not modeled.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#matcher-patterns

@@ -59,10 +59,32 @@ func TestMatcherSubject(t *testing.T) {
 		{Input{HookEventName: EventSubagentStop, AgentType: "Plan"}, "Plan"},
 		{Input{HookEventName: EventPreCompact, Trigger: "manual"}, "manual"},
 		{Input{HookEventName: EventPostCompact, Trigger: "auto"}, "auto"},
+		{Input{HookEventName: EventStopFailure, Error: "rate_limit"}, "rate_limit"},
 		{Input{HookEventName: EventUserPromptSubmit, Prompt: "p"}, ""},
 		{Input{HookEventName: EventStop}, ""},
 	} {
 		assert.Equal(t, tc.want, matcherSubject(tc.in), "%s", tc.in.HookEventName)
+	}
+}
+
+// StopFailure filters on its error type, with the narrower exact-match set: a
+// hyphen, space or comma makes the matcher a regular expression, not a list.
+// sr:proves hook-matcher-filter/claude
+func TestEntriesFor_StopFailureMatcher(t *testing.T) {
+	for _, tc := range []struct {
+		matcher, errType string
+		want             bool
+	}{
+		{"", "rate_limit", true}, {"*", "server_error", true},
+		{"rate_limit", "rate_limit", true}, {"rate_limit", "server_error", false},
+		{"rate_limit|server_error", "server_error", true}, {"rate_limit|server_error", "billing_error", false},
+		{"rate", "rate_limit", false},                      // plain characters: an exact name
+		{"rate.*", "rate_limit", true},                     // a regexp searches the error type
+		{"rate_limit,server_error", "server_error", false}, // a comma makes it a regexp here, not a list
+	} {
+		s := &Settings{Hooks: map[EventName][]HookEntry{EventStopFailure: {{Matcher: tc.matcher, Hooks: []HandlerSpec{handler("H")}}}}}
+		got := len(s.EntriesFor(EventStopFailure, matcherSubject(Input{HookEventName: EventStopFailure, Error: tc.errType}))) == 1
+		assert.Equal(t, tc.want, got, "matcher %q on error %q", tc.matcher, tc.errType)
 	}
 }
 

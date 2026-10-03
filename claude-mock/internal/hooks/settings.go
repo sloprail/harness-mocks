@@ -92,7 +92,7 @@ func (s *Settings) EntriesFor(event EventName, subject string) []HandlerSpec {
 	var out []HandlerSpec
 	for _, entry := range s.Hooks[event] {
 		// sr:provides hook-matcher-filter/claude
-		if !hasSubject(event) || corehooks.Select(corehooks.MatchExactOrRegexp, entry.Matcher, subject) {
+		if !hasSubject(event) || corehooks.Select(matcherStyle(event), entry.Matcher, subject) {
 			out = append(out, entry.Hooks...)
 		}
 	}
@@ -104,16 +104,26 @@ func (s *Settings) EntriesFor(event EventName, subject string) []HandlerSpec {
 func hasSubject(event EventName) bool {
 	switch event {
 	case EventPreToolUse, EventPostToolUse, EventPostToolUseFailure, EventSessionStart, EventSessionEnd,
-		EventSubagentStart, EventSubagentStop, EventPreCompact, EventPostCompact:
+		EventSubagentStart, EventSubagentStop, EventPreCompact, EventPostCompact, EventStopFailure:
 		return true
 	}
 	return false
 }
 
+// matcherStyle is how an event's matcher is read: StopFailure has the
+// narrower exact-match set (docs, Matcher patterns), every other event the
+// usual one.
+func matcherStyle(event EventName) corehooks.MatcherStyle {
+	if event == EventStopFailure {
+		return corehooks.MatchExactOrRegexpNarrow
+	}
+	return corehooks.MatchExactOrRegexp
+}
+
 // matcherSubject is what an event's matcher filters on (docs, "Matcher
 // patterns"): the tool name for a tool event, how the session started or why
-// it ended, the agent type of a sub-agent, what triggered a compaction. Other
-// events have none.
+// it ended, the agent type of a sub-agent, what triggered a compaction, the
+// error type of a failed turn (StopFailure). Other events have none.
 func matcherSubject(in Input) string {
 	switch in.HookEventName {
 	case EventPreToolUse, EventPostToolUse, EventPostToolUseFailure:
@@ -126,6 +136,8 @@ func matcherSubject(in Input) string {
 		return in.AgentType
 	case EventPreCompact, EventPostCompact:
 		return in.Trigger
+	case EventStopFailure:
+		return in.Error
 	}
 	return ""
 }

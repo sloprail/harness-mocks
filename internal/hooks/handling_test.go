@@ -25,6 +25,19 @@ func TestSelectExactOrRegexp(t *testing.T) {
 			t.Errorf("Select(exact-or-regexp, %q, %q, %v) = %v, want %v", tc.matcher, tc.subject, tc.aliases, got, tc.want)
 		}
 	}
+	// the narrow style takes only letters, digits, "_" and "|" as exact names:
+	// a hyphen, space or comma makes the matcher a regexp
+	for _, tc := range []struct {
+		matcher, subject string
+		want             bool
+	}{
+		{"rate_limit|server_error", "server_error", true}, {"rate_limit", "rate_limit_x", false},
+		{"a,b", "a", false}, {"a b", "a", false}, {"a-b", "a-b", true}, {"a.b", "a-b", true},
+	} {
+		if got := Select(MatchExactOrRegexpNarrow, tc.matcher, tc.subject); got != tc.want {
+			t.Errorf("Select(narrow, %q, %q) = %v, want %v", tc.matcher, tc.subject, got, tc.want)
+		}
+	}
 	// the regexp style searches every matcher in the subject
 	if !Select(MatchRegexp, "Rea", "Read") || !Matches("Edit", "NotebookEdit") {
 		t.Error("the regexp style must search the matcher in the subject")
