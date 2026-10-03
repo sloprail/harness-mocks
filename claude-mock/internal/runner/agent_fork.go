@@ -38,7 +38,8 @@ func atSpawnLimit(cfg Config) toolexec.Result {
 	if limit == 0 {
 		limit = subagents.DefaultSpawnLimit
 	}
-	return toolexec.Result{IsError: true, Output: fmt.Sprintf(
+	// The call ran and failed: PostToolUseFailure fires for it (recorded).
+	return toolexec.Result{IsError: true, Failed: true, Output: fmt.Sprintf(
 		"Subagent nesting limit reached (depth %d of %d). Complete this task directly using your tools instead of spawning another agent. If the user explicitly requested deeper nesting, ask them to raise CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH.",
 		cfg.spawnDepth, limit)}
 }

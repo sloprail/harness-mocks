@@ -38,6 +38,30 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		scriptPath = os.Getenv("A10N_MOCK_SCRIPT")
 	}
 
+	sessionID, _ := cmd.Flags().GetString(flagSessionID)
+	resumeID, _ := cmd.Flags().GetString(flagResume)
+	forkSession, _ := cmd.Flags().GetBool(flagForkSession)
+	isResume := false
+	forkFrom := ""
+
+	// Normalise: --resume takes precedence and sets isResume — except with
+	// --fork-session, where the resumed id is what is continued FROM and the
+	// session runs under --session-id (or a fresh id).
+	switch {
+	case resumeID != "" && forkSession:
+		forkFrom = resumeID
+		isResume = true
+		if sessionID == "" {
+			sessionID = runner.NewSessionID()
+		}
+	case resumeID != "":
+		sessionID = resumeID
+		isResume = true
+	}
+	if sessionID == "" {
+		return fmt.Errorf("claude-mock: --session-id or --resume is required")
+	}
+
 	projectDir, _ := cmd.Flags().GetString(flagProjectDir)
 	if projectDir == "" {
 		var err error
@@ -45,10 +69,6 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("claude-mock: getwd: %w", err)
 		}
-	}
-	sessionID, isResume, forkFrom, err := sessionFor(cmd, projectDir)
-	if err != nil {
-		return err
 	}
 
 	// A10N_MOCK_NO_RESUME=1 makes every --resume behave as one naming a session
@@ -85,7 +105,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	model, _ := cmd.Flags().GetString("model")
-	err = runner.Run(cmd.Context(), runner.Config{
+	err := runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:              scriptPath,
 		SessionID:               sessionID,
 		IsResume:                isResume,

@@ -35,7 +35,8 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// claude -p is the primary entrypoint; support it at the root.
-		RunE: rootRunE,
+		PreRunE: resolveSessionFlags,
+		RunE:    rootRunE,
 	}
 
 	addRunFlags(root)

@@ -13,5 +13,6 @@ providers:
       - claude-mock/snapshots/runs/compact
       - claude-mock/snapshots/runs/resume-continue
       - claude-mock/snapshots/runs/resume-path
+      - claude-mock/snapshots/runs/resume-name
   codex: pending
   cursor: pending

@@ -39,13 +39,24 @@ func resumeFailed(ctx context.Context, cfg Config, settings *hooks.Settings, fro
 // of the recorded runs.
 const promptCacheLifetime = time.Hour
 
+// bytesPerToken and cacheWriteUSDPerMillionTokens are how the mock estimates what
+// re-sending a session's context costs: the mock counts no tokens, so the
+// context is its transcript's size over a rough four bytes a token, priced at
+// the rate every recorded resume shows (estimated_cache_write_usd is 2 dollars
+// per million context_tokens: snapshots/runs/forkresume, compact, resume-continue).
+const (
+	bytesPerToken                 = 4
+	cacheWriteUSDPerMillionTokens = 2.0
+)
+
 // resumeFields is what the SessionStart of a resumed session carries beyond
 // source: the time since the transcript's last record, and the cost facts of
-// re-sending the context. The mock spends no tokens, so those are 0 (recorded:
-// snapshots/runs/forkresume, compact).
+// re-sending the context (an estimate, see bytesPerToken).
 func resumeFields(transcriptPath string) *hooks.ResumeFields {
 	var last time.Time
+	contextTokens, title := 0, ""
 	if data, err := os.ReadFile(transcriptPath); err == nil {
+		contextTokens, title = len(data)/bytesPerToken, transcriptAgentName(data)
 		for _, line := range strings.Split(string(data), "\n") {
 			var rec struct {
 				Timestamp string `json:"timestamp"`
@@ -57,9 +68,9 @@ func resumeFields(transcriptPath string) *hooks.ResumeFields {
 			}
 		}
 	}
-	stats := session.Stats(last, time.Now(), promptCacheLifetime, 0, 0)
+	stats := session.Stats(last, time.Now(), promptCacheLifetime, contextTokens, cacheWriteUSDPerMillionTokens)
 	return &hooks.ResumeFields{
-		SecondsSinceLastResponse: stats.SecondsSinceLastResponse, ContextTokens: stats.ContextTokens,
+		SessionTitle: title, SecondsSinceLastResponse: stats.SecondsSinceLastResponse, ContextTokens: stats.ContextTokens,
 		PromptCacheLikelyExpired: stats.CacheLikelyExpired, EstimatedCacheWriteUSD: stats.EstimatedCacheWriteUSD,
 	}
 }

@@ -2,44 +2,45 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
 )
 
-const flagContinue = "continue"
+const (
+	flagContinue = "continue"
+	flagName     = "name"
+)
 
-// sessionFor reads which session a run is for from --session-id, --resume,
-// --continue and --fork-session: --resume (an id, or the path of a session's
-// transcript file) takes precedence and resumes; --continue resumes the
-// directory's most recent session; with --fork-session the resumed session is
-// what is continued FROM and the run goes under --session-id (or a fresh id).
+// resolveSessionFlags names the session a run resumes before the run reads its
+// flags: --resume takes an id, the path of a session's transcript file or a
+// session's name, and --continue, with no --resume, resumes the directory's most
+// recent session. Both become the id --resume carries. --name names the session
+// the run writes.
 //
 // sr:provides session-resume/claude
-// sr:provides session-fork/claude
-func sessionFor(cmd *cobra.Command, projectDir string) (sessionID string, isResume bool, forkFrom string, err error) {
-	sessionID, _ = cmd.Flags().GetString(flagSessionID)
-	resumeID, _ := cmd.Flags().GetString(flagResume)
-	resumeID = runner.ResumeTarget(resumeID)
-	forkSession, _ := cmd.Flags().GetBool(flagForkSession)
-	if cont, _ := cmd.Flags().GetBool(flagContinue); cont && resumeID == "" {
-		configDir, _ := cmd.Flags().GetString(flagConfigDir)
-		if resumeID = runner.LatestSession(configDir, projectDir); resumeID == "" {
-			return "", false, "", fmt.Errorf("claude-mock: --continue: no conversation found to continue in %s", projectDir)
+func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
+	if name, _ := cmd.Flags().GetString(flagName); name != "" {
+		_ = os.Setenv(runner.EnvSessionName, name)
+	}
+	resume, _ := cmd.Flags().GetString(flagResume)
+	projectDir, _ := cmd.Flags().GetString(flagProjectDir)
+	if projectDir == "" {
+		var err error
+		if projectDir, err = os.Getwd(); err != nil {
+			return fmt.Errorf("claude-mock: getwd: %w", err)
 		}
 	}
-	switch {
-	case resumeID != "" && forkSession:
-		forkFrom, isResume = resumeID, true
-		if sessionID == "" {
-			sessionID = runner.NewSessionID()
+	configDir, _ := cmd.Flags().GetString(flagConfigDir)
+	if cont, _ := cmd.Flags().GetBool(flagContinue); cont && resume == "" {
+		if resume = runner.LatestSession(configDir, projectDir); resume == "" {
+			return fmt.Errorf("claude-mock: --continue: no conversation found to continue in %s", projectDir)
 		}
-	case resumeID != "":
-		sessionID, isResume = resumeID, true
 	}
-	if sessionID == "" {
-		return "", false, "", fmt.Errorf("claude-mock: --session-id, --resume or --continue is required")
+	if resume == "" {
+		return nil
 	}
-	return sessionID, isResume, forkFrom, nil
+	return cmd.Flags().Set(flagResume, runner.ResumeTarget(configDir, projectDir, resume))
 }
