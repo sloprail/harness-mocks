@@ -2,9 +2,12 @@ package runner
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
@@ -44,6 +47,19 @@ func rejectedFrame(session, id string, c toolexec.Call, reason string) []byte {
 		rejected["path"] = c.Args["path"]
 	}
 	return toolFrame(session, id, "completed", c, map[string]any{"rejected": rejected})
+}
+
+// invalidFrame ends a call whose input lacks required parameters. A Task call
+// is worded as Cursor words it (recorded: runs/agent-input-validation); the
+// mock words the other tools' calls itself.
+func invalidFrame(session string, c toolcall.Call, missing []string) []byte {
+	call := toolexec.FromScript(c.Name, c.Input)
+	if call.Kind == "taskToolCall" {
+		return toolFrame(session, c.ID, "completed", call,
+			map[string]any{"error": map[string]any{"error": toolexec.InvalidArguments(missing)}})
+	}
+	return errorFrame(session, c.ID, call,
+		fmt.Sprintf("%s: missing required parameter(s): %s", c.Name, strings.Join(missing, ", ")))
 }
 
 // errorFrame ends a call that could not run.

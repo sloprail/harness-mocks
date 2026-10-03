@@ -67,6 +67,29 @@ func TestRunOrder(t *testing.T) {
 	}
 }
 
+// lateFake is a host that checks its tools' input after the before-tool hooks.
+type lateFake struct{ fake }
+
+func (*lateFake) InputCheckedLate(string) bool { return true }
+
+func TestInputCheckedLateIsRefusedAfterTheBeforeHookWithNoAfterHook(t *testing.T) {
+	f := lateFake{}
+	Run(context.Background(), &f, call("Bash", `{}`), Options{})
+	if !reflect.DeepEqual(f.steps, []string{"before"}) || len(f.answers) != 1 || f.answers[0].Kind != Invalid {
+		t.Errorf("steps = %v, answers = %+v", f.steps, f.answers)
+	}
+	f = lateFake{fake{refuse: true}}
+	Run(context.Background(), &f, call("Bash", `{}`), Options{})
+	if f.answers[0].Kind != Refused {
+		t.Errorf("a hook's refusal outranks the invalid input: %+v", f.answers)
+	}
+	f = lateFake{}
+	Run(context.Background(), &f, call("Bash", `{"command":"x"}`), Options{})
+	if !reflect.DeepEqual(f.steps, []string{"before", "execute", "after-success"}) {
+		t.Errorf("a complete call runs: %v", f.steps)
+	}
+}
+
 func TestRunAnswerCarriesWhatHappened(t *testing.T) {
 	f := fake{refuse: true}
 	Run(context.Background(), &f, call("Bash", `{"command":"x"}`), Options{})

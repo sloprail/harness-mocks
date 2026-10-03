@@ -2,8 +2,6 @@ package runner
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/childenv"
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
@@ -116,7 +114,6 @@ func (h *toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 	case toolcall.Unknown:
 		h.emit(errorFrame(h.s.id, c.ID, toolexec.Call{Kind: "unknownToolCall"}, "Unknown tool: "+c.Name))
 	case toolcall.Invalid:
-		h.emit(errorFrame(h.s.id, c.ID, toolexec.FromScript(c.Name, c.Input),
-			fmt.Sprintf("%s: missing required parameter(s): %s", c.Name, strings.Join(a.Missing, ", "))))
+		h.emit(invalidFrame(h.s.id, c, a.Missing))
 	}
 }

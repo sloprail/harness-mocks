@@ -10,5 +10,44 @@ providers:
       - claude-mock/snapshots/runs/agent-invalid-input
       - claude-mock/snapshots/runs/agent-invalid-description
       - claude-mock/snapshots/runs/tool-invalid-input
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/hooks#pretooluse
+    runs:
+      - codex-mock/snapshots/runs/agent-input-validation
+      - codex-mock/snapshots/runs/agent-input-validation-spawn
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex does not refuse the dispatch (spawn_agent) before any hook
+          runs: the PreToolUse hook fires with the call as the agent made it,
+          even an empty one, and only then is the call refused with "Provide
+          one of: message or items". Nothing runs after that: no sub-agent
+          starts and no PostToolUse hook fires (recorded:
+          runs/agent-input-validation). What it requires is a message or a
+          list of items, not a description and a prompt.
+      - adr: modeled-surface
+        statement: >-
+          The mock requires a message and does not model the items form of
+          spawn_agent, and it runs no sub-agent: a complete dispatch passes
+          the check, fires its hooks, and is answered as an error.
+  cursor:
+    docs:
+      - https://cursor.com/docs/hooks#pretooluse
+    runs:
+      - cursor-mock/snapshots/runs/agent-input-validation
+      - cursor-mock/snapshots/runs/agent-input-validation-description
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Cursor's Task call requires only a prompt: a call without a
+          description is not refused but runs with the description empty
+          (recorded: runs/agent-input-validation-description). A call without
+          its prompt is refused with "Invalid arguments:" and "prompt:
+          Required" before any hook (not even preToolUse) fires, and nothing
+          runs (recorded: runs/agent-input-validation).
+      - adr: modeled-surface
+        statement: >-
+          The mock runs no sub-agent: a Task call that passes the check
+          reaches preToolUse as Cursor's does and is then answered as an
+          error.

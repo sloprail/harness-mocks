@@ -19,7 +19,13 @@ const toolName = "Bash"
 type toolHost struct{ *state }
 
 // Tool: the one tool the mock runs is the shell, which needs a command.
-func (h toolHost) Tool(name string) ([]string, bool) { return []string{"command"}, name == toolName }
+// A sub-agent dispatch needs a message (agent_tool.go).
+func (h toolHost) Tool(name string) ([]string, bool) {
+	if name == agentTool {
+		return agentRequired, true
+	}
+	return []string{"command"}, name == toolName
+}
 
 func command(c toolcall.Call) string {
 	var in struct {
@@ -30,6 +36,9 @@ func command(c toolcall.Call) string {
 }
 
 func (h toolHost) payload(c toolcall.Call) map[string]any {
+	if c.Name == agentTool {
+		return map[string]any{"turn_id": h.turnID, "tool_name": agentTool, "tool_use_id": c.ID, "tool_input": c.Input}
+	}
 	return map[string]any{"turn_id": h.turnID, "tool_name": toolName, "tool_use_id": c.ID,
 		"tool_input": map[string]string{"command": command(c)}}
 }
@@ -37,7 +46,7 @@ func (h toolHost) payload(c toolcall.Call) map[string]any {
 // Before fires PreToolUse and asks for the refusal of what the hooks decided.
 func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	var ds []hooks.Decision
-	for _, o := range h.hooks.Fire(ctx, hooks.PreToolUse, toolName, h.payload(c)) {
+	for _, o := range h.hooks.Fire(ctx, hooks.PreToolUse, hookName(c), h.payload(c)) {
 		ds = append(ds, hooks.Interpret(hooks.PreToolUse, o))
 	}
 	return hooks.Refusal(ds)
@@ -45,6 +54,9 @@ func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 
 // Execute runs the command and shows it in the event stream.
 func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result {
+	if c.Name == agentTool {
+		return executeAgent()
+	}
 	cmd := command(c)
 	id := h.events.CommandStarted(cmd)
 	var r tools.BashResult
@@ -89,6 +101,10 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 	case toolcall.Unknown:
 		text = "unsupported call: " + c.Name
 	case toolcall.Invalid:
+		if c.Name == agentTool {
+			text = spawnRefusal
+			break
+		}
 		text = fmt.Sprintf("failed to parse function arguments: missing field `%s`", a.Missing[0])
 	case toolcall.Refused:
 		text = fmt.Sprintf("Command blocked by PreToolUse hook: %s. Command: %s", a.Reason, command(c))
