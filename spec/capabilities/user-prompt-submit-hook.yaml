@@ -23,6 +23,7 @@ providers:
       - codex-mock/snapshots/runs/prompt-blocked
       - codex-mock/snapshots/runs/user-prompt-submit-hook-rewrite
       - codex-mock/snapshots/runs/user-prompt-submit-hook-bg
+      - codex-mock/snapshots/runs/user-prompt-submit-hook-json-block
     deviations:
       - adr: capability-grounding
         statement: >-
