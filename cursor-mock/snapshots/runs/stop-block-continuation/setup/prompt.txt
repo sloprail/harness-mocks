@@ -1,0 +1,1 @@
+Run the shell command: echo FIRST . Then reply only DONE. If you are told to continue after that, run the shell command: echo SECOND , then reply only DONE2.
