@@ -8,6 +8,10 @@ import (
 	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
+// ConcurrentSubagentsSetting is CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS as set, which
+// the entrypoint reads once, before any run: "" is the default limit.
+var ConcurrentSubagentsSetting string
+
 // concurrentLimitRefusal is the result of an Agent call made while the
 // session's running sub-agents are at the limit (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS,
 // 20 by default): a tool error telling the agent not to retry, the call
@@ -16,7 +20,7 @@ import (
 //
 // sr:provides background-agent/claude
 func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
-	limit := subagents.ConcurrentLimit(cfg.MaxConcurrentSubagents)
+	limit := subagents.ConcurrentLimit(ConcurrentSubagentsSetting)
 	running := 0
 	if cfg.bg != nil {
 		for _, t := range cfg.bg.Running() {

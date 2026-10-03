@@ -19,6 +19,18 @@ providers:
           that a resume takes a slot without the concurrent limit refusing it.
       - adr: modeled-surface
         statement: >-
+          The mock does not model what the docs say of a background sub-agent's
+          background shell command that runs past the end of its turn: that Claude
+          Code sends the sub-agent a notification when the command ends. A mock
+          sub-agent is a script run to its result, which nothing wakes again.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model conversation forks: `/subtask` and `/fork` are
+          slash commands of an interactive session, and the docs' rule that a fork
+          takes a slot of the concurrent limit while it runs, and is never refused
+          by it, is theirs.
+      - adr: modeled-surface
+        statement: >-
           The mock does not take tools away from a background sub-agent: the docs
           give it a smaller built-in tool set than a foreground one (Read, Grep,
           Glob, LSP, Bash, Edit, Write, WebFetch, Monitor, SendMessage and a few
