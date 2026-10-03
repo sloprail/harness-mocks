@@ -96,7 +96,6 @@ func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 		Cwd:           cfg.Cwd,
 		HookEventName: hooks.EventUserPromptSubmit,
 		Prompt:        cfg.Prompt,
-		SessionTitle:  sessionTitleOf(tr.path),
 	})
 	refused, extra = corehooks.PromptOutcome(ferr != nil || out.Decision == "block", promptContextFrom(out))
 	if refused {

@@ -39,6 +39,23 @@ type Invoker struct {
 	recorder func(Input, []HandlerRun)
 
 	agentID, agentType string
+
+	// sessionTitle is the name of the resumed session this invoker fires for; its
+	// SessionStart and UserPromptSubmit carry it, no other event does (recorded:
+	// snapshots/runs/resume-name).
+	sessionTitle string
+}
+
+// SetSessionTitle sets the name a resumed session's SessionStart and
+// UserPromptSubmit payloads carry.
+func (inv *Invoker) SetSessionTitle(title string) { inv.sessionTitle = title }
+
+// titled is input with the session's title where the event carries it.
+func (inv *Invoker) titled(input Input) Input {
+	if input.SessionTitle == "" && (input.HookEventName == EventSessionStart || input.HookEventName == EventUserPromptSubmit) {
+		input.SessionTitle = inv.sessionTitle
+	}
+	return input
 }
 
 // SetProjectDir sets the project root every command hook is told as

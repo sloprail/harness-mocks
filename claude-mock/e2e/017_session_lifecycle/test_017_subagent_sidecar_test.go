@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -34,15 +33,6 @@ func recordedSubagents(t *testing.T) map[string]recordedSub {
 		out[meta["description"].(string)] = recordedSub{meta: meta, recs: readRecs(t, strings.TrimSuffix(m, ".meta.json")+".jsonl")}
 	}
 	return out
-}
-
-func keysOf(m map[string]any) []string {
-	var ks []string
-	for k := range m {
-		ks = append(ks, k)
-	}
-	sort.Strings(ks)
-	return ks
 }
 
 func promptOf(t *testing.T, r rec) string {
