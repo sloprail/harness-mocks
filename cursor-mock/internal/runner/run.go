@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/childenv"
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/procexec"
+	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -64,7 +64,7 @@ func (s *session) Context() string { return strings.Join(s.added, "\n") }
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: newID(), started: time.Now()}
+	s := &session{cfg: cfg, id: coresession.NewID(), started: time.Now()}
 	var err error
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
@@ -112,10 +112,3 @@ func (s *session) common() hooks.Common {
 
 // forward prints one stream-json line.
 func (s *session) forward(line []byte) { fmt.Fprintf(s.cfg.Stdout, "%s\n", line) }
-
-func newID() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	b[6], b[8] = b[6]&0x0f|0x40, b[8]&0x3f|0x80
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}

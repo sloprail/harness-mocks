@@ -3,7 +3,6 @@ package runner
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
+	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -58,7 +58,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot load hooks: %w", err)
 	}
-	id := newID()
+	id := coresession.NewID()
 	rollout, err := session.Create(cfg.CodexHome, id, cfg.Cwd, time.Now())
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot create the session file: %w", err)
@@ -68,7 +68,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	s := &state{cfg: cfg, id: id, turnID: newID(), rollout: rollout, events: events.New(out),
+	s := &state{cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
 		toolEnv: childenv.ToolEnv(cfg.Environ, id)}
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
 		Common: hooks.Common{SessionID: id, TranscriptPath: rollout.Path, Cwd: cfg.Cwd, Model: cfg.Model,
@@ -93,9 +93,3 @@ func Run(ctx context.Context, cfg Config) error {
 }
 
 // newID is a random identifier in the shape of a version 4 UUID.
-func newID() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	b[6], b[8] = b[6]&0x0f|0x40, b[8]&0x3f|0x80
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}

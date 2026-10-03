@@ -23,6 +23,8 @@ type scenario struct {
 	Prompt string
 	// Env is added to the mock's environment.
 	Env []string
+	// NoJSON runs `exec` without --json, so stdout carries the final message.
+	NoJSON bool
 }
 
 // result is what a run left.
@@ -59,7 +61,11 @@ func execMock(t *testing.T, s scenario) result {
 			env = append(env, kv)
 		}
 	}
-	cmd := exec.Command(mockBinary, "exec", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt)
+	args := []string{"exec", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt}
+	if s.NoJSON {
+		args = append(args[:1], args[2:]...)
+	}
+	cmd := exec.Command(mockBinary, args...)
 	cmd.Dir = r.Repo
 	cmd.Env = append(env, s.Env...)
 	var out, errb bytes.Buffer

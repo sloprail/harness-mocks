@@ -1,6 +1,10 @@
 package runner
 
-import "time"
+import (
+	"time"
+
+	coresession "github.com/sloprail/harness-mocks/internal/session"
+)
 
 // The frames of Cursor's stream-json output that the mock itself writes
 // (recorded: runs/*/samples/*/stream.jsonl). The tool frames are in
@@ -31,7 +35,7 @@ func assistantFrame(session, text string) []byte {
 func resultFrame(session, text string, took time.Duration) []byte {
 	return jsonLine(map[string]any{
 		"type": "result", "subtype": "success", "is_error": false, "result": text, "session_id": session,
-		"duration_ms": took.Milliseconds(), "duration_api_ms": took.Milliseconds(), "request_id": newID(),
+		"duration_ms": took.Milliseconds(), "duration_api_ms": took.Milliseconds(), "request_id": coresession.NewID(),
 		"usage": map[string]any{"inputTokens": 0, "outputTokens": 0, "cacheReadTokens": 0, "cacheWriteTokens": 0},
 	})
 }

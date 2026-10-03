@@ -103,3 +103,77 @@ func TestFiveIdenticalToolCallsInARowAbortTheRun(t *testing.T) {
 	require.Contains(t, stderr, "5 turns in a row")
 	require.NotContains(t, out, `"type":"result"`, "an aborted run reports no result")
 }
+
+// TestStreamPartialOutputIsAcceptedAndChangesNothing: --stream-partial-output
+// is accepted and ignored: the stream has the same frame types, and a single
+// result frame, with or without it (no partial assistant deltas are modeled).
+// sr:proves noninteractive-run/cursor
+func TestStreamPartialOutputIsAcceptedAndChangesNothing(t *testing.T) {
+	script := "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}}'\nprintf '%s\\n' '" + done + "'\n"
+	types := func(out string) (ts []string) {
+		for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
+			var f struct{ Type string }
+			require.NoError(t, json.Unmarshal([]byte(l), &f))
+			ts = append(ts, f.Type)
+		}
+		return ts
+	}
+	plain, _, code := run(t, script, "go")
+	require.Equal(t, 0, code, plain)
+	partial, _, code := run(t, script, "--stream-partial-output", "go")
+	require.Equal(t, 0, code, partial)
+	require.Equal(t, types(plain), types(partial))
+	require.Equal(t, 1, strings.Count(partial, `"type":"result"`))
+}
+
+// TestTheStreamsFramesCarryTheFieldsTheRecordingShows: recorded
+// (runs/pretool-refusal), the init frame names the session, the working
+// directory, the model and the permission mode; the user frame echoes the
+// prompt; the result frame, last, carries the session, is_error false, the
+// durations, a request id and the usage counts.
+// sr:proves noninteractive-run/cursor
+func TestTheStreamsFramesCarryTheFieldsTheRecordingShows(t *testing.T) {
+	out, _, code := run(t, "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"DONE\"}]}}'\nprintf '%s\\n' '"+done+"'\n", "say", "hi")
+	require.Equal(t, 0, code, out)
+	var frames []map[string]any
+	for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
+		var f map[string]any
+		require.NoError(t, json.Unmarshal([]byte(l), &f))
+		frames = append(frames, f)
+	}
+	init, user, result := frames[0], frames[1], frames[len(frames)-1]
+	require.Equal(t, "system", init["type"])
+	require.Equal(t, "init", init["subtype"])
+	sid, _ := init["session_id"].(string)
+	require.NotEmpty(t, sid)
+	require.NotEmpty(t, init["cwd"])
+	require.NotEmpty(t, init["model"])
+	require.Equal(t, "default", init["permissionMode"])
+	require.Equal(t, sid, user["session_id"])
+	content := user["message"].(map[string]any)["content"].([]any)[0].(map[string]any)
+	require.Equal(t, "say hi", content["text"])
+	require.Equal(t, "result", result["type"])
+	require.Equal(t, sid, result["session_id"])
+	require.Equal(t, false, result["is_error"])
+	require.Equal(t, "DONE", result["result"])
+	require.NotEmpty(t, result["request_id"])
+	require.Contains(t, result, "duration_ms")
+	usage, _ := result["usage"].(map[string]any)
+	for _, k := range []string{"inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"} {
+		require.Contains(t, usage, k)
+	}
+}
+
+// TestAnOutputFormatOtherThanStreamJSONIsRefused: the mock models stream-json
+// only (the format the cursor docs describe for real-time progress); any other
+// --output-format ends the run with exit status 1, a message naming the format
+// on stderr and nothing on stdout.
+// sr:proves noninteractive-run/cursor
+func TestAnOutputFormatOtherThanStreamJSONIsRefused(t *testing.T) {
+	for _, format := range []string{"text", "json"} {
+		out, errOut, code := run(t, "#!/bin/sh\ntouch ran\nprintf '%s\\n' '"+done+"'\n", "--output-format", format, "go")
+		require.Equal(t, 1, code, format)
+		require.Empty(t, out, format)
+		require.Contains(t, errOut, `output format "`+format+`" is not modeled`, format)
+	}
+}
