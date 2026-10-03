@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,6 +33,65 @@ func TestSessionStartAfterCompactionContinueFalseEndsTheTurn(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(readFile(t, filepath.Join(rec.sample, "stream.jsonl")), `"turn.completed"`))
 	cmds, _ := got.commands()
 	assert.Len(t, cmds, 1, "no command after the one that led to the compaction (the recording ran one of three)")
+}
+
+// After a compaction the session starts again with source "compact", and a
+// session-start hook's matcher is applied to that source (hooks#sessionstart):
+// the recorded run (runs/manual-compaction-auto) fired SessionStart:compact
+// after each of its three compactions and the mock does the same, with the
+// payload naming the source and the session; a matcher of "compact" (or any
+// that matches it) runs for it, one matching only startup, resume or clear
+// does not.
+// sr:proves session-start-hook/codex
+func TestSessionStartAfterCompactionHasSourceCompactAndMatches(t *testing.T) {
+	rec, got := replayCompacting(t, "manual-compaction-auto")
+	require.Equal(t, 0, got.Code, got.Stderr)
+	for who, log := range map[string][]map[string]any{
+		"recording": jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))), "mock": got.hookLog()} {
+		n := 0
+		for _, l := range log {
+			if l["hook_event_name"] == "SessionStart" && l["source"] == "compact" {
+				n++
+				assert.NotEmpty(t, l["session_id"], who)
+			}
+		}
+		assert.Equal(t, 3, n, "%s: one start after each compaction", who)
+		assert.Equal(t, "startup", log[0]["source"], who)
+	}
+
+	for matcher, runs := range map[string]bool{
+		"compact": true, "": true, "*": true, "^compact$": true, "startup|resume|clear|compact": true,
+		"startup": false, "resume": false, "clear": false, "startup|resume|clear": false,
+	} {
+		t.Run("matcher="+matcher, func(t *testing.T) {
+			hooks := `{"hooks":{"SessionStart":[{"matcher":` + strconv.Quote(matcher) +
+				`,"hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]}}`
+			r := execMock(t, scenario{
+				HooksJSON: hooks,
+				Files:     map[string]string{"hook.sh": "#!/bin/sh\ncat >>\"$HOOK_LOG\"\necho >>\"$HOOK_LOG\"\n"},
+				Script: `#!/bin/sh
+c=$(grep -c '"type":"compacted"' "$A10N_MOCK_SESSION_FILE")
+case "$c" in
+0) printf '%s\n' '{"type":"compact","trigger":"auto"}' ;;
+*) printf '%s\n' '{"type":"result","subtype":"success","result":"DONE"}' ;;
+esac
+`,
+				Prompt: "compact",
+			})
+			require.Equal(t, 0, r.Code, r.Stderr)
+			var sources []string
+			for _, l := range r.hookLog() {
+				sources = append(sources, l["source"].(string))
+			}
+			if runs && matcher != "startup|resume|clear|compact" && matcher != "" && matcher != "*" {
+				assert.Equal(t, []string{"compact"}, sources)
+			} else if runs {
+				assert.Contains(t, sources, "compact")
+			} else {
+				assert.NotContains(t, sources, "compact")
+			}
+		})
+	}
 }
 
 // A PostCompact hook's matcher selects on the trigger as PreCompact's does
