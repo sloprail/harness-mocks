@@ -1,0 +1,8 @@
+{"event":"hook","hook":null,"payload":{"ran":"fast"}}
+{"event":"hook","hook":null,"payload":{"ran":"slow"}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

@@ -16,6 +16,7 @@
 # A scenario is hand-authored, and only its setup/ is:
 #   runs/<name>/setup/prompt.txt       the prompt
 #   runs/<name>/setup/hooks.json       the user layer's $CODEX_HOME/hooks.json
+#   runs/<name>/setup/project-hooks.json  optional: the project layer's <repo>/.codex/hooks.json
 #   runs/<name>/setup/hook.sh          optional: the hook every event runs;
 #                                      it appends its stdin to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra codex exec flags, one per line
@@ -81,6 +82,7 @@ capture_run() {
   mkdir -m 700 "$work/tmp"
   ln -s "$auth_src" "$chome/auth.json"   # keeps the login, nothing else
   [ -f "$run/setup/hooks.json" ] && cp "$run/setup/hooks.json" "$chome/hooks.json"
+  [ -f "$run/setup/project-hooks.json" ] && mkdir -p "$work/repo/.codex" && cp "$run/setup/project-hooks.json" "$work/repo/.codex/hooks.json"
   [ -f "$run/setup/hook.sh" ] && cp "$run/setup/hook.sh" "$work/repo/hook.sh" && chmod +x "$work/repo/hook.sh"
   git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
