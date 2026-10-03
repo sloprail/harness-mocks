@@ -10,5 +10,13 @@ providers:
     runs:
       - claude-mock/snapshots/runs/meta
       - claude-mock/snapshots/runs/isolated-worktree
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: Codex's spawn_agent tool takes only a message, with no worktree option; the sub-agent made a worktree itself with a shell command in its own turn, so the harness dispatched it into no isolated worktree.
+    runs:
+      - codex-mock/snapshots/runs/subagent-worktree-isolation
+  cursor:
+    supported: false
+    reason: Cursor's headless run dispatched a best-of-n-runner Task sub-agent, but its tools ran in the same directory as the parent's and under a session id of its own, so there was no isolated worktree and no shared session id.
+    runs:
+      - cursor-mock/snapshots/runs/subagent-worktree-isolation

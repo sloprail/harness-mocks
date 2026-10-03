@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun the shell command `pwd` in your working directory and report the exact output. Do nothing else.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running `pwd` now."},{"type":"tool_use","name":"Shell","input":{"command":"pwd","description":"Print current working directory"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"<RUN>"}]}}
+{"type":"turn_ended","status":"success"}
