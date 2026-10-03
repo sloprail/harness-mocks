@@ -75,3 +75,15 @@ func Execute(h Hooks, blockCap int, run func() Outcome) Outcome {
 		out = next
 	}
 }
+
+// Begin fires the start hook now and returns what finishes the sub-agent
+// later: running it and the stop-hook loop, as Execute does after its start
+// hook. A sub-agent that runs in the background is begun when it is launched,
+// before the launching call is answered, and finished once its run starts.
+func Begin(h Hooks) func(blockCap int, run func() Outcome) Outcome {
+	if h.Start != nil {
+		h.Start()
+	}
+	h.Start = nil
+	return func(blockCap int, run func() Outcome) Outcome { return Execute(h, blockCap, run) }
+}
