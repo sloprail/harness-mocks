@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun this exact shell command: echo SUB-DONE\n\nWhen finished, reply with only this exact text and nothing else:\nSUB-DONE\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the requested command."},{"type":"tool_use","name":"Shell","input":{"command":"echo SUB-DONE","description":"Echo SUB-DONE marker"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"SUB-DONE"}]}}
+{"type":"turn_ended","status":"success"}

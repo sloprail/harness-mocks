@@ -55,7 +55,7 @@ func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 // Execute runs the command and shows it in the event stream.
 func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result {
 	if c.Name == agentTool {
-		return executeAgent()
+		return h.spawnAgent(ctx, c)
 	}
 	cmd := command(c)
 	id := h.events.CommandStarted(cmd)
