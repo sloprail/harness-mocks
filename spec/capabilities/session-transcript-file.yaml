@@ -40,16 +40,6 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
-          cursor-agent has no transcript file until the first tool call is under
-          way: the hooks of its first preToolUse (and usually its first
-          beforeShellExecution) find no file and carry a null transcript_path.
-          The mock writes its file, with the user's message, before the first
-          turn, because the scenario script reads it as the session so far, so
-          those hooks find a file; its payloads carry the path once the first
-          preToolUse has run, and not before (the start hook's does not, as
-          recorded).
-      - adr: modeled-surface
-        statement: >-
           The docs say transcript_path is null when transcripts are disabled;
           the mock has no setting to disable them, so it always keeps a
-          transcript and names it once the first call is under way.
+          transcript and names it in the payloads.

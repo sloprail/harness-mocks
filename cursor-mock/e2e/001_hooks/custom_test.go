@@ -96,8 +96,8 @@ func TestAHookCommandRunsThroughTheShellInTheProjectRootWithThePayloadOnStdin(t 
 // recorded, the transcript is .cursor/projects/<workspace path with every
 // non-alphanumeric character as "-">/agent-transcripts/<session>/<session>.jsonl;
 // the start hook's payload has no transcript path, and the payloads from the
-// first command's afterShellExecution on have it (runs/symlinked-cwd: the
-// beforeShellExecution before it does not yet).
+// first command's afterShellExecution on have it (runs/symlinked-cwd: whether
+// the hooks before it do varies from one capture to the next).
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *testing.T) {
 	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")

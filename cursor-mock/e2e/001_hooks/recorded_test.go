@@ -29,11 +29,13 @@ func newestSample(t *testing.T, run string) string {
 // project folder under the config directory is named after that resolved path,
 // never after the symlink, and no session transcript file exists when the
 // sessionStart hook runs; the payloads' transcript_path is null, and the file
-// is not there, up to the first command's beforeShellExecution hook, and both
-// are there from its afterShellExecution on. The mock names the path in the
-// payloads from the first tool call's preToolUse on (cursor-agent races on
-// whether its first beforeShellExecution has it: runs/tool-failure shows it
-// named there), and holds no file at the start hook, as recorded.
+// is not there, at the start hook; from the first command's
+// afterShellExecution on both are there; in between (the first preToolUse and
+// beforeShellExecution) whether cursor-agent has named the file yet varies from
+// one capture to the next, so only what the two always agree on is pinned. The
+// project folder is keyed by the resolved path at every event, the start hook's
+// included, and never by the symlink the process was started from. The mock
+// names the path once the first preToolUse has run.
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFromASymlinkedDirectoryIsKeyedByTheRealPathAndAbsentAtStart(t *testing.T) {
 	dir := newestSample(t, "symlinked-cwd")
@@ -46,11 +48,10 @@ func TestTheTranscriptFromASymlinkedDirectoryIsKeyedByTheRealPathAndAbsentAtStar
 	}
 
 	// the recorded transition, event by event: no path in the payload and no file
-	// up to the first command's beforeShellExecution, both from its
-	// afterShellExecution on
+	// at the start hook, both from the first command's afterShellExecution on
 	seen := map[string]int{}
 	named := map[string]bool{"afterShellExecution": true, "postToolUse": true, "sessionEnd": true}
-	unnamed := map[string]bool{"sessionStart": true, "preToolUse": true, "beforeShellExecution": true}
+	unnamed := map[string]bool{"sessionStart": true}
 	for _, m := range readJSONL(t, filepath.Join(dir, "payloads.jsonl")) {
 		if roots, ok := m["workspace_roots"].([]any); ok {
 			require.Equal(t, []any{"<RUN>"}, roots)
@@ -72,6 +73,11 @@ func TestTheTranscriptFromASymlinkedDirectoryIsKeyedByTheRealPathAndAbsentAtStar
 		require.Equal(t, "<RUN>", r["pwd_physical"], "a hook runs in the resolved workspace")
 		ev, _ := r["event"].(string)
 		seen[ev]++
+		require.Equal(t, true, r["key_resolved"], ev+": the project folder is keyed by the resolved workspace")
+		require.Equal(t, false, r["key_symlink"], ev+": and not by the symlink the process started from")
+		if r["transcript_path_set"] == true {
+			require.Equal(t, true, r["transcript_exists"], ev+": a payload that names the transcript names a file that is there")
+		}
 		switch {
 		case unnamed[ev]:
 			require.Equal(t, false, r["transcript_path_set"], ev)
