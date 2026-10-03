@@ -37,3 +37,9 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/symlinked-cwd
+    deviations:
+      - adr: modeled-surface
+        statement: >-
+          The docs say transcript_path is null when transcripts are disabled;
+          the mock has no setting to disable them, so it always keeps a
+          transcript and names it in the payloads.

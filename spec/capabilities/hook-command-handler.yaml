@@ -23,6 +23,7 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/hook-exit-codes
       - cursor-mock/snapshots/runs/hook-matchers
+      - cursor-mock/snapshots/runs/symlinked-cwd
     deviations:
       - adr: modeled-surface
         statement: >-
