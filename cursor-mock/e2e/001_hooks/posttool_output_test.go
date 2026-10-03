@@ -42,3 +42,45 @@ func TestPostToolUseCarriesTheRecordedInputAndOutputOfEachCall(t *testing.T) {
 	last := postToolUses(shell)
 	require.Equal(t, `{"output":"FINE\n","exitCode":0}`, last[len(last)-1]["output"])
 }
+
+// postToolUse names each call (tool_use_id, a different one for each) and
+// says how long it took (duration, in milliseconds), and fires only for a call that ran: the call a preToolUse
+// hook refused fires postToolUseFailure instead (runs/file-tools,
+// runs/pretool-refusal).
+// sr:proves posttooluse-payload/cursor
+func TestPostToolUseNamesTheCallAndItsDurationAndFiresOnlyForCallsThatRan(t *testing.T) {
+	got, want := replay(t, "file-tools")
+	ids := map[any]bool{}
+	n := 0
+	for _, h := range got.raw {
+		if h["hook_event_name"] != "postToolUse" {
+			continue
+		}
+		n++
+		require.NotEmpty(t, h["tool_use_id"])
+		ids[h["tool_use_id"]] = true
+		_, ok := h["duration"].(float64)
+		require.True(t, ok, "duration in ms: %v", h)
+	}
+	require.Equal(t, 4, n)
+	require.Len(t, ids, n, "a different tool_use_id for each call")
+	require.Equal(t, len(postToolUses(want)), n)
+
+	// a command takes time, which the hook reports (the mock times no file tool: it reports 0 for those)
+	shell, _ := replay(t, "tool-failure")
+	took := 0.0
+	for _, h := range shell.raw {
+		if h["hook_event_name"] == "postToolUse" {
+			took = h["duration"].(float64)
+		}
+	}
+	require.Greater(t, took, 0.0, "the command that ran took some time")
+
+	refused, rwant := replay(t, "pretool-refusal")
+	require.Equal(t, postToolUses(rwant), postToolUses(refused))
+	var commands []any
+	for _, p := range postToolUses(refused) {
+		commands = append(commands, p["input"].(map[string]any)["command"])
+	}
+	require.Equal(t, []any{"echo FINE"}, commands, "only the call no hook refused")
+}

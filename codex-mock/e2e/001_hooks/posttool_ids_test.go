@@ -53,3 +53,28 @@ func TestPostToolUseFiresForEveryCommandNamingItsCallAndTurn(t *testing.T) {
 
 	assert.Equal(t, sortedHookLines(recorded), sortedHookLines(posted), "input and response of each, failed commands included")
 }
+
+// The recorded run runs/stops: three commands, the first two refused by a
+// PreToolUse hook (JSON deny, exit 2), the third allowed.
+
+// A command a before-tool hook refused does not run, so no PostToolUse fires
+// for it: the only one is the allowed command's, with its input and output,
+// as in the recording.
+// sr:proves posttooluse-payload/codex
+func TestNoPostToolUseForARefusedCommand(t *testing.T) {
+	rec := loadRecording(t, "stops")
+	got := replay(t, rec)
+	require.Equal(t, 0, got.Code, got.Stderr)
+
+	posted := func(lines []map[string]any) (out []map[string]any) {
+		for _, l := range lines {
+			if l["hook_event_name"] == "PostToolUse" {
+				out = append(out, map[string]any{"input": l["tool_input"], "response": l["tool_response"]})
+			}
+		}
+		return out
+	}
+	want := posted(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
+	require.Equal(t, []map[string]any{{"input": map[string]any{"command": "echo FINE"}, "response": "FINE\n"}}, want)
+	assert.Equal(t, want, posted(got.hookLog()))
+}

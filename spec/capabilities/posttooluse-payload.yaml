@@ -24,9 +24,9 @@ providers:
           mock sends none.
       - adr: modeled-surface
         statement: >-
-          The mock runs the shell tool and a sub-agent dispatch only, so what PostToolUse reports for
-          apply_patch, MCP tool calls and other local function tools is not
-          modeled.
+          The mock runs the shell tool and a sub-agent dispatch only, so what
+          PostToolUse reports for apply_patch, MCP tool calls and other local
+          function tools is not modeled.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#posttooluse
@@ -39,3 +39,4 @@ providers:
         statement: >-
           The mock runs the Shell, Read and Write tools only, so what the MCP tools'
           and the other tools' successful calls report to postToolUse is not modeled.
+          It times a command, but reports a duration of 0 for a file tool's call.
