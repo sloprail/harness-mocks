@@ -1,0 +1,1 @@
+Use your Task tool (a sub-agent) to run this task in the background (run_in_background true): 'Run the shell command: sleep 5; echo SUBDONE . Then reply with the single word SUBREPLY.' After launching it, immediately end your turn by replying only LAUNCHED. Do not wait for it.

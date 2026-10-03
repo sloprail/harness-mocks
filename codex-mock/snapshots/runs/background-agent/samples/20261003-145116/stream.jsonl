@@ -1,0 +1,11 @@
+{"type":"thread.started","thread_id":"01a1023f-79c6-7c03-b8be-706469caa6fe"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"I’m checking the available tools for the requested sub-agent launcher, then I’ll start it and immediately run the parent command."}}
+{"type":"item.started","item":{"id":"item_3","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a1023f-79c6-7c03-b8be-706469caa6fe","receiver_thread_ids":[],"prompt":"Run the shell command: echo SUBDONE . Then reply with the single word SUBREPLY.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a1023f-79c6-7c03-b8be-706469caa6fe","receiver_thread_ids":["01a1023f-a7bb-7a21-87f6-210abb3754f3"],"prompt":"Run the shell command: echo SUBDONE . Then reply with the single word SUBREPLY.","agents_states":{"01a1023f-a7bb-7a21-87f6-210abb3754f3":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/zsh -lc 'sleep 10; echo PARENTDONE'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_4","type":"command_execution","command":"/bin/zsh -lc 'sleep 10; echo PARENTDONE'","aggregated_output":"PARENTDONE\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"LAUNCHED"}}
+{"type":"turn.completed","usage":{"input_tokens":44335,"cached_input_tokens":35072,"cache_write_input_tokens":0,"output_tokens":352,"reasoning_output_tokens":131}}

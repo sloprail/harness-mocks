@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun the shell command: sleep 5; echo SUBDONE . Then reply with the single word SUBREPLY.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the command, then replying with SUBREPLY."},{"type":"tool_use","name":"Shell","input":{"command":"sleep 5; echo SUBDONE","description":"Sleep 5s then echo SUBDONE"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"SUBREPLY"}]}}
+{"type":"turn_ended","status":"success"}

@@ -9,6 +9,9 @@ type Common struct {
 	Cwd            string
 	Model          string
 	PermissionMode string
+	// AgentID and AgentType name the sub-agent a hook fires for; empty for the
+	// main thread, whose payloads name neither (recorded: runs/background-agent).
+	AgentID, AgentType string
 }
 
 // Payload is the JSON object a command hook reads on stdin: the common
@@ -25,6 +28,9 @@ func Payload(c Common, ev Event, own map[string]any) []byte {
 		"hook_event_name": string(ev),
 		"model":           c.Model,
 		"permission_mode": c.PermissionMode,
+	}
+	if c.AgentID != "" {
+		p["agent_id"], p["agent_type"] = c.AgentID, c.AgentType
 	}
 	if ev == SessionEnd { // recorded: a session-end payload names neither model nor permission mode
 		delete(p, "model")
