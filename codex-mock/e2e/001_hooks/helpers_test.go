@@ -29,6 +29,9 @@ type scenario struct {
 	Env []string
 	// Args are added to the exec command line (a -c override, say).
 	Args []string
+	// Dir is a subdirectory of the repository the run starts in (the process's
+	// working directory); empty means the repository root.
+	Dir string
 	// NoJSON runs `exec` without --json, so stdout carries the final message.
 	NoJSON bool
 	// BypassTrust passes --dangerously-bypass-hook-trust, as every recording does.
@@ -85,7 +88,7 @@ func execMock(t *testing.T, s scenario) result {
 		args = append([]string{args[0], "--dangerously-bypass-hook-trust"}, args[1:]...)
 	}
 	cmd := exec.Command(mockBinary, append(args, s.Args...)...)
-	cmd.Dir = r.Repo
+	cmd.Dir = filepath.Join(r.Repo, s.Dir)
 	cmd.Env = append(env, s.Env...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb

@@ -1,0 +1,13 @@
+{"event":"hook","hook":null,"payload":{"ran":"start-omitted","event":"SessionStart","tool":""}}
+{"event":"hook","hook":null,"payload":{"ran":"prompt-omitted","event":"UserPromptSubmit","tool":""}}
+{"event":"hook","hook":null,"payload":{"ran":"pre-omitted","event":"PreToolUse","tool":"Bash"}}
+{"event":"hook","hook":null,"payload":{"ran":"post-omitted","event":"PostToolUse","tool":"Bash"}}
+{"event":"hook","hook":null,"payload":{"ran":"stop-omitted","event":"Stop","tool":""}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

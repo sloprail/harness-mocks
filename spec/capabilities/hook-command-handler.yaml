@@ -16,6 +16,7 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/hook-exit-json
+      - codex-mock/snapshots/runs/hook-command-subdir
   cursor:
     docs:
       - https://cursor.com/docs/hooks#command-based-hooks
