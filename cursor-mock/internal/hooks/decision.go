@@ -126,5 +126,5 @@ func Refusal(ds []Decision) (refused bool, message string) {
 	for i, d := range ds {
 		votes[i] = corehooks.PreToolVote{Blocked: d.Blocked, BlockReason: d.Message, Denied: d.Permission == "deny", DenyReason: d.Message}
 	}
-	return corehooks.PreToolRefusalAll(votes, refusalSeparator)
+	return corehooks.PreToolRefusal(votes, refusalSeparator)
 }
