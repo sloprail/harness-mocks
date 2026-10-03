@@ -19,7 +19,8 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/snapshots.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
-load_spec capabilities; caps="$SPEC"; load_touched
+. "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
+load_spec capabilities; caps="$SPEC"; load_touched; load_doc_changes
 changed="$(cs '.changeset.files[].path')"
 subjects="[]"
 while IFS= read -r c; do
@@ -32,7 +33,8 @@ while IFS= read -r c; do
     | (if .value.supported == false then "absent" else "supports" end) as $k | .value.docs[] | [$h, $k, .] | @tsv' <<<"$c")"
   while IFS=$'\t' read -r h _ ref; do
     [ -n "$h" ] || continue
-    printf '%s\n' "$changed" | grep -Fxq "$h-mock/snapshots/MANIFEST.yaml" && hs="$(printf '%s\n%s' "$hs" "$h")"   # a re-frozen doc
+    # a re-frozen doc: this page's MANIFEST entry changed (or the harness's version moved)
+    printf '%s\n' "$DOC_CHANGES_TSV" | awk -F'\t' -v h="$h" -v u="${ref%%#*}" '$1 == h && ($2 == "*" || $2 == u) {f = 1} END {exit !f}' && hs="$(printf '%s\n%s' "$hs" "$h")"
   done <<<"$refs"
   hs="$(printf '%s\n' "$hs" | sed '/^$/d' | sort -u)"
   [ -n "$hs" ] || continue
