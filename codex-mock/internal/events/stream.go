@@ -12,12 +12,18 @@ import (
 type Stream struct {
 	out  io.Writer
 	next int
+	// text, when set, also gets the run as the progress `codex exec` prints
+	// on stderr (see progress.go).
+	text *progress
 }
 
 // New is a stream on out.
 func New(out io.Writer) *Stream { return &Stream{out: out} }
 
 func (s *Stream) emit(v map[string]any) {
+	if s.text != nil {
+		s.text.render(v)
+	}
 	enc := json.NewEncoder(s.out)
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(v)

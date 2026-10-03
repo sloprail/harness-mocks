@@ -68,12 +68,13 @@ func runExec(cmd *cobra.Command, args []string) error {
 		home = filepath.Join(user, ".codex")
 	}
 	asJSON, _ := f.GetBool("json")
+	bypass, _ := f.GetBool("dangerously-bypass-hook-trust")
 	model, _ := f.GetString("model")
 	if len(args) >= 2 && args[0] == "resume" { // `exec resume <session id> [prompt]`
 		return session.Resume(home, args[1])
 	}
 	return runner.Run(cmd.Context(), runner.Config{
 		Script: script, Prompt: strings.Join(args, " "), Cwd: cwd, CodexHome: home, Model: model,
-		Environ: os.Environ(), JSON: asJSON, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
+		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
 }

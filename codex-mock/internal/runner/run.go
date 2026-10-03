@@ -31,8 +31,11 @@ type Config struct {
 	Environ []string
 	// JSON prints the event stream on Stdout; otherwise Stdout gets the
 	// agent's final message.
-	JSON           bool
-	Stdout, Stderr io.Writer
+	JSON bool
+	// BypassHookTrust is --dangerously-bypass-hook-trust: hooks run without
+	// review, and Codex warns of it.
+	BypassHookTrust bool
+	Stdout, Stderr  io.Writer
 }
 
 // state is the state of one run, shared by Codex's side of the turn and of
@@ -77,15 +80,32 @@ func Run(ctx context.Context, cfg Config) error {
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
 		Common: hooks.Common{SessionID: id, TranscriptPath: rollout.Path, Cwd: cfg.Cwd, Model: cfg.Model,
 			PermissionMode: "bypassPermissions"}}
+	if !cfg.JSON {
+		s.events.Progress(cfg.Stderr, events.Header{Version: childenv.Version, Cwd: cfg.Cwd, Model: cfg.Model, Prompt: cfg.Prompt})
+	}
 	s.events.ThreadStarted(id)
+	if cfg.BypassHookTrust && hookCfg.Any() {
+		for range 2 { // as recorded: twice per run
+			s.events.Warning("`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.")
+		}
+	}
+	for _, f := range hooks.AsyncSessionEndFiles(cfg.CodexHome, cfg.Cwd) {
+		s.events.Warning("running async SessionEnd hook synchronously in " + f)
+	}
+	halted := false
 	for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, "startup", map[string]any{"source": "startup"}) {
-		if d := hooks.Interpret(hooks.SessionStart, o); d.Context != "" {
+		d := hooks.Interpret(hooks.SessionStart, o)
+		halted = halted || d.Halt
+		if d.Context != "" {
 			rollout.Developer(d.Context)
 		}
 	}
 	s.events.TurnStarted()
-	last, err := turnloop.Run(ctx, turnHost{s}, turnloop.Params{
-		Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
+	last, err := "", error(nil)
+	if !halted { // a start hook's `continue: false` ends the turn before any prompt hook or model request
+		last, err = turnloop.Run(ctx, turnHost{s}, turnloop.Params{
+			Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
+	}
 	s.events.TurnCompleted()
 	s.reapAtExit()
 	// The session ends with the run, for the one reason a non-interactive run has;

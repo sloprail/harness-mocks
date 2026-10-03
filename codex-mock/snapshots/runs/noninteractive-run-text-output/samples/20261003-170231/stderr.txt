@@ -1,0 +1,32 @@
+Reading additional input from stdin...
+OpenAI Codex v0.159.3
+--------
+workdir: <RUN>
+model: gpt-5.6-luna
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: low
+reasoning summaries: none
+session id: 01a102b7-a7b7-75e0-a020-9dd5a12306d8
+--------
+user
+Make every shell command its own separate tool call, never combined with another command or put in a script. First run exactly this shell command, once: echo hi. Then run exactly this shell command, once: sh -c 'echo oops; exit 3'. Then reply only DONE.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+hook: SessionStart
+hook: SessionStart Completed
+exec
+/bin/zsh -lc 'echo hi' in <RUN>
+ succeeded in 0ms:
+hi
+
+exec
+/bin/zsh -lc "sh -c 'echo oops; exit 3'" in <RUN>
+ exited 3 in 0ms:
+oops
+
+codex
+DONE
+tokens used
+4,044

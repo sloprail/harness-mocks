@@ -27,6 +27,8 @@ type scenario struct {
 	Env []string
 	// NoJSON runs `exec` without --json, so stdout carries the final message.
 	NoJSON bool
+	// BypassTrust passes --dangerously-bypass-hook-trust, as every recording does.
+	BypassTrust bool
 }
 
 // result is what a run left.
@@ -70,6 +72,9 @@ func execMock(t *testing.T, s scenario) result {
 	args := []string{"exec", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt}
 	if s.NoJSON {
 		args = append(args[:1], args[2:]...)
+	}
+	if s.BypassTrust {
+		args = append([]string{args[0], "--dangerously-bypass-hook-trust"}, args[1:]...)
 	}
 	cmd := exec.Command(mockBinary, args...)
 	cmd.Dir = r.Repo

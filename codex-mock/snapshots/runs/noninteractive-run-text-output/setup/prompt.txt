@@ -1,0 +1,1 @@
+Make every shell command its own separate tool call, never combined with another command or put in a script. First run exactly this shell command, once: echo hi. Then run exactly this shell command, once: sh -c 'echo oops; exit 3'. Then reply only DONE.
