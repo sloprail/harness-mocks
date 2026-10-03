@@ -44,6 +44,9 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		return nil, in, toolexec.Result{Output: "Error: No such tool available: Agent", IsError: true}
 	}
 
+	if refusal, refused := concurrentLimitRefusal(cfg); refused {
+		return nil, in, refusal
+	}
 	agentType := in.SubagentType
 	if agentType == "" {
 		agentType = "general-purpose"

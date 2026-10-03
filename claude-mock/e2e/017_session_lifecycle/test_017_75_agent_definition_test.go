@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -76,6 +77,13 @@ func TestT017_75_DefinitionBackgroundKeepsAForegroundCallInTheBackground(t *test
 		}
 	}
 	assert.True(t, notified, "and starts a turn")
+	// two turns, as recorded: a result for each, and the session ends after the second Stop
+	raw, err := os.ReadFile(filepath.Join(recordedSample(t, "bgagent-definition"), "stream.jsonl"))
+	require.NoError(t, err)
+	assert.Equal(t, strings.Count(string(raw), `"type":"result"`), strings.Count(out, `"type":"result"`), "a result for each turn")
+	labels := hookLabels(got)
+	assert.Equal(t, []string{"Stop", "SessionEnd"}, labels[len(labels)-2:], "the session ends after the last Stop")
+	assert.Equal(t, hookLabels(want)[len(hookLabels(want))-2:], labels[len(labels)-2:])
 
 	for name, c := range map[string]struct {
 		frontmatter string

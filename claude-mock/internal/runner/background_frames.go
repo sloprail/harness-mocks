@@ -45,6 +45,9 @@ func (o frameObserver) Notified(t *tasks.Task) {
 	switch {
 	case t.Kind == tasks.Agent:
 		n.Summary = t.Result
+		if s, ok := t.Meta.(taskStart); ok && !s.Backgrounded {
+			n.Summary = scannedSummary(t.Result) // a foreground sub-agent's report as its parent reads it
+		}
 		if t.Failure != "" {
 			n.Summary = t.Failure
 		}

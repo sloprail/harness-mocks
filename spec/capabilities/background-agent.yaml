@@ -5,9 +5,11 @@ providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background
+      - https://code.claude.com/docs/en/sub-agents#concurrent-subagent-limit
     runs:
       - claude-mock/snapshots/runs/bgagent
       - claude-mock/snapshots/runs/bgagent-definition
+      - claude-mock/snapshots/runs/bgagent-concurrent-limit
     deviations:
       - adr: modeled-surface
         statement: >-
@@ -18,6 +20,11 @@ providers:
           Agent teams are an interactive-session feature, and so is fork mode, which
           makes every sub-agent run in the background: a mock session is `-p`, with
           fork mode off.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not model the sessions the docs exempt from the concurrent
+          sub-agent limit: those with ultracode active, which is turned on through
+          the effort level in an interactive session.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields

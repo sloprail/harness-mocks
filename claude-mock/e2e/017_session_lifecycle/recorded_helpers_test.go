@@ -130,7 +130,7 @@ func gitIn(t *testing.T, dir string, args ...string) {
 // allHooks wires every event the recorded runs log to one command.
 func allHooks(h string) map[string]string {
 	m := map[string]string{}
-	for _, ev := range []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart", "SubagentStop", "Stop", "SessionEnd"} {
+	for _, ev := range []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "SubagentStart", "SubagentStop", "Stop", "SessionEnd"} {
 		m[ev] = h
 	}
 	return m
@@ -151,4 +151,23 @@ func hookLabels(all []map[string]any) []string {
 		out = append(out, l)
 	}
 	return out
+}
+
+// recordedNotificationSummary is the summary of the last task_notification
+// frame in a recorded run's stream.
+func recordedNotificationSummary(t *testing.T, run string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(recordedSample(t, run), "stream.jsonl"))
+	require.NoError(t, err)
+	summary, found := "", false
+	for _, l := range strings.Split(string(raw), "\n") {
+		var m struct {
+			Subtype, Summary string
+		}
+		if json.Unmarshal([]byte(l), &m) == nil && m.Subtype == "task_notification" {
+			summary, found = m.Summary, true
+		}
+	}
+	require.True(t, found, "run %s has no task_notification", run)
+	return summary
 }

@@ -15,6 +15,7 @@ providers:
       - claude-mock/snapshots/runs/fgsub-report-scan
       - claude-mock/snapshots/runs/fgsub-report-scan-perm
       - claude-mock/snapshots/runs/fgsub-report-scan-role
+      - claude-mock/snapshots/runs/fgsub-report-scan-assistant
       - claude-mock/snapshots/runs/fgsub-tool-stats
       - claude-mock/snapshots/runs/fgsub-maxturns
     deviations:

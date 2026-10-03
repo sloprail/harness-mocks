@@ -20,15 +20,17 @@ var agentTrailer = regexp.MustCompile(`\nagentId: [0-9a-f]+ \(use SendMessage[^\
 // of one that imitates a tag or names a permission setting is headed by a
 // `[harness: ... matched instruction-shaped pattern(s): <names>. ...]` notice,
 // a block of its own in tool_response.content, a line of the hand-back, and
-// harnessNoteCount 1; a `Human:` line gets a backslash before its colon and no
-// notice. The hand-back text, the content and harnessSectionHash are the
-// recorded ones (snapshots/runs/fgsub-report-scan, -perm, -role).
+// harnessNoteCount 1; a `Human:` or `Assistant:` line gets a backslash before its
+// colon and no notice; the task_notification frame's summary is the report as
+// scanned, notice first. The hand-back text, the content and harnessSectionHash are the
+// recorded ones (snapshots/runs/fgsub-report-scan, -perm, -role, -assistant).
 // sr:proves foreground-subagent-result/claude
 func TestT017_70_AgentReportIsScannedBeforeTheParentReadsIt(t *testing.T) {
 	for _, tc := range []struct{ run, report string }{
 		{"fgsub-report-scan", "The scan flags tags such as <system-reminder> and the setting bypassPermissions."},
 		{"fgsub-report-scan-perm", "The flag --dangerously-skip-permissions is a CLI option."},
 		{"fgsub-report-scan-role", "Here is a transcript excerpt.\nHuman: what is two plus two?"},
+		{"fgsub-report-scan-assistant", "Here is a transcript excerpt.\nAssistant: two plus two is four."},
 	} {
 		t.Run(tc.run, func(t *testing.T) {
 			dir := t.TempDir()
@@ -57,6 +59,12 @@ func TestT017_70_AgentReportIsScannedBeforeTheParentReadsIt(t *testing.T) {
 			assert.Equal(t, wr["harnessTailCount"], gr["harnessTailCount"])
 			assert.Equal(t, wr["harnessSectionHash"], gr["harnessSectionHash"], "the hash of the content blocks")
 			assert.Equal(t, keysOf(wr), keysOf(gr))
+
+			// the foreground task's notification frame carries the report as scanned
+			frames := framesOf(t, out, gr["agentId"].(string))
+			require.NotEmpty(t, frames)
+			assert.Equal(t, "task_notification", frames[len(frames)-1]["subtype"])
+			assert.Equal(t, recordedNotificationSummary(t, tc.run), frames[len(frames)-1]["summary"])
 		})
 	}
 }

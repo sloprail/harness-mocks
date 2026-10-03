@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // agentRunsInBackground reports whether an Agent call runs in the background:
@@ -13,21 +15,15 @@ import (
 // background even when Claude asks for the foreground (recorded:
 // snapshots/runs/bgagent-definition, a definition with `background: true`
 // called with run_in_background false answers with the async receipt).
-// CLAUDE_CODE_DISABLE_BACKGROUND_TASKS still wins, as it does for any call.
+// What the definition adds is only the ask: whether a call runs in the
+// background stays tasks.RunsInBackground's, with CLAUDE_CODE_DISABLE_BACKGROUND_TASKS.
 //
 // sr:provides background-agent/claude
 func agentRunsInBackground(cfg Config, input json.RawMessage) bool {
-	if cfg.BackgroundTasksDisabled {
-		return false
-	}
-	if runsInBackground(input) {
-		return true
-	}
 	var in agentToolInput
-	if json.Unmarshal(input, &in) != nil || in.SubagentType == "" {
-		return false
-	}
-	return definitionBackground(cfg, in.SubagentType)
+	_ = json.Unmarshal(input, &in)
+	asked := runsInBackground(input) || (in.SubagentType != "" && definitionBackground(cfg, in.SubagentType))
+	return tasks.RunsInBackground(asked, cfg.BackgroundTasksDisabled)
 }
 
 // definitionBackground reports whether the sub-agent definition named name

@@ -17,14 +17,28 @@ import (
 // snapshots/runs/bgbash and snapshots/runs/midturn, payloads.jsonl).
 // sr:proves background-bash/claude
 func TestT017_61_BackgroundBashHookPayloads(t *testing.T) {
-	// bgbash recorded the input with a description, midturn without one: the
-	// payload carries the input as the model wrote it, whichever it is.
-	for name, in := range map[string]map[string]any{
-		"with_description":    {"command": "echo BGDONE", "description": "quick echo", "run_in_background": true},
-		"without_description": {"command": "echo BGDONE", "run_in_background": true},
-	} {
-		t.Run(name, func(t *testing.T) { backgroundBashHookPayloads(t, in) })
+	// bgbash recorded the input with a description ('long sleep'), midturn
+	// without one (their payloads.jsonl; the normalized events.jsonl leaves
+	// descriptions out): each recorded input is replayed as the model wrote it,
+	// and the payload carries it back whichever form it is.
+	for _, run := range []string{"bgbash", "midturn"} {
+		in := recordedBackgroundBashInput(t, run)
+		require.Equal(t, true, in["run_in_background"], "the recording is of a background call")
+		t.Run(run, func(t *testing.T) { backgroundBashHookPayloads(t, in) })
 	}
+}
+
+// recordedBackgroundBashInput is the tool_input of the first background Bash
+// call the real claude made in a recorded run.
+func recordedBackgroundBashInput(t *testing.T, run string) map[string]any {
+	t.Helper()
+	for _, p := range recordedHooks(t, run) {
+		if in, _ := p["tool_input"].(map[string]any); p["hook_event_name"] == "PreToolUse" && p["tool_name"] == "Bash" && in["run_in_background"] == true {
+			return in
+		}
+	}
+	t.Fatalf("run %s has no background Bash call", run)
+	return nil
 }
 
 func backgroundBashHookPayloads(t *testing.T, want map[string]any) {

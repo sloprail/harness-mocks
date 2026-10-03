@@ -4,17 +4,23 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/subagents"
 )
 
+// toolClasses are Claude Code's tools by how a sub-agent's result counts them,
+// as recorded (snapshots/runs/fgsub-tool-stats: Write and Edit are edits,
+// ToolSearch other; hookmix and fg-subagent-bash: Read and Bash). Grep and Glob
+// are searches by the field's name: no recording has a sub-agent call them.
+var toolClasses = map[string]subagents.Class{
+	"Read": subagents.Read, "Grep": subagents.Search, "Glob": subagents.Search, "Bash": subagents.Shell,
+	"Write": subagents.Edit, "Edit": subagents.Edit, toolNameAgent: subagents.Skipped, toolNameTask: subagents.Skipped,
+}
+
 // toolStatsOf is the toolStats a finished foreground sub-agent's result
-// carries, counted from the tool calls in its own transcript, as recorded
-// (snapshots/runs/fgsub-tool-stats: Write and Edit count as edits, with the
-// lines they add and remove, ToolSearch as other; hookmix and fg-subagent-bash:
-// Read and Bash). A sub-agent that made no such call has none: Agent calls are
-// not counted (snapshots/runs/meta, an outer sub-agent that only dispatched
-// one). Grep and Glob count as searches by the field's name: no recording has
-// a sub-agent call them.
+// carries, tallied from the tool calls in its own transcript. A sub-agent that
+// made no counted call has none: Agent calls are not counted (snapshots/runs/meta,
+// an outer sub-agent that only dispatched one).
 //
 // sr:provides foreground-subagent-result/claude
 func toolStatsOf(sidechain string) map[string]any {
@@ -22,7 +28,7 @@ func toolStatsOf(sidechain string) map[string]any {
 	if err != nil {
 		return nil
 	}
-	var read, search, bash, edit, added, removed, other int
+	var calls []subagents.Call
 	for _, line := range bytes.Split(raw, []byte{'\n'}) {
 		var rec struct {
 			Type    string `json:"type"`
@@ -46,44 +52,20 @@ func toolStatsOf(sidechain string) map[string]any {
 			continue
 		}
 		for _, b := range blocks {
-			if b.Type != "tool_use" {
-				continue
-			}
-			switch b.Name {
-			case "Read":
-				read++
-			case "Grep", "Glob":
-				search++
-			case "Bash":
-				bash++
-			case "Write":
-				edit++
-				added += lineCount(b.Input.Content)
-			case "Edit":
-				edit++
-				added += lineCount(b.Input.NewString)
-				removed += lineCount(b.Input.OldString)
-			case toolNameAgent, toolNameTask:
-			default:
-				other++
+			if b.Type == "tool_use" {
+				// a Write adds its content; an Edit adds its new text and takes its old
+				calls = append(calls, subagents.Call{Tool: b.Name, Added: b.Input.Content + b.Input.NewString, Taken: b.Input.OldString})
 			}
 		}
 	}
-	if read+search+bash+edit+other == 0 {
+	c := subagents.Tally(calls, toolClasses)
+	if c.Total() == 0 {
 		return nil
 	}
 	return map[string]any{
-		"readCount": read, "searchCount": search, "bashCount": bash, "editFileCount": edit,
-		"linesAdded": added, "linesRemoved": removed, "otherToolCount": other,
+		"readCount": c.Read, "searchCount": c.Search, "bashCount": c.Shell, "editFileCount": c.Edits,
+		"linesAdded": c.LinesAdded, "linesRemoved": c.LinesRemoved, "otherToolCount": c.Other,
 	}
-}
-
-// lineCount is how many lines s has; none for an empty string.
-func lineCount(s string) int {
-	if s == "" {
-		return 0
-	}
-	return strings.Count(s, "\n") + 1
 }
 
 // zeroUsage is the usage object a sub-agent's result carries, with the mock's

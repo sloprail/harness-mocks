@@ -38,13 +38,24 @@ func scanNotice(matched []string) string {
 // produced no report, the note saying so (recorded: snapshots/runs/fgsub-maxturns).
 //
 // sr:provides foreground-subagent-result/claude
-func headedReport(report string, lim *turnLimit) (scanned, notice string) {
-	if report == "" && lim.reached() {
-		return "", fmt.Sprintf("NOTE: this agent stopped at its %d-turn limit before finishing. It was still calling tools and had produced no report. Send the agent a message (SendMessage) to let it continue from where it stopped.", lim.max)
+func headedReport(report string, lim *subagents.TurnLimit) (scanned, notice string) {
+	if report == "" && lim.Reached() {
+		return "", fmt.Sprintf("NOTE: this agent stopped at its %d-turn limit before finishing. It was still calling tools and had produced no report. Send the agent a message (SendMessage) to let it continue from where it stopped.", lim.Max)
 	}
 	scanned, matched := subagents.Scan(report, claudeScanRules)
 	if len(matched) > 0 {
 		notice = scanNotice(matched)
 	}
 	return scanned, notice
+}
+
+// scannedSummary is a foreground sub-agent's report as its task_notification
+// frame gives it: the scanned report, headed by the scan's notice and an empty
+// line when it reported on it (recorded: snapshots/runs/fgsub-report-scan).
+func scannedSummary(report string) string {
+	scanned, matched := subagents.Scan(report, claudeScanRules)
+	if len(matched) > 0 {
+		return scanNotice(matched) + "\n\n" + scanned
+	}
+	return scanned
 }

@@ -49,7 +49,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
 	out := subagents.Outcome{}
-	if err := Run(withTurnLimit(ctx, s.limit), subCfg); err != nil {
+	if err := Run(subagents.WithLimit(ctx, s.limit), subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
 		out.Failure = err.Error()
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
@@ -130,5 +131,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// inside the turn.
 	bg.deliverMidTurn(ctx, cfg, inv, tr)
 
-	return turnResult{sig: pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
+	// A sub-agent at its maxTurns ends here, with no result frame.
+	atLimit := subagents.LimitOf(ctx).Step()
+	return turnResult{sig: pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText, done: atLimit}, nil
 }

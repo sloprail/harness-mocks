@@ -30,7 +30,7 @@ type subagentRun struct {
 	// branch is the branch of an isolated sub-agent's git worktree, when it has one.
 	branch string
 	// limit is the sub-agent's turn limit (its definition's maxTurns), nil when none.
-	limit *turnLimit
+	limit *subagents.TurnLimit
 	// cleanup removes an isolated sub-agent's clean worktree once it has finished
 	// (subagents.Isolation.Cleanup); nil when it has no real worktree.
 	cleanup func(context.Context) bool
@@ -102,7 +102,7 @@ func (s *subagentRun) invoker(inv *hooks.Invoker) *hooks.Invoker {
 // hooks are the hooks fired around the sub-agent.
 func (s *subagentRun) hooks(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks) subagents.Hooks {
 	sideInv := s.invoker(inv)
-	return subagents.Hooks{
+	return subagents.Limited(subagents.Hooks{
 		// SubagentStart — cannot block. transcript_path is the SESSION's (the
 		// invoker's default); the sub-agent is named by agent_id.
 		Start: func() {
@@ -118,10 +118,7 @@ func (s *subagentRun) hooks(ctx context.Context, inv *hooks.Invoker, bg *backgro
 		// file, where real Claude Code writes a SubagentStop's feedback — so the
 		// last refusal before the cap is on the record too.
 		Stop: func(active bool, last string) (bool, string) {
-			if s.limit.reached() { // stopped at its turn limit: no SubagentStop (recorded: fgsub-maxturns)
-				return false, ""
-			}
 			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
 		},
-	}
+	}, s.limit)
 }
