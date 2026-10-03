@@ -15,6 +15,7 @@ providers:
       - claude-mock/snapshots/runs/resume-path
       - claude-mock/snapshots/runs/resume-name
       - claude-mock/snapshots/runs/no-session-persistence
+      - claude-mock/snapshots/runs/resume-continue-none
     deviations:
       - adr: modeled-surface
         statement: >-
@@ -22,6 +23,16 @@ providers:
           estimated_cache_write_usd are 0, where the real ones (recorded in
           every resume run) are the size of the context to send again and its
           price.
+      - adr: modeled-surface
+        statement: >-
+          The CLI reference's interactive parts of --resume and --continue are
+          not modeled: the session picker --resume opens without an ID, --continue
+          passing over a session whose first prompt was a /loop, one that added
+          the directory with /add-dir (slash commands), and a --resume ID lookup
+          that tries the project's git worktrees before other projects (the mock
+          tries the directory's project, then any other). The init frame that
+          opens a resumed session's stream, after the hooks' own frames, is the
+          scenario script's in the mock, which writes none.
       - adr: modeled-surface
         statement: >-
           Background sessions, which the CLI reference says --resume opens while

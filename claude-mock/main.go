@@ -35,7 +35,8 @@ func forgetUnpersisted(cmd *cobra.Command, _ []string) error {
 // resolveSessionFlags names the session a run resumes before the run reads its
 // flags: --resume takes an id, the path of a session's transcript file or a
 // session's name, and --continue, with no --resume, resumes the directory's most
-// recent session. Both become the id --resume carries.
+// recent session, or starts a new one when it has none. The resumed ones become the
+// id --resume carries.
 //
 // sr:provides session-resume/claude
 func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
@@ -50,7 +51,10 @@ func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
 	if cont, _ := cmd.Flags().GetBool(flagContinue); cont && resume == "" {
 		if resume = runner.LatestSession(configDir, projectDir); resume == "" {
-			return fmt.Errorf("claude-mock: --continue: no conversation found to continue in %s", projectDir)
+			// no session to continue: a new one starts (recorded: snapshots/runs/resume-continue-none)
+			if id, _ := cmd.Flags().GetString(flagSessionID); id == "" {
+				return cmd.Flags().Set(flagSessionID, runner.NewSessionID())
+			}
 		}
 	}
 	if resume == "" {

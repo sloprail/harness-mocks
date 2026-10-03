@@ -89,8 +89,7 @@ func TestT017_73_ResumeByPathAndContinueAsRecorded(t *testing.T) {
 }
 
 // TestT017_74_ContinueTakesTheMostRecentSession: with several sessions in the
-// directory --continue resumes the one written last, and a directory with none
-// is an error, not a new session.
+// directory --continue resumes the one written last.
 // sr:proves session-resume/claude
 func TestT017_74_ContinueTakesTheMostRecentSession(t *testing.T) {
 	dir := t.TempDir()
@@ -108,9 +107,37 @@ func TestT017_74_ContinueTakesTheMostRecentSession(t *testing.T) {
 	assert.Contains(t, readString(t, transcriptPath(t, cfg, dir, "newer")), "go on")
 	assert.NotContains(t, readString(t, older), "go on")
 
-	empty := t.TempDir()
-	out, code = runInDir(t, empty, nil, "--script", script(t, empty, "d"), "--continue",
-		"--project-dir", empty, "--config-dir", filepath.Join(empty, "config"), "-p", "go on")
-	assert.NotEqual(t, 0, code, out)
-	assert.Contains(t, out, "no conversation found")
+}
+
+// TestT017_88_ContinueWithNothingToContinueStartsANewSession: in a directory with
+// no session, `--continue` is not an error: as in the continue-none run, a new
+// session starts (SessionStart source "startup", the session's own new id).
+// sr:proves session-resume/claude
+func TestT017_88_ContinueWithNothingToContinueStartsANewSession(t *testing.T) {
+	raw, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/resume-continue-none/samples/*/events.jsonl"))
+	require.NoError(t, err)
+	var recorded []string
+	for _, l := range strings.Split(string(raw), "\n") {
+		var e struct {
+			Hook    string
+			Payload map[string]any
+		}
+		if json.Unmarshal([]byte(l), &e) == nil && e.Hook == "SessionStart" {
+			recorded = append(recorded, e.Payload["source"].(string))
+		}
+	}
+	require.Equal(t, []string{"startup"}, recorded, "recorded")
+
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	log := filepath.Join(dir, "payloads.log")
+	settings(t, dir, map[string]string{"SessionStart": payloadLogger(t, dir, "log.sh", log, "")})
+	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "d"), "--continue",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "go on")
+	require.Equal(t, 0, code, out)
+	ps := payloads(t, log)
+	require.Len(t, ps, 1)
+	assert.Equal(t, "startup", ps[0]["source"])
+	assert.NotEmpty(t, ps[0]["session_id"])
+	assert.FileExists(t, transcriptPath(t, cfg, dir, ps[0]["session_id"].(string)))
 }
