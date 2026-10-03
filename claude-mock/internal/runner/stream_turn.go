@@ -8,6 +8,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // runOneTurnSig executes the script once, processes its JSONL output, and
@@ -89,13 +90,13 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var startAgent func()
 	toolStarted := time.Now()
 	switch {
-	case isAgentTool(pending.ToolName) && runsInBackground(pending.ToolInput):
+	case isAgentTool(pending.ToolName) && tasks.RunsInBackground(runsInBackground(pending.ToolInput), cfg.BackgroundTasksDisabled):
 		res, startAgent = bg.launchAgent(cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isAgentTool(pending.ToolName):
 		res = runAgentTool(ctx, cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isScheduleWakeupTool(pending.ToolName):
 		res = runScheduleWakeupTool(cfg.wake, pending.ToolInput)
-	case pending.ToolName == "Bash" && runsInBackground(pending.ToolInput):
+	case pending.ToolName == "Bash" && tasks.RunsInBackground(runsInBackground(pending.ToolInput), cfg.BackgroundTasksDisabled):
 		res = bg.launchBash(cfg, pending.ToolUseID, pending.ToolInput)
 	default:
 		// cfg.SessionID is the session the Bash tool exports as CLAUDE_CODE_SESSION_ID.

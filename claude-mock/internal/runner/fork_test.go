@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -149,7 +150,8 @@ func TestBuildAgentResult(t *testing.T) {
 	sub := &subagentRun{agentID: "a0123456789abcdef", agentType: "general-purpose"}
 	res := buildAgentResult(sub, agentToolInput{Prompt: "p", Model: "haiku"}, "", subagentOutcome{finalText: "line one\r\nline two", toolUses: 2}, 17, "")
 	assert.True(t, res.ContentAsBlocks)
-	assert.Equal(t, handbackFrame+"\n  line one\n  line two\nagentId: a0123456789abcdef (use SendMessage with to: 'a0123456789abcdef', summary: '<5-10 word recap>' to continue this agent)\n<usage>subagent_tokens: 0\ntool_uses: 2\nduration_ms: 17</usage>", res.Output)
+	// The token count is the model's, so only its being a number is pinned.
+	assert.Regexp(t, "^"+regexp.QuoteMeta(handbackFrame+"\n  line one\n  line two\nagentId: a0123456789abcdef (use SendMessage with to: 'a0123456789abcdef', summary: '<5-10 word recap>' to continue this agent)\n<usage>subagent_tokens: ")+`\d+`+regexp.QuoteMeta("\ntool_uses: 2\nduration_ms: 17</usage>")+"$", res.Output)
 	tur := res.ToolUseResult.(map[string]any)
 	assert.Equal(t, "completed", tur["status"])
 	assert.Equal(t, "haiku", tur["resolvedModel"])

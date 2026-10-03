@@ -294,3 +294,16 @@ func TestWaitCeiling(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 }
+
+func TestRunsInBackground(t *testing.T) {
+	for _, c := range []struct{ asked, disabled, want bool }{
+		{true, false, true},
+		{true, true, false},
+		{false, false, false},
+		{false, true, false},
+	} {
+		if got := RunsInBackground(c.asked, c.disabled); got != c.want {
+			t.Errorf("RunsInBackground(%v, %v) = %v, want %v", c.asked, c.disabled, got, c.want)
+		}
+	}
+}
