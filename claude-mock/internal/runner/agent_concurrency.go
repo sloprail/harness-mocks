@@ -2,7 +2,6 @@ package runner
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/subagents"
@@ -17,7 +16,7 @@ import (
 //
 // sr:provides background-agent/claude
 func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
-	limit := subagents.ConcurrentLimit(os.Getenv("CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"))
+	limit := subagents.ConcurrentLimit(cfg.MaxConcurrentSubagents)
 	running := 0
 	if cfg.bg != nil {
 		for _, t := range cfg.bg.Running() {

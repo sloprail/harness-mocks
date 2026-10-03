@@ -13,6 +13,18 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
+          The mock's executor does not implement the SendMessage tool, so it does not
+          model a finished sub-agent resumed in the background by a message, nor
+          that a resume takes a slot without the concurrent limit refusing it.
+      - adr: modeled-surface
+        statement: >-
+          The mock does not take tools away from a background sub-agent: the docs
+          give it a smaller built-in tool set than a foreground one (Read, Grep,
+          Glob, LSP, Bash, Edit, Write, WebFetch, Monitor, SendMessage and a few
+          more), but every tool the docs remove from it is one the mock's
+          executor does not implement for any sub-agent.
+      - adr: modeled-surface
+        statement: >-
           The mock does not model an in-process agent team's teammates: the docs say
           a sub-agent a teammate spawns runs in the foreground, that spawning one
           whose definition sets `background: true` is refused with an error, and

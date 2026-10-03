@@ -13,7 +13,6 @@ import (
 // it: its result reaches the main conversation (the PostToolUse of the main
 // thread's Agent call) while the nested one is still running, and only then is
 // the nested one let go. A launcher that waited would never get there.
-// sr:proves background-agent/claude
 // sr:proves nested-subagents/claude
 func TestT017_02f_LauncherDoesNotWaitForNestedBackground(t *testing.T) {
 	dir := t.TempDir()

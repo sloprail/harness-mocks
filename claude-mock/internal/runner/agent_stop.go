@@ -47,15 +47,22 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		spawnDepth:              s.spawnDepth,
 		SpawnLimit:              s.parent.SpawnLimit,
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
+		MaxConcurrentSubagents:  s.parent.MaxConcurrentSubagents,
 	}
 	out := subagents.Outcome{}
 	if err := Run(subagents.WithLimit(ctx, s.limit), subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
 		out.Failure = err.Error()
 	}
+	// A sub-agent does not wait for the background agents it launched: they go to
+	// whoever launched it, and report there (recorded: bgagent-nested-launcher).
+	bg.Adopt(s.agentID, s.parent.AgentID)
 	out.FinalText = lastResultText(buf.Bytes())
 	out.LastAssistant = lastAssistantText(buf.Bytes())
 	out.ToolUses = countToolUses(buf.Bytes())
+	if s.limit.Reached() && out.FinalText == "" && out.LastAssistant == "" {
+		out.LastAssistant = limitNote(s.limit.Max) // its last word is the harness's note
+	}
 	return out
 }
 

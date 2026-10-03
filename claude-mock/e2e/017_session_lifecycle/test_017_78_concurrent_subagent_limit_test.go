@@ -3,6 +3,7 @@ package e2e
 import (
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,4 +126,60 @@ func withoutLabel(labels []string, drop string) []string {
 		}
 	}
 	return out
+}
+
+// TestT017_78c_AForegroundCallIsRefusedAtTheLimitToo: the limit is on spawning
+// with the Agent tool, whether in the foreground or the background: a foreground
+// call made while a sub-agent runs gets the same refusal, with PostToolUseFailure
+// and no sub-agent started for it.
+// sr:proves background-agent/claude
+func TestT017_78c_AForegroundCallIsRefusedAtTheLimitToo(t *testing.T) {
+	got, recs := limitRun(t, "lim-3", func(dir string) []string {
+		return []string{
+			toolUse("ag1", "Agent", `{"prompt":"one","description":"one","run_in_background":true,"script":"`+slowReply(t, dir, "ONE")+`"}`),
+			toolUse("ag2", "Agent", `{"prompt":"two","description":"two","script":"`+replyScript(t, dir, "two", "TWO")+`"}`),
+		}
+	})
+	block, _ := toolResultOf(t, recs, "ag2turn-orch-b")
+	assert.Equal(t, concurrentRefusal, block["content"])
+	assert.Equal(t, []string{"PostToolUseFailure:Agent"}, hookLabelsOf(got, "PostToolUseFailure"))
+	assert.Len(t, hookLabelsOf(got, "SubagentStart"), 1)
+}
+
+// hookLabelsOf are the labels of the payloads of one event.
+func hookLabelsOf(all []map[string]any, event string) []string {
+	var out []string
+	for i, l := range hookLabels(all) {
+		if all[i]["hook_event_name"] == event {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// TestT017_78d_TheDefaultLimitIsTwenty: unset, the limit is 20 (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS
+// in the env-vars doc, "default: 20"): twenty sub-agents run, and the 21st is
+// refused with the limit named.
+// sr:proves background-agent/claude
+func TestT017_78d_TheDefaultLimitIsTwenty(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	var calls []string
+	slow := slowReply(t, dir, "SLOW")
+	for i := 0; i < 21; i++ {
+		calls = append(calls, toolUse("ag"+string(rune('a'+i)), "Agent", `{"prompt":"p","description":"d`+string(rune('a'+i))+`","run_in_background":true,"script":"`+slow+`"}`))
+	}
+	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "orch", calls...), "--session-id", "lim-4",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	recs := readRecs(t, transcriptPath(t, cfg, dir, "lim-4"))
+	refused := strings.ReplaceAll(concurrentRefusal, "1 subagents", "20 subagents")
+	for i := 0; i < 21; i++ {
+		block, _ := toolResultOf(t, recs, "ag"+string(rune('a'+i))+"turn-orch-"+string(rune('a'+i)))
+		if i < 20 {
+			assert.NotEqual(t, refused, block["content"], "sub-agent %d spawns", i+1)
+			continue
+		}
+		assert.Equal(t, refused, block["content"], "the 21st is refused")
+	}
 }

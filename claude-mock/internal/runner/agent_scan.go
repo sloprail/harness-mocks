@@ -39,8 +39,8 @@ func scanNotice(matched []string) string {
 //
 // sr:provides foreground-subagent-result/claude
 func headedReport(report string, lim *subagents.TurnLimit) (scanned, notice string) {
-	if report == "" && lim.Reached() {
-		return "", fmt.Sprintf("NOTE: this agent stopped at its %d-turn limit before finishing. It was still calling tools and had produced no report. Send the agent a message (SendMessage) to let it continue from where it stopped.", lim.Max)
+	if lim.Reached() && report == limitNote(lim.Max) {
+		return "", strings.TrimSuffix(report, "\n")
 	}
 	scanned, matched := subagents.Scan(report, claudeScanRules)
 	if len(matched) > 0 {
@@ -58,4 +58,10 @@ func scannedSummary(report string) string {
 		return scanNotice(matched) + "\n\n" + scanned
 	}
 	return scanned
+}
+
+// limitNote is what a sub-agent stopped at its turn limit, having produced no
+// report, is left saying (recorded: snapshots/runs/fgsub-maxturns).
+func limitNote(max int) string {
+	return fmt.Sprintf("NOTE: this agent stopped at its %d-turn limit before finishing. It was still calling tools and had produced no report. Send the agent a message (SendMessage) to let it continue from where it stopped.\n", max)
 }

@@ -103,7 +103,6 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = resolved
 	}
-
 	model, _ := cmd.Flags().GetString("model")
 	err := runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:              scriptPath,
@@ -120,6 +119,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		BgWaitCeiling:           printWaitCeiling(),
 		SpawnLimit:              spawnLimit(),
 		BackgroundTasksDisabled: backgroundTasksDisabled(),
+		MaxConcurrentSubagents:  os.Getenv("CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"),
 		Stderr:                  os.Stderr,
 		Out:                     os.Stdout,
 	})

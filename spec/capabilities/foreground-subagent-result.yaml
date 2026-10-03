@@ -21,6 +21,12 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
+          The mock's executor does not implement the SendMessage tool, so it does not
+          model resuming a finished sub-agent (or one that stopped at its maxTurns)
+          with a message: the docs and the fgsub-maxturns recording show Claude
+          doing it, the resumed sub-agent carrying on in the background.
+      - adr: modeled-surface
+        statement: >-
           The mock has no model API to fail: it does not model the docs' hand-back of
           a sub-agent cut off by an API error (a rate limit, overload or server
           error), which returns the partial output with a note that it was cut off,
