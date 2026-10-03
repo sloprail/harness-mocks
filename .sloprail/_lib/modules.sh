@@ -10,15 +10,39 @@
 # load_modules — sets MODULES to a JSON array of {dir, home, api} for every
 # module.yaml in the committed tree. Unparseable is refused, never skipped.
 load_modules() {
-  local f m out
+  local files out
   MODULES="[]"
-  out="$(git -C "$SR_TREE" ls-files -- '*module.yaml' ':!proposals/**' 2>&1)" || refuse "could not list module.yaml files: $out"
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    m="$(yq -o=json '.' "$SR_TREE/$f" 2>/dev/null)" || refuse "$f is not valid YAML"
-    MODULES="$(jq -c --arg d "$(dirname "$f")" --argjson m "$m" '. + [{dir: $d, concern: ($m.concern // ""), home: ($m.home // []), api: ($m.api // [])}]' <<<"$MODULES")"
-  done <<<"$out"
+  files="$(git -C "$SR_TREE" ls-files -- '*module.yaml' ':!proposals/**' 2>&1)" || refuse "could not list module.yaml files: $files"
+  [ -n "$files" ] || return 0
+  # one yq over every module.yaml: it names each document by its file
+  out="$(cd "$SR_TREE" && printf '%s\n' "$files" | xargs yq -o=json -I=0 '{"dir": (filename | sub("/?module\\.yaml$"; "") | (select(. != "") // ".")), "concern": (.concern // ""), "home": (.home // []), "api": (.api // [])}' 2>&1)" ||
+    refuse "a module.yaml is not valid YAML: $out"
+  MODULES="$(jq -sc . <<<"$out")"
 }
 
 # in_globs PATH GLOB… — PATH matches one of the globs (** and * both cross /).
 in_globs() { local p="$1" g; shift; for g in "$@"; do g="${g//\*\*/*}"; [[ "$p" == $g || "$p/" == $g ]] && return 0; done; return 1; }
+
+# module_home_files MODULE_JSON — "glob<TAB>path<TAB>object id" for every tracked file (outside
+# proposals/) that each of the module's `home` globs matches, in one pass over `git ls-files -s`
+# (in_globs' rules: * and ** both cross /, and a glob also matches the directory itself).
+module_home_files() {
+  local globs
+  globs="$(jq -r '.home[]' <<<"$1")"
+  [ -n "$globs" ] || return 0
+  git -C "$SR_TREE" ls-files -s -- ':!proposals/**' | GLOBS="$globs" awk -F'\t' '
+    function re(g,   i, c, out) {
+      out = ""
+      for (i = 1; i <= length(g); i++) {
+        c = substr(g, i, 1)
+        if (c == "*") { while (substr(g, i + 1, 1) == "*") i++; out = out ".*" }
+        else if (c == "?") out = out "."
+        else if (index(".+(){}|^$\\[]", c)) out = out "\\" c
+        else out = out c
+      }
+      return "^" out "$"
+    }
+    BEGIN { n = split(ENVIRON["GLOBS"], g, "\n"); for (i = 1; i <= n; i++) r[i] = re(g[i]) }
+    { split($1, m, " "); p = $2
+      for (i = 1; i <= n; i++) if (p ~ r[i] || (p "/") ~ r[i]) print g[i] "\t" p "\t" m[2] }'
+}

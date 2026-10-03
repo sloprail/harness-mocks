@@ -1,12 +1,13 @@
 # A feature invariant says what the user asked for, no more and no less
 # [grounded + judge]. Adding, rewording or removing one needs the user's words
 # on the commit (Sloprail-Cites-User), and a judge checks the words ask for
-# exactly that. One judge call reviews every invariant file touched
-# (prepare.sh lists them as subjects; the engine does not split subjects yet).
+# exactly that. One subject per invariant file touched (subjects.sh), so a change to one
+# invariant leaves another's verdict alone; prepare.sh builds the context of the subject it is handed.
 match: path matches "^spec/invariants/[a-z0-9-]+\\.yaml$"
 deletions: include
 require:
   - citation: {source_types: [user]}
+subjects: ./subjects.sh
 checks:
   - prepare: ./prepare.sh
     judge: ./statement-from-words.md.j2

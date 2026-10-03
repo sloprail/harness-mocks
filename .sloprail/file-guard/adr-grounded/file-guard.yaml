@@ -1,10 +1,13 @@
 # The architecture grows only when the user decides it should. A new ADR, a
-# changed decision, a new exception, a new or dropped module or rule link, or a deleted
+# changed decision, a new exception, a new or dropped rule link, or a deleted
 # ADR needs the user's words on the commit (Sloprail-Cites-User), and a judge
 # checks the words ask for that decision. Shrinking an exception list (a legacy
 # site brought into line) needs none. A module's boundary (module.yaml: home,
-# api) is architecture too, and is grounded the same way.
-match: path matches "^adr/[a-z0-9-]+/" or path endsWith "/module.yaml"
+# api) is NOT grounded here: it is the agent's own statement of what a module
+# owns, held against adr/modules-cover-code by the module-* rules (exactly one
+# module per file, no overlap), so it needs no user words.
+match: path matches "^adr/[a-z0-9-]+/"
+subjects: ./subjects.sh   # one per ADR: a change to one leaves another's verdict alone
 deletions: include
 require:
   - citation: {source_types: [user]}

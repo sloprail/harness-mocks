@@ -7,6 +7,7 @@
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
 #          have identical events (a re-run that changed nothing adds nothing);
 #          each sample's SEAL lists exactly its files, with matching sha256s
+# Only the harness this check's subject names, when the rule is split (subjects.sh).
 # Per capability cell: every cited doc URL is copied in MANIFEST.docs and its
 # #anchor resolves to a heading in that copy; every cited run path exists. A run no capability cites fails.
 set -uo pipefail
@@ -20,7 +21,8 @@ problems=""
 add() { problems="${problems}- $1"$'\n'; }
 hash() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
-for h in $(harnesses); do
+if [ -n "$(subject_id)" ]; then hs="$(subject_id)"; else hs="$(harnesses)"; fi
+for h in $hs; do
   d="$(snap_dir "$h")"
   cited="$(jq -c --arg h "$h" '[.[] | .doc.providers[$h] // false | select(type == "object")]' <<<"$caps")"
   if [ ! -d "$d" ]; then

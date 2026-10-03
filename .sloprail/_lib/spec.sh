@@ -16,14 +16,13 @@
 # load_spec KIND — sets SPEC to a JSON array of {id, path, doc} for every
 # spec/KIND/*.yaml. Unparseable YAML is refused, never skipped.
 load_spec() {
-  local kind="$1" f id doc
+  local kind="$1" out
   SPEC="[]"
-  for f in "$SR_TREE/spec/$kind"/*.yaml; do
-    [ -f "$f" ] || continue
-    id="$(basename "$f" .yaml)"
-    doc="$(yq -o=json '.' "$f" 2>/dev/null)" || refuse "spec/$kind/$id.yaml is not valid YAML"
-    SPEC="$(jq -c --arg id "$id" --arg p "spec/$kind/$id.yaml" --argjson d "${doc:-null}" '. + [{id: $id, path: $p, doc: $d}]' <<<"$SPEC")"
-  done
+  ls "$SR_TREE/spec/$kind"/*.yaml >/dev/null 2>&1 || return 0
+  # one yq over every file: it names each document by its file
+  out="$(yq -o=json -I=0 '{"id": (filename | split("/") | .[-1] | sub("\\.yaml$"; "")), "path": ("spec/'"$kind"'/" + (filename | split("/") | .[-1])), "doc": .}' \
+    "$SR_TREE/spec/$kind"/*.yaml 2>&1)" || refuse "a file under spec/$kind is not valid YAML: $out"
+  SPEC="$(jq -sc . <<<"$out")"
 }
 
 # harnesses — the harness mocks in the committed tree, one name per line.

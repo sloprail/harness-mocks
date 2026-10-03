@@ -26,17 +26,18 @@ rule_qname() {
 # frontmatter cannot be parsed is refused, never skipped: a skipped ADR is a
 # decision nobody enforces.
 load_adrs() {
-  local want="${1:-}" f id fm
+  local want="${1:-}" files out texts
   ADRS="[]"
-  for f in "$(adr_root)"/*/ADR.md; do
-    [ -f "$f" ] || continue
-    id="$(basename "$(dirname "$f")")"
-    fm="$(yq --front-matter=extract -o=json '.' "$f" 2>/dev/null)" || refuse "adr/$id/ADR.md has frontmatter that is not valid YAML"
-    [ -n "$fm" ] && [ "$fm" != "null" ] || fm="{}"
-    if [ -n "$want" ] && ! jq -e --arg q "$want" '(.sloprails // []) | index($q)' <<<"$fm" >/dev/null; then
-      continue
-    fi
-    ADRS="$(jq -c --arg id "$id" --arg p "adr/$id/ADR.md" --argjson fm "$fm" --rawfile t "$f" \
-      '. + [{id: $id, path: $p, frontmatter: $fm, text: $t}]' <<<"$ADRS")"
-  done
+  files=("$(adr_root)"/*/ADR.md)
+  [ -f "${files[0]}" ] || return 0
+  # one awk lifts every frontmatter (stamped with its file), one yq reads them all, one jq the texts
+  out="$(awk 'FNR == 1 { inside = ($0 == "---"); print "---"; print "__path: \"" FILENAME "\""; next }
+              inside && $0 == "---" { inside = 0; next }
+              inside { print }' "${files[@]}" | yq -o=json -I=0 '{"path": .__path, "frontmatter": (del(.__path) | . // {})}' 2>&1)" ||
+    refuse "an ADR.md has frontmatter that is not valid YAML: $out"
+  texts="$(jq -Rn 'reduce inputs as $l ({}; .[input_filename] += $l + "\n")' "${files[@]}")"
+  ADRS="$(jq -sc --argjson t "$texts" --arg want "$want" --arg root "$(adr_root)/" '
+    [.[] | .path as $f | (($f | ltrimstr($root)) | split("/")[0]) as $id
+     | select($want == "" or ((.frontmatter | type) == "object" and ((.frontmatter.sloprails // []) | index($want))))
+     | {id: $id, path: ("adr/" + $id + "/ADR.md"), frontmatter: (if (.frontmatter | type) == "object" then .frontmatter else {} end), text: ($t[$f] // "")}]' <<<"$out")"
 }

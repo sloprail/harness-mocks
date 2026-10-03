@@ -1,0 +1,15 @@
+# No two modules share a concern [judge]. A module is the agent's own statement of what it owns
+# (its module.yaml: concern, home, api); modules-cover-code holds each file to exactly one home,
+# and this holds the statements apart: an added or changed module's `concern` must not duplicate
+# or substantially overlap the concern of an existing module (the same responsibility under
+# another name, or one concern split across two modules), and its `home` globs must fit its
+# `concern`: no glob may claim files that belong to another concern, given the files each glob
+# matches. Enforces adr/modules-cover-code.
+# One subject per added or changed module.yaml (subjects.sh), keyed by the module's own file and
+# by the other modules' concern, home and api and by the files its home matches, so a change to
+# another module, or a file landing in its home, judges it again.
+match: path endsWith "/module.yaml"
+subjects: ./subjects.sh
+checks:
+  - prepare: ./prepare.sh
+    judge: ./distinct-concern.md.j2
