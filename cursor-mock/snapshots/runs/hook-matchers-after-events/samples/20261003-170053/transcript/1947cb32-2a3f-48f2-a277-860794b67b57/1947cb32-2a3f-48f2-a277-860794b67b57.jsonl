@@ -1,0 +1,7 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate tool calls, one per call, in order, whatever happens: 1) the shell command: echo MATCH-ME 2) the shell command: echo OTHER 3) the shell command: false 4) read the file missing-file.txt with your Read tool. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the four steps in order, one tool call at a time."},{"type":"tool_use","name":"Shell","input":{"command":"echo MATCH-ME","description":"Echo MATCH-ME"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo OTHER","description":"Echo OTHER"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"false","description":"Run false command"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"<RUN>/missing-file.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

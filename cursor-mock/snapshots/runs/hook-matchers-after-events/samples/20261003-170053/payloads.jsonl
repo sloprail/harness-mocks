@@ -1,0 +1,12 @@
+{"hook_ran":"pre-empty","event":"preToolUse","tool":"Shell","command":"echo MATCH-ME"}
+{"hook_ran":"after-MATCH","event":"afterShellExecution","tool":"","command":"echo MATCH-ME"}
+{"hook_ran":"after-empty","event":"afterShellExecution","tool":"","command":"echo MATCH-ME"}
+{"hook_ran":"pre-empty","event":"preToolUse","tool":"Shell","command":"echo OTHER"}
+{"hook_ran":"after-empty","event":"afterShellExecution","tool":"","command":"echo OTHER"}
+{"hook_ran":"pre-empty","event":"preToolUse","tool":"Shell","command":"false"}
+{"hook_ran":"after-empty","event":"afterShellExecution","tool":"","command":"false"}
+{"hook_ran":"fail-empty","event":"postToolUseFailure","tool":"Shell","command":"false"}
+{"hook_ran":"fail-Shell","event":"postToolUseFailure","tool":"Shell","command":"false"}
+{"hook_ran":"pre-empty","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"fail-Read","event":"postToolUseFailure","tool":"Read","command":""}
+{"hook_ran":"fail-empty","event":"postToolUseFailure","tool":"Read","command":""}
