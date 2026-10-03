@@ -17,4 +17,8 @@ providers:
       - https://developers.openai.com/codex/hooks#stop
     runs:
       - codex-mock/snapshots/runs/stops
-  cursor: pending
+  cursor:
+    supported: false
+    reason: cursor-agent in print mode never fires the stop hook (the run configured one logging its payload), so no payload with a last message, continuation flag or background tasks is ever delivered.
+    runs:
+      - cursor-mock/snapshots/runs/stop-hook-payload
