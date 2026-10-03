@@ -42,14 +42,19 @@ func newExec() *cobra.Command {
 		"strict-config", "dangerously-bypass-approvals-and-sandbox", "dangerously-bypass-hook-trust", "approve-for-me"} {
 		f.Bool(name, false, "Accepted; no effect")
 	}
-	cmd.AddCommand(newResume())
 	return cmd
 }
 
-func runExec(cmd *cobra.Command, args []string) error { return execute(cmd, "", args) }
-
-// execute is a run of `exec`, resuming session resume when it is not empty.
-func execute(cmd *cobra.Command, resume string, args []string) error {
+// runExec is a run of `exec`; `exec resume <session id> [prompt]` continues that
+// session, in whichever directory it runs (only a session named by its id is
+// modeled, not `--last`).
+//
+// sr:provides session-resume/codex
+func runExec(cmd *cobra.Command, args []string) error {
+	resume := ""
+	if len(args) >= 2 && args[0] == "resume" {
+		resume, args = args[1], args[2:]
+	}
 	f := cmd.Flags()
 	script, _ := f.GetString("script")
 	if script == "" {
