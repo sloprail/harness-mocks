@@ -19,6 +19,7 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/bg-bash-reaped-at-exit
       - codex-mock/snapshots/runs/stop-no-message
+      - codex-mock/snapshots/runs/user-prompt-submit-hook-bg
     deviations:
       - adr: capability-grounding
         statement: >-

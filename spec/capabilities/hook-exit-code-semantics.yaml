@@ -63,6 +63,14 @@ providers:
       - codex-mock/snapshots/runs/posttool-block
       - codex-mock/snapshots/runs/stops
     deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex's exit 2 uses the hook's stderr as the message even when the
+          hook also printed a JSON reason: recorded, a PreToolUse hook that
+          printed a deny with the reason "the JSON reason wins" and wrote "the
+          stderr loses" to stderr, exiting 2, blocked the call, and the agent
+          was told the stderr text; the JSON on stdout was not read
+          (runs/hook-exit-json). The mock does the same.
       - adr: modeled-surface
         statement: >-
           The mock fires SessionStart, UserPromptSubmit, PreToolUse,
