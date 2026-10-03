@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRemember the word ORIGINAL. Reply only OK.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"OK"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nWhich word did I ask you to remember? Reply only that word.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"ORIGINAL"}]}}
+{"type":"turn_ended","status":"success"}

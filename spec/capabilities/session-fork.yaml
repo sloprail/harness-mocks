@@ -18,5 +18,34 @@ providers:
           scenario script's own in the mock, which writes neither (it writes an
           init frame only after a compaction). The frames the mock writes itself
           (the SessionStart hook's, a task's, a compaction's) carry the fork's id.
-  codex: pending
-  cursor: pending
+  codex:
+    docs:
+      - https://developers.openai.com/codex/cli/reference#codex-fork
+    runs:
+      - codex-mock/snapshots/runs/session-fork
+    deviations:
+      - adr: capability-grounding
+        statement: >-
+          Codex's fork does not copy the history into its transcript: the new
+          rollout holds only what is said after the fork, and its meta record
+          names the session it was forked from and how much of it
+          (forked_from_id, history_base), which is where the history stays
+          (recorded: runs/session-fork). The agent still continues the
+          conversation, and the mock does the same.
+      - adr: modeled-surface
+        statement: >-
+          The mock forks only as `exec fork <session id> [prompt]`, the
+          non-interactive fork. The interactive `codex fork` (session picker,
+          --last) and the in-session /fork are not modeled. The scripted agent
+          is handed the fork's own rollout, which does not hold the history it
+          points at, so a script cannot read the earlier conversation there
+          (the recorded agent continues it).
+  cursor:
+    supported: false
+    reason: >-
+      cursor-agent can only resume a chat, which continues the same session id
+      and transcript, and has no fork option.
+    docs:
+      - https://cursor.com/docs/cli/reference/parameters#global-options
+    runs:
+      - cursor-mock/snapshots/runs/session-fork

@@ -1,0 +1,20 @@
+{"type":"thread.started","thread_id":"01a10241-d1b4-78e0-88dc-aed362ca9401"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'echo ORIGINAL'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'echo ORIGINAL'","aggregated_output":"ORIGINAL\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"OK"}}
+{"type":"turn.completed","usage":{"input_tokens":23569,"cached_input_tokens":19968,"cache_write_input_tokens":0,"output_tokens":105,"reasoning_output_tokens":14}}
+{"type":"thread.started","thread_id":"01a10241-f42d-79c3-a7da-f73a7b2ee02b"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"ORIGINAL"}}
+{"type":"turn.completed","usage":{"input_tokens":35548,"cached_input_tokens":29952,"cache_write_input_tokens":0,"output_tokens":111,"reasoning_output_tokens":14}}
+{"type":"thread.started","thread_id":"01a10241-d1b4-78e0-88dc-aed362ca9401"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"RESUMED"}}
+{"type":"turn.completed","usage":{"input_tokens":35539,"cached_input_tokens":30976,"cache_write_input_tokens":0,"output_tokens":112,"reasoning_output_tokens":14}}

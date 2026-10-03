@@ -1,0 +1,13 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Remember the word ORIGINAL. Reply only OK."}]},"session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd"}
+{"type":"thinking","subtype":"delta","text":"I will reply only \"OK\".","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","timestamp_ms":1791039676518}
+{"type":"thinking","subtype":"completed","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","timestamp_ms":1791039676521}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"OK"}]},"session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd"}
+{"type":"result","subtype":"success","duration_ms":9324,"duration_api_ms":9324,"is_error":false,"result":"OK","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","request_id":"bf0de2c4-80f0-444b-9c9a-1c58d5b0c028","usage":{"inputTokens":14786,"outputTokens":42,"cacheReadTokens":0,"cacheWriteTokens":0}}
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Which word did I ask you to remember? Reply only that word."}]},"session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd"}
+{"type":"thinking","subtype":"delta","text":"The word to remember","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","timestamp_ms":1791039688030}
+{"type":"thinking","subtype":"delta","text":" is ORIGINAL.","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","timestamp_ms":1791039688030}
+{"type":"thinking","subtype":"completed","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","timestamp_ms":1791039688031}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ORIGINAL"}]},"session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd"}
+{"type":"result","subtype":"success","duration_ms":2614,"duration_api_ms":2614,"is_error":false,"result":"ORIGINAL","session_id":"346a5b68-2345-4641-af7a-e1c0b79e14fd","request_id":"b8162480-257a-40c4-9329-477c224768f8","usage":{"inputTokens":98,"outputTokens":27,"cacheReadTokens":14784,"cacheWriteTokens":0}}

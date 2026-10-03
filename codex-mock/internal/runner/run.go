@@ -25,6 +25,8 @@ type Config struct {
 	Prompt string
 	// Resume is the id of the session to continue, empty for a new one.
 	Resume string
+	// ForkFrom is the id of the session `exec fork` continues in a new one.
+	ForkFrom string
 	// Cwd is the session's working directory.
 	Cwd string
 	// CodexHome holds the user's hooks.json and the session's rollout.
@@ -67,7 +69,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot load hooks: %w", err)
 	}
-	id, rollout, resumed, err := session.Begin(cfg.CodexHome, cfg.Cwd, cfg.Resume, time.Now())
+	id, rollout, start, err := session.Start(cfg.CodexHome, cfg.Cwd, cfg.Resume, cfg.ForkFrom, time.Now())
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot open the session file: %w", err)
 	}
@@ -86,7 +88,6 @@ func Run(ctx context.Context, cfg Config) error {
 		s.events.Progress(cfg.Stderr, events.Header{Version: childenv.Version, Cwd: cfg.Cwd, Model: cfg.Model, Prompt: cfg.Prompt})
 	}
 	s.events.ThreadStarted(id)
-	start := session.Starts.For(resumed)
 	if cfg.BypassHookTrust {
 		for range 2 { // as recorded: twice per run, with or without hooks (runs/noninteractive-run-no-git-check)
 			s.events.Warning("`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.")

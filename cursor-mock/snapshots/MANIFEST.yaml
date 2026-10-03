@@ -15,3 +15,6 @@ docs:
   https://cursor.com/docs/subagents:
     version: 2026.09.28
     sha256: e1be8a37fe4244e970469fbe5e69555d1c56b6503fc0b1e662f68373157a65c8
+  https://cursor.com/docs/cli/reference/parameters:
+    version: 2026.09.28
+    sha256: b50b48d66f4f420a8d1d4a6c3087aa74d3fa37f2c5363933ac30754ef10a8c78
