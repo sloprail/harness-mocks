@@ -38,11 +38,14 @@ type modelCall struct {
 }
 
 var (
-	reTool  = regexp.MustCompile(`tools\.(\w+)\(`)
-	reExec  = regexp.MustCompile(`(?s)tools\.exec_command\(\{(.*?)\}\)`)
-	reSpawn = regexp.MustCompile(`(?s)tools\.multi_agent_v1__spawn_agent\(\{message:\s*("(?:[^"\\]|\\.)*")`)
-	reYield = regexp.MustCompile(`yield_time_ms:\s*(\d+)`)
-	reCmd   = regexp.MustCompile(`cmd:\s*("(?:[^"\\]|\\.)*")`)
+	reTool        = regexp.MustCompile(`tools\.(\w+)\(`)
+	reExec        = regexp.MustCompile(`(?s)tools\.exec_command\(\{(.*?)\}\)`)
+	reSpawn       = regexp.MustCompile(`(?s)tools\.multi_agent_v1__spawn_agent\(\{message:\s*("(?:[^"\\]|\\.)*")`)
+	reWait        = regexp.MustCompile(`(?s)tools\.multi_agent_v1__wait_agent\(\{targets:\s*\[(.*?)\],\s*timeout_ms:\s*(\d+)`)
+	reTargetOrVar = regexp.MustCompile(`\s*(?:"((?:[^"\\]|\\.)*)"|([\w.]+))\s*(?:,|$)`)
+	reAgent       = regexp.MustCompile(`\\"agent_id\\":\\"([0-9a-f-]+)\\"`)
+	reYield       = regexp.MustCompile(`yield_time_ms:\s*(\d+)`)
+	reCmd         = regexp.MustCompile(`cmd:\s*("(?:[^"\\]|\\.)*")`)
 )
 
 // modelTurns are the calls the model made in one recorded rollout, in order,
@@ -52,6 +55,8 @@ var (
 // makes none. What the adapter cannot map is an error, never a guess.
 func modelTurns(rollout string) (calls []modelCall, final string, err error) {
 	var said *string
+	var spawned []string // the ids of the sub-agents the model was told of, in order
+	nSpawns := 0
 	for _, rec := range jsonLines(rollout) {
 		p, _ := rec["payload"].(map[string]any)
 		if rec["type"] != "response_item" || p == nil {
@@ -69,6 +74,11 @@ func modelTurns(rollout string) (calls []modelCall, final string, err error) {
 				final = text
 			} else {
 				said = &text
+			}
+		case p["type"] == "custom_tool_call_output":
+			b, _ := json.Marshal(p["output"])
+			for _, m := range reAgent.FindAllStringSubmatch(string(b), -1) {
+				spawned = append(spawned, m[1])
 			}
 		case p["type"] == "custom_tool_call":
 			js, _ := p["input"].(string)
@@ -100,10 +110,40 @@ func modelTurns(rollout string) (calls []modelCall, final string, err error) {
 				}
 				calls = append(calls, modelCall{Text: said, Name: "spawn_agent", Input: map[string]any{"message": msg}})
 				said = nil
+				nSpawns++
+			}
+			for _, m := range reWait.FindAllStringSubmatch(js, -1) {
+				// the targets are agent ids as literals, or a variable holding the id the
+				// spawn in the same script was answered with: the sub-agent spawned last
+				var targets []string
+				for _, e := range reTargetOrVar.FindAllStringSubmatch(m[1], -1) {
+					k := -1
+					if e[2] != "" {
+						k = nSpawns - 1
+					} else {
+						k = indexOf(spawned, e[1])
+					}
+					if k < 0 {
+						return nil, "", fmt.Errorf("a wait_agent for an agent the model was not told of")
+					}
+					targets = append(targets, fmt.Sprintf("AGENT%d", k+1))
+				}
+				n, _ := strconv.Atoi(m[2])
+				calls = append(calls, modelCall{Text: said, Name: "wait_agent", Input: map[string]any{"targets": targets, "timeout_ms": n}})
+				said = nil
 			}
 		}
 	}
 	return calls, final, nil
+}
+
+func indexOf(list []string, s string) int {
+	for i, e := range list {
+		if e == s {
+			return i
+		}
+	}
+	return -1
 }
 
 // scriptFor is the mock script that makes the given calls, one per model turn,
@@ -129,6 +169,9 @@ call=$(sed -n "$((n+1))p" <<'CALLS_EOF'
 CALLS_EOF
 )
 if [ -n "$call" ]; then
+  for k in 1 2 3 4 5 6 7 8 9; do
+    case "$call" in *AGENT$k*) call=$(printf '%%s' "$call" | sed "s/AGENT$k/$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | sed -n "${k}p")/g") ;; esac
+  done
   printf '%%s\n' "$call" | sed "s/IDPLACE/call_%s_$n/"
   exit 0
 fi
@@ -242,6 +285,7 @@ func replayRules(got result) rp.Rules {
 		Scrub: []rp.Scrub{
 			{Re: re(regexp.QuoteMeta(got.Repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(got.Tmp)), With: "<TMP>"},
+			{Re: re(`"nickname":"[^"]*"`), With: `"nickname":"<NICKNAME>"`}, // the name Codex picks for a sub-agent
 		},
 		IDs: []*regexp.Regexp{re(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)}, // thread and session ids
 	}

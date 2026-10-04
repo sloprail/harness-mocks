@@ -48,15 +48,10 @@ providers:
           the one day directory under sessions/.
       - adr: modeled-surface
         statement: >-
-          The mock has no separate wait tool: its spawn_agent runs the
-          sub-agent to its end and answers with what a wait would, unless the
-          dispatch is the mock's own background one, which answers at once
-          with a receipt as Codex's spawn_agent does. Recorded, the main thread
-          spawned a sub-agent and ended the run without waiting for it, and
-          `codex exec` ended with the sub-agent still running, aborted
-          (runs/nested-subagents-nowait, turn_aborted); no recording has a
-          sub-agent leave its own sub-agents running. The wait tool's own
-          hooks (multi_agent_v1wait_agent) are not modeled.
+          Recorded, the main thread spawned a sub-agent and ended the run
+          without waiting for it, and `codex exec` ended with the sub-agent
+          still running, aborted (runs/nested-subagents-nowait, turn_aborted);
+          no recording has a sub-agent leave its own sub-agents running.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#subagentstart

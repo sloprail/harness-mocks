@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
@@ -10,16 +11,22 @@ import (
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
-// A dispatch that is not waited for is what Codex's spawn_agent is: it answers
-// at once with a receipt, the sub-agent's id and a nickname, and the sub-agent
-// runs on its own thread, concurrently with the turn that launched it, its
-// hooks naming it and firing under the session's id (recorded:
-// runs/background-agent).
+// Codex's spawn_agent answers at once with a receipt, the sub-agent's id and a
+// nickname; the sub-agent runs on its own thread, concurrently with the turn
+// that launched it, its hooks naming it and firing under the session's id
+// (recorded: runs/background-agent, runs/foreground-subagent-result). An agent
+// that wants its report calls wait_agent (agent_wait.go).
 
-// spawnBackground makes the sub-agent's id and answers with its receipt; the
-// stream shows its thread started and not yet running. It does not run until the
+// agentTasks is the task of every sub-agent started, by thread id: what
+// wait_agent waits on. One run per process, so one table.
+var agentTasks sync.Map
+
+// spawnAgent makes the sub-agent's id and answers with its receipt; the stream
+// shows its thread started and not yet running. It does not run until the
 // call is answered (startBackground).
-func (h toolHost) spawnBackground(in spawnInput) toolcall.Result {
+func (h toolHost) spawnAgent(c toolcall.Call) toolcall.Result {
+	var in spawnInput
+	_ = json.Unmarshal(c.Input, &in)
 	id := coresession.NewID()
 	spawn := h.events.CollabStarted(agentTool, h.id, nil, in.Message)
 	h.events.CollabCompleted(spawn, agentTool, h.id, []string{id}, in.Message,
@@ -31,26 +38,25 @@ func (h toolHost) spawnBackground(in spawnInput) toolcall.Result {
 	return toolcall.Result{Output: string(b)}
 }
 
-// startBackground lets the sub-agent of a dispatch that is not waited for run,
-// once the agent has its receipt, in the session's background tasks.
+// startBackground lets the sub-agent of a dispatch run, once the agent has its
+// receipt, in the session's background tasks.
 //
 // sr:provides background-agent/codex
 func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	var in spawnInput
 	_ = json.Unmarshal(c.Input, &in)
-	if !in.Background {
-		return
-	}
 	var r struct {
 		AgentID string `json:"agent_id"`
 	}
 	_ = json.Unmarshal([]byte(receipt), &r)
-	h.bg.StartAgent(tasks.NewTask(tasks.Agent, r.AgentID), func(ctx context.Context) {
+	t := tasks.NewTask(tasks.Agent, r.AgentID)
+	agentTasks.Store(r.AgentID, t)
+	h.bg.StartAgent(t, func(ctx context.Context) {
 		rollout, err := h.createSub(r.AgentID)
 		if err != nil {
 			return
 		}
 		defer rollout.Close()
-		h.runSpawned(ctx, r.AgentID, rollout, in)
+		t.Result = h.runSpawned(ctx, r.AgentID, rollout, in).LastAssistant
 	})
 }

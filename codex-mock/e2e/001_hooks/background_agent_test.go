@@ -18,7 +18,7 @@ n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
 emit() { printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_%s","name":"%s","input":%s}]}}\n' "$n" "$1" "$2"; }
 end() { printf '{"type":"assistant","message":{"content":[{"type":"text","text":"%s"}]}}\n{"type":"result","subtype":"success","result":"%s"}\n' "$1" "$1"; }
 case "$n" in
-0) emit spawn_agent "$(jq -nc --arg m "$SPAWN_MSG" '{message: $m, script: "sub.sh", background: true}')" ;;
+0) emit spawn_agent "$(jq -nc --arg m "$SPAWN_MSG" '{message: $m, script: "sub.sh"}')" ;;
 1) emit Bash "$(jq -nc --arg c "$PARENT_CMD" '{command: $c}')" ;;
 *) end LAUNCHED ;;
 esac
