@@ -21,6 +21,10 @@ if [ "$n" = 0 ]; then
   printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_spawn","name":"spawn_agent","input":{"task_name":"ping","message":"Reply with PONG","script":"pong.sh"}}]}}'
   exit 0
 fi
+if [ "$n" = 1 ]; then
+  printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_wait","name":"wait_agent","input":{"targets":["%s"],"timeout_ms":60000}}]}}\n' "$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | head -1)"
+  exit 0
+fi
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}' '{"type":"result","subtype":"success","result":"DONE"}'
 `
 	pongScript = `#!/bin/sh

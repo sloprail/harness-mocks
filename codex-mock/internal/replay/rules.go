@@ -32,6 +32,7 @@ func Rules(repo, tmp string) rp.Rules {
 		Scrub: []rp.Scrub{
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(tmp)), With: "<TMP>"},
+			{Re: re(`"nickname":"[^"]*"`), With: `"nickname":"<NICKNAME>"`}, // the name Codex picks for a sub-agent
 		},
 		IDs: []*regexp.Regexp{re(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)}, // thread and session ids
 	}
