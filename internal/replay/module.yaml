@@ -1,0 +1,5 @@
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is internal/replay (what two runs of the same behaviour may differ in, and the comparison); each mock's adapter, which turns a recording into that mock's scenario script, lives in the mock's e2e files below.
+concern: "comparing what a mock produced with what a recording of the real harness shows"
+home: ["internal/replay/**", "codex-mock/e2e/001_hooks/generated_replay_test.go", "codex-mock/e2e/001_hooks/replay_allowlist_test.go"]   # everything about the concern lives here
+api: ["internal/replay"]       # the only packages others may import
