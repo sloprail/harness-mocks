@@ -28,10 +28,8 @@ func Script(runDir string) (string, error) {
 		return "", err
 	}
 	out := "# main\n" + s.Script
-	for name, body := range s.Files {
-		if name != "hook.sh" {
-			out += "\n# " + name + "\n" + body
-		}
+	for name, body := range s.Scripts {
+		out += "\n# " + name + "\n" + body
 	}
 	return out, nil
 }
@@ -60,9 +58,22 @@ func Run(mock, runDir string) (diff string, err error) {
 			return "", err
 		}
 	}
-	if err := exec.Command("git", "-C", repo, "init", "-q").Run(); err != nil {
-		return "", fmt.Errorf("git init: %w", err)
+	// the scratch repository a recording was made in: one empty commit, "init" (capture.sh)
+	for _, args := range [][]string{{"init", "-q"}, {"-c", "user.name=replay", "-c", "user.email=replay@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "init"}} {
+		if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil {
+			return "", fmt.Errorf("git %s: %w: %s", args[0], err, out)
+		}
 	}
+	scriptsAt := filepath.Join(root, "scripts")
+	if err := os.MkdirAll(scriptsAt, 0o755); err != nil {
+		return "", err
+	}
+	for name, body := range s.Scripts {
+		if err := os.WriteFile(filepath.Join(scriptsAt, name), []byte(body), 0o755); err != nil {
+			return "", err
+		}
+	}
+	s.Script = strings.ReplaceAll(s.Script, scriptsDir, scriptsAt)
 	if err := os.WriteFile(filepath.Join(home, "hooks.json"), []byte(s.HooksJSON), 0o644); err != nil {
 		return "", err
 	}
@@ -93,7 +104,7 @@ func Run(mock, runDir string) (diff string, err error) {
 	hookLog, _ := os.ReadFile(filepath.Join(tmp, "hook.log"))
 
 	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
-	rules := Rules(repo, tmp)
+	rules := Rules(repo, root)
 	wantC, gotC := core.New(rules), core.New(rules)
 	wantStream := wantC.Lines(jsonLines(readFile(filepath.Join(rec.Sample, "stream.jsonl"))))
 	gotStream := gotC.Lines(jsonLines(out.String()))

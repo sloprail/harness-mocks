@@ -16,13 +16,18 @@ import (
 
 // yieldTime is how long a shell call waits for its command before it returns
 // and leaves the command running in its own session (the call's
-// `yield_time_ms`); zero when the call does not ask for it.
-func yieldTime(c toolcall.Call) time.Duration {
+// `yield_time_ms`), and whether the call asks for it at all. A yield time of
+// zero returns at once, with the receipt, whatever the command does
+// (recorded: runs/task-notifications-bg).
+func yieldTime(c toolcall.Call) (time.Duration, bool) {
 	var in struct {
-		Yield int `json:"yield_time_ms"`
+		Yield *int `json:"yield_time_ms"`
 	}
 	_ = json.Unmarshal(c.Input, &in)
-	return time.Duration(in.Yield) * time.Millisecond
+	if in.Yield == nil {
+		return 0, false
+	}
+	return time.Duration(*in.Yield) * time.Millisecond, true
 }
 
 // runYielding runs cmd for call c that yields: when the command ends within

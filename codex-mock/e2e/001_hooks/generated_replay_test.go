@@ -36,9 +36,14 @@ func TestGeneratedReplay(t *testing.T) {
 			t.Errorf("notReplaying lists %s, which has no recording: remove the entry", name)
 		}
 	}
+	// replays run side by side, but not all at once: a hook that a recording shows
+	// under a one-second timeout (SessionEnd) is killed on a machine too loaded to start it
+	slots := make(chan struct{}, 4)
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			slots <- struct{}{}
+			defer func() { <-slots }()
 			diff, err := codexreplay.Run(mockBinary, filepath.Join(runsDir, name))
 			var unbuildable *codexreplay.Unbuildable
 			reason, listed := notReplaying[name]
