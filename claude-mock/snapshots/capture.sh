@@ -46,10 +46,10 @@ hbin() { (cd "$root" && go run ./tools/harness-bin "$@"); }
 # pinned_bin — the claude binary of exactly the pin, from tools/harness-bin's cache. It dies
 # unless that install exists and reports the pin: never the claude on PATH.
 pinned_bin() {
-  local v bin got; v="$(pin)"; [ -n "$v" ] || die "MANIFEST.yaml has no pin: run 'capture.sh pin <version>'"
-  bin="$(hbin path claude "$v")" || die "claude $v is not installed for captures: run 'capture.sh pin $v'"
-  got="$(DISABLE_AUTOUPDATER=1 "$bin" --version | awk '{print $1}')"
-  [ "$got" = "$v" ] || die "$bin is claude $got, the pin is $v: refusing it"
+  local v bin; v="$(pin)"; [ -n "$v" ] || die "MANIFEST.yaml has no pin: run 'capture.sh pin <version>'"
+  # harness-bin path is the verification: it fails unless the install exists AND reports the pin
+  # (it says which, on stderr), so the version is not compared a second time here.
+  bin="$(hbin path claude "$v")" || die "claude $v cannot be used for captures (the reason is harness-bin's, above): run 'capture.sh pin $v'"
   printf '%s' "$bin"
 }
 
