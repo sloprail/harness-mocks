@@ -1,0 +1,3 @@
+Call your command execution tool once with exactly this command, and pass no yield_time_ms and no other optional argument, only the command itself: (sleep 3; echo JOB-DONE > job.out) &
+When it has returned, call your command execution tool once more, again with only the command and no optional argument, with exactly this command: sleep 6; ls; cat job.out
+Then reply with exactly what the second command printed, then DONE.

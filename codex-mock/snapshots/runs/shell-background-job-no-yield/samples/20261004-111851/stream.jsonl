@@ -1,0 +1,10 @@
+{"type":"thread.started","thread_id":"01a106a3-5bde-7093-9804-629d9e3cc9f3"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc '(sleep 3; echo JOB-DONE > job.out) &'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc '(sleep 3; echo JOB-DONE > job.out) &'","aggregated_output":"","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"command_execution","command":"/bin/zsh -lc 'sleep 6; ls; cat job.out'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"command_execution","command":"/bin/zsh -lc 'sleep 6; ls; cat job.out'","aggregated_output":"hook.sh\ncat: job.out: No such file or directory\n","exit_code":1,"status":"failed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"hook.sh\ncat: job.out: No such file or directory\nDONE"}}
+{"type":"turn.completed","usage":{"input_tokens":35793,"cached_input_tokens":32000,"cache_write_input_tokens":0,"output_tokens":169,"reasoning_output_tokens":71}}

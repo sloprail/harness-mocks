@@ -47,3 +47,18 @@ func TestRunTimeoutKillsTheWholeGroup(t *testing.T) {
 		t.Fatalf("grandchild %s is %s after the timeout", pid, got)
 	}
 }
+
+// A command that leaves a job running in the background and ends by itself has
+// the exit status it ended with, though the job still holds its output open: a
+// Codex shell call of `(sleep 3; …) &` is completed with exit code 0
+// (recorded: codex-mock runs/shell-background-job-no-yield).
+func TestRunLeaderStatusSurvivesABackgroundGrandchild(t *testing.T) {
+	start := time.Now()
+	res, err := Run(context.Background(), sh(`(sleep 30) & exit 0`))
+	if err != nil || !res.Started || res.TimedOut || res.ExitCode != 0 {
+		t.Fatalf("Run = %+v, %v; want exit 0", res, err)
+	}
+	if time.Since(start) > 10*time.Second {
+		t.Fatalf("the call waited %v for the grandchild", time.Since(start))
+	}
+}

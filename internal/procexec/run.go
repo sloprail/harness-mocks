@@ -87,6 +87,10 @@ func Run(ctx context.Context, s Spec) (Result, error) {
 		res.ExitCode = 0
 	case errors.As(err, &exit) && exit.ExitCode() >= 0:
 		res.ExitCode = exit.ExitCode()
+	case errors.Is(err, exec.ErrWaitDelay) && cmd.ProcessState != nil && cmd.ProcessState.Exited():
+		// the leader ended by itself, but a background grandchild kept its output
+		// open past the wait delay: the status is the leader's, not a failure
+		res.ExitCode = cmd.ProcessState.ExitCode()
 	}
 	// The group may outlive its leader (a background grandchild): end it too.
 	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
