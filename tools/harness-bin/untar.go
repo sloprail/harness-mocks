@@ -38,13 +38,13 @@ func untar(r io.Reader, dir string) error {
 		if dest != dir && !strings.HasPrefix(dest, dir+string(filepath.Separator)) {
 			return fmt.Errorf("tar entry %q escapes the install directory", h.Name)
 		}
-		if err := extract(tr, h, dest); err != nil {
+		if err := extract(tr, h, rel, dest); err != nil {
 			return err
 		}
 	}
 }
 
-func extract(tr *tar.Reader, h *tar.Header, dest string) error {
+func extract(tr *tar.Reader, h *tar.Header, rel, dest string) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}
@@ -52,6 +52,10 @@ func extract(tr *tar.Reader, h *tar.Header, dest string) error {
 	case tar.TypeDir:
 		return os.MkdirAll(dest, 0o755)
 	case tar.TypeSymlink:
+		// a link must stay inside the install: an absolute or escaping target is refused
+		if filepath.IsAbs(h.Linkname) || !filepath.IsLocal(filepath.Join(filepath.Dir(rel), h.Linkname)) {
+			return fmt.Errorf("tar symlink %q -> %q escapes the install directory", h.Name, h.Linkname)
+		}
 		return os.Symlink(h.Linkname, dest)
 	case tar.TypeReg:
 		f, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, h.FileInfo().Mode().Perm())

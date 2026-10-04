@@ -233,7 +233,7 @@ case "${1:-}" in
   pin)
     [ -n "${2:-}" ] || die "usage: capture.sh pin <version>"
     hbin install codex "$2" >/dev/null || die "could not install codex $2"
-    V="$2" yq -i '.pin = strenv(V)' "$manifest" 2>/dev/null || { printf 'pin: "%s"\n' "$2" >"$manifest"; }
+    if [ -f "$manifest" ]; then V="$2" yq -i '.pin = strenv(V)' "$manifest" || die "could not set the pin in $manifest"; else printf 'pin: "%s"\n' "$2" >"$manifest"; fi
     echo "pinned codex $2"
     ;;
   drop)
@@ -247,6 +247,7 @@ case "${1:-}" in
     ;;
   doc) [ -n "${2:-}" ] || die "usage: capture.sh doc <url>"; capture_doc "$2" ;;
   all)
+    pinned_bin >/dev/null || exit 1   # before any sample is dropped: no pinned binary, nothing is lost
     acquire; trap 'rm -rf "$lock"' EXIT
     for r in "$here"/runs/*/; do rm -rf "$r/samples"; capture_run "$(basename "$r")"; done
     for u in $(yq -r '.docs // {} | keys | .[]' "$manifest"); do capture_doc "$u"; done

@@ -204,6 +204,19 @@ func TestUntarRefusesAnEntryOutsideTheDirectory(t *testing.T) {
 	}
 }
 
+func TestUntarRefusesASymlinkThatLeavesTheDirectory(t *testing.T) {
+	for _, target := range []string{"/etc/passwd", "../../outside", "a/../../../outside"} {
+		data := tarball(t, "v", tar.Header{Name: "dist-package/link", Linkname: target, Mode: 0o777, Typeflag: tar.TypeSymlink})
+		if err := untar(bytes.NewReader(data), t.TempDir()); err == nil || !strings.Contains(err.Error(), "escapes") {
+			t.Fatalf("symlink to %q must be refused, got %v", target, err)
+		}
+	}
+	data := tarball(t, "v", tar.Header{Name: "dist-package/bin/link", Linkname: "../lib/x", Mode: 0o777, Typeflag: tar.TypeSymlink})
+	if err := untar(bytes.NewReader(data), t.TempDir()); err != nil {
+		t.Fatalf("an in-tree symlink is fine, got %v", err)
+	}
+}
+
 func TestUsage(t *testing.T) {
 	var out, errb bytes.Buffer
 	for _, args := range [][]string{{}, {"install", "claude"}, {"remove", "claude", "1.0.0"}, {"path", "vim", "1.0.0"}} {
