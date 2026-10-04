@@ -9,9 +9,14 @@
 #
 #   load_doc_changes     DOC_CHANGES_TSV   "<harness>\t<url>" per doc entry added, removed or
 #                                          re-hashed (anchor dropped); "<harness>\t*" when the
-#                                          MANIFEST's version moved or cannot be compared (every
-#                                          page of that harness is then in question)
-#   load_doc_shas        DOC_SHAS          JSON {<harness>: {version, docs: {<url>: <sha256>}}}
+#                                          MANIFEST was added, deleted or cannot be compared
+#                                          (every page of that harness is then in question).
+#                                          Nothing else in a MANIFEST counts: not its `pin` (which
+#                                          harness binary capture.sh runs next; a recording's own
+#                                          version is in its run.yaml) and not a page's `fetched`
+#                                          date, so a binary bump or a re-freeze that finds the
+#                                          same sha256 invalidates nothing
+#   load_doc_shas        DOC_SHAS          JSON {<harness>: {docs: {<url>: <sha256>}}}
 #                                          from the head tree: what a verdict's key must carry
 #                                          for each page it reads, in place of the whole MANIFEST
 #   load_touched_markers TOUCHED_MARKERS_TSV  "<path>\t<kind>\t<fqn>" per capability marker
@@ -27,7 +32,7 @@ load_doc_changes() {
   if out="$(printf '%s' "$payload" | jq -c '[.changeset.files[] | select(.path | test("^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$"))
         | {h: (.path | split("-mock/")[0]), st: .status, old: ((.oldContent // "") | if . == "" then "null" else . end), new: ((.newContent // "") | if . == "" then "null" else . end)}]' |
       yq -p=json -o=json -I=0 '.[] | .old |= (@yamld) | .new |= (@yamld)' 2>/dev/null |
-      jq -r '. as $f | if $f.st != "M" or ($f.old | type) != "object" or ($f.new | type) != "object" or $f.old.version != $f.new.version
+      jq -r '. as $f | if $f.st != "M" or ($f.old | type) != "object" or ($f.new | type) != "object"
                then [$f.h, "*"] | @tsv
                else (($f.old.docs // {}) as $o | ($f.new.docs // {}) as $n | ($o + $n) | keys[] as $u
                      | select(($o[$u].sha256 // "") != ($n[$u].sha256 // "")) | [$f.h, $u] | @tsv) end' 2>/dev/null)"; then
@@ -43,7 +48,7 @@ load_doc_shas() {
   local h m one
   for h in $(harnesses); do
     m="$(snap_dir "$h")/MANIFEST.yaml"; [ -f "$m" ] || continue
-    one="$(yq -o=json -I=0 '{"version": (.version // ""), "docs": ((.docs // {}) | map_values(.sha256))}' "$m" 2>/dev/null)" || continue
+    one="$(yq -o=json -I=0 '{"docs": ((.docs // {}) | map_values(.sha256))}' "$m" 2>/dev/null)" || continue
     DOC_SHAS="$(jq -c --arg h "$h" --argjson o "$one" '. + {($h): $o}' <<<"$DOC_SHAS")"
   done
 }

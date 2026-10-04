@@ -1,20 +1,20 @@
-version: "2026.09.28"
+pin: 2026.09.28
 docs:
   https://cursor.com/docs/hooks:
-    version: 2026.09.28
     sha256: 7294a2d63b19d79a5283c948afe174cba8b06a7585563d34a2c41b90f5df0d39
+    fetched: "2026-10-03"
   https://cursor.com/docs/cli/headless:
-    version: 2026.09.28
     sha256: d767966f4e86012bce9e358c80c8a8e056d4ad0c8e73d74fd036d5acdf32a7af
+    fetched: "2026-10-03"
   https://cursor.com/docs/reference/plugins:
-    version: 2026.09.28
     sha256: 5d087ad7c3ae1d48ea3f28f69a6cc67d8a2410e06908e1669ff3f20b2eb5c0ad
+    fetched: "2026-10-03"
   https://cursor.com/docs/plugins:
-    version: 2026.09.28
     sha256: cf4ca6bb6ab24ba3f933a4e711881612060a50c013311279b58120aa6403693b
+    fetched: "2026-10-03"
   https://cursor.com/docs/subagents:
-    version: 2026.09.28
     sha256: e1be8a37fe4244e970469fbe5e69555d1c56b6503fc0b1e662f68373157a65c8
+    fetched: "2026-10-03"
   https://cursor.com/docs/cli/reference/parameters:
-    version: 2026.09.28
     sha256: b50b48d66f4f420a8d1d4a6c3087aa74d3fa37f2c5363933ac30754ef10a8c78
+    fetched: "2026-10-03"

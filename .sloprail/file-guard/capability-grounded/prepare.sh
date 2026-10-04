@@ -33,7 +33,7 @@ while IFS= read -r c; do
     | (if .value.supported == false then "absent" else "supports" end) as $k | .value.docs[] | [$h, $k, .] | @tsv' <<<"$c")"
   while IFS=$'\t' read -r h _ ref; do
     [ -n "$h" ] || continue
-    # a re-frozen doc: this page's MANIFEST entry changed (or the harness's version moved)
+    # a re-frozen doc: this page's MANIFEST entry changed (its sha256, not a bumped pin or a new fetch date)
     printf '%s\n' "$DOC_CHANGES_TSV" | awk -F'\t' -v h="$h" -v u="${ref%%#*}" '$1 == h && ($2 == "*" || $2 == u) {f = 1} END {exit !f}' && hs="$(printf '%s\n%s' "$hs" "$h")"
   done <<<"$refs"
   hs="$(printf '%s\n' "$hs" | sed '/^$/d' | sort -u)"

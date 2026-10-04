@@ -4,14 +4,29 @@
 # refuses a snapshot whose seal does not match, so a hand edit is caught at the
 # commit even if it slipped past the gate.
 #
-#   capture.sh run <name>    run the scenario in runs/<name>/setup/ against the
-#                            real `cursor-agent`, and add a sample
+#   capture.sh run <name> [--rerecord]
+#                            run the scenario in runs/<name>/setup/ against the
+#                            pinned `cursor-agent`, and add a sample. A run recorded at
+#                            another version than the pin is refused (its samples
+#                            would mix versions) unless --rerecord drops them first
+#   capture.sh pin <version> install that exact cursor-agent (tools/harness-bin) and make it
+#                            the one captures run; nothing already recorded changes
 #   capture.sh doc <url>     freeze a doc page (e.g. https://cursor.com/docs/hooks):
-#                            its sha256 goes in the MANIFEST; its text only into a cache
-#                            under the git dir, never into the repo
+#                            its sha256 and fetch date go in the MANIFEST; its text only
+#                            into a cache under the git dir, never into the repo
 #   capture.sh drop <run> <ts>  remove one sample (a bad or non-hermetic capture)
-#   capture.sh all           re-capture every run and doc at the installed
-#                            cursor-agent's version, and set MANIFEST.version to it
+#   capture.sh all           re-record every run at the pin and re-freeze every doc
+#
+# Two versions, kept apart: the cursor-agent a run was recorded with is the run's own (run.yaml),
+# and a doc page is frozen by its own sha256 (MANIFEST docs). MANIFEST `pin` is only which
+# cursor-agent this script runs. It is never the global one on PATH: tools/harness-bin installs the
+# pin into a cache of its own and refuses a binary that does not report exactly it.
+# cursor-agent updates itself in the background unless run with --disable-auto-update
+# (a hidden flag); the capture passes it. The command a run.yaml records leaves it out: it is
+# housekeeping, not behaviour a scenario shows.
+#
+# cursor-agent has a versioned download (tools/harness-bin knows the build hash of each date
+# it has been pinned at), but the official installer only ever installs the latest one.
 #
 # The version is cursor-agent's release date (`2026.09.28`): `--version` also
 # prints a build hash after it (`2026.09.28-64d2043`), which the schema's
@@ -43,11 +58,18 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 manifest="$here/MANIFEST.yaml"
 die() { echo "capture.sh: $*" >&2; exit 1; }
-version() { yq -r '.version' "$manifest"; }
-installed() { cursor-agent --version | awk '{print $1}' | sed 's/-.*$//'; }
-# The first capture creates the MANIFEST, frozen at the installed version: it is
-# a snapshot file too, so nothing else may write it.
-[ -f "$manifest" ] || printf 'version: "%s"\n' "$(installed)" >"$manifest"
+root="$(cd "$here/../.." && pwd)"
+pin() { yq -r '.pin // ""' "$manifest" 2>/dev/null; }
+hbin() { (cd "$root" && go run ./tools/harness-bin "$@"); }
+# pinned_bin — the cursor-agent binary of exactly the pin, from tools/harness-bin's cache. It dies
+# unless that install exists and reports the pin: never the cursor-agent on PATH.
+pinned_bin() {
+  local v bin got; v="$(pin)"; [ -n "$v" ] || die "MANIFEST.yaml has no pin: run 'capture.sh pin <version>'"
+  bin="$(hbin path cursor "$v")" || die "cursor-agent $v is not installed for captures: run 'capture.sh pin $v'"
+  got="$("$bin" --version | awk '{print $1}' | sed 's/-.*$//')"
+  [ "$got" = "$v" ] || die "$bin is cursor-agent $got, the pin is $v: refusing it"
+  printf '%s' "$bin"
+}
 
 # seal DIR — SEAL lists the sha256 of every other file under DIR.
 # Written to SEAL.tmp and renamed only on success, so a SEAL always means a
@@ -80,10 +102,15 @@ lock=/tmp/capture-cursor.lock.d
 acquire() { local n=0; until mkdir "$lock" 2>/dev/null; do n=$((n + 1)); [ "$n" -lt 600 ] || die "another cursor capture holds $lock"; sleep 1; done; }
 
 capture_run() {
-  local name="$1" run="$here/runs/$1" v ts home
+  local name="$1" rerecord="${2:-}" run="$here/runs/$1" v ts home rv bin
   work="" cap="" lname=""   # global: the EXIT trap below reads them
   [ -f "$run/setup/prompt.txt" ] || die "runs/$name/setup/prompt.txt is missing: author the scenario first"
-  v="$(version)"; [ "$(installed)" = "$v" ] || die "installed cursor-agent is $(installed), MANIFEST.version is $v: run 'capture.sh all' to move to it"
+  v="$(pin)"; bin="$(pinned_bin)" || exit 1
+  rv="$(yq -r '.version // ""' "$run/run.yaml" 2>/dev/null || true)"
+  if [ -n "$rv" ] && [ "$rv" != "$v" ] && ls "$run"/samples/*/ >/dev/null 2>&1; then
+    [ "$rerecord" = --rerecord ] || die "runs/$name was recorded at cursor-agent $rv, the pin is $v: a sample added now would mix versions; re-record it with 'capture.sh run $name --rerecord'"
+    rm -rf "$run/samples"
+  fi
   acquire
   ts="$(date -u +%Y%m%d-%H%M%S)"
   cap="$run/samples/$ts"
@@ -107,7 +134,6 @@ capture_run() {
   # the capture records as the harness's own behaviour. stdin is closed so a -p
   # run does not wait for it. (A literal /tmp path stays shared: only a sandbox
   # could stop that.)
-  local bin; bin="$(command -v cursor-agent)" || die "cursor-agent is not on PATH"
   set +e
   # A scenario's `symlink` file names a symlink to the repo ("<name>"): the run
   # starts from it, so cursor-agent's working directory is a symlinked path.
@@ -137,7 +163,7 @@ capture_run() {
     if [ -f "$run/setup/${step}cwd" ]; then sdir="$work/$(cat "$run/setup/${step}cwd")"; mkdir -p "$sdir"; cp -R "$work/repo/.cursor" "$sdir/"; fi
     (cd "$sdir" && env -i PATH="$PATH" HOME="$home" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
       TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-      "$bin" -p ${force:+"$force"} --trust --model auto --output-format stream-json \
+      "$bin" --disable-auto-update -p ${force:+"$force"} --trust --model auto --output-format stream-json \
         ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt")
     echo $? >>"$cap/exit.txt"
   done
@@ -206,19 +232,25 @@ capture_run() {
 # doc_copy reads it there). The page's text is never committed: it is the
 # harness vendor's.
 capture_doc() {
-  local url="${1%%#*}" v tmp sha cache
-  url="${url%/}"; v="$(version)"; tmp="$(mktemp)"
+  local url="${1%%#*}" tmp sha cache
+  url="${url%/}"; tmp="$(mktemp)"
   curl -fsSL "$url.md" -o "$tmp" || die "could not fetch $url.md"
   head -c 200 "$tmp" | grep -q '<html' && die "$url.md is not markdown"
   sha="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
   cache="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/sloprail-doc-cache"
   mkdir -p "$cache" && mv "$tmp" "$cache/$sha.md"
-  URL="$url" V="$v" SHA="$sha" yq -i '.docs[strenv(URL)] = {"version": strenv(V), "sha256": strenv(SHA)}' "$manifest"
+  URL="$url" FETCHED="$(date -u +%F)" SHA="$sha" yq -i '.docs[strenv(URL)] = {"sha256": strenv(SHA), "fetched": strenv(FETCHED)}' "$manifest"
   echo "froze $url at sha256 $sha (text cached, not committed)"
 }
 
 case "${1:-}" in
-  run) [ -n "${2:-}" ] || die "usage: capture.sh run <name>"; capture_run "$2" ;;
+  run) [ -n "${2:-}" ] || die "usage: capture.sh run <name> [--rerecord]"; capture_run "$2" "${3:-}" ;;
+  pin)
+    [ -n "${2:-}" ] || die "usage: capture.sh pin <version>"
+    hbin install cursor "$2" >/dev/null || die "could not install cursor-agent $2"
+    V="$2" yq -i '.pin = strenv(V)' "$manifest" 2>/dev/null || { printf 'pin: "%s"\n' "$2" >"$manifest"; }
+    echo "pinned cursor-agent $2"
+    ;;
   drop)
     # The one way to remove a sample: this script is the only writer of
     # snapshots/, and a hand `rm` there is refused by gate/snapshots-read-only.
@@ -230,9 +262,8 @@ case "${1:-}" in
     ;;
   doc) [ -n "${2:-}" ] || die "usage: capture.sh doc <url>"; capture_doc "$2" ;;
   all)
-    v="$(installed)"; yq -i ".version = \"$v\"" "$manifest"
     for r in "$here"/runs/*/; do rm -rf "$r/samples"; capture_run "$(basename "$r")"; done
     for u in $(yq -r '.docs // {} | keys | .[]' "$manifest"); do capture_doc "$u"; done
     ;;
-  *) die "usage: capture.sh run <name> | drop <run> <ts> | doc <url> | all" ;;
+  *) die "usage: capture.sh run <name> [--rerecord] | pin <version> | drop <run> <ts> | doc <url> | all" ;;
 esac

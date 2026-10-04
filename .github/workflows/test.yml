@@ -27,7 +27,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -count=1 ./tools/capcells/
+      - run: go test -count=1 ./tools/capcells/ ./tools/harness-bin/
 
   e2e:
     name: e2e tests
