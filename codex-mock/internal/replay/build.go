@@ -16,6 +16,11 @@ import (
 // that makes the model's calls, in the format the mock takes of any scenario.
 type Scenario struct {
 	HooksJSON string
+	// ProjectHooksJSON is the project layer's <repo>/.codex/hooks.json, if the run has one.
+	ProjectHooksJSON string
+	// Args are the extra `codex exec` flags the run's setup names, one each (an
+	// `args` file); Env are the KEY=VALUE lines of its `env` file.
+	Args, Env []string
 	// Files are written into the repository (the hook script).
 	Files map[string]string
 	// Scripts are the sub-agents' scenario scripts. They are not the repository's
@@ -57,7 +62,9 @@ var (
 	reTargetOrVar = regexp.MustCompile(`\s*(?:"((?:[^"\\]|\\.)*)"|([\w.]+))\s*(?:,|$)`)
 	reAgent       = regexp.MustCompile(`\\"agent_id\\":\\"([0-9a-f-]+)\\"`)
 	reYield       = regexp.MustCompile(`"?yield_time_ms"?:\s*(\d+)`)
-	reCmd         = regexp.MustCompile(`"?cmd"?:\s*("(?:[^"\\]|\\.)*")`)
+	reCmd         = regexp.MustCompile(`"?cmd"?:\s*("(?:[^"\\]|\\.)*"|` + "`" + `(?:[^` + "`" + `\\]|\\.)*` + "`" + `)`)
+	rePatchConst  = regexp.MustCompile(`const (\w+) = ("(?:[^"\\]|\\.)*");`)
+	rePatch       = regexp.MustCompile(`tools\.apply_patch\(\s*(?:(\w+)|("(?:[^"\\]|\\.)*"))\s*\)`)
 )
 
 // modelTurns are the calls the model made in one recorded rollout, in order,
@@ -97,9 +104,9 @@ func modelTurns(rollout string) (calls []modelCall, err error) {
 			js, _ := p["input"].(string)
 			for _, m := range reTool.FindAllStringSubmatch(js, -1) {
 				switch m[1] {
-				case "exec_command", "multi_agent_v1__spawn_agent", "multi_agent_v1__wait_agent":
+				case "exec_command", "apply_patch", "multi_agent_v1__spawn_agent", "multi_agent_v1__wait_agent":
 				default:
-					return nil, fmt.Errorf("the model called tools.%s: the adapter maps exec_command and spawn_agent", m[1])
+					return nil, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, apply_patch, spawn_agent and wait_agent", m[1])
 				}
 			}
 			// the calls in the order the script makes them
@@ -112,7 +119,7 @@ func modelTurns(rollout string) (calls []modelCall, err error) {
 			for _, k := range []struct {
 				kind string
 				re   *regexp.Regexp
-			}{{"exec", reExec}, {"spawn", reSpawn}, {"wait", reWait}} {
+			}{{"exec", reExec}, {"spawn", reSpawn}, {"wait", reWait}, {"patch", rePatch}} {
 				for _, ix := range k.re.FindAllStringSubmatchIndex(js, -1) {
 					m := make([]string, len(ix)/2)
 					for g := range m {
@@ -128,10 +135,13 @@ func modelTurns(rollout string) (calls []modelCall, err error) {
 				m := f.m
 				switch f.kind {
 				case "exec":
-					var cmd string
 					c := reCmd.FindStringSubmatch(m[1])
-					if c == nil || json.Unmarshal([]byte(c[1]), &cmd) != nil {
+					if c == nil {
 						return nil, fmt.Errorf("an exec_command whose cmd is not a string literal")
+					}
+					cmd, ok := jsString(c[1])
+					if !ok {
+						return nil, fmt.Errorf("an exec_command whose cmd has an escape or interpolation the adapter does not read")
 					}
 					in := map[string]any{"command": cmd}
 					if y := reYield.FindStringSubmatch(m[1]); y != nil {
@@ -154,6 +164,23 @@ func modelTurns(rollout string) (calls []modelCall, err error) {
 					calls = append(calls, modelCall{Text: said, Name: "spawn_agent", Input: in})
 					said = nil
 					nSpawns++
+				case "patch":
+					// apply_patch is given the patch text, a literal or a constant of the script
+					text := m[2]
+					if m[1] != "" {
+						text = ""
+						for _, c := range rePatchConst.FindAllStringSubmatch(js, -1) {
+							if c[1] == m[1] {
+								text = c[2]
+							}
+						}
+					}
+					patch, ok := jsString(text)
+					if !ok || text == "" {
+						return nil, fmt.Errorf("an apply_patch whose patch is not a string literal")
+					}
+					calls = append(calls, modelCall{Text: said, Name: "apply_patch", Input: map[string]any{"command": strings.ReplaceAll(patch, "<RUN>", runPlaceholder)}})
+					said = nil
 				case "wait":
 					// the targets are agent ids as literals, or a variable holding the id the
 					// spawn in the same script was answered with: the sub-agent spawned last
@@ -255,9 +282,19 @@ func Build(rec Recording) (Scenario, error) {
 	}
 	entries, _ := os.ReadDir(rec.Setup)
 	for _, e := range entries {
-		if n := e.Name(); n != "hooks.json" && n != "hook.sh" && n != "prompt.txt" {
+		switch n := e.Name(); n {
+		case "hooks.json", "hook.sh", "prompt.txt", "project-hooks.json", "args", "env", "schema.json":
+		default:
 			return Scenario{}, unbuildable(fmt.Errorf("the setup has %s, which the adapter does not install", n))
 		}
+	}
+	setupLines := func(name string) (out []string) {
+		for _, l := range strings.Split(readFile(filepath.Join(rec.Setup, name)), "\n") {
+			if l = strings.TrimSpace(l); l != "" {
+				out = append(out, l)
+			}
+		}
+		return
 	}
 	if rec.Sample == "" {
 		return Scenario{}, unbuildable(fmt.Errorf("no sample was recorded"))
@@ -285,33 +322,105 @@ func Build(rec Recording) (Scenario, error) {
 		return Scenario{}, unbuildable(fmt.Errorf("no rollout of the main thread"))
 	}
 	files := map[string]string{"hook.sh": readFile(filepath.Join(rec.Setup, "hook.sh"))}
+	if _, err := os.Stat(filepath.Join(rec.Setup, "schema.json")); err == nil {
+		files["schema.json"] = readFile(filepath.Join(rec.Setup, "schema.json"))
+	}
 	scripts := map[string]string{}
-	calls, err := modelTurns(mainRollout)
+	// a sub-agent's rollout is the next unused one, in the order they were
+	// recorded: a sub-agent spawns its own before the main thread's next one
+	next := 0
+	var expand func(rollout, tag string) (string, error)
+	expand = func(rollout, tag string) (string, error) {
+		calls, err := modelTurns(rollout)
+		if err != nil {
+			return "", err
+		}
+		for i := range calls {
+			if calls[i].Name != "spawn_agent" || calls[i].Input["message"] == nil {
+				continue
+			}
+			if next >= len(subs) {
+				return "", fmt.Errorf("a spawn_agent call with no recorded sub-agent rollout")
+			}
+			idx := next
+			next++
+			body, err := expand(subs[idx], fmt.Sprintf("sub%d", idx))
+			if err != nil {
+				return "", fmt.Errorf("sub-agent: %w", err)
+			}
+			name := fmt.Sprintf("sub%d.sh", idx)
+			scripts[name] = body
+			calls[i].Input["script"] = scriptsDir + "/" + name
+		}
+		return scriptFor(tag, calls), nil
+	}
+	mainScript, err := expand(mainRollout, "main")
 	if err != nil {
 		return Scenario{}, unbuildable(err)
 	}
-	n := 0
-	for i := range calls {
-		if calls[i].Name != "spawn_agent" || calls[i].Input["message"] == nil {
+	return Scenario{
+		HooksJSON:        readFile(filepath.Join(rec.Setup, "hooks.json")),
+		ProjectHooksJSON: readFile(filepath.Join(rec.Setup, "project-hooks.json")),
+		Args:             setupLines("args"),
+		Env:              setupLines("env"),
+		Files:            files,
+		Scripts:          scripts,
+		Script:           mainScript,
+		Prompt:           strings.TrimSpace(readFile(filepath.Join(rec.Setup, "prompt.txt"))),
+	}, nil
+}
+
+// runPlaceholder stands, in the patches a script applies, for the run's repository,
+// which the run's own directory replaces; the recording has it as <RUN>.
+const runPlaceholder = "@RUN@"
+
+// jsString is the value of a JS string literal ("...", '...' or a template
+// literal with no ${} in it).
+func jsString(lit string) (string, bool) {
+	if len(lit) < 2 {
+		return "", false
+	}
+	q := lit[0]
+	if (q != '"' && q != '\'' && q != '`') || lit[len(lit)-1] != q {
+		return "", false
+	}
+	body := lit[1 : len(lit)-1]
+	var b strings.Builder
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if q == '`' && c == '$' && i+1 < len(body) && body[i+1] == '{' {
+			return "", false
+		}
+		if c != '\\' {
+			b.WriteByte(c)
 			continue
 		}
-		if n >= len(subs) {
-			return Scenario{}, unbuildable(fmt.Errorf("a spawn_agent call with no recorded sub-agent rollout"))
+		i++
+		if i >= len(body) {
+			return "", false
 		}
-		subCalls, err := modelTurns(subs[n])
-		if err != nil {
-			return Scenario{}, unbuildable(fmt.Errorf("sub-agent: %w", err))
+		switch e := body[i]; e {
+		case 'n':
+			b.WriteByte('\n')
+		case 't':
+			b.WriteByte('\t')
+		case 'r':
+			b.WriteByte('\r')
+		case 'u':
+			if i+4 >= len(body) {
+				return "", false
+			}
+			n, err := strconv.ParseUint(body[i+1:i+5], 16, 32)
+			if err != nil {
+				return "", false
+			}
+			b.WriteRune(rune(n))
+			i += 4
+		case '"', '\'', '`', '\\', '$', '/':
+			b.WriteByte(e)
+		default:
+			return "", false
 		}
-		name := fmt.Sprintf("sub%d.sh", n)
-		scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), subCalls)
-		calls[i].Input["script"] = scriptsDir + "/" + name
-		n++
 	}
-	return Scenario{
-		HooksJSON: readFile(filepath.Join(rec.Setup, "hooks.json")),
-		Files:     files,
-		Scripts:   scripts,
-		Script:    scriptFor("main", calls),
-		Prompt:    strings.TrimSpace(readFile(filepath.Join(rec.Setup, "prompt.txt"))),
-	}, nil
+	return b.String(), true
 }

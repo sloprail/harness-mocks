@@ -69,13 +69,23 @@ func Run(mock, runDir string) (diff string, err error) {
 		return "", err
 	}
 	for name, body := range s.Scripts {
-		if err := os.WriteFile(filepath.Join(scriptsAt, name), []byte(body), 0o755); err != nil {
+		if err := os.WriteFile(filepath.Join(scriptsAt, name), []byte(strings.ReplaceAll(strings.ReplaceAll(body, scriptsDir, scriptsAt), runPlaceholder, repo)), 0o755); err != nil {
 			return "", err
 		}
 	}
-	s.Script = strings.ReplaceAll(s.Script, scriptsDir, scriptsAt)
-	if err := os.WriteFile(filepath.Join(home, "hooks.json"), []byte(s.HooksJSON), 0o644); err != nil {
-		return "", err
+	s.Script = strings.ReplaceAll(strings.ReplaceAll(s.Script, scriptsDir, scriptsAt), runPlaceholder, repo)
+	if s.HooksJSON != "" {
+		if err := os.WriteFile(filepath.Join(home, "hooks.json"), []byte(s.HooksJSON), 0o644); err != nil {
+			return "", err
+		}
+	}
+	if s.ProjectHooksJSON != "" {
+		if err := os.MkdirAll(filepath.Join(repo, ".codex"), 0o755); err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(filepath.Join(repo, ".codex", "hooks.json"), []byte(s.ProjectHooksJSON), 0o644); err != nil {
+			return "", err
+		}
 	}
 	for name, body := range s.Files {
 		if err := os.WriteFile(filepath.Join(repo, name), []byte(body), 0o755); err != nil {
@@ -94,8 +104,9 @@ func Run(mock, runDir string) (diff string, err error) {
 			env = append(env, kv)
 		}
 	}
-	cmd := exec.Command(mock, "exec", "--dangerously-bypass-hook-trust", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt)
-	cmd.Dir, cmd.Env = repo, env
+	args := append([]string{"exec", "--dangerously-bypass-hook-trust", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model"}, s.Args...)
+	cmd := exec.Command(mock, append(args, s.Prompt)...)
+	cmd.Dir, cmd.Env = repo, append(env, s.Env...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	if err := cmd.Run(); err != nil {

@@ -4,34 +4,22 @@ package e2e
 // The list only shrinks: an entry whose run is gone, or whose run now replays
 // green, fails TestGeneratedReplay (except a "flaky:" entry, which is green in
 // some runs and so is only checked for its run being there). "adapter:" is
-// something of the recording the codex adapter cannot reproduce yet;
-// "untriaged:" is a replay that differs and has not been looked at (the mock,
-// the adapter or the recording may be wrong).
+// something of the recording the codex adapter cannot reproduce yet; "mock gap:"
+// is behaviour the recording shows that the mock does not have.
 var notReplaying = map[string]string{
-	"bg-bash-reaped-at-exit":                     "adapter: an exec_command whose cmd is not a string literal",
-	"compaction-transcript-continuity":           "adapter: the setup has args, which the adapter does not install",
-	"file-tools":                                 "adapter: the model called tools.apply_patch: the adapter maps exec_command and spawn_agent",
-	"file-tools-failure":                         "adapter: the model called tools.apply_patch: the adapter maps exec_command and spawn_agent",
-	"hook-command-subdir":                        "adapter: the setup has args, which the adapter does not install",
-	"hooks-all-matching-run-same-hook-two-files": "adapter: the setup has project-hooks.json, which the adapter does not install",
-	"manual-compaction-auto":                     "adapter: the setup has args, which the adapter does not install",
-	"manual-compaction-auto-blocked":             "adapter: the setup has args, which the adapter does not install",
-	"manual-compaction-auto-post-stopped":        "adapter: the setup has args, which the adapter does not install",
-	"nested-session-env":                         "adapter: the setup has env, which the adapter does not install",
-	"nested-subagents":                           "adapter: the setup has args, which the adapter does not install",
-	"nested-subagents-limit":                     "adapter: the setup has args, which the adapter does not install",
-	"nested-subagents-nowait":                    "adapter: the setup has args, which the adapter does not install",
-	"noninteractive-run-git-check-refused":       "adapter: recorded with another command line: \"codex exec --json --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
-	"noninteractive-run-no-git-check":            "adapter: recorded with another command line: \"codex exec --json --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
-	"noninteractive-run-output-schema":           "adapter: the setup has args, which the adapter does not install",
-	"noninteractive-run-text-output":             "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
-	"plugin-hooks":                               "adapter: the setup has prepare.sh, which the adapter does not install",
-	"session-fork":                               "adapter: the setup has then-01-args, which the adapter does not install",
-	"session-resume":                             "adapter: the setup has then-01-args, which the adapter does not install",
-	"session-resume-unknown":                     "adapter: the setup has args, which the adapter does not install",
-	"session-start-compact-continue-false":       "adapter: the setup has args, which the adapter does not install",
-	"subagent-stop-block-loop-cap":               "adapter: the model called wait: the adapter maps only exec",
-	"subagent-transcripts-v2":                    "adapter: the setup has args, which the adapter does not install",
-	"task-stream-frames":                         "adapter: the model called tools.write_stdin: the adapter maps exec_command and spawn_agent",
-	"session-end-hook-output":                    "flaky: its SessionEnd hooks run under the 1 s default timeout the recording shows (runs/session-end*), and a loaded machine (many replays at once) can take longer to start them, so they are killed and log nothing; green when run alone",
+	"manual-compaction-auto":               "mock gap: the recording compacts on its own when token use passes -c model_auto_compact_token_limit (PostCompact hooks fire); the mock runs no model and counts no tokens, so it never compacts and the replay's hook payloads differ",
+	"manual-compaction-auto-blocked":       "mock gap: as manual-compaction-auto (automatic compaction, blocked by a hook); the mock fails the replay: its script emitted the same tool_use 5 turns in a row",
+	"manual-compaction-auto-post-stopped":  "mock gap: as manual-compaction-auto (automatic compaction, a PostCompact hook stopping the run); the mock fails the replay: its script emitted the same tool_use 5 turns in a row",
+	"noninteractive-run-git-check-refused": "adapter: recorded without --skip-git-repo-check, outside a git repository, with its refusal as the output (exit code and stderr, no event stream); the adapter replays only runs made with the standard flags",
+	"noninteractive-run-no-git-check":      "adapter: recorded outside a git repository, without --skip-git-repo-check; the adapter replays only runs made with the standard flags and a repository",
+	"noninteractive-run-text-output":       "adapter: recorded without --json, so the output is the final message as text, not an event stream; the adapter compares event streams only",
+	"plugin-hooks":                         "adapter: the setup has prepare.sh, which lays out a plugin marketplace and registers it with `codex plugin` before the run; the adapter does not run it",
+	"session-fork":                         "adapter: a run of several steps under one CODEX_HOME (then-NN-prompt/args, with the first step's session id); the adapter replays one step",
+	"session-resume":                       "adapter: a run of several steps under one CODEX_HOME (then-NN-prompt/args/cwd, with the first step's session id); the adapter replays one step",
+	"session-resume-unknown":               "adapter: the run fails before the model is asked (resuming a session that does not exist): there are no model turns to replay, and the adapter compares event streams, not an exit code and stderr",
+	"session-start-compact-continue-false": "mock gap: as manual-compaction-auto (automatic compaction after a SessionStart hook's continue:false); the mock fails the replay: its script emitted the same tool_use 5 turns in a row",
+	"subagent-stop-block-loop-cap":         "mock gap: the model calls the `wait` function (cell_id, yield_time_ms) to wait on a long-running exec cell, which the mock does not have",
+	"subagent-transcripts-v2":              "mock gap: with --enable multi_agent_v2 the model calls spawn_agent and wait_agent as function calls (a task_name, no targets); the mock models the v1 tools only",
+	"task-stream-frames":                   "mock gap: the model polls a running command with tools.write_stdin, which the mock does not model (the background-bash cell says so)",
+	"session-end-hook-output":              "flaky: its SessionEnd hooks run under the 1 s default timeout the recording shows (runs/session-end*), and a loaded machine (many replays at once) can take longer to start them, so they are killed and log nothing; green when run alone",
 }
