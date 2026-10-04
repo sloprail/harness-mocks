@@ -34,8 +34,7 @@ arr="$(printf '%s' "$payload" | jq -c --argjson caps "$SPEC" --arg tt "$TOUCHED_
          files: ((if $changed | index($p) then [$p] else [] end) + ($refrozen | map("\(.)-mock/snapshots/MANIFEST.yaml"))),
          deps: ([$p] + [$look[] | . as $h | (($prov[] | select(.key == $h) | .value.runs // [])[])]),
          extra: ("harnesses:" + ($hs | join(" "))
-                 + "\ndocs:" + ([$look[] | . as $h | ($prov[] | select(.key == $h) | .value.docs // [])[] | (split("#")[0]) as $u | "\($h) \($u)=\($shas[$h].docs[$u] // "-")"] | unique | join(";"))
-                 + "\nversions:" + ([$look[]] | unique | map(. as $h | "\($h)=\($shas[$h].version // "")") | join(";")))}])
+                 + "\ndocs:" + ([$look[] | . as $h | ($prov[] | select(.key == $h) | .value.docs // [])[] | (split("#")[0]) as $u | "\($h) \($u)=\($shas[$h].docs[$u] // "-")"] | unique | join(";")))}])
     + [.changeset.files[] | select(.status == "D" and (.path | startswith("spec/capabilities/")))
        | {id: (.path | ltrimstr("spec/capabilities/") | rtrimstr(".yaml")), files: [.path]}]')"
 sub_finish unclaimed "$arr"

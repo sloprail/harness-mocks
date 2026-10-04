@@ -42,8 +42,8 @@ EOF
 run() { w "claude-mock/snapshots/runs/$1/run.yaml" <<<"version: 1"; w "claude-mock/snapshots/runs/$1/samples/20240101-000000/events.jsonl" <<<"$2"; }
 
 # the base: capabilities a and b, invariants i1 and i2, modules m1 and m2, ADRs one and two
-w claude-mock/snapshots/MANIFEST.yaml <<<"version: 1"
-w codex-mock/snapshots/MANIFEST.yaml <<<"version: 1"
+w claude-mock/snapshots/MANIFEST.yaml <<<"pin: 1"
+w codex-mock/snapshots/MANIFEST.yaml <<<"pin: 1"
 w codex-mock/snapshots/runs/c1/run.yaml <<<"version: 1"
 cap a ra; cap b rb; run ra '{"e":1}'; run rb '{"e":1}'
 w spec/invariants/i1.yaml <<<"statement: one"; w spec/invariants/i2.yaml <<<"statement: two"
@@ -114,7 +114,7 @@ providers:
   claude: {docs: [https://d.example/u#s], runs: [claude-mock/snapshots/runs/ra]}
   codex: {supported: false, reason: not there, docs: [https://c.example/u#s]}
 EOF
-w codex-mock/snapshots/MANIFEST.yaml <<<"version: 2"; HU="$(step unsupported-cell)"
+w codex-mock/snapshots/MANIFEST.yaml <<<"pin: 2"; HU="$(step unsupported-cell)"
 eq "cells: an unsupported cell's re-frozen docs ground its capability" "$(ids "$(keys capability-grounded "$HU")")" "u "
 eq "cells: ... and only its supported cell is proven (no rigor subject takes codex's MANIFEST)" "$("$SR" changeset --rule capability-rigor --base "$BASE" --head "$HU" | jq -r '[.subjects[].payload.subject.files[] | select(startswith("codex-mock/"))] | length')" "0"
 
@@ -234,27 +234,29 @@ back; w internal/other/other.go <<<$'package other\n// edited'; M6="$(mc "$(step
 eq "coverage: editing an excepted file is fine" "$(has "$M6" "added under")$(has "$M6" "exceptions grew")" nono
 
 # --- narrowed touches: a re-frozen doc page or an edited declaration touches only what reads it ----------------
-# (touched.sh) a MANIFEST entry that changed touches the capabilities citing that page, not every capability of the
+# (touched.sh) a MANIFEST entry whose sha256 changed touches the capabilities citing that page, not every capability of the
 # harness; a function edited in a file that carries several capabilities' markers touches those on that function;
 # and a verdict's key still carries every page it reads (its frozen hash) and every file it reads, so nothing is
 # reused stale (a page's hash moving moves the key of each capability citing it).
 OLDBASE="$BASE"
 back; cap a ra; cap b rb
-w claude-mock/snapshots/MANIFEST.yaml <<<$'version: "1"\ndocs:\n  https://d.example/a:\n    version: "1"\n    sha256: aa\n  https://d.example/b:\n    version: "1"\n    sha256: bb'
+mani() { w claude-mock/snapshots/MANIFEST.yaml <<<$'pin: "'"$1"$'"\ndocs:\n  https://d.example/a:\n    sha256: '"$2"$'\n    fetched: "'"${4:-2026-10-01}"$'"\n  https://d.example/b:\n    sha256: '"$3"$'\n    fetched: "'"${4:-2026-10-01}"$'"'; }
+mani 1 aa bb
 w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'
 BASE="$(step narrow-base)"
-mani() { w claude-mock/snapshots/MANIFEST.yaml <<<$'version: "'"$1"$'"\ndocs:\n  https://d.example/a:\n    version: "'"$1"$'"\n    sha256: '"$2"$'\n  https://d.example/b:\n    version: "'"$1"$'"\n    sha256: '"$3"; }
 back; mani 1 aa2 bb; N1="$(step refreeze-a)"
 back; mani 1 aa bb2; N2="$(step refreeze-b)"
 back; mani 1 aa2 bb2; N3="$(step refreeze-both)"
-back; mani 2 aa bb; N4="$(step version-bump)"
+back; mani 2 aa bb; N4="$(step binary-bump)"
+back; mani 3 aa bb 2026-10-09; N5="$(step bump-and-refreeze-same-sha)"
 for rule in capability-grounded capability-rigor; do
   K1="$(keys $rule "$N1")"; K2="$(keys $rule "$N2")"; K3="$(keys $rule "$N3")"; K4="$(keys $rule "$N4")"
   eq "$rule: re-freezing a's page touches a alone" "$(ids "$K1")" "a "
   eq "$rule: re-freezing b's page touches b alone" "$(ids "$K2")" "b "
   eq "$rule: re-freezing both pages touches both" "$(ids "$K3")" "a b "
-  eq "$rule: a harness version bump touches every capability citing its docs" "$(ids "$K4")" "a b "
-  ne "$rule: a's page re-frozen again with another hash, a's key moves" "$(key "$K1" a)" "$(key "$(keys $rule "$N4")" a)"
+  eq "$rule: a bumped harness binary (MANIFEST pin) touches no capability" "$(ids "$K4")" "unclaimed "
+  eq "$rule: a bumped binary with every page re-frozen at the same sha256 touches no capability" "$(ids "$(keys $rule "$N5")")" "unclaimed "
+  ne "$rule: a's page re-frozen with another hash, a's key moves" "$(key "$K1" a)" "$(key "$K3" a)"
 done
 # an edited declaration touches the capabilities marked on it, and a file edit outside every declaration none
 back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n\tmore()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'; X1="$(step edit-A)"

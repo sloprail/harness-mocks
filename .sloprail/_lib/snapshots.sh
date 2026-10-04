@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Snapshots of a real harness, frozen at one version. Source after changeset.sh.
+# Snapshots of a real harness. Source after changeset.sh.
 #
 #   <harness>-mock/snapshots/
-#     MANIFEST.yaml          version: <the one freeze point>
-#                            docs: {<page URL>: {version, sha256}}  ← only the
-#                            hash of each doc page is committed, never its text
+#     MANIFEST.yaml          pin: <the harness binary capture.sh runs next; not a freeze point>
+#                            docs: {<page URL>: {sha256, fetched}}  ← only the hash of each
+#                            doc page is committed, never its text; the page is frozen by it
 #     runs/<name>/           a recorded real scenario
-#       run.yaml             version, command
+#       run.yaml             version (of the harness binary it was captured with), command
 #       setup/               what makes it this scenario (settings, hooks, prompt)
 #       samples/<YYYYMMDD-HHMMSS>/
 #         events.jsonl       the normalized event sequence (hook payloads + stream frames)

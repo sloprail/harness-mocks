@@ -40,6 +40,5 @@ arr="$(printf '%s' "$payload" | jq -c --arg pairs "$pairs" --arg proves "$MARKER
                 + [$mine[] | (.cell.runs // [])[]]
                 + [$mine[].pair as $pr | $pv[] | select(.q == $pr) | .p]),
          extra: ("pairs:" + ([$mine[].pair] | join(" "))
-                 + "\ndocs:" + ([$mine[] | .h as $h | (.cell.docs // [])[] | (split("#")[0]) as $u | "\($h) \($u)=\($shas[$h].docs[$u] // "-")"] | unique | join(";"))
-                 + "\nversions:" + ([$mine[].h] | unique | map(. as $h | "\($h)=\($shas[$h].version // "")") | join(";")))})')"
+                 + "\ndocs:" + ([$mine[] | .h as $h | (.cell.docs // [])[] | (split("#")[0]) as $u | "\($h) \($u)=\($shas[$h].docs[$u] // "-")"] | unique | join(";")))})')"
 sub_finish unclaimed "$arr"

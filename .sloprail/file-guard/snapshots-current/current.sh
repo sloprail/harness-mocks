@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Per harness with snapshots, against its MANIFEST.yaml `version`:
+# Per harness with snapshots. The harness binary and the doc pages are two different freezes:
+# a run records the binary it was captured with (run.yaml `version`), the MANIFEST freezes each
+# doc page by its own sha256 and `pin` says which binary capture.sh runs next. Nothing ties a
+# run's version, or a page, to `pin`.
 #   script <harness>-mock/snapshots/capture.sh exists: the only writer
-#   docs   every MANIFEST.docs entry is frozen at `version`, and the live page
-#          still hashes to its sha256 (the text is cached, never committed)
-#   runs   kebab name; run.yaml version == version; ≥1 sample; sample dirs are
+#   docs   every MANIFEST.docs entry's live page still hashes to its sha256 (the
+#          text is cached, never committed)
+#   runs   kebab name; run.yaml has a version; ≥1 sample; sample dirs are
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
 #          have identical events (a re-run that changed nothing adds nothing);
 #          each sample's SEAL lists exactly its files, with matching sha256s
@@ -30,16 +33,12 @@ for h in $hs; do
     continue
   fi
   m="$(yq -o=json '.' "$d/MANIFEST.yaml" 2>/dev/null)" || { add "$h-mock/snapshots/MANIFEST.yaml is missing or not valid YAML"; continue; }
-  ver="$(jq -r '.version // ""' <<<"$m")"
-  [ -n "$ver" ] || { add "$h-mock/snapshots/MANIFEST.yaml has no version"; continue; }
+  [ -n "$(jq -r '.pin // ""' <<<"$m")" ] || { add "$h-mock/snapshots/MANIFEST.yaml has no pin: capture.sh pin <version> sets the harness version captures run with"; continue; }
   [ -f "$d/capture.sh" ] || add "$h-mock/snapshots/capture.sh is missing: snapshots are only written by it"
 
-  # docs: only their hashes are committed; each must be frozen at this
-  # version, and the live page must still hash to it (else the doc changed
-  # since capture, and the snapshot is stale).
+  # docs: only their hashes are committed; the live page must still hash to it
+  # (else the doc changed since it was frozen, and the snapshot is stale).
   for u in $(jq -r '(.docs // {}) | keys[]' <<<"$m"); do
-    dv="$(jq -r --arg u "$u" '.docs[$u].version // ""' <<<"$m")"
-    [ "$dv" = "$ver" ] || add "doc $u was frozen at $dv, not $ver: re-capture it with capture.sh doc $u"
     doc_copy "$h" "$u" >/dev/null || add "$DOC_ERROR"
   done
 
@@ -48,7 +47,7 @@ for h in $hs; do
     name="$(basename "$r")"
     kebab "$name" || add "$h-mock/snapshots/runs/$name: the name must be kebab-case"
     rv="$(yq -r '.version // ""' "$r/run.yaml" 2>/dev/null)"
-    [ "$rv" = "$ver" ] || add "run $h/$name was captured at '${rv:-?}', not $ver: re-capture it"
+    [ -n "$rv" ] || add "run $h/$name has no version in its run.yaml: the harness binary it was captured with"
     seen="" n=0
     for s in "$r"/samples/*/; do
       [ -d "$s" ] || continue
