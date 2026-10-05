@@ -119,3 +119,20 @@ func WriteScript(t *testing.T, content string) string {
 	}
 	return f.Name()
 }
+
+// RunSplit invokes the mock like RunInDir, keeping its stdout and stderr apart.
+func RunSplit(t *testing.T, dir string, env []string, args ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	cmd := exec.Command(MockBinaryPath, args...)
+	cmd.Dir = dir
+	cmd.Env = append(append(os.Environ(), "CLAUDE_CODE_PLUGIN_CACHE_DIR="+SharedPluginCacheDir,
+		"CLAUDE_CONFIG_DIR="+filepath.Join(dir, ".claude-config"),
+		"CLAUDE_CODE_TMPDIR="+filepath.Join(dir, ".claude-tmp")), env...)
+	var out, errb strings.Builder
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	_ = cmd.Run()
+	if cmd.ProcessState != nil {
+		code = cmd.ProcessState.ExitCode()
+	}
+	return out.String(), errb.String(), code
+}
