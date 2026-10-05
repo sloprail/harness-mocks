@@ -18,7 +18,7 @@ slim_payload
 load_modules
 work="$(mktemp -d "${TMPDIR:-/tmp}/sr-subjects-module-distinct.XXXXXX")" || refuse "cannot make a directory for the subjects' work files"
 trap 'rm -rf "$work"' EXIT
-printf '%s' "$MODULES" >"$work/modules"
+printf '%s' "$MODULES" >"$work/modules" || refuse "the modules could not be written, so the subjects cannot be keyed"
 paths="$(changed_paths)" || refuse "the changed paths could not be listed, so the modules to judge cannot be worked out"
 mpaths="$(grep '/module\.yaml$' <<<"$paths" || true)"
 out=""

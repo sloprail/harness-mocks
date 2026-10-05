@@ -33,5 +33,5 @@ while IFS= read -r m; do
 done <<<"$mlist"
 ngroups="$(jq 'length' <<<"$groups")" || refuse "could not count the modules with candidates left"
 [ "$ngroups" -gt 0 ] || { jq -n '{skip: true}'; exit 0; }
-printf '%s' "$groups" >"$LEAK_WORK/groups"
+printf '%s' "$groups" >"$LEAK_WORK/groups" || refuse "the modules with candidates left could not be written for the judge"
 jq -n -c --slurpfile g "$LEAK_WORK/groups" '{additionalContext: {modules: $g[0]}}' || refuse "could not build the judge's context"

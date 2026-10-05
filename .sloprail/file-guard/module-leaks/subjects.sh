@@ -20,8 +20,8 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 . "${SR_GUARDRAIL_DIR:-.}/leaks-lib.sh"
 load_modules; load_adrs; leak_setup; leak_prefetch
-printf '%s' "$CHANGED" >"$LEAK_WORK/changed"
-printf '%s' "$EXC" >"$LEAK_WORK/exc-text"
+printf '%s' "$CHANGED" >"$LEAK_WORK/changed" || refuse "the changed paths could not be written, so the subjects cannot be keyed"
+printf '%s' "$EXC" >"$LEAK_WORK/exc-text" || refuse "the exceptions could not be written, so the subjects cannot be keyed"
 mlist="$(jq -c '.[]' <<<"$MODULES")" || refuse "could not list the modules, so their leaks cannot be found"
 out=""
 while IFS= read -r m; do
@@ -30,7 +30,7 @@ while IFS= read -r m; do
   leak_left "$m" || continue
   nleft="$(jq 'length' <<<"$LEFT")" || refuse "could not count the candidates of $dir"
   [ "$nleft" -gt 0 ] || continue
-  printf '%s' "$LEFT" >"$LEAK_WORK/left"
+  printf '%s' "$LEFT" >"$LEAK_WORK/left" || refuse "the candidates of $dir could not be written, so its subject cannot be keyed"
   entry="$(jq -nc --arg d "$dir" --slurpfile left "$LEAK_WORK/left" --rawfile changed "$LEAK_WORK/changed" --rawfile exc "$LEAK_WORK/exc-text" \
     '$left[0] as $left | ($changed | split("\n")) as $c
      | {id: $d,

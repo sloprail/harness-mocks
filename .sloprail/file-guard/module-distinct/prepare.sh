@@ -25,8 +25,10 @@ while IFS= read -r g; do
   [ -n "$g" ] || continue
   i=$((i + 1))
   awk -F'\t' -v g="$g" '$1 == g {print $2}' "$work/all" | sort -u >"$work/home-$i.files" || refuse "could not list the files the home glob $g matches"
-  n="$(grep -c . "$work/home-$i.files")"   # 1 (and "0") when it matches nothing
-  homes="$(jq -c --arg g "$g" --arg f "$work/home-$i.files" --argjson n "${n:-0}" '. + [{glob: $g, files: $f, count: $n}]' <<<"$homes")" ||
+  # grep -c exits 1 when it counts 0 (a glob matching nothing is a count, not a failure) and 2 when it fails
+  n="$(grep -c . "$work/home-$i.files")"; rc=$?
+  [ "$rc" -le 1 ] || refuse "could not count the files the home glob $g matches"
+  homes="$(jq -c --arg g "$g" --arg f "$work/home-$i.files" --argjson n "$n" '. + [{glob: $g, files: $f, count: $n}]' <<<"$homes")" ||
     refuse "could not record the files the home glob $g matches"
 done <<<"$globs"
 jq -c --argjson h "$homes" '. + {homes: $h}' <<<"$subject" >"$work/subject.json" || refuse "could not build the module $dir for the judge"

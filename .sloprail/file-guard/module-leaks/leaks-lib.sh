@@ -19,7 +19,7 @@ leak_setup() {
   LEAK_TREE="$(git -C "$SR_TREE" rev-parse "$head^{tree}")" || refuse "the tree of the range's head could not be resolved"
   CHANGED="$(cs '.changeset.files[].path')" || refuse "the changed paths could not be listed"
   EXC="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")" || refuse "the ADRs' exceptions could not be read"
-  printf '%s\n' "$EXC" >"$LEAK_WORK/exc"
+  printf '%s\n' "$EXC" >"$LEAK_WORK/exc" || refuse "the ADRs' exceptions could not be recorded"
 }
 
 # leak_cache_dir — where a module's candidates are kept, per tree: its search (go list and a git

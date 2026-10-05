@@ -21,7 +21,8 @@ esac
 dir="$(mktemp -d "${TMPDIR:-/tmp}/sr-judge-diffs.XXXXXX")" || refuse "cannot make a directory for the judge's diffs"
 work="$(mktemp -d "${TMPDIR:-/tmp}/sr-adr-index.XXXXXX")" || refuse "cannot make a directory for the index's work files"
 trap 'rm -rf "$work"' EXIT
-printf '%s' "$ADRS" >"$work/adrs.json"; printf '%s' "$MODULES" >"$work/modules.json"
+printf '%s' "$ADRS" >"$work/adrs.json" || refuse "the ADRs could not be written for the index"
+printf '%s' "$MODULES" >"$work/modules.json" || refuse "the modules could not be written for the index"
 flist="$(cs_json '.changeset.files[]')" || refuse "the changed files could not be listed, so the changeset cannot be judged"
 files="[]"
 while IFS= read -r f; do
@@ -33,7 +34,7 @@ while IFS= read -r f; do
   files="$(jq -c --arg p "$path" --arg s "$status" --arg d "$out" \
     '. + [{path: $p, status: $s, diff: $d}]' <<<"$files")" || refuse "could not record the diff of $path for the judge"
 done <<<"$flist"
-printf '%s' "$files" >"$work/files.json"
+printf '%s' "$files" >"$work/files.json" || refuse "the changed files could not be written for the index"
 jq -n -c --slurpfile a "$work/adrs.json" --slurpfile m "$work/modules.json" --slurpfile f "$work/files.json" \
   '{additionalContext: {adrs: ([$a[0][] | {id: ("adr/" + .id), concern: (.frontmatter.concern // "")}] + [$m[0][] | {id: ("module " + .dir), concern}]), files: $f[0]}}' ||
   refuse "could not build the judge's context"
