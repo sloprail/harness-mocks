@@ -60,21 +60,32 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout was recorded: the model's turns are unknown"))
 	}
 	main := ""
-	for _, l := range jsonLines(readFile(filepath.Join(sample, "stream.jsonl"))) {
+	stream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
+	if err != nil {
+		return core.Recording{}, err
+	}
+	if _, err := readJSONL(filepath.Join(sample, "payloads.jsonl")); err != nil {
+		return core.Recording{}, err
+	}
+	for _, l := range stream {
 		if l["type"] == "thread.started" {
 			main, _ = l["thread_id"].(string)
 		}
 	}
-	var mainRollout string
-	var subs []string
+	var mainRollout []map[string]any
+	var subs [][]map[string]any
 	for _, p := range paths {
+		rollout, err := readJSONL(p)
+		if err != nil {
+			return core.Recording{}, err
+		}
 		if strings.Contains(p, main) {
-			mainRollout = readFile(p)
+			mainRollout = rollout
 		} else {
-			subs = append(subs, readFile(p))
+			subs = append(subs, rollout)
 		}
 	}
-	if mainRollout == "" {
+	if len(mainRollout) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout of the main thread"))
 	}
 	agent, err := modelTurns(mainRollout)

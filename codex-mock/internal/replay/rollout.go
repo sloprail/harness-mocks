@@ -23,11 +23,11 @@ var (
 // the calls are read out of that JS (codex's own tool names are mapped to the
 // unified ones here); a call that only looks around (ALL_TOOLS)
 // makes none. What the adapter cannot map is an error, never a guess.
-func modelTurns(rollout string) (agent core.Agent, err error) {
+func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 	var calls []core.Call
 	var final string
 	var said *string
-	for _, rec := range jsonLines(rollout) {
+	for _, rec := range records {
 		p, _ := rec["payload"].(map[string]any)
 		if rec["type"] != "response_item" || p == nil {
 			continue

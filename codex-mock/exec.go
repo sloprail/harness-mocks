@@ -30,8 +30,8 @@ func newExec() *cobra.Command {
 	f.StringP("model", "m", "", "Model name reported in hook payloads")
 	// Accepted for compatibility with `codex exec`; no effect.
 	f.StringArrayP("config", "c", nil, "Config override key=value; only agents.max_depth has an effect")
-	f.StringArray("enable", nil, "Accepted; no effect")
-	f.StringArray("disable", nil, "Accepted; no effect")
+	f.StringArray("enable", nil, "Refused: the mock implements no feature switch")
+	f.StringArray("disable", nil, "Refused: the mock implements no feature switch")
 	f.StringP("sandbox", "s", "", "Accepted; no effect")
 	f.StringP("profile", "p", "", "Accepted; no effect")
 	f.String("color", "", "Accepted; no effect")
@@ -56,6 +56,13 @@ func runExec(cmd *cobra.Command, args []string) error {
 		resume, args = args[1], args[2:]
 	}
 	f := cmd.Flags()
+	// a feature switch the mock implements none of: running as if it were on would pass for the real
+	// thing (a --enable multi_agent_v2 recording replayed on the default mode), so it is refused
+	for _, name := range []string{"enable", "disable"} {
+		if v, _ := f.GetStringArray(name); len(v) > 0 {
+			return fmt.Errorf("codex-mock: --%s %s: the mock implements no feature switch", name, strings.Join(v, ","))
+		}
+	}
 	script, _ := f.GetString("script")
 	if script == "" {
 		script = os.Getenv("A10N_MOCK_SCRIPT")

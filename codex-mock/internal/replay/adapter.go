@@ -101,10 +101,24 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
 	rules := Rules(repo, tmp)
 	wantC, gotC := core.New(rules), core.New(rules)
-	want.Events = wantC.Lines(jsonLines(readFile(filepath.Join(sample, "stream.jsonl"))))
-	got.Events = gotC.Lines(jsonLines(string(res.Stdout)))
-	want.Hooks = wantC.Lines(jsonLines(readFile(filepath.Join(sample, "payloads.jsonl"))))
-	got.Hooks = gotC.Lines(jsonLines(string(hookLog)))
+	recStream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
+	if err != nil {
+		return want, got, err
+	}
+	recHooks, err := readJSONL(filepath.Join(sample, "payloads.jsonl"))
+	if err != nil {
+		return want, got, err
+	}
+	mockStream, err := parseJSONL(string(res.Stdout))
+	if err != nil {
+		return want, got, fmt.Errorf("the mock's stream: %w", err)
+	}
+	mockHooks, err := parseJSONL(string(hookLog))
+	if err != nil {
+		return want, got, fmt.Errorf("the mock's hook log: %w", err)
+	}
+	want.Events, got.Events = wantC.Lines(recStream), gotC.Lines(mockStream)
+	want.Hooks, got.Hooks = wantC.Lines(recHooks), gotC.Lines(mockHooks)
 	// hooks of one event run at the same time, so the order they log in is not the behaviour
 	sort.Strings(want.Hooks)
 	sort.Strings(got.Hooks)
