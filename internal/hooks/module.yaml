@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
 # Its core is internal/hooks (exit codes, output, tool-call decisions); the rest lives in claude-mock's adapter.
 concern: "hooks: which handlers match an event, running them, and what their result means"
-home: ["internal/hooks/**", "*-mock/internal/hooks/**", "claude-mock/internal/runner/hook_frames.go", "claude-mock/internal/runner/config_prompting.go"]   # everything about the concern lives here
+home: ["internal/hooks/**", "*-mock/internal/hooks/**", "claude-mock/internal/runner/hook_frames.go"]   # everything about the concern lives here
 api: ["internal/hooks", "claude-mock/internal/hooks", "codex-mock/internal/hooks", "cursor-mock/internal/hooks"]      # the only packages others may import
