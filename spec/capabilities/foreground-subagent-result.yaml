@@ -50,6 +50,12 @@ providers:
           to its completion with the report as text, not a report with a
           trailer naming the sub-agent and its usage (recorded:
           runs/foreground-subagent-result). The mock does the same.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock carries out spawn_agent and the wait that follows as one
+          call: it returns the wait's result as its own, and no wait_agent call
+          of the script is modelled.
   cursor:
     docs:
       - https://cursor.com/docs/subagents#foreground-vs-background
