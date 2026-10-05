@@ -1,10 +1,14 @@
 package runner
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // stampFrame is the stream frame of an assistant or user record as real Claude
-// Code writes it: beside the message, the session it belongs to and the tool
-// call of the sub-agent it comes from (null on the main agent's), unless the
+// Code writes it: beside the message, the session it belongs to, the tool
+// call of the sub-agent it comes from (null on the main agent's) and when it was
+// written, unless the
 // scenario's own record already names them (recorded: snapshots/runs/bashfail).
 func stampFrame(cfg Config, line []byte) []byte {
 	var m map[string]any
@@ -16,6 +20,9 @@ func stampFrame(cfg Config, line []byte) []byte {
 	}
 	if _, ok := m["parent_tool_use_id"]; !ok {
 		m["parent_tool_use_id"] = nil
+	}
+	if _, ok := m["timestamp"]; !ok { // when the frame was written (recorded: every assistant and user frame)
+		m["timestamp"] = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 	}
 	// the main agent's tool calls are also given as the inputs that went over the
 	// wire, by call id; a sub-agent's frames have none
