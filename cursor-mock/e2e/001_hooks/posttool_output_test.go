@@ -59,14 +59,21 @@ func TestPostToolUseNamesTheCallAndItsDurationAndFiresOnlyForCallsThatRan(t *tes
 		n++
 		require.NotEmpty(t, h["tool_use_id"])
 		ids[h["tool_use_id"]] = true
-		_, ok := h["duration"].(float64)
+		d, ok := h["duration"].(float64)
 		require.True(t, ok, "duration in ms: %v", h)
+		require.Greater(t, d, 0.0, "a file tool's call took some time, as recorded (0.759 to 45.586 ms): %v", h)
+		require.Less(t, d, 1000.0, "a file tool's call takes milliseconds: %v", h)
+	}
+	for _, h := range want.raw {
+		if h["hook_event_name"] == "postToolUse" {
+			require.Greater(t, h["duration"].(float64), 0.0, "recorded: every file tool's call has a duration above 0")
+		}
 	}
 	require.Equal(t, 4, n)
 	require.Len(t, ids, n, "a different tool_use_id for each call")
 	require.Equal(t, len(postToolUses(want)), n)
 
-	// a command takes time, which the hook reports (the mock times no file tool: it reports 0 for those)
+	// a command takes time, which the hook reports
 	shell, _ := replay(t, "tool-failure")
 	took := 0.0
 	for _, h := range shell.raw {

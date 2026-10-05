@@ -142,12 +142,20 @@ func Execute(ctx context.Context, c Call, dir string, env []string) Result {
 	switch c.Kind {
 	case "shellToolCall":
 		return shell(ctx, c, dir, env)
-	case "readToolCall":
-		return read(c, dir)
 	case "taskToolCall":
 		return task()
 	}
-	return write(c, dir)
+	// A file tool's call is timed too: postToolUse reports its duration in
+	// milliseconds, a small positive fraction (recorded: runs/file-tools).
+	start := time.Now()
+	var r Result
+	if c.Kind == "readToolCall" {
+		r = read(c, dir)
+	} else {
+		r = write(c, dir)
+	}
+	r.Took = max(time.Since(start), time.Microsecond)
+	return r
 }
 
 func jsonString(v any) string { b, _ := json.Marshal(v); return string(b) }
