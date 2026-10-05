@@ -22,10 +22,12 @@ var toolTable = map[string]struct {
 	kind, hookName string
 	required       []string
 }{
-	"Bash":  {"shellToolCall", "Shell", []string{"command"}},
-	"Shell": {"shellToolCall", "Shell", []string{"command"}},
-	"Read":  {"readToolCall", "Read", []string{"file_path"}},
-	"Write": {"editToolCall", "Write", []string{"file_path", "content"}},
+	"Bash":   {"shellToolCall", "Shell", []string{"command"}},
+	"Shell":  {"shellToolCall", "Shell", []string{"command"}},
+	"Read":   {"readToolCall", "Read", []string{"file_path"}},
+	"Write":  {"editToolCall", "Write", []string{"file_path", "content"}},
+	"Grep":   {"grepToolCall", "Grep", []string{"pattern"}},
+	"Delete": {"deleteToolCall", "Delete", []string{"file_path"}},
 	// a sub-agent dispatch, whichever name it goes by (Task is Agent's old name)
 	"Agent": {"taskToolCall", "Task", taskRequired},
 	"Task":  {"taskToolCall", "Task", taskRequired},
@@ -59,6 +61,10 @@ func FromScript(name string, input json.RawMessage) Call {
 		c.Args["path"] = str("file_path")
 	case "editToolCall":
 		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
+	case "grepToolCall":
+		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
+	case "deleteToolCall":
+		c.Args["path"] = str("file_path")
 	case "taskToolCall":
 		c.Args["description"], c.Args["prompt"] = str("description"), str("prompt")
 	}
@@ -104,6 +110,10 @@ func (c Call) HookInput(dir string) map[string]any {
 		return map[string]any{"file_path": c.Path(dir)}
 	case "taskToolCall":
 		return map[string]any{"description": c.str("description"), "prompt": c.str("prompt"), "subagent_type": "generalPurpose"}
+	case "grepToolCall":
+		return map[string]any{"pattern": c.str("pattern")}
+	case "deleteToolCall":
+		return map[string]any{"file_path": c.Path(dir)}
 	default:
 		return map[string]any{"file_path": c.Path(dir), "content": c.str("streamContent")}
 	}
@@ -117,6 +127,10 @@ func Execute(ctx context.Context, c Call, dir string, env []string) Result {
 		return shell(ctx, c, dir, env)
 	case "taskToolCall":
 		return task()
+	case "grepToolCall":
+		return ran(func() Result { return grep(c, dir) })
+	case "deleteToolCall":
+		return ran(func() Result { return deleteFile(c, dir) })
 	}
 	return timed(c, dir)
 }
