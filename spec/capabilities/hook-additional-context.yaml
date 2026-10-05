@@ -22,6 +22,7 @@ providers:
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/posttool-block-context
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionstart
