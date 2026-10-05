@@ -1,125 +1,106 @@
 // Package replay compares what a mock produced with what a recording of the
-// real harness shows. It knows nothing of any harness: a harness adapter turns
-// a recording into the mock's script, runs the mock, and hands both outputs
-// here as JSON lines together with Rules that name what two runs of the same
-// behaviour may differ in. Everything not named is compared.
+// real harness shows. It is the harness-agnostic core: it speaks one unified
+// format and holds no heuristic. A recording goes in as normalised turns (the
+// model's calls, a tree of agents), and what is compared is normalised output
+// (lines). Everything specific to a harness (how a recording is read into
+// turns, how turns become the mock's script, which fields are not behaviour,
+// in what order output is comparable) is an Adapter's.
 package replay
 
 import (
-	"encoding/json"
 	"fmt"
-	"regexp"
-	"sort"
 	"strings"
 )
 
-// Rules say what may differ between a recording and a replay of it. Each entry
-// is a field that no capability cell is about, and the adapter that adds it
-// says why.
-type Rules struct {
-	// DropKeys are object keys removed wherever they occur (a timestamp, a token count).
-	DropKeys []string
-	// Scrub rewrites every string value (a path, a pid, a duration).
-	Scrub []Scrub
-	// Rewrite changes the string value of the named key wherever it occurs (a
-	// command line that differs only in how the shell was invoked).
-	Rewrite map[string]func(string) string
-	// IDs are patterns of values that differ per run but must agree with
-	// themselves: each distinct match is renamed <ID1>, <ID2>... in order of
-	// first appearance, so a line that names the same id as an earlier one must
-	// still do so.
-	IDs []*regexp.Regexp
+// The unified tool vocabulary of a recorded turn. An adapter maps its
+// harness's tools onto these, and a tool it cannot map makes the recording
+// unbuildable.
+const (
+	// ToolShell runs a command: Input "command" (string), optionally "yield_time_ms" (int).
+	ToolShell = "shell"
+	// ToolSpawn starts a sub-agent: Input "message" (string), and Call.Sub is the sub-agent's turns.
+	ToolSpawn = "spawn_agent"
+)
+
+// Call is one tool call the model made.
+type Call struct {
+	Said  *string // what the model said just before the call, if it said anything
+	Tool  string
+	Input map[string]any
+	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
 }
 
-// Scrub is one rewrite of the text of a string value.
-type Scrub struct {
-	Re   *regexp.Regexp
-	With string
+// Agent is what one agent (the main one, or a sub-agent) did: its calls in
+// order, then its final answer.
+type Agent struct {
+	Calls []Call
+	Final string
 }
 
-// Canon canonicalises the outputs of one run under Rules. The id numbering is
-// shared by everything it canonicalises, so call Lines for the stream that
-// names ids in a fixed order (the event stream) before the ones whose order
-// is not fixed (hook payloads).
-type Canon struct{ c canon }
+// Recording is a recorded run in unified form.
+type Recording struct {
+	Dir    string            // the recorded run: an adapter reads what it needs of it here
+	Prompt string            // what the agent was asked
+	Setup  map[string]string // the run's own setup, by name: opaque to the core
+	Agent  Agent
+}
 
-// New makes a Canon for one run's outputs.
-func New(r Rules) *Canon { return &Canon{canon{r: r, ids: map[string]string{}}} }
+// Observed is what a run left that is compared, normalised: one line per
+// event, in an order that is the behaviour.
+type Observed struct {
+	Events []string
+	Hooks  []string
+}
 
-// Lines canonicalises JSON objects: one string per object, keys sorted, rules applied.
-func (n *Canon) Lines(objs []map[string]any) []string {
-	out := make([]string, len(objs))
-	for i, o := range objs {
-		b, _ := json.Marshal(n.c.walk(o))
-		out[i] = string(b)
+// Adapter is everything a harness contributes to a replay.
+type Adapter interface {
+	// Load reads the recorded run into unified form; an *Unbuildable says what the adapter cannot reproduce.
+	Load(runDir string) (Recording, error)
+	// Script is the mock's scenario for rec, printed for debugging.
+	Script(rec Recording) (string, error)
+	// Replay runs the mock on rec and returns the recording's output and the
+	// mock's, each normalised the same way. A mock that fails is a *MockFailure.
+	Replay(mock string, rec Recording) (want, got Observed, err error)
+}
+
+// Unbuildable says what of a recording an adapter cannot reproduce yet.
+type Unbuildable struct{ Reason string }
+
+func (u *Unbuildable) Error() string { return u.Reason }
+
+// MockFailure is a mock that did not run to the end.
+type MockFailure struct{ Detail string }
+
+func (m *MockFailure) Error() string { return "the mock failed: " + m.Detail }
+
+// Run replays the recording in runDir through a and returns what differs;
+// empty is a green replay.
+func Run(a Adapter, mock, runDir string) (string, error) {
+	rec, err := a.Load(runDir)
+	if err != nil {
+		return "", err
 	}
-	return out
-}
-
-type canon struct {
-	r   Rules
-	ids map[string]string
-}
-
-func (c *canon) walk(v any) any {
-	switch x := v.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(x))
-	keys:
-		for k, e := range x {
-			for _, d := range c.r.DropKeys {
-				if k == d {
-					continue keys
-				}
-			}
-			if fn := c.r.Rewrite[k]; fn != nil {
-				if str, ok := e.(string); ok {
-					e = fn(str)
-				}
-			}
-			out[c.str(k)] = c.walk(e)
-		}
-		return out
-	case []any:
-		out := make([]any, len(x))
-		for i, e := range x {
-			out[i] = c.walk(e)
-		}
-		return out
-	case string:
-		return c.str(x)
+	want, got, err := a.Replay(mock, rec)
+	if f, ok := err.(*MockFailure); ok {
+		return f.Error(), nil
 	}
-	return v
+	if err != nil {
+		return "", err
+	}
+	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks), nil
 }
 
-// str applies the scrubs and the id renaming to a string (a value, or a key).
-func (c *canon) str(x string) string {
-	for _, s := range c.r.Scrub {
-		x = s.Re.ReplaceAllString(x, s.With)
+// Script is the scenario a generates for the recording in runDir.
+func Script(a Adapter, runDir string) (string, error) {
+	rec, err := a.Load(runDir)
+	if err != nil {
+		return "", err
 	}
-	for _, re := range c.r.IDs {
-		x = re.ReplaceAllStringFunc(x, func(m string) string {
-			if n, ok := c.ids[m]; ok {
-				return n
-			}
-			n := fmt.Sprintf("<ID%d>", len(c.ids)+1)
-			c.ids[m] = n
-			return n
-		})
-	}
-	return x
-}
-
-// Sorted returns lines in a fixed order, for output whose order is not the
-// behaviour (hooks that run at the same time).
-func Sorted(lines []string) []string {
-	out := append([]string(nil), lines...)
-	sort.Strings(out)
-	return out
+	return a.Script(rec)
 }
 
 // Diff is empty when want and got are the same lines; otherwise it shows the
-// first line that differs with a little context, and the counts.
+// first lines that differ and the counts.
 func Diff(what string, want, got []string) string {
 	if len(want) == len(got) {
 		same := true
