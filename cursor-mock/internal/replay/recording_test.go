@@ -83,3 +83,17 @@ func TestConcurrentSortsOnlyWithinAnEvent(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+// A named sample of a run is the one replayed, so every sample can be.
+func TestLoadReadsTheNamedSample(t *testing.T) {
+	samples, _ := filepath.Glob(filepath.Join(runDir("additional-context"), "samples", "*"))
+	if len(samples) == 0 {
+		t.Fatal("no sample")
+	}
+	if _, err := (Adapter{Sample: filepath.Base(samples[0])}).Load(runDir("additional-context")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (Adapter{Sample: "19700101-000000"}).Load(runDir("additional-context")); err == nil {
+		t.Fatal("a sample that does not exist must not load")
+	}
+}
