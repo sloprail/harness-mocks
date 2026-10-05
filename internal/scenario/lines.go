@@ -11,6 +11,7 @@ type block struct {
 }
 
 type line struct {
+	Gate    *Gate  `json:"gate"`
 	Type    string `json:"type"`
 	Trigger string `json:"trigger"`
 	Result  string `json:"result"`
@@ -42,6 +43,9 @@ func (t *Turn) read(raw []byte) (done bool, err error) {
 		t.Result = &l.Result
 		return true, nil
 	case "assistant":
+		if l.Gate != nil && t.Gate.None() {
+			t.Gate = *l.Gate
+		}
 		for _, b := range l.Message.Content {
 			switch b.Type {
 			case "text":

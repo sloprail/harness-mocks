@@ -152,3 +152,39 @@ printf '%s\n' '{"type":"result","result":"done"}'`
 		t.Fatalf("the script was given %q, want %q: the prompt hooks' context, then what the host added so far", got, want)
 	}
 }
+
+// gateHost holds a turn back as a Gater: it logs the gate it was asked to hold, before the turn's call is taken.
+type gateHost struct {
+	host
+	gates []scenario.Gate
+}
+
+func (h *gateHost) Gate(_ context.Context, g scenario.Gate) {
+	h.gates = append(h.gates, g)
+	h.log = append(h.log, "gate")
+}
+
+func TestRunHoldsAGatedTurnBackBeforeItsCallIsTaken(t *testing.T) {
+	dir := t.TempDir()
+	h := &gateHost{host: host{sessionLog: filepath.Join(dir, "session")}}
+	script := filepath.Join(dir, "s.sh")
+	body := `n=$(grep -c '^output' "$A10N_MOCK_SESSION_FILE" 2>/dev/null); n=${n:-0}
+if [ "$n" = 0 ]; then
+  printf '%s\n' '{"gate":{"ended":[1]},"type":"assistant","message":{"content":[{"type":"tool_use","id":"c0","name":"Bash","input":{"n":0}}]}}'
+  exit 0
+fi
+printf '%s\n' '{"type":"result","result":"done"}'`
+	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(h.gates) != 1 || len(h.gates[0].Ended) != 1 || h.gates[0].Ended[0] != 1 {
+		t.Fatalf("gates = %+v", h.gates)
+	}
+	joined := strings.Join(h.log, " ")
+	if strings.Index(joined, "gate") > strings.Index(joined, "tool:Bash") {
+		t.Fatalf("the gate was held after the call was taken: %s", joined)
+	}
+}

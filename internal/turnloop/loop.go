@@ -34,6 +34,13 @@ type Host interface {
 	SessionFile() string
 }
 
+// Gater is a host that holds a turn back until what its script's gate names has
+// happened (scenario.Gate): the script, not the time anything takes, orders the
+// agents' steps.
+type Gater interface {
+	Gate(ctx context.Context, g scenario.Gate)
+}
+
 // Params is what the loop is told.
 type Params struct {
 	Script  string
@@ -101,6 +108,9 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 			Prompt: p.Prompt, AdditionalContext: contextOf(p, extra), SessionFile: h.SessionFile()})
 		if err != nil {
 			return "", err
+		}
+		if g, ok := h.(Gater); ok && !t.Gate.None() {
+			g.Gate(ctx, t.Gate)
 		}
 		for _, text := range t.Texts {
 			h.Say(text)
