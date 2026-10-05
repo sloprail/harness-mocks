@@ -18,6 +18,7 @@ providers:
       - codex-mock/snapshots/runs/session-end
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no sub-agents (its tool executor handles only the shell tool), so the events a sub-agent raises, which Codex gives the parent session's id and an agent id, are not modeled; every event is a main-thread event.
   cursor:
@@ -29,6 +30,7 @@ providers:
       - cursor-mock/snapshots/runs/file-tools
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor does not name the working directory as a cwd on every
           payload: it names it as workspace_roots (the project's roots) on
@@ -41,11 +43,13 @@ providers:
           transcript file exists. The mock does the same (recorded:
           runs/tool-failure, runs/file-tools, runs/pretool-refusal).
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no sub-agents (no Task tool and no subagentStart or
           subagentStop event), so the payload fields that name a sub-agent are not
           modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock fires no workspaceOpen event (an app-lifecycle event outside
           any session, whose payload omits the conversation id, the session id

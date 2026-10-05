@@ -13,6 +13,7 @@ providers:
       - claude-mock/snapshots/runs/hook-exit-codes
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The reasons clear, resume, logout and prompt_input_exit belong to an
           interactive session (/clear, /resume, a logout, an exit from the
@@ -27,12 +28,14 @@ providers:
       - codex-mock/snapshots/runs/session-end-hook-failure
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The docs name SessionEnd triggers of an app-managed thread: archiving
           or deleting it, and 30 minutes of idleness. The mock models a
           non-interactive run, which ends with its turn, so it fires SessionEnd
           for that only.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex reports a SessionEnd hook that times out or exits with an
           error as a hook failure (the docs). A non-interactive run shows no
@@ -48,6 +51,7 @@ providers:
       - cursor-mock/snapshots/runs/session-end-hook-output
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no interactive session, and models a run that ends by its
           script's result, so the sessionEnd reasons window_close, user_close, aborted

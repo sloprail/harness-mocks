@@ -20,6 +20,7 @@ providers:
       - codex-mock/snapshots/runs/shell-exit-status
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not make a failed command an error result for the agent:
           what it is told is the command's output alone, the same text a

@@ -16,6 +16,7 @@ providers:
       - codex-mock/snapshots/runs/compaction-transcript-continuity
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex leaves a compaction as one `compacted` record in the rollout,
           not a boundary followed by a summary and a tail of earlier records:
@@ -26,6 +27,7 @@ providers:
           previous_window_id, window_number), not by the parent links between
           records (recorded: runs/compaction-transcript-continuity).
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock keeps only the last user message of the rollout as the kept
           message, writes a placeholder for the encrypted summary, and does not

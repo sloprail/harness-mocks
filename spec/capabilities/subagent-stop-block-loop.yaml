@@ -19,6 +19,7 @@ providers:
       - codex-mock/snapshots/runs/subagent-stop-block-loop-cap
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex has no block cap for a sub-agent's stop hook; a hook that blocked 15 times in a row had the sub-agent run again each time, so the loop ends only when the hook lets it stop.
   cursor:

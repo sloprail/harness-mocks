@@ -14,12 +14,14 @@ providers:
       - claude-mock/snapshots/runs/transcript-retention
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The sub-agents doc describes resuming a finished sub-agent by
           messaging it (SendMessage), which continues the same transcript file.
           The mock does not model SendMessage or sub-agent resume: a sub-agent
           runs once, writes its one file and sidecar, and is not continued.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           The docs say sub-agent transcripts are deleted with their session once
           it is older than cleanupPeriodDays. In the recorded print-mode run, a
@@ -55,6 +57,7 @@ providers:
       - cursor-mock/snapshots/runs/subagent-transcripts
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor keeps no sidecar: nothing names the sub-agent's type, the call
           that spawned it or its depth. Its transcript is a conversation of its

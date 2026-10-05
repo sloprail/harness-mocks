@@ -20,6 +20,7 @@ providers:
       - cursor-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor's receipt for the background command does not say it is
           terminated at the sub-agent's final response: it is only the shell
@@ -29,6 +30,7 @@ providers:
           runs/foreground-subagent-bash-ends-with-response), and the mock does
           the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock dispatches a sub-agent only from a Task call that carries a
           mock-only script playing it, and always in the foreground (a Task that

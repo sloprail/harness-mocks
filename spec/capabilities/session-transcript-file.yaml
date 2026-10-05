@@ -20,6 +20,7 @@ providers:
       - codex-mock/snapshots/runs/session-transcript-file
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not key the transcript by working directory: its rollout
           file is <config dir>/sessions/YYYY/MM/DD/rollout-<start time>-<session
@@ -39,6 +40,7 @@ providers:
       - cursor-mock/snapshots/runs/symlinked-cwd
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The docs say transcript_path is null when transcripts are disabled;
           the mock has no setting to disable them, so it always keeps a

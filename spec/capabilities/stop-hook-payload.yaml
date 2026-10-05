@@ -22,6 +22,7 @@ providers:
       - codex-mock/snapshots/runs/user-prompt-submit-hook-bg
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's Stop payload lists no background tasks: the recorded Stop of
           a turn that ended while a command was still running carries the same

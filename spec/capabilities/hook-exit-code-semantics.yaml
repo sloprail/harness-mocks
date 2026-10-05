@@ -25,6 +25,7 @@ providers:
       - claude-mock/snapshots/runs/hookerrors
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock fires SessionStart, UserPromptSubmit, PreToolUse,
           PostToolUse, PostToolUseFailure, Stop, SubagentStart, SubagentStop,
@@ -37,6 +38,7 @@ providers:
           PreModelSwitch, Setup, TaskCompleted, TaskCreated, TeammateIdle and
           UserPromptExpansion are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A hook's JSON that fails Claude Code's output schema is a
           non-blocking error in the mock too, whose message names the failing
@@ -45,6 +47,7 @@ providers:
           Claude Code's recorded wording; any other field's complaint is the
           mock's own.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           WorktreeRemove fails on a non-zero hook exit only if the worktree's
           directory still exists afterward. The mock's worktree_remove manages
@@ -64,6 +67,7 @@ providers:
       - codex-mock/snapshots/runs/stops
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's exit 2 uses the hook's stderr as the message even when the
           hook also printed a JSON reason: recorded, a PreToolUse hook that
@@ -72,6 +76,7 @@ providers:
           was told the stderr text; the JSON on stdout was not read
           (runs/hook-exit-json). The mock does the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock fires SessionStart, UserPromptSubmit, PreToolUse,
           PostToolUse and Stop, and no others. The docs' exit-code rows for
@@ -89,6 +94,7 @@ providers:
       - cursor-mock/snapshots/runs/pretool-refusal
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock fires sessionStart, sessionEnd, preToolUse, postToolUse,
           postToolUseFailure, beforeShellExecution, afterShellExecution and

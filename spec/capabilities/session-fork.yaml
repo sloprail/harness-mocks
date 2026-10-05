@@ -12,6 +12,7 @@ providers:
       - claude-mock/snapshots/runs/resume-continue-fork
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The init frame at a session's start and the result frame that ends it,
           which in the recorded runs name the fork's new session id, are the
@@ -25,6 +26,7 @@ providers:
       - codex-mock/snapshots/runs/session-fork
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's fork does not copy the history into its transcript: the new
           rollout holds only what is said after the fork, and its meta record
@@ -33,6 +35,7 @@ providers:
           (recorded: runs/session-fork). The agent still continues the
           conversation, and the mock does the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock forks only as `exec fork <session id> [prompt]`, the
           non-interactive fork. The interactive `codex fork` (session picker,

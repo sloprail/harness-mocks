@@ -20,12 +20,14 @@ providers:
       - claude-mock/snapshots/runs/fgsub-maxturns
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock's executor does not implement the SendMessage tool, so it does not
           model resuming a finished sub-agent (or one that stopped at its maxTurns)
           with a message: the docs and the fgsub-maxturns recording show Claude
           doing it, the resumed sub-agent carrying on in the background.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no model API to fail: it does not model the docs' hand-back of
           a sub-agent cut off by an API error (a rate limit, overload or server
@@ -39,6 +41,7 @@ providers:
       - codex-mock/snapshots/runs/foreground-subagent-result
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not block its parent by spawning: spawn_agent returns the
           sub-agent's id at once (its state pending), and the parent blocks in
@@ -48,6 +51,7 @@ providers:
           trailer naming the sub-agent and its usage (recorded:
           runs/foreground-subagent-result). The mock does the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock carries out spawn_agent and the wait that follows as one
           call: it returns the wait's result as its own, and no wait_agent call
@@ -59,6 +63,7 @@ providers:
       - cursor-mock/snapshots/runs/foreground-subagent-result
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor's result of a foreground sub-agent is the Task call's
           structured result, not a text with a trailer: the sub-agent's
@@ -66,6 +71,7 @@ providers:
           did not run in the background and its duration; no usage is stated
           (recorded: runs/foreground-subagent-result). The mock does the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock runs only a foreground Task that carries a description, a
           prompt and the scenario script that plays the sub-agent; a background

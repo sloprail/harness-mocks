@@ -10,6 +10,7 @@ providers:
       - claude-mock/snapshots/runs/worktree-hooks
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A worktree_create or worktree_remove control record only fires its hook:
           no directory is made or removed behind it, so the hook's returned path is
@@ -19,6 +20,7 @@ providers:
           for real, and it fires no WorktreeRemove when the sub-agent ends, as the
           recorded run did not.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A worktree created by claude --worktree for a session, or for a
           background session in agent view (an interactive surface), has no

@@ -18,6 +18,7 @@ providers:
       - codex-mock/snapshots/runs/agent-input-validation-spawn
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not refuse the dispatch (spawn_agent) before any hook
           runs: the PreToolUse hook fires with the call as the agent made it,
@@ -27,6 +28,7 @@ providers:
           runs/agent-input-validation). What it requires is a message or a
           list of items, not a description and a prompt.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock requires a message and does not model the items form of
           spawn_agent, and it runs no sub-agent: a complete dispatch passes
@@ -39,6 +41,7 @@ providers:
       - cursor-mock/snapshots/runs/agent-input-validation-description
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor's Task call requires only a prompt: a call without a
           description is not refused but runs with the description empty
@@ -47,6 +50,7 @@ providers:
           Required" before any hook (not even preToolUse) fires, and nothing
           runs (recorded: runs/agent-input-validation).
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock runs no sub-agent: a Task call that passes the check
           reaches preToolUse as Cursor's does and is then answered as an

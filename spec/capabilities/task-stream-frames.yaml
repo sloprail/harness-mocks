@@ -21,6 +21,7 @@ providers:
       - codex-mock/snapshots/runs/task-stream-frames
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's event stream has no task frames: no start, update or
           notification frame of its own, and a shell command is never a task
@@ -32,6 +33,7 @@ providers:
           as its state ("completed") with its answer as the message (recorded:
           runs/task-stream-frames). The mock does the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock runs no model: a sub-agent's work is the scenario script
           the spawn_agent call names, and the mock waits for it inside that
@@ -45,6 +47,7 @@ providers:
       - cursor-mock/snapshots/runs/task-stream-frames
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor's stream-json has no task_started or task_updated frame: a
           sub-agent and a background command are announced by the tool_call
@@ -57,6 +60,7 @@ providers:
           sub-agent has no notification frame. The mock does the same for a
           background command.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock runs no sub-agent, so a Task call is answered as an error
           rather than with the sub-agent's reply, and it has no await tool: the

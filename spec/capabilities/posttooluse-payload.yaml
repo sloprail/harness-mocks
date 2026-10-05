@@ -21,11 +21,13 @@ providers:
       - codex-mock/snapshots/runs/shell-exit-status
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's PostToolUse payload does not say how long the call took: it
           has no duration field, in its doc or in any recorded payload, and the
           mock sends none.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock runs the shell tool, apply_patch and a sub-agent dispatch
           only, so what PostToolUse reports for MCP tool calls and other local
@@ -39,6 +41,7 @@ providers:
       - cursor-mock/snapshots/runs/pretool-refusal
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock runs the Shell, Read and Write tools only, so what the MCP tools'
           and the other tools' successful calls report to postToolUse is not modeled.

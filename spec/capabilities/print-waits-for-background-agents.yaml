@@ -19,11 +19,13 @@ providers:
       - cursor-mock/snapshots/runs/print-waits-for-background-agents
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock plays the sub-agent as a script that decides what it does
           (the real one is a model), no hook of the Task call can refuse it,
           and a limit on how long the session waits is not modeled.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor fires neither subagentStart nor subagentStop for the
           background sub-agent in print mode, though both were configured

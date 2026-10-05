@@ -27,6 +27,7 @@ providers:
       - cursor-mock/snapshots/runs/symlinked-cwd
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock reads the project's .cursor/hooks.json only, and runs its
           hooks from the project root. The user-level hooks of

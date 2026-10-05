@@ -11,6 +11,7 @@ providers:
       - claude-mock/snapshots/runs/midturn
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock does not model a background command's time limit: the docs
           give 30 minutes by default, or the timeout passed with
@@ -20,6 +21,7 @@ providers:
           limit'. A mock's background command runs until it ends or the session
           reaps it.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock does not model a foreground command moving to the
           background: the docs say one that reaches its timeout is moved to the
@@ -28,6 +30,7 @@ providers:
           a foreground sub-agent's moved command still stops when that
           sub-agent's run ends. A mock's foreground command is never moved.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no /tasks command (interactive only) to list and stop
           background tasks, and no interactive session in which a command
@@ -44,6 +47,7 @@ providers:
       - codex-mock/snapshots/runs/background-bash-start
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex has no background shell mode: a command started with a yield
           time (unified exec, exec_command) returns once the time is up, and a
@@ -56,6 +60,7 @@ providers:
           stream as started and never completed (recorded:
           runs/background-bash-start). The mock does the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock does not model polling a running command (write_stdin), the
           PostToolUse the docs say a later poll delivers when the command
@@ -72,6 +77,7 @@ providers:
       - cursor-mock/snapshots/runs/background-bash-start
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock does not model what Cursor tells the model of a background
           command in words ("Background command started successfully", the
@@ -83,6 +89,7 @@ providers:
           waiting for the command. The header the real output file may carry is not
           recorded: the mock's file holds the command's output alone.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock does not model a foreground command that reaches its timeout
           moving to the background (timeoutBehavior TIMEOUT_BEHAVIOR_BACKGROUND

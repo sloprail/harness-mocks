@@ -18,6 +18,7 @@ providers:
       - codex-mock/snapshots/runs/session-transcript-file
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not stamp the bookkeeping on every record: only the
           rollout's first record (session_meta) carries the session id, start
@@ -26,12 +27,14 @@ providers:
           its timestamp (recorded: runs/session-transcript-file). The mock does
           the same.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex repeats the working directory on each turn's turn_context
           record, a record of its own beside the conversation's
           (recorded: runs/session-transcript-file); beyond that the first
           record is the only one that names it.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not mark the prompt record of a non-interactive run: the
           user message is the same as a typed one, and the run's mode is only
