@@ -41,6 +41,7 @@ func TestPluginHooksAreFoundByDefaultOrByTheManifest(t *testing.T) {
 	byDefault, named, unloaded := filepath.Join(ws, "plugins", "a"), filepath.Join(ws, "plugins", "b"), filepath.Join(ws, "plugins", "c")
 	writePlugin(t, byDefault, `{"name":"a"}`, "hooks/hooks.json")
 	writePlugin(t, named, `{"name":"b","hooks":"./config/my-hooks.json"}`, "config/my-hooks.json")
+	// Doc-based, not recorded (the recording's manifest names the default path):
 	// b also has a hooks/hooks.json; the manifest's path replaces it (doc: the
 	// default is not also scanned)
 	require.NoError(t, os.MkdirAll(filepath.Join(named, "hooks"), 0o755))
