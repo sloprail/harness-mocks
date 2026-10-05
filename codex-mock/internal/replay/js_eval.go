@@ -93,7 +93,11 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 		return r.eval(x.Expression)
 	case *ast.Optional:
 		v, err := r.eval(x.Expression) // the part before the ?. always runs
-		r.cond++
+		switch v.(type) {
+		case map[string]any, string, number, bool: // known and not null: the ?. does not short-circuit
+		default:
+			r.cond++ // what follows may not run
+		}
 		return v, err
 	case *ast.AwaitExpression:
 		return r.eval(x.Argument)

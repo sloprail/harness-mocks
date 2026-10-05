@@ -30,30 +30,31 @@ func TestScriptLooksAroundWithoutCalls(t *testing.T) {
 
 func TestScriptRefusesWhatItCannotFollow(t *testing.T) {
 	for name, js := range map[string]string{
-		"a call that depends on a result": "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) await tools.exec_command({cmd:\"b\"});",
-		"an unknown name":                 "await tools.exec_command({cmd:nope});",
-		"a loop":                          "for (const x of [1]) { await tools.exec_command({cmd:\"a\"}); }",
-		"a load nobody stored":            "load(\"x\");",
-		"not JavaScript":                  "const = ;",
-		"a call inside a function":        "[1].map(async () => tools.exec_command({cmd:\"a\"}));",
-		"a tools alias":                   "const t = tools; await t.exec_command({cmd:\"a\"});",
-		"a shadowed harness name":         "const tools = {}; await tools.exec_command({cmd:\"a\"});",
-		"a var":                           "{ var x = 1; } await tools.exec_command({cmd:x});",
-		"a tagged template":               "await tools.exec_command`x`;",
-		"a default parameter":             "[1].map((a = tools.exec_command({cmd:\"x\"})) => a);",
-		"a mutating method":               "const a = [1]; a.reverse(); await tools.exec_command({cmd:\"c\", extra:a});",
-		"an exponent-form number":         "await tools.exec_command({cmd:`${1e21}`});",
-		"a prototype property":            "const o = {}; await tools.exec_command({cmd:o.toString});",
-		"__proto__":                       "const o = {__proto__:{cmd:\"a\"}}; await tools.exec_command(o);",
-		"an optional chain's call":        "const o = null; o?.f(await tools.exec_command({cmd:\"a\"}));",
-		"a read before its declaration":   "const x = \"a\"; { const y = x; const x = \"b\"; await tools.exec_command({cmd:y}); }",
-		"a lone surrogate":                "await tools.exec_command({cmd:\"a\\ud800\"});",
-		"a read of null":                  "const o = {}; o.x.y; await tools.exec_command({cmd:\"a\"});",
-		"a method of undefined":           "const o = {}; o.x.f(); await tools.exec_command({cmd:\"a\"});",
-		"a read of null in an operand":    "const o = {}; const z = 1 + o.x.y; await tools.exec_command({cmd:\"a\"});",
-		"a read of null before a ?.":      "const o = {}; o.p.q?.r; await tools.exec_command({cmd:\"a\"});",
-		"a redeclaration":                 "const x = 1; const x = 2;",
-		"a store that may not run":        "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) { store(\"k\", 1); }",
+		"a call that depends on a result":     "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) await tools.exec_command({cmd:\"b\"});",
+		"an unknown name":                     "await tools.exec_command({cmd:nope});",
+		"a loop":                              "for (const x of [1]) { await tools.exec_command({cmd:\"a\"}); }",
+		"a load nobody stored":                "load(\"x\");",
+		"not JavaScript":                      "const = ;",
+		"a call inside a function":            "[1].map(async () => tools.exec_command({cmd:\"a\"}));",
+		"a tools alias":                       "const t = tools; await t.exec_command({cmd:\"a\"});",
+		"a shadowed harness name":             "const tools = {}; await tools.exec_command({cmd:\"a\"});",
+		"a var":                               "{ var x = 1; } await tools.exec_command({cmd:x});",
+		"a tagged template":                   "await tools.exec_command`x`;",
+		"a default parameter":                 "[1].map((a = tools.exec_command({cmd:\"x\"})) => a);",
+		"a mutating method":                   "const a = [1]; a.reverse(); await tools.exec_command({cmd:\"c\", extra:a});",
+		"an exponent-form number":             "await tools.exec_command({cmd:`${1e21}`});",
+		"a prototype property":                "const o = {}; await tools.exec_command({cmd:o.toString});",
+		"__proto__":                           "const o = {__proto__:{cmd:\"a\"}}; await tools.exec_command(o);",
+		"an optional chain's call":            "const o = null; o?.f(await tools.exec_command({cmd:\"a\"}));",
+		"a read before its declaration":       "const x = \"a\"; { const y = x; const x = \"b\"; await tools.exec_command({cmd:y}); }",
+		"a lone surrogate":                    "await tools.exec_command({cmd:\"a\\ud800\"});",
+		"a read of null":                      "const o = {}; o.x.y; await tools.exec_command({cmd:\"a\"});",
+		"a method of undefined":               "const o = {}; o.x.f(); await tools.exec_command({cmd:\"a\"});",
+		"a read of null in an operand":        "const o = {}; const z = 1 + o.x.y; await tools.exec_command({cmd:\"a\"});",
+		"a read of null before a ?.":          "const o = {}; o.p.q?.r; await tools.exec_command({cmd:\"a\"});",
+		"a read after a ?. on a known object": "const a = {}; a?.b.c; await tools.exec_command({cmd:\"a\"});",
+		"a redeclaration":                     "const x = 1; const x = 2;",
+		"a store that may not run":            "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) { store(\"k\", 1); }",
 	} {
 		_, err := newJSRun().script(js)
 		assert.Error(t, err, name)
@@ -122,4 +123,10 @@ func TestUnifyMapsOnlyAnObjectArgument(t *testing.T) {
 func TestAReadOfNullInCodeThatMayNotRunIsAllowed(t *testing.T) {
 	_, err := newJSRun().script("const o = {}; const f = () => o.x.y; const v = o?.x; await tools.exec_command({cmd:\"a\"});")
 	assert.NoError(t, err)
+}
+
+func TestScriptKeepsRecordingAfterAChainAndInBinaryOperands(t *testing.T) {
+	calls, err := newJSRun().script("const o = {}; o?.x; await tools.exec_command({cmd:\"a\"}); 1 + (await tools.exec_command({cmd:\"b\"}));")
+	require.NoError(t, err)
+	assert.Len(t, calls, 2)
 }
