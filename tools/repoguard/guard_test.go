@@ -19,14 +19,21 @@ import (
 // (GIT_AUTHOR_* / GIT_COMMITTER_*, see claude-mock/Makefile) or `git -c`, never as global config.
 
 var (
-	globalScope    = regexp.MustCompile(`--(global|system)\b`)
+	globalScope    = regexp.MustCompile(`--(global|system)\b|(--file|-f)[ =]+"?(~|\$HOME|\$\{HOME\}|/Users/|/home/)[^ ]*gitconfig`)
 	readOnlyConfig = regexp.MustCompile(`--(get|get-all|get-regexp|list|show-origin)\b|\s-l\b`)
 	shellGitConfig = regexp.MustCompile(`\bgit\b[^|;&]*\bconfig\b`)
 	goGitConfig    = regexp.MustCompile(`"config"\s*,`)
 )
 
+// joined folds a backslash continuation and a Go call split after "," or "(" into one line, so a
+// command spread over several lines is matched like one on a single line.
+var joinRe = regexp.MustCompile(`\\\n\s*|[,(]\n\s*`)
+
 func globalGitConfigWrites(body string) []string {
 	var out []string
+	body = joinRe.ReplaceAllStringFunc(body, func(m string) string {
+		return strings.TrimRight(m, " \t\n\\") + " "
+	})
 	for i, line := range strings.Split(body, "\n") {
 		if t := strings.TrimSpace(line); strings.HasPrefix(t, "//") || strings.HasPrefix(t, "#") {
 			continue
@@ -47,7 +54,7 @@ func TestNothingWritesTheMachinesGitConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := strings.TrimSpace(string(top))
-	files, err := exec.Command("git", "-C", root, "ls-files").Output()
+	files, err := exec.Command("git", "-C", root, "ls-files", "-co", "--exclude-standard").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,8 +64,8 @@ func TestNothingWritesTheMachinesGitConfig(t *testing.T) {
 			continue
 		}
 		switch {
-		case strings.HasPrefix(rel, ".github/workflows/"), filepath.Base(rel) == "Makefile":
-		case filepath.Ext(rel) == ".sh", filepath.Ext(rel) == ".go":
+		case strings.HasPrefix(rel, ".github/"), filepath.Base(rel) == "Makefile":
+		case filepath.Ext(rel) == ".sh", filepath.Ext(rel) == ".bash", filepath.Ext(rel) == ".mk", filepath.Ext(rel) == ".go":
 		default:
 			continue
 		}
@@ -79,6 +86,9 @@ func TestNothingWritesTheMachinesGitConfig(t *testing.T) {
 func TestDetector(t *testing.T) {
 	for _, line := range []string{
 		"git config --global user.email ci@sloprail.invalid",
+		"git config \\\n  --global user.name x",
+		"exec.Command(\"git\", \"config\",\n\t\"--global\", \"user.email\")",
+		"git config --file ~/.gitconfig user.email x",
 		"git -C /x config --system core.autocrlf false",
 		`exec.Command("git", "config", "--global", "user.email", "x")`,
 	} {
