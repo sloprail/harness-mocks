@@ -2,7 +2,8 @@
 # A mock of the judge for a short approval. Like the real one it is handed the quote and where it sits
 # (source="<transcript>:<line>"), and reads the record itself: what the quote approves is what the assistant
 # said anywhere before that line. The quote must be an approval, and every subject (id="...") the change
-# touches must be named there.
+# touches must be named there. It only proves the handoff and the verdict path; it does not model a vague proposal or
+# one answered earlier (how the real model reads the rubric is for sr-eval).
 in=$(cat)
 quote=$(printf '%s' "$in" | grep -o '<quote>[^<]*</quote>' | head -1)
 source=$(printf '%s' "$in" | grep -o 'source="[^"]*"' | head -1 | sed 's/^source="//; s/"$//')

@@ -26,5 +26,5 @@ sr-test agent "$SR_TEST_CASE_DIR/propose.sh" --session "$SID" --prompt "work on 
 RESULT=$(sr-test agent "$SR_TEST_CASE_DIR/agent.sh" --session "$SID" --prompt "lgtm")
 fail() { echo "$1" >&2; echo "$RESULT" | jq -c '.events[]|select(.rule=="invariant-grounded")|{kind,rule,outcome,on,tool_use_id,reason}' >&2; exit 1; }
 SESSION=$(echo "$RESULT" | jq -er .session)
-jq -rs '[.[]|select(.type=="user")|.message.content[]?|select(.type=="tool_result" and .tool_use_id=="c1")][0]|.is_error' "$SESSION" | grep -qv true || fail "c1: the approved change was not permitted"
+jq -rs '[.[]|select(.type=="user")|.message.content[]?|select(.type=="tool_result" and .tool_use_id=="c1")][0]|.is_error==false' "$SESSION" | grep -qx true || fail "c1: the approved change was not permitted"
 echo "$RESULT" | jq -e '[.events[]|select(.kind=="FileGuardChecked" and .rule=="invariant-grounded")] | length>0 and all(.[]; .outcome=="passed")' >/dev/null || fail "invariant-grounded did not pass the approved change"

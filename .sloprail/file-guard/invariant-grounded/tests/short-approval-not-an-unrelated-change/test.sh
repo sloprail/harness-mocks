@@ -28,4 +28,4 @@ fail() { echo "$1" >&2; echo "$RESULT" | jq -c '.events[]|select(.rule=="invaria
 SESSION=$(echo "$RESULT" | jq -er .session)
 echo "$RESULT" | jq -e '[.events[]|select(.kind=="FileGuardChecked" and .rule=="invariant-grounded")] | (.[0].outcome=="refused" and (.[0].reason|contains("did not include cache-never-stale")))' >/dev/null || fail "invariant-grounded did not refuse the unrelated change with the judge reasoning"
 echo "$RESULT" | jq -e '[.events[]|select(.kind=="FileGuardChecked" and .rule=="invariant-grounded")] | map(.outcome)==["refused","passed"]' >/dev/null || fail "invariant-grounded did not then permit the change that was proposed"
-jq -rs '[.[]|select(.type=="user")|.message.content[]?|select(.type=="tool_result" and .tool_use_id=="c2")][0]|.is_error' "$SESSION" | grep -qv true || fail "c2: the proposed change was not permitted after the refusal"
+jq -rs '[.[]|select(.type=="user")|.message.content[]?|select(.type=="tool_result" and .tool_use_id=="c2")][0]|.is_error==false' "$SESSION" | grep -qx true || fail "c2: the proposed change was not permitted after the refusal"
