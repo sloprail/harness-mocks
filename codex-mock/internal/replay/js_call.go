@@ -50,7 +50,11 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 		return nil, fmt.Errorf("the model's script calls %s, which the adapter does not know", id.Name)
 	}
 	if d, ok := c.Callee.(*ast.DotExpression); ok { // a method of something opaque (ALL_TOOLS.filter, JSON.stringify)
-		_, err := r.eval(d.Left)
+		recv, err := r.eval(d.Left)
+		switch recv.(type) {
+		case []any, map[string]any: // a method may change what the script wrote (reverse, push), which is not followed
+			return nil, fmt.Errorf("the model's script calls %s on a value it wrote, which the adapter does not follow", d.Identifier.Name)
+		}
 		return opaque{}, err // its arguments are evaluated above, so a tool call in one is a call (or refused under a function)
 	}
 	return nil, fmt.Errorf("the model's script calls a %T, which the adapter does not read", c.Callee)

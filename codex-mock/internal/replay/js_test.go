@@ -38,6 +38,13 @@ func TestScriptRefusesWhatItCannotFollow(t *testing.T) {
 		"a call inside a function":        "[1].map(async () => tools.exec_command({cmd:\"a\"}));",
 		"a tools alias":                   "const t = tools; await t.exec_command({cmd:\"a\"});",
 		"a shadowed harness name":         "const tools = {}; await tools.exec_command({cmd:\"a\"});",
+		"a var":                           "{ var x = 1; } await tools.exec_command({cmd:x});",
+		"a tagged template":               "await tools.exec_command`x`;",
+		"a default parameter":             "[1].map((a = tools.exec_command({cmd:\"x\"})) => a);",
+		"a mutating method":               "const a = [1]; a.reverse(); await tools.exec_command({cmd:\"c\", extra:a});",
+		"an exponent-form number":         "await tools.exec_command({cmd:`${1e21}`});",
+		"a prototype property":            "const o = {}; await tools.exec_command({cmd:o.toString});",
+		"__proto__":                       "const o = {__proto__:{cmd:\"a\"}}; await tools.exec_command(o);",
 		"a redeclaration":                 "const x = 1; const x = 2;",
 		"a store that may not run":        "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) { store(\"k\", 1); }",
 	} {
@@ -64,4 +71,13 @@ func TestScriptCallsInMethodArguments(t *testing.T) {
 func TestUnifyTakesOneArgument(t *testing.T) {
 	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}})
 	assert.ErrorContains(t, err, "2 arguments")
+}
+
+func TestUnifyRefusesWhatItDrops(t *testing.T) {
+	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": "x"}}})
+	assert.ErrorContains(t, err, "stdin")
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}})
+	assert.Error(t, err)
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>"}}})
+	assert.NoError(t, err)
 }

@@ -20,11 +20,11 @@ type jsCall struct {
 // calls depend on what a tool answered (a call under an `if`) is an error: it
 // cannot be replayed from the recording of one run.
 type jsRun struct {
-	store map[string]any // store(k, v) / load(k): kept across the rollout's scripts
+	store map[string]any   // store(k, v) / load(k): kept across the rollout's scripts
 	scope []map[string]any // the current script's names, innermost last
-	calls []jsCall       // the current script's tool calls, in the order it made them
-	cond  int            // > 0 inside code that may not run
-	n     int            // the tool calls of the rollout so far: a ref names one by its number
+	calls []jsCall         // the current script's tool calls, in the order it made them
+	cond  int              // > 0 inside code that may not run
+	n     int              // the tool calls of the rollout so far: a ref names one by its number
 }
 
 func newJSRun() *jsRun { return &jsRun{store: map[string]any{}} }
@@ -50,8 +50,6 @@ func (r *jsRun) stmt(st ast.Statement) error {
 		_, err := r.eval(s.Expression)
 		return err
 	case *ast.LexicalDeclaration:
-		return r.declare(s.List)
-	case *ast.VariableStatement:
 		return r.declare(s.List)
 	case *ast.IfStatement:
 		if _, err := r.eval(s.Test); err != nil {
@@ -110,6 +108,9 @@ func (r *jsRun) declare(list []*ast.Binding) error {
 		top := r.scope[len(r.scope)-1]
 		if _, again := top[name]; again || reserved[name] {
 			return fmt.Errorf("the model's script declares %s, which is the harness's or already declared", name)
+		}
+		if r.cond > 0 { // declared by code that may not run: its value is not known
+			v = opaque{}
 		}
 		top[name] = v
 	}

@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,9 @@ func (r *jsRun) member(left ast.Expression, name string) (any, error) {
 	}
 	switch o := v.(type) {
 	case map[string]any:
+		if _, own := o[name]; !own && objectProto[name] {
+			return nil, fmt.Errorf("the model's script reads %s of an object, which is JavaScript's own", name)
+		}
 		return o[name], nil
 	case ref:
 		return ref{o.call, o.path + "." + name}, nil
@@ -23,7 +27,14 @@ func (r *jsRun) member(left ast.Expression, name string) (any, error) {
 	return opaque{}, nil
 }
 
+// objectProto are the properties every JS object has without the script writing them.
+var objectProto = map[string]bool{"toString": true, "constructor": true, "hasOwnProperty": true, "valueOf": true, "__proto__": true,
+	"isPrototypeOf": true, "propertyIsEnumerable": true, "toLocaleString": true}
+
 func (r *jsRun) template(t *ast.TemplateLiteral) (any, error) {
+	if t.Tag != nil {
+		return nil, fmt.Errorf("the model's script has a tagged template, whose tag may do anything")
+	}
 	var b strings.Builder
 	for i, el := range t.Elements {
 		if !el.Valid {
@@ -39,6 +50,9 @@ func (r *jsRun) template(t *ast.TemplateLiteral) (any, error) {
 			case string:
 				b.WriteString(s)
 			case number:
+				if a := math.Abs(s.f); a >= 1e21 || a != 0 && a < 1e-6 {
+					return nil, fmt.Errorf("the model's script writes a number JavaScript prints in exponent form")
+				}
 				b.WriteString(strconv.FormatFloat(s.f, 'f', -1, 64))
 			default:
 				return opaque{}, nil
@@ -68,6 +82,9 @@ func (r *jsRun) object(o *ast.ObjectLiteral) (any, error) {
 			default:
 				return nil, fmt.Errorf("the model's script has a property name that is a %T", pp.Key)
 			}
+			if key == "__proto__" {
+				return nil, fmt.Errorf("the model's script sets __proto__")
+			}
 			val = pp.Value
 		default:
 			return nil, fmt.Errorf("the model's script has a %T in an object", p)
@@ -86,10 +103,13 @@ func (r *jsRun) object(o *ast.ObjectLiteral) (any, error) {
 func (r *jsRun) function(params *ast.ParameterList, body any) error {
 	names := map[string]any{}
 	if params != nil {
+		if params.Rest != nil {
+			return fmt.Errorf("the model's script has a function with a rest parameter")
+		}
 		for _, b := range params.List {
 			id, ok := b.Target.(*ast.Identifier)
-			if !ok {
-				return fmt.Errorf("the model's script has a function with a destructured parameter")
+			if !ok || b.Initializer != nil {
+				return fmt.Errorf("the model's script has a function with a destructured or defaulted parameter")
 			}
 			names[id.Name.String()] = opaque{}
 		}

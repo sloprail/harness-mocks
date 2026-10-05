@@ -2,6 +2,8 @@ package replay
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -66,16 +68,26 @@ func unify(m jsCall) (core.Call, error) {
 	arg, _ = m.Args[0].(map[string]any)
 	switch m.Name {
 	case "exec_command":
+		if err := knownKeys(arg, "cmd", "yield_time_ms", execCarried); err != nil {
+			return core.Call{}, err
+		}
 		cmd, ok := arg["cmd"].(string)
 		if !ok {
 			return core.Call{}, fmt.Errorf("an exec_command whose cmd is not a string")
 		}
 		in := map[string]any{"command": cmd}
-		if y, ok := arg["yield_time_ms"].(number); ok {
-			in["yield_time_ms"] = int(y.f)
+		if y, present := arg["yield_time_ms"]; present {
+			n, ok := y.(number)
+			if !ok {
+				return core.Call{}, fmt.Errorf("an exec_command whose yield_time_ms is not a number")
+			}
+			in["yield_time_ms"] = int(n.f)
 		}
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
 	case "multi_agent_v1__spawn_agent":
+		if err := knownKeys(arg, "message", "", ""); err != nil {
+			return core.Call{}, err
+		}
 		msg, ok := arg["message"].(string)
 		if !ok {
 			return core.Call{}, fmt.Errorf("a spawn_agent whose message is not a string")
@@ -83,4 +95,21 @@ func unify(m jsCall) (core.Call, error) {
 		return core.Call{Tool: core.ToolSpawn, Input: map[string]any{"message": msg}}, nil
 	}
 	return core.Call{}, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, spawn_agent and (as nothing) wait_agent", m.Name)
+}
+
+// execCarried are the exec_command arguments the replay does not hand to the
+// mock: the mock runs in the run's directory with its own shell, and caps no output.
+// A recording where one of them mattered replays red, since the whole output is compared.
+const execCarried = "workdir max_output_tokens shell login tty"
+
+// knownKeys refuses a call that has an argument the adapter neither maps (a, b) nor
+// names as carried (the space-separated names in carried): a dropped argument would
+// make the replay a different call.
+func knownKeys(arg map[string]any, a, b, carried string) error {
+	for k := range arg {
+		if k != a && k != b && !slices.Contains(strings.Fields(carried), k) {
+			return fmt.Errorf("a call with an argument %q, which the adapter does not map", k)
+		}
+	}
+	return nil
 }
