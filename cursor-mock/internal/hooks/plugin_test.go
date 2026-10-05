@@ -42,8 +42,9 @@ func TestPluginHooksAreFoundByDefaultOrByTheManifest(t *testing.T) {
 	writePlugin(t, byDefault, `{"name":"a"}`, "hooks/hooks.json")
 	writePlugin(t, named, `{"name":"b","hooks":"./config/my-hooks.json"}`, "config/my-hooks.json")
 	// Doc-based, not recorded (the recording's manifest names the default path):
-	// b also has a hooks/hooks.json; the manifest's path replaces it (doc: the
-	// default is not also scanned)
+	// b also has a hooks/hooks.json; the manifest's path replaces it (the hooks
+	// format at https://cursor.com/docs/reference/plugins#hooks-format: the
+	// default location is where hooks are found when the manifest names none)
 	require.NoError(t, os.MkdirAll(filepath.Join(named, "hooks"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(named, "hooks", "hooks.json"),
 		[]byte(`{"version":1,"hooks":{"beforeShellExecution":[{"command":"default-location-hook"}]}}`), 0o644))
