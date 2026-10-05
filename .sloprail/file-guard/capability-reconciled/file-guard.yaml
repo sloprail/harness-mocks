@@ -1,0 +1,18 @@
+# Cells and adapters reconcile, both ways [deterministic], for the (capability,
+# harness) pairs a change touches: a supported cell has `// sr:provides
+# <id>/<harness>` code under <harness>-mock/ and cites at least one recorded
+# run that exists; a `sr:provides` marker names an existing capability and a
+# supported cell of that harness. Removing the code, or making the cell
+# unsupported or pending, breaks one side until the other matches, so an
+# implementation cannot be deleted to dodge a rule. Touched: the pair's cell
+# changed, or a marker naming it was added or removed; the counterpart side is
+# read from the committed tree. One subject per capability (subjects.sh).
+# Enforces adr/capability-once.
+match: >-
+  path startsWith "spec/capabilities/"
+  or any(markers, .kind == "provides")
+  or any(oldMarkers, .kind == "provides")
+deletions: include
+subjects: ./subjects.sh
+checks:
+  - script: ./reconciled.sh

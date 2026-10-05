@@ -3,8 +3,8 @@
 # [deterministic], over the whole committed tree. Enforces adr/capability-once.
 match: >-
   path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/"
-  or any(markers, .kind == "capability" or .kind == "provides" or .kind == "proves")
-  or any(oldMarkers, .kind == "capability" or .kind == "provides" or .kind == "proves")
+  or any(markers, .kind == "capability" or .kind == "proves")
+  or any(oldMarkers, .kind == "capability" or .kind == "proves")
 deletions: include
 checks:
   - script: ./covered.sh

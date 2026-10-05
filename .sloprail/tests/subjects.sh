@@ -118,6 +118,21 @@ w codex-mock/snapshots/MANIFEST.yaml <<<"pin: 2"; HU="$(step unsupported-cell)"
 eq "cells: an unsupported cell's capability is grounded (its file is new; the codex MANIFEST is no trigger)" "$(ids "$(keys capability-grounded "$HU")")" "u "
 eq "cells: ... and only its supported cell is proven (no rigor subject takes codex's MANIFEST)" "$("$SR" changeset --rule capability-rigor --base "$BASE" --head "$HU" | jq -r '[.subjects[].payload.subject.files[] | select(startswith("codex-mock/"))] | length')" "0"
 
+# --- capability-reconciled: one subject per capability a cell or an sr:provides marker change touches ---
+back; w claude-mock/internal/a.go <<<$'package internal\n// sr:provides a/claude'; w claude-mock/internal/b.go <<<$'package internal\n// sr:provides b/claude'; BASE_R="$(step adapters)"
+RK() { "$SR" changeset --rule capability-reconciled --base "$BASE_R" --head "$1" 2>"$T/err" |
+  jq -r '.subjects[] | .id as $id | .payload as $p | "\($id) \([[($p.subject.files // [])[]], $p.subject.fingerprint // ""] | tojson | @base64 | gsub("\n"; ""))"'; }
+git checkout -q "$BASE_R"; w claude-mock/internal/a.go <<<$'package internal\n// sr:provides a/claude\n// edited'; HR1="$(step a-adapter-edited)"
+git checkout -q "$BASE_R"; cap a ra "a changed"; HR2="$(step a-cell)"
+git checkout -q "$BASE_R"; cap a ra "a changed"; cap b rb "b changed"; HR3="$(step ab-cells)"
+git checkout -q "$BASE_R"; git rm -q claude-mock/internal/b.go; HR4="$(step b-adapter-gone)"
+eq "reconciled: an edit to a's adapter that keeps its marker is no capability's subject (only the unclaimed one, which judges nothing)" "$(ids "$(RK "$HR1")")" "unclaimed "
+eq "reconciled: a cell change is that capability's subject alone" "$(ids "$(RK "$HR2")")" "a "
+eq "reconciled: two cells, two subjects" "$(ids "$(RK "$HR3")")" "a b "
+eq "reconciled: a's key is the same whether or not b's cell changed" "$(key "$(RK "$HR2")" a)" "$(key "$(RK "$HR3")" a)"
+eq "reconciled: a removed adapter is its capability's subject" "$(ids "$(RK "$HR4")")" "b "
+back
+
 # --- invariant-grounded / invariant-rigor ----------------------------------------------------
 back; w spec/invariants/i1.yaml <<<"statement: one!"; w spec/invariants/i2.yaml <<<"statement: two!"; H9="$(step inv)"
 back; w spec/invariants/i1.yaml <<<"statement: one?"; w spec/invariants/i2.yaml <<<"statement: two!"; H10="$(step inv2)"
