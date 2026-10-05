@@ -43,11 +43,11 @@ run_rule() {
   PATH="$TMPDIR/shim:$PATH" FAIL_JQ_EXACT="${1:-}" FAIL_JQ_HAS="${2:-}" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 }
 expect_passed() {   # LABEL
-  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="module-leaks")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
+  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="module-coverage")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE did not pass (sr-checks exit $ran)" >&2; exit 1; }
 }
 expect_refused() {   # LABEL SUBSTRING : refused, and the reason says it
-  jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="module-leaks" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="module-coverage" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE did not refuse with a reason saying '$2' (sr-checks exit $ran)" >&2; exit 1; }
 }
 # inject LABEL EXACT HAS REASON — a fresh commit on BASE (change_for N makes it), the lookup failing: refused with REASON
@@ -56,29 +56,19 @@ inject() {
   n=$((n + 1)); git checkout -q -b "inject$n" "$BASE"; change_for "$n"; c "change $n"
   run_rule "$2" "$3"; expect_refused "$1" "$4"
 }
-RULE=module-leaks
-# the judge is a mock that passes: what is under test is what feeds it (subjects.sh, find-leaks.sh, leaks-lib.sh)
-export SR_CHECKS_JUDGE_MOCKS='{"file-guard/module-leaks/leak-or-use":"'"$SR_TEST_CASE_DIR"'/judge.sh"}'
-mkdir -p internal/a internal/other
-printf 'concern: "a owns a"\nhome: ["internal/a/**"]\napi: ["internal/a"]\n' >internal/a/module.yaml
-# a's own search: where its logic appears (anywhere in the tree), in `git grep -n` format
-printf '#!/usr/bin/env bash\ngit grep -n -I -E "DoA[(]" -- "*.go" || true\n' >internal/a/candidates.sh; chmod +x internal/a/candidates.sh
-printf 'package a\n\nfunc DoA() {}\n' >internal/a/a.go; printf 'package other\n' >internal/other/o.go
+RULE=module-coverage
+mkdir -p adr/modules-cover-code internal/a internal/legacy
+printf -- '---\nconcern: coverage\nsloprails: [file-guard/module-coverage]\nspace: ["internal/**"]\nexceptions: ["internal/legacy/**"]\n---\n# Every piece of code belongs to a module\n' >adr/modules-cover-code/ADR.md
+printf 'concern: "a"\nhome: ["internal/a/**"]\napi: ["internal/a"]\n' >internal/a/module.yaml
+printf 'package a\n' >internal/a/a.go; printf 'package legacy\n' >internal/legacy/old.go
 c base; BASE=$(git rev-parse HEAD)
-# the change adds a line outside a's home that matches its search: a candidate for the judge
-change_for() { printf 'package other\n\nfunc f() { DoA(%s) }\n' "$1" >internal/other/o.go; }
+change_for() { printf 'package a\n// %s\n' "$1" >internal/a/a.go; }
 
-# control: a candidate is found and handed to the (mock) judge, which passes it
+# the changes below add a file under an exception (and put it in the tree), the one thing only the failed lookup could let through
+change_for() { printf 'package a\n// %s\n' "$1" >internal/a/a.go; printf 'package legacy\n// %s\n' "$1" >"internal/legacy/new$1.go"; }
 git checkout -q -b control "$BASE"; change_for 0; c control
-run_rule; expect_passed "control"
+run_rule; expect_refused "control: the new file under the exception" "internal/legacy/new0.go is added under an exception"
 
-# each failed lookup refuses, naming it. subjects.sh runs first, so what only find-leaks.sh reads is
-# reached when the lookup is one only it makes
-inject "the ADRs' exceptions"       ''   'frontmatter.exceptions'        "the ADRs' exceptions could not be read"
-inject "the lines the range adds"   ''   '.changeset.files[] | select(.status != "D")' "the lines the range adds could not be worked out"
-inject "the module list"            '.[]' ''                             "could not list the modules, so their leaks cannot be searched for"
-inject "a module's directory"       '.dir' ''                            "could not read a module's directory, so its leaks cannot be searched for"
-inject "a module's home"            ''   '.home[]'                       "could not read the home of module internal/a, so its leaks cannot be found"
-inject "a candidate's line number"  ''   'tonumber'                      "the candidates of internal/a could not be read as path, line and text"
-inject "the candidate count"        'length' ''                          "could not count the candidates of internal/a"
-inject "the subject's key"          ''   'split("\n")'                   "could not build the subject of module internal/a"
+# the guards before the lookups: a failed type check of the loaded ADRs, a failed read of the modules' concern lines
+inject "the loaded ADRs' type"    ''    'type == "array"'         "the ADRs linking file-guard/module-coverage could not be loaded, so module coverage cannot be checked"
+inject "the modules' concern"     ''    'tostring | gsub'         "could not read the modules' concern lines"

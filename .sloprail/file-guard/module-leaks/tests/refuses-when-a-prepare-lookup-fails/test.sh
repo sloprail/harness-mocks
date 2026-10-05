@@ -72,13 +72,26 @@ change_for() { printf 'package other\n\nfunc f() { DoA(%s) }\n' "$1" >internal/o
 git checkout -q -b control "$BASE"; change_for 0; c control
 run_rule; expect_passed "control"
 
-# each failed lookup refuses, naming it. subjects.sh runs first, so what only find-leaks.sh reads is
-# reached when the lookup is one only it makes
-inject "the ADRs' exceptions"       ''   'frontmatter.exceptions'        "the ADRs' exceptions could not be read"
-inject "the lines the range adds"   ''   '.changeset.files[] | select(.status != "D")' "the lines the range adds could not be worked out"
-inject "the module list"            '.[]' ''                             "could not list the modules, so their leaks cannot be searched for"
-inject "a module's directory"       '.dir' ''                            "could not read a module's directory, so its leaks cannot be searched for"
-inject "a module's home"            ''   '.home[]'                       "could not read the home of module internal/a, so its leaks cannot be found"
-inject "a candidate's line number"  ''   'tonumber'                      "the candidates of internal/a could not be read as path, line and text"
-inject "the candidate count"        'length' ''                          "could not count the candidates of internal/a"
-inject "the subject's key"          ''   'split("\n")'                   "could not build the subject of module internal/a"
+# what only find-leaks.sh runs (it is the prepare of the same rule; subjects.sh, which runs first, never makes
+# these lookups): the candidates written for the judge, the group recorded, the groups counted, the context built
+inject "the candidates written for the judge" ''   '.[] | "\(.path)'   "could not write the candidates of internal/a for the judge"
+inject "the group recorded"                   ''   '$m.concern'      "could not record the candidates of internal/a for the judge"
+FAIL_JQ_STDIN='"matches":' inject "the groups counted" 'length' ''   "could not count the modules with candidates left"
+inject "the judge's context"                  ''   '{additionalContext' "could not build the judge's context"
+
+# the kept candidates (leaks-lib.sh leak_search): a kept entry that cannot be copied is a failed lookup, not
+# "the search found nothing". The entry is written by hand, so the rule takes the cache path
+cache_entry() {   # writes the kept candidates of internal/a for HEAD's tree
+  local d; d="$(git rev-parse --path-format=absolute --git-common-dir)/sloprail-candidates-cache"; mkdir -p "$d"
+  printf 'internal/other/o.go:3:func f() { DoA(%s) }\n' "$1" >"$d/$(git rev-parse 'HEAD^{tree}')-internal_a"
+}
+git checkout -q -b cache-control "$BASE"; change_for kc; c "cache control"; cache_entry kc
+run_rule; expect_passed "a kept entry is used"
+git checkout -q -b cache-copy "$BASE"; change_for kp; c "cache copy"; cache_entry kp
+FAIL_CP_ARGS=sloprail-candidates-cache run_rule
+expect_refused "the kept candidates copied" "the kept candidates of internal/a could not be read, so its leaks cannot be found"
+# the background prefetch job must not print a refusal of its own: leak_left refuses once, in the open (the
+# reason is the one refusal; the old background refusal printed a second JSON object to the same stdout)
+git checkout -q -b cache-dir "$BASE"; change_for kd; c "cache dir"
+FAIL_GIT_ARGS='--path-format=absolute --git-common-dir' run_rule
+expect_refused "the git directory" "the git directory of the tree could not be found, so the candidates of internal/a cannot be kept or read"
