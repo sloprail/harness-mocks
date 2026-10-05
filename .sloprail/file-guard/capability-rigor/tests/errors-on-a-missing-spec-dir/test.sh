@@ -22,7 +22,8 @@ BASE=$(git rev-parse HEAD)
 git rm -q -r spec/capabilities
 echo "version: 2" > claude-mock/snapshots/runs/r1/run.yaml; c "a run changes, spec/capabilities missing from the tree"
 : > "$SR_EVENTS_FILE"
-sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 || true
+sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+[ "$ran" -ne 0 ]   # the range is refused
 jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-rigor" and .on=="sr-checks run")] | length > 0 and all(.[]; .outcome=="refused" and (.reason | contains("could not be evaluated") and contains("spec/capabilities is not in the committed tree")))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c 'select(.rule=="capability-rigor")' "$SR_EVENTS_FILE" >&2; echo "capability-rigor did not refuse as an error naming the missing spec dir" >&2; exit 1; }
 
