@@ -47,15 +47,6 @@ providers:
           project), plugin-bundled hooks and managed hooks, which Codex also
           loads and runs beside them, are not modeled.
   cursor:
-    notes:
-      - >-
-        When several preToolUse hooks refuse one call, Cursor merges: every one
-        of them runs, and the failure hook's error_message holds the message of
-        each that refused, in configuration order, joined by "\n\n---\n\n"; it
-        acts on neither the last to finish nor the first alone. A deny printed as
-        JSON and an exit 2 both count (recorded: runs/pretool-refusal-combined,
-        where the deny "deny-one-DENY" and the exit-2 "block-two-BLOCK" give
-        "deny-one-DENY\n\n---\n\nHook blocked with message: block-two-BLOCK").
     docs:
       - https://cursor.com/docs/hooks#configuration
     runs:
