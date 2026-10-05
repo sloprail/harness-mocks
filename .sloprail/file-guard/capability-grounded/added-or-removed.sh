@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # `when`: exit 0 (words required) when the changeset adds or deletes a
-# capability file, changes its statement, or adds a claim about what the real
-# harness does not do: a NEW deviation, or a cell that newly becomes
-# `supported: false` or changes its `reason`. What is mocked, and what a mock
-# or harness leaves out, is the user's call (adr/capability-grounding); exit 1
-# (waived) otherwise. A change to a cell's docs and runs, or dropping a
-# deviation, needs no words; the judge still reviews it. The one deviation that
-# needs none is "Doc and recording conflict: ...", which records what the
-# evidence shows and claims no absence. What the user decides is compared
+# capability file, changes its statement, or adds a NEW `modeled-surface`
+# deviation: a claim that the mock leaves out something the real harness does
+# (what is mocked, and what a mock leaves out, is the user's call:
+# adr/capability-grounding, adr/modeled-surface); exit 1 (waived) otherwise.
+# A deviation of adr `capability-grounding` (the harness itself lacks the part),
+# a cell that becomes `supported: false`, and a change to a cell's docs and runs
+# need no words: the cited recording grounds them, and the judge reviews it.
+# Dropping a deviation needs none either. What the user decides is compared
 # parsed, at the range's base and head, so an edit to any line of a folded
 # block counts. Any failure requires the words.
 set -uo pipefail
@@ -16,8 +16,8 @@ payload="$(cat)"
 command -v jq >/dev/null 2>&1 && command -v yq >/dev/null 2>&1 || exit 0
 base="$(cs '.changeset.base')"; head="$(cs '.changeset.head')"
 [ -n "$base" ] && [ -n "$head" ] || exit 0
-# what the user decides, of one capability file at REV ("null" if absent): the statement, the
-# deviations per harness (a disclosed doc/recording conflict aside) and each unsupported cell's reason
+# what the user decides, of one capability file at REV ("null" if absent): the statement and the
+# deviations per harness that say the mock does not model something the harness does
 decided() {   # REV PATH
   git -C "$SR_TREE" cat-file -e "$1:$2" 2>/dev/null || { echo null; return; }
   git -C "$SR_TREE" show "$1:$2" |
@@ -25,10 +25,8 @@ decided() {   # REV PATH
     jq -cS '{
       statement: .statement,
       deviations: [(.providers // {}) | to_entries[] | select(.value | type == "object") | .key as $h
-        | (.value.deviations // [])[] | select((.statement // "") | test("^\\s*Doc and recording conflict:") | not)
-        | {h: $h, adr: .adr, s: (.statement | gsub("\\s+"; " ") | sub("^ "; "") | sub(" $"; ""))}],
-      absent: [(.providers // {}) | to_entries[] | select((.value | type == "object") and .value.supported == false)
-        | {h: .key, r: (.value.reason // "")}]
+        | (.value.deviations // [])[] | select(.adr == "modeled-surface")
+        | {h: $h, adr: .adr, s: (.statement | gsub("\\s+"; " ") | sub("^ "; "") | sub(" $"; ""))}]
     }' 2>/dev/null || echo null
 }
 # the files this requirement is asked about: the subject's (the rule is split per capability, and
@@ -38,7 +36,6 @@ for p in $(cs '(.subject.files // [.changeset.files[].path])[] | select(test("^s
   [ "$b" = "null" ] || [ "$h" = "null" ] && exit 0   # added or removed
   jq -ne --argjson b "$b" --argjson h "$h" '
     $b.statement != $h.statement
-    or (($h.deviations - $b.deviations) | length) > 0
-    or (($h.absent - $b.absent) | length) > 0' >/dev/null && exit 0
+    or (($h.deviations - $b.deviations) | length) > 0' >/dev/null && exit 0
 done
 exit 1

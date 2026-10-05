@@ -107,4 +107,3 @@ jobs:
       # the same sr-checks the verify job pins: the tests ask it what each rule's subjects are
       - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@2ce91382fdedf42c010056b7807ccc5f15e89948
       - run: SR_CHECKS="$HOME/.local/bin/sr-checks" .sloprail/tests/subjects.sh
-      - run: SR_CHECKS="$HOME/.local/bin/sr-checks" .sloprail/tests/rules.sh

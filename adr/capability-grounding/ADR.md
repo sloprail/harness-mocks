@@ -48,11 +48,10 @@ quirks.
 - Adding or removing a capability, or changing its `statement`, carries the
   user's words on its commit (`Sloprail-Cites-User`): the statement is the
   capability the user wants implemented.
-- Every new `deviations` entry, and every cell that becomes `supported: false`
-  or changes its `reason`, is a claim that the real harness does not do
-  something (or that the mock may differ), and carries the user's words on its
-  commit (`Sloprail-Cites-User`) like a statement. The one exception is the
-  "Doc and recording conflict:" entry above, which records what the evidence
-  shows and claims no absence. A deviation that merely follows from another
-  ADR (e.g. a mock does not wait out a 5-minute background limit, so e2e stays
-  fast) still carries the user's words, quoting the decision it follows from.
+- A new `deviations` entry of adr `modeled-surface`, a claim that the mock
+  leaves out something the real harness does, carries the user's words on its
+  commit (`Sloprail-Cites-User`) like a statement: what a mock does not model
+  is the user's call. A deviation or `supported: false` cell grounded by a
+  cited recording that shows the harness itself lacking the behaviour (adr
+  `capability-grounding`, including the "Doc and recording conflict:" entry)
+  needs no quote: the recording grounds it.
