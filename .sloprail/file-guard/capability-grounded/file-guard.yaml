@@ -20,6 +20,8 @@ require:
     when: ./added-or-removed.sh
 subjects: ./subjects.sh
 checks:
+  # a harness-lacks deviation is waived from the user's words because a cited doc or run shows it
+  - script: ./harness-lacks-cited.sh
   - prepare: ./prepare.sh
     judge: ./docs-support-statement.md.j2
     # the frozen doc pages live in a cache under the git dir, outside the project
