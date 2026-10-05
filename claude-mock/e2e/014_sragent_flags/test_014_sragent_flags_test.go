@@ -106,7 +106,6 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 		"--allowedTools", "Write,Read",
 		"--disallowedTools", "Bash",
 		"--input-format", "stream-json",
-		"--include-partial-messages",
 		"--max-budget-usd", "5",
 		"--output-format", "stream-json",
 		"--session-id", "camel-sess",

@@ -122,9 +122,9 @@ func addRunFlags(cmd *cobra.Command) {
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--input-format
 	cmd.Flags().String("input-format", "", "Accepted for CLI compatibility; has no effect")
 	// --include-partial-messages: streams partial message chunks; real claude
-	// requires --output-format stream-json + --print. Accepted, no effect.
+	// requires --output-format stream-json + --print. Refused (the mock streams no partials).
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--include-partial-messages
-	cmd.Flags().Bool("include-partial-messages", false, "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().Bool("include-partial-messages", false, "Refused: not implemented by the mock")
 	// --max-budget-usd: caps API spend. sr-agent's --claude-args carries it in
 	// its own tests ('{"max-budget-usd":5}'), so a judge caller may pass it.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--max-budget-usd
