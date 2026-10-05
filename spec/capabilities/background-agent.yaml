@@ -121,3 +121,15 @@ providers:
           of its own, script (the real one is a model); only a Task that asks
           for the background and carries that script is modelled, and no hook
           of the call can refuse it.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#subagentstart) says
+          subagentStart is "Called before spawning a subagent (Task tool)", and
+          #subagentstop says subagentStop is "Called when a subagent completes,
+          errors, or is aborted". The recording shows neither fires for the
+          background sub-agent, though both were configured: only the Task
+          call's preToolUse fires, with no postToolUse for the Task, and the
+          sub-agent's own shell command's hooks fire under a session id of its own
+          (runs/background-agent). The recording decides, so the mock fires
+          neither.
