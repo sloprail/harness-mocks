@@ -51,6 +51,13 @@ func TestT017_84_ResumeLookupHookFramesCarryTheLookupsID(t *testing.T) {
 		"path":     func(path string) []string { return []string{"--resume", path} },
 		"continue": func(string) []string { return []string{"--continue"} },
 		"id":       func(string) []string { return []string{"--resume", "earlier-1"} },
+		"name": func(path string) []string { // the records the real harness leaves in a named session (runs/resume-name)
+			body, err := os.ReadFile(path)
+			require.NoError(t, err)
+			head := `{"type":"custom-title","customTitle":"by-name","sessionId":"earlier-1"}` + "\n" + `{"type":"agent-name","agentName":"by-name","sessionId":"earlier-1"}` + "\n"
+			require.NoError(t, os.WriteFile(path, append([]byte(head), body...), 0o644))
+			return []string{"--resume", "by-name"}
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -80,5 +87,42 @@ func TestT017_84_ResumeLookupHookFramesCarryTheLookupsID(t *testing.T) {
 			ps := payloads(t, filepath.Join(dir, "p.log"))
 			assert.Equal(t, "earlier-1", ps[len(ps)-1]["session_id"], "the hook's payload names the session itself")
 		})
+	}
+}
+
+// A fork's hooks name the fork's own transcript, on every event, not the file
+// of the session it branched from (runs/forkresume: the fork's SessionStart,
+// UserPromptSubmit, Stop and SessionEnd all carry the new session's file).
+// sr:proves session-fork/claude
+func TestT017_84_ForkHooksNameTheForksTranscript(t *testing.T) {
+	dir := t.TempDir()
+	cfg, log := filepath.Join(dir, "config"), filepath.Join(dir, "p.log")
+	h := payloadLogger(t, dir, "log.sh", log, "")
+	settings(t, dir, map[string]string{"SessionStart": h, "UserPromptSubmit": h, "Stop": h, "SessionEnd": h})
+	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "a"), "--session-id", "orig-1", "--project-dir", dir, "--config-dir", cfg, "-p", "one")
+	require.Equal(t, 0, code, out)
+	write(t, log, "", 0o644)
+	out, code = runInDir(t, dir, nil, "--script", script(t, dir, "b"), "--resume", "orig-1", "--fork-session", "--session-id", "fork-1",
+		"--project-dir", dir, "--config-dir", cfg, "-p", "two")
+	require.Equal(t, 0, code, out)
+	ps := payloads(t, log)
+	require.Len(t, ps, 4)
+	for _, p := range ps {
+		assert.Equal(t, "fork-1", p["session_id"], p["hook_event_name"])
+		assert.True(t, strings.HasSuffix(p["transcript_path"].(string), "/fork-1.jsonl"), "%v: %v", p["hook_event_name"], p["transcript_path"])
+	}
+}
+
+// A10N_MOCK_NO_RESUME=1 makes a resume by name behave as an unknown session as
+// well, and so does a resume that also forks.
+// sr:proves session-resume-unknown/claude
+func TestT017_84_NoResumeAppliesToNamesAndForks(t *testing.T) {
+	for _, args := range [][]string{{"--resume", "some-name"}, {"--resume", "some-id", "--fork-session"}} {
+		dir := t.TempDir()
+		out, code := runInDir(t, dir, []string{"A10N_MOCK_NO_RESUME=1"}, append([]string{"--script", script(t, dir, "s"),
+			"--project-dir", dir, "--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "go"}, args...)...)
+		assert.Equal(t, 1, code, out)
+		assert.Contains(t, out, "No conversation found with session ID: ")
+		assert.Contains(t, out, `"subtype":"error_during_execution"`)
 	}
 }
