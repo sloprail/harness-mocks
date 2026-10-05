@@ -74,7 +74,7 @@ func TestScriptNamesAreScoped(t *testing.T) {
 }
 
 func TestScriptCallsInMethodArguments(t *testing.T) {
-	calls, err := newJSRun().script("text(JSON.stringify(await tools.exec_command({cmd:\"a\"}))); ALL_TOOLS.slice(await tools.exec_command({cmd:\"b\"}));")
+	calls, err := newJSRun().script("text(JSON.stringify(await tools.exec_command({cmd:\"a\"}))); ALL_TOOLS.includes(await tools.exec_command({cmd:\"b\"}));")
 	require.NoError(t, err)
 	assert.Len(t, calls, 2)
 }
@@ -95,7 +95,7 @@ func TestUnifyPassesTheHarnessOptionsOnAsGiven(t *testing.T) {
 }
 
 func TestScriptCallsKeepJavaScriptsOrder(t *testing.T) {
-	calls, err := newJSRun().script("(await tools.exec_command({cmd:\"a\"})).output.slice(await tools.exec_command({cmd:\"b\"})); const o = {k:\"x\"}; o[(await tools.exec_command({cmd:\"c\"})).k];")
+	calls, err := newJSRun().script("(await tools.exec_command({cmd:\"a\"})).output.includes(await tools.exec_command({cmd:\"b\"})); const o = {k:\"x\"}; o[(await tools.exec_command({cmd:\"c\"})).k];")
 	require.NoError(t, err)
 	var cmds []any
 	for _, c := range calls {
@@ -172,4 +172,13 @@ func TestPlaceholderIsReplacedInSubAgentScriptsOnly(t *testing.T) {
 func TestInRepoReplacesThePlaceholderInScriptsOnly(t *testing.T) {
 	assert.Equal(t, "cat /r/a", inRepo("sub0.sh", "cat "+runPlaceholder+"/a", "/r"))
 	assert.Equal(t, "echo "+runPlaceholder, inRepo("hook.sh", "echo "+runPlaceholder, "/r"))
+}
+
+func TestAMethodOnAValueNotFollowedIsRefusedUnlessItOnlyLooksAround(t *testing.T) {
+	_, err := newJSRun().script("text(ALL_TOOLS.filter(x => /a/i.test(x.name)).length); text(JSON.stringify({a:1}));")
+	assert.NoError(t, err)
+	_, err = newJSRun().script("ALL_TOOLS.forEach(x => text(x));")
+	assert.Error(t, err)
+	_, err = newJSRun().script("const r = await tools.exec_command({cmd:\"a\"}); text(r.output.trim());")
+	assert.Error(t, err)
 }
