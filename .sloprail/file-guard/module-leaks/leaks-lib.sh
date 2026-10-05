@@ -30,10 +30,15 @@ leak_cache_dir() { local g; g="$(git -C "$SR_TREE" rev-parse --path-format=absol
 # leak_search DIR OUT — runs DIR's candidates.sh (or reads its kept output) into OUT; OUT.rc is its exit.
 leak_search() {
   local dir="$1" out="$2" cache key
-  # (in a prefetch's background job this ends only that job; leak_left then searches again, and refuses in the open)
+  # (a prefetch's background job refuses silently and leaves no .rc file: leak_left then searches again
+  # and refuses in the open, so there is exactly one refusal)
   cache="$(leak_cache_dir)" || refuse "the git directory of the tree could not be found, so the candidates of $dir cannot be kept or read"
   key="$cache/$LEAK_TREE-$(printf '%s' "$dir" | tr '/' '_')"
-  if [ -f "$key" ]; then cp "$key" "$out"; echo 0 >"$out.rc"; return 0; fi
+  if [ -f "$key" ]; then
+    # a kept entry that cannot be copied is a failed lookup, never "the search found nothing" (rc 0, an empty file)
+    cp "$key" "$out" || refuse "the kept candidates of $dir could not be read, so its leaks cannot be found"
+    echo 0 >"$out.rc"; return 0
+  fi
   (cd "$SR_TREE" && "./$dir/candidates.sh") >"$out" 2>"$out.err"; echo $? >"$out.rc"
   if [ "$(cat "$out.rc")" = 0 ] && mkdir -p "$cache" 2>/dev/null; then cp "$out" "$key.$$" && mv "$key.$$" "$key"; fi
 }
@@ -47,7 +52,8 @@ leak_prefetch() {
     [ -n "$m" ] || continue
     dir="$(jq -r '.dir' <<<"$m")" || refuse "could not read a module's directory, so its leaks cannot be searched for"
     [ -x "$SR_TREE/$dir/candidates.sh" ] || continue
-    leak_search "$dir" "$LEAK_WORK/cand-$(printf '%s' "$dir" | tr '/' '_')" &
+    # the job reports failure by leaving no .rc file, not by printing a refusal of its own (subjects.sh emits the one)
+    ( refuse() { exit 1; }; leak_search "$dir" "$LEAK_WORK/cand-$(printf '%s' "$dir" | tr '/' '_')" ) &
   done <<<"$mlist"
   wait
 }

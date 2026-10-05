@@ -56,8 +56,9 @@ if [ "${#exc[@]}" -gt 0 ]; then
     # would die of SIGPIPE and fail the whole pipeline under pipefail)
     fm="$(awk 'NR == 1 && $0 == "---" { i = 1; next } i && $0 == "---" { exit } i { print }' <<<"$txt" | yq -o=json -I=0 '.' 2>&1)" ||
       refuse "adr/$id/ADR.md at the range's base has frontmatter that is not valid YAML, so its exceptions cannot be compared: $fm"
-    # exit 1 is "not linked to this rule" (skip it); any other failure is a lookup that did not work
-    jq -e --arg q "$(rule_qname)" '(.sloprails // []) | index($q)' <<<"${fm:-null}" >/dev/null 2>&1; rc=$?
+    # exit 1 is "not linked to this rule" (skip it); any other failure is a lookup that did not work.
+    # A frontmatter that is not a mapping links nothing (load_adrs reads it as {}): skipped, as it always was
+    jq -e --arg q "$(rule_qname)" '(if type == "object" then .sloprails // [] else [] end) | index($q)' <<<"${fm:-null}" >/dev/null 2>&1; rc=$?
     [ "$rc" -le 1 ] || refuse "adr/$id/ADR.md at the range's base could not be read for its links, so its exceptions cannot be compared"
     [ "$rc" = 0 ] || continue
     bexclist="$(jq -r '.exceptions // [] | .[]' <<<"$fm")" || refuse "could not read the exceptions of adr/$id/ADR.md at the range's base, so they cannot be compared"
