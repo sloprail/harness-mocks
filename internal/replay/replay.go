@@ -16,11 +16,13 @@ import (
 // harness's tools onto these, and a tool it cannot map makes the recording
 // unbuildable.
 const (
-	// ToolShell runs a command: Input "command" (string), optionally "yield_time_ms" (int); any other
-	// option of the harness's own tool goes on as given (a string, number or boolean); what the mock does with it is the mock's.
+	// ToolShell runs a command: Input "command" (string), "yield_time_ms" (int) and any other
+	// option of the harness's own tool, as given (a string, number or boolean).
 	ToolShell = "shell"
-	// ToolSpawn starts a sub-agent: Input "message" (string), and Call.Sub is the sub-agent's turns.
+	// ToolSpawn starts a sub-agent: Input "message"; Call.Sub is its turns.
 	ToolSpawn = "spawn_agent"
+	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".
+	ToolWait = "wait_agent"
 )
 
 // Call is one tool call the model made.

@@ -25,6 +25,9 @@ func (h toolHost) Tool(name string) ([]string, bool) {
 	if name == agentTool && canDispatch(posOf(h.id)) { // not offered to a sub-agent at the depth limit
 		return agentRequired, true
 	}
+	if name == waitTool && canDispatch(posOf(h.id)) { // offered with it
+		return waitRequired, true
+	}
 	return []string{"command"}, name == toolName || name == patchTool
 }
 
@@ -37,8 +40,8 @@ func command(c toolcall.Call) string {
 }
 
 func (h toolHost) payload(c toolcall.Call) map[string]any {
-	if c.Name == agentTool {
-		return h.byAgent(map[string]any{"turn_id": h.turnID, "tool_name": agentTool, "tool_use_id": c.ID, "tool_input": c.Input})
+	if c.Name == agentTool || c.Name == waitTool {
+		return h.byAgent(map[string]any{"turn_id": h.turnID, "tool_name": hookName(c), "tool_use_id": c.ID, "tool_input": c.Input})
 	}
 	return h.byAgent(map[string]any{"turn_id": h.turnID, "tool_name": fileOrHookName(c), "tool_use_id": c.ID,
 		"tool_input": map[string]string{"command": command(c)}})
@@ -56,7 +59,10 @@ func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 // Execute runs the command and shows it in the event stream.
 func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result {
 	if c.Name == agentTool {
-		return h.spawnAgent(ctx, c)
+		return h.spawnAgent(c)
+	}
+	if c.Name == waitTool {
+		return h.waitAgent(ctx, c)
 	}
 	if c.Name == patchTool {
 		return h.applyPatch(c)
@@ -127,7 +133,7 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 		}
 	}
 	h.rollout.ToolOutput(c.ID, text)
-	if c.Name == agentTool && a.Kind == toolcall.Done && !a.Replaced {
+	if c.Name == agentTool && a.Kind == toolcall.Done && !a.Replaced && !a.Result.Failed {
 		h.startBackground(c, a.Result.Output) // a dispatch not waited for runs once it is answered
 	}
 }

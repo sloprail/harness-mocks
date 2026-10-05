@@ -27,7 +27,7 @@ func nestedRecording(t *testing.T, name string) recording {
 }
 
 // chainScript is a sub-agent's scenario script: it spawns the sub-agent whose
-// script is next (the mock's spawn_agent waits for it) and says LEAF; with no
+// script is next (and waits for it with wait_agent) and says LEAF; with no
 // next it runs the shell command echo LEAF and says LEAF. A spawn_agent the
 // harness answers as an unknown tool leaves nothing to run.
 func chainScript(next string) string {
@@ -46,6 +46,10 @@ fi
 n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
 if [ "$n" = 0 ]; then
   printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_0","name":"spawn_agent","input":%%s}]}}\n' '%s'
+  exit 0
+fi
+if [ "$n" = 1 ]; then
+  printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_wait","name":"wait_agent","input":{"targets":["%%s"],"timeout_ms":60000}}]}}\n' "$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | head -1)"
   exit 0
 fi
 %s
@@ -155,16 +159,12 @@ func TestSubAgentsSpawnSubAgentsAndRecordDepthAndParent(t *testing.T) {
 	// who the hooks name: nothing for the main thread's calls, the sub-agent
 	// (agent_type default) for its own, for every tool it uses; PostToolUse
 	// fires after the multi-agent calls as after the shell, with a response.
-	// (The mock's spawn_agent waits, so the wait tool's own hooks are left out.)
 	who := func(lines []map[string]any, ths []thread) (out []string) {
 		role := map[string]string{}
 		for _, th := range ths {
 			role[th.ID] = fmt.Sprintf("depth%v", th.Depth)
 		}
 		for _, l := range lines {
-			if tool, _ := l["tool_name"].(string); strings.Contains(tool, "wait") {
-				continue
-			}
 			w := "main"
 			if id, ok := l["agent_id"].(string); ok {
 				w = role[id] + ":" + l["agent_type"].(string)
@@ -234,8 +234,8 @@ func TestDepthLimitStopsNesting(t *testing.T) {
 			assert.ElementsMatch(t, tc.want, depths)
 			// the deepest layer that could not spawn was told so
 			deepest := d[tc.want[len(tc.want)-1]]
-			assert.NotContains(t, deepest.Calls, "wait_agent")
 			assert.Contains(t, deepest.Told, "unsupported call: spawn_agent")
+			assert.Contains(t, deepest.Told, "unsupported call: wait_agent", "nor is the wait tool")
 		})
 	}
 }

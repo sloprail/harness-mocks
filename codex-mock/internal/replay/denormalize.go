@@ -82,6 +82,13 @@ func mockCall(c core.Call) modelCall {
 		}
 		in[k] = v
 	}
+	if c.Tool == core.ToolWait { // the targets are the receipts of the agent's spawns, which the script reads off its session
+		var ids []string
+		for _, k := range c.Input["targets"].([]int) {
+			ids = append(ids, fmt.Sprintf("AGENT%d", k+1))
+		}
+		in["targets"] = ids
+	}
 	return modelCall{Text: c.Said, Name: name, Input: in}
 }
 
@@ -108,6 +115,9 @@ call=$(sed -n "$((n+1))p" <<'CALLS_EOF'
 CALLS_EOF
 )
 if [ -n "$call" ]; then
+  for i in 1 2 3 4 5 6 7 8 9; do
+    case "$call" in *AGENT$i*) call=$(printf '%%s' "$call" | sed "s/AGENT$i/$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | sed -n "${i}p")/g") ;; esac
+  done
   printf '%%s\n' "$call" | sed "s/IDPLACE/call_%s_$n/"
   exit 0
 fi

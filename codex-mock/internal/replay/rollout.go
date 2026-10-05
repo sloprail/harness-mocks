@@ -18,6 +18,8 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 	var final string
 	var said *string
 	js := newJSRun()
+	var told []string // the ids of the sub-agents the model was told of (spawn answers), in order
+	var spawns []int  // the numbers of the spawn calls among the rollout's calls, in order
 	for _, rec := range records {
 		p, _ := rec["payload"].(map[string]any)
 		if rec["type"] != "response_item" || p == nil {
@@ -36,6 +38,8 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 			} else {
 				said = &text
 			}
+		case p["type"] == "custom_tool_call_output":
+			told = append(told, agentIDs(p["output"])...)
 		case p["type"] == "custom_tool_call":
 			src, _ := p["input"].(string)
 			made, err := js.script(src)
@@ -43,12 +47,12 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 				return core.Agent{}, err
 			}
 			for _, m := range made {
-				if m.Name == "multi_agent_v1__wait_agent" {
-					continue // not a call of the replay: the mock's spawn_agent waits for its sub-agent itself
-				}
-				c, err := unify(m)
+				c, err := unify(m, spawns, told)
 				if err != nil {
 					return core.Agent{}, err
+				}
+				if c.Tool == core.ToolSpawn {
+					spawns = append(spawns, m.Num)
 				}
 				c.Said, said = said, nil
 				calls = append(calls, c)
@@ -59,7 +63,7 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 }
 
 // unify is the unified call of one of codex's tool calls.
-func unify(m jsCall) (core.Call, error) {
+func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 	var arg map[string]any
 	if len(m.Args) != 1 {
 		return core.Call{}, fmt.Errorf("the model called tools.%s with %d arguments: the adapter maps one", m.Name, len(m.Args))
@@ -119,8 +123,10 @@ func unify(m jsCall) (core.Call, error) {
 			in[k] = sv
 		}
 		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
+	case "multi_agent_v1__wait_agent":
+		return unifyWait(arg, spawns, told)
 	}
-	return core.Call{}, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, spawn_agent and (as nothing) wait_agent", m.Name)
+	return core.Call{}, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, spawn_agent and wait_agent", m.Name)
 }
 
 // scalar is the JSON value of a JS string, number or boolean the script wrote.
