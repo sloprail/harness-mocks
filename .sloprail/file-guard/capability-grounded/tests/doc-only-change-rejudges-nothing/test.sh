@@ -81,5 +81,17 @@ printf '{"e":1}\n' >claude-mock/snapshots/runs/e/samples/20240101-000000/events.
 cap e "e works" s
 git add -A && git commit -q -m "a new capability, no words from the user"
 run
-jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-grounded")] | length>=1 and any(.[]; .outcome=="refused" and (.reason | test("Sloprail-Cites|citation|user"; "i")))' "$SR_EVENTS_FILE" >/dev/null ||
-  { jq -c . "$SR_EVENTS_FILE" >&2; cat out >&2; echo "a new capability without the user's words was not refused" >&2; exit 1; }
+jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-grounded")] | length>=1 and any(.[]; .outcome=="refused" and (.reason | contains("spec/capabilities/e.yaml must cite the user'"'"'s own words in the commit that last changed it")))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; cat out >&2; echo "a new capability without the user's words was not refused for it" >&2; exit 1; }
+
+# the recovery the refusal names: the user asks for the capability (one agent turn puts their prompt in the
+# session record) and the commit carries their exact words as the trailer; the rule then judges it and passes
+SETUP=$(sr-test agent "$SR_TEST_CASE_DIR/agent.sh" --prompt "please add the e capability")
+export CLAUDE_CONFIG_DIR=$(echo "$SETUP" | jq -er .config_dir)
+export CLAUDE_CODE_PLUGIN_CACHE_DIR=$(echo "$SETUP" | jq -er .plugin_cache)
+export CLAUDE_CODE_SESSION_ID=$(basename "$(echo "$SETUP" | jq -er .session)" .jsonl)
+: >"$SR_EVENTS_FILE"
+git commit -q --amend --no-edit --trailer 'Sloprail-Cites-User: please add the e capability'
+run
+jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-grounded")] | length==1 and .[0].outcome=="passed"' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; cat out >&2; echo "the cited new capability was not judged and passed" >&2; exit 1; }

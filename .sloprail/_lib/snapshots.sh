@@ -4,7 +4,9 @@
 #   <harness>-mock/snapshots/
 #     MANIFEST.yaml          pin: <the harness binary capture.sh runs next; not a freeze point>
 #                            docs: {<page URL>: {sha256, fetched}}  ← only the hash of each
-#                            doc page is committed, never its text; the page is frozen by it
+#                            doc page is committed, never its text; capture.sh run pulls a
+#                            page together with a recording, and no check refuses a doc
+#                            that changed upstream since
 #     runs/<name>/           a recorded real scenario
 #       run.yaml             version (of the harness binary it was captured with), command
 #       setup/               what makes it this scenario (settings, hooks, prompt)
@@ -15,8 +17,9 @@
 # A doc page's TEXT is never committed (it is the harness vendor's). Its copy
 # lives in a cache under the repository's git dir, keyed by the sha256 the
 # MANIFEST records, and is fetched from <url>.md on a miss. A fetched page
-# whose hash differs from the MANIFEST's is not the page that was frozen: the
-# doc changed since capture, and the snapshot is stale.
+# whose hash differs from the MANIFEST's is not the page that was frozen (the
+# doc changed upstream since): it is READ as live-<sha>.md, never refused, and
+# is in no verdict's key (adr/pinned-harness-versions).
 #
 # A capability cites them per harness: docs by the page's full URL plus
 # #anchor, runs by their
@@ -25,26 +28,6 @@
 
 snap_dir() { printf '%s/%s-mock/snapshots' "$SR_TREE" "$1"; }
 
-# slug HEADING — the anchor a docs site gives a heading: lowercase, spaces to
-# dashes, anything but [a-z0-9-] dropped.
-slug() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+/-/g; s/[^a-z0-9-]//g'; }
-
-# doc_section FILE ANCHOR — prints the section under the heading whose slug is
-# ANCHOR, up to the next heading of the same or a higher level. Exit 1 if absent.
-doc_section() {
-  local file="$1" anchor="$2"
-  [ -f "$file" ] || return 1
-  awk -v want="$anchor" '
-    function slugify(h) { h = tolower(h); gsub(/[[:space:]]+/, "-", h); gsub(/[^a-z0-9-]/, "", h); return h }
-    /^#+[[:space:]]/ {
-      lvl = match($0, /[^#]/) - 1; h = substr($0, lvl + 1); sub(/^[[:space:]]+/, "", h)
-      if (on && lvl <= onlvl) exit
-      if (!on && slugify(h) == want) { on = 1; onlvl = lvl; found = 1 }
-    }
-    on { print }
-    END { exit found ? 0 : 1 }' "$file"
-}
-
 # doc_cache_dir — where fetched doc pages are cached: inside the repository's
 # common git dir (shared by every worktree, never committed).
 doc_cache_dir() { printf '%s/sloprail-doc-cache' "$(git -C "$SR_TREE" rev-parse --path-format=absolute --git-common-dir)"; }
@@ -52,6 +35,7 @@ doc_cache_dir() { printf '%s/sloprail-doc-cache' "$(git -C "$SR_TREE" rev-parse 
 # doc_sha HARNESS URL — the sha256 the MANIFEST froze for URL (anchor dropped).
 doc_sha() {
   local m="$(snap_dir "$1")/MANIFEST.yaml" u="${2%%#*}"
+  u="${u%/}"   # capture.sh freezes a page under its URL without a trailing slash
   [ -f "$m" ] || return 1
   U="$u" yq -r '.docs[strenv(U)].sha256 // ""' "$m" 2>/dev/null | grep -E '^[0-9a-f]{64}$'
 }
@@ -65,16 +49,18 @@ doc_sha() {
 # website to refuse on it.
 doc_copy() {
   local sha dir f tmp got u="${2%%#*}"
+  u="${u%/}"
   DOC_ERROR=""
   sha="$(doc_sha "$1" "$u")" || { DOC_ERROR="no snapshot in $1-mock/snapshots/MANIFEST.yaml freezes $u"; return 1; }
   dir="$(doc_cache_dir)"; f="$dir/$sha.md"
   [ -f "$f" ] && { printf '%s' "$f"; return 0; }
+  [ -f "$dir/live-$sha.md" ] && { printf '%s' "$dir/live-$sha.md"; return 0; }   # the drifted page, fetched before
   mkdir -p "$dir" && tmp="$(mktemp "$dir/fetch.XXXXXX")" || { DOC_ERROR="the doc cache $dir is not writable"; return 1; }
   if ! curl -fsSL --max-time 30 "$u.md" -o "$tmp"; then
     rm -f "$tmp"; DOC_ERROR="could not fetch $u.md to read it"; return 1
   fi
   got="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
-  [ "$got" = "$sha" ] || f="$dir/live-$got.md"
+  [ "$got" = "$sha" ] || f="$dir/live-$sha.md"   # keyed by the frozen sha: one fetch, not one per call
   mv "$tmp" "$f" && printf '%s' "$f"
 }
 

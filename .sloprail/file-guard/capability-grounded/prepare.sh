@@ -34,7 +34,7 @@ while IFS= read -r c; do
   # a changed recording: a file under a run this capability's cell cites
   while IFS=$'\t' read -r h r; do
     [ -n "$h" ] || continue
-    printf '%s\n' "$changed" | grep -q "^$r/" && hs="$(printf '%s\n%s' "$hs" "$h")"
+    printf '%s\n' "$changed" | awk -v r="$r/" 'index($0, r) == 1 {f = 1} END {exit !f}' && hs="$(printf '%s\n%s' "$hs" "$h")"
   done < <(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h | (.value.runs // [])[] | [$h, .] | @tsv' <<<"$c")
   hs="$(printf '%s\n' "$hs" | sed '/^$/d' | sort -u)"
   [ -n "$hs" ] || continue

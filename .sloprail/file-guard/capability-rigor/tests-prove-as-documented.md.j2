@@ -4,12 +4,12 @@ The mock is proven by its tests. Tests marked `// sr:proves <capability>/<harnes
 claim that the mock behaves, for that capability, the way the real harness
 does. Below, for each such pair, is what the real harness actually did: its
 recorded runs (each capture's normalized events: hook payloads and stream
-frames, in order) and its doc pages, frozen at one version. Compare the
+frames, in order) and its doc pages (as frozen, or live where the page changed upstream since: a recording outranks a doc). Compare the
 tests with that. Judge every <subject>; fail if any one fails.
 
 Nothing is inlined here: read the files. Every path below is in the project,
-except each <doc>'s, which is the harness's documentation page frozen and
-verified at the captured version, as a local file. Read, before deciding:
+except each <doc>'s, which is the harness's documentation page (as frozen, or live
+where it changed upstream since), as a local file. Read, before deciding:
 the capability file, every run's setup and every sample's events, every test,
 and every doc page in full (start at its cited section, section-line, then the
 rest: the same behaviour is often described in more than one place, under
