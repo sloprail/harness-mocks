@@ -30,6 +30,7 @@ type session struct {
 	// (recorded: runs/foreground-subagent-failure, a call refused before it started
 	// shows nothing and the text goes out with the rest at the end).
 	pending []string
+	modelN  int // the model responses so far: a call's frames and the text before it name theirs
 	// named: hook payloads carry the transcript path. Cursor leaves it null
 	// until the conversation's first tool call is past its preToolUse hooks
 	// (recorded: runs/tool-failure), though the file is there from the first
@@ -120,7 +121,7 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}
 	s.flushOwed()
-	s.flushText()
+	s.flushText(false)
 	s.forward(resultFrame(s.id, s.requestID, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }
