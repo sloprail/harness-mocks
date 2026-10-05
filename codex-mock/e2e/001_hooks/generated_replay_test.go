@@ -20,7 +20,11 @@ import (
 // compared with what the real codex left. The table is the recording folders
 // themselves: a recording without a replay, or a replay without a recording,
 // cannot exist. A run that does not replay green is listed in notReplaying
-// with its reason (replay_allowlist_test.go).
+// with its reason (replay_allowlist_test.go). The hook runs among them (exit codes,
+// refusals, decisions, matchers) are what hook-exit-code-semantics and
+// pretooluse-refusal are about.
+// sr:proves hook-exit-code-semantics/codex
+// sr:proves pretooluse-refusal/codex
 func TestGeneratedReplay(t *testing.T) {
 	dirs, err := filepath.Glob(filepath.Join(runsDir, "*"))
 	require.NoError(t, err)

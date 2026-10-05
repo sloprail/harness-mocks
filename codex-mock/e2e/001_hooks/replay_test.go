@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,44 +102,6 @@ func sortedHookLines(lines []map[string]any) []string {
 		out = append(out, string(b))
 	}
 	sort.Strings(out)
-	return out
-}
-
-// Every recorded run of the hooks a `codex exec` fires, replayed: the mock's
-// hooks see the same payloads, and the hook scripts take the same exits; the
-// event stream shows the same commands, run to the same exit statuses and
-// outputs, in the same order (a command a hook refused is in neither).
-// sr:proves hook-exit-code-semantics/codex
-// sr:proves pretooluse-refusal/codex
-func TestReplayOfRecordedRuns(t *testing.T) {
-	for _, name := range []string{"stops", "hook-exit-codes", "hook-exit-json", "hook-unstartable",
-		"pretool-decisions", "prompt-blocked", "posttool-block", "hook-matchers", "hook-timeout", "session-end"} {
-		t.Run(name, func(t *testing.T) {
-			rec := loadRecording(t, name)
-			got := replay(t, rec)
-			require.Equal(t, 0, got.Code, got.Stderr)
-
-			var want []map[string]any
-			for _, l := range jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))) {
-				want = append(want, l)
-			}
-			assert.Equal(t, sortedHookLines(want), sortedHookLines(got.hookLog()), "hook payloads and exits")
-
-			recStream := result{Stdout: readFile(t, filepath.Join(rec.sample, "stream.jsonl"))}
-			wantCmds, wantExits := recStream.commands()
-			gotCmds, gotExits := got.commands()
-			assert.Equal(t, wantCmds, gotCmds, "commands that ran")
-			assert.Equal(t, failures(wantExits), failures(gotExits), "which of them failed (the status of ls differs between systems)")
-			assert.Equal(t, streamShape(recStream.stream()), streamShape(got.stream()), "event stream")
-		})
-	}
-}
-
-func failures(exits []float64) []bool {
-	var out []bool
-	for _, e := range exits {
-		out = append(out, e != 0)
-	}
 	return out
 }
 
