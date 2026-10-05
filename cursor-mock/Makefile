@@ -1,3 +1,6 @@
+# How many times go test runs each test (CI passes COUNT=3 to surface timing-flaky tests).
+COUNT        ?= 1
+
 BIN_DIR     := ../bin
 CURSOR_MOCK := $(BIN_DIR)/a10n-cursor-mock
 
@@ -14,10 +17,10 @@ build-race:
 	go build -race -o $(CURSOR_MOCK) .
 
 test-unit:
-	cd .. && go test -race -count=1 \
+	cd .. && go test -race -count=$(COUNT) \
 		./cursor-mock/internal/...
 
 test-e2e: build-race
 	cd .. && A10N_CURSOR_MOCK_TEST_BINARY=$(abspath $(CURSOR_MOCK)) \
-		go test -race -count=1 -v \
+		go test -race -count=$(COUNT) -v \
 		./cursor-mock/e2e/...
