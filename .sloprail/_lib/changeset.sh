@@ -84,13 +84,6 @@ load_yaml() {
   YAML="$(yq -o=json '.' "$f" 2>/dev/null)" || refuse "$1 is not valid YAML"
 }
 
-# yaml_str_json STRING — YAML text (e.g. a file's oldContent) as JSON.
-yaml_str_json() {
-  [ -n "$1" ] || { printf 'null'; return 0; }
-  printf '%s' "$1" | yq -o=json '.' 2>/dev/null || printf 'null'
-}
-
-
 # kebab ID — a spec, ADR, run or harness name: lowercase kebab, starting with a letter.
 kebab() { printf '%s' "$1" | grep -Eq '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'; }
 

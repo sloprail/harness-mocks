@@ -77,6 +77,7 @@ leak_left() {
       if (!whole && !((p ":" l) in add)) next
       if (p ~ /_test\.go$/ || (p in exc)) next
       print p "\t" l "\t" t }' "$cand")" || refuse_error "the candidates of $dir could not be filtered, so its leaks cannot be found"
+  # a content verdict, not a tooling error: the project's own candidates.sh printed a line that is not path:line:snippet
   ! grep -q '^BAD' <<<"$kept" || refuse "$dir/candidates.sh printed '$(printf '%s\n' "$kept" | sed -n 's/^BAD\t//p' | head -1)', not path:line:snippet"
   local rows=""
   while IFS=$'\t' read -r p l t; do
