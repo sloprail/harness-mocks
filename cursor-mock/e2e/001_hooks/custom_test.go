@@ -236,3 +236,42 @@ func TestTheUserRecordOpensWithAnEmptyTimestampElementThenTheQuery(t *testing.T)
 	require.True(t, strings.HasPrefix(got, "<timestamp/>\n<user_query>\n"), got)
 	require.True(t, strings.HasSuffix(got, "\n</user_query>"), got)
 }
+
+// TestADenyBeatsAskAndRefusalMessagesAreJoinedOnBeforeShellExecutionAndBeforeReadFile:
+// the docs (#configuration) say all matching hooks run, any deny wins over ask,
+// and the hooks' messages are concatenated; recorded only for preToolUse
+// (runs/pretool-refusal-combined), so this drives the mock on the other two
+// events that refuse: with one beforeShellExecution hook asking and another
+// denying, in either order, the command is refused with the deny's message and
+// does not run; two hooks that both deny a command, or a read, have their
+// messages joined in the order the hooks are configured in.
+// sr:proves hooks-all-matching-run/cursor
+func TestADenyBeatsAskAndRefusalMessagesAreJoinedOnBeforeShellExecutionAndBeforeReadFile(t *testing.T) {
+	scripts := map[string]string{
+		"ask.sh":   "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"ask\",\"user_message\":\"ASK-MSG\"}'\n",
+		"deny1.sh": "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"deny\",\"user_message\":\"DENY-ONE\"}'\n",
+		"deny2.sh": "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"deny\",\"user_message\":\"DENY-TWO\"}'\n",
+	}
+	for name, order := range map[string]string{
+		"ask first":  `[{"command":".cursor/hooks/ask.sh"},{"command":".cursor/hooks/deny1.sh"}]`,
+		"deny first": `[{"command":".cursor/hooks/deny1.sh"},{"command":".cursor/hooks/ask.sh"}]`,
+	} {
+		c := runCustom(t, `{"version":1,"hooks":{"beforeShellExecution":`+order+`,"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, scripts, "echo REFUSED-OR-NOT")
+		require.Contains(t, c.stdout, "DENY-ONE", name)
+		require.NotContains(t, c.stdout, "ASK-MSG", name)
+		require.NotContains(t, c.logged(t), "REFUSED-OR-NOT", name+": the command must not have run")
+	}
+
+	c := runCustom(t, `{"version":1,"hooks":{"beforeShellExecution":[{"command":".cursor/hooks/deny1.sh"},{"command":".cursor/hooks/deny2.sh"}]}}`, scripts, "echo BOTH")
+	require.Contains(t, c.stdout, "DENY-ONE\\n\\n---\\n\\nDENY-TWO", "the command's refusal joins both messages in configured order")
+
+	r := runTools(t, `{"version":1,"hooks":{"beforeReadFile":[{"command":".cursor/hooks/deny1.sh"},{"command":".cursor/hooks/deny2.sh"}]}}`, scripts,
+		map[string]string{"note.txt": "hi\n"}, map[string]any{"name": "Read", "input": map[string]any{"file_path": "note.txt"}})
+	var joined string
+	for _, f := range r.frames {
+		if tc, _ := f["tool_call"].(map[string]any); tc != nil {
+			joined += jsonString(tc)
+		}
+	}
+	require.Contains(t, joined, "DENY-ONE\\n\\n---\\n\\nDENY-TWO", "the read's refusal joins both messages in configured order")
+}
