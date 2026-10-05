@@ -5,7 +5,7 @@ set -euo pipefail
 # every ADR whose ADR.md changed. The judge is a mock (SR_CHECKS_JUDGE_MOCKS): a Decision bullet that hedges
 # ("prefer", "will migrate") fails, naming the ADR and the word. The CI path, no agent turn: `sr-checks run` judges
 # committed ranges with the project's rules (only this rule runs); its outcome is asserted on the FileGuardChecked
-# events, one scenario per commit (a verdict is cached by content):
+# events, one scenario per commit (a verdict is cached by content; a refusal is asserted by its reason, not only its outcome):
 #   a sound ADR                                       -> passed
 #   a hedging Decision                                -> refused with the judge's reason
 #   the bullet made a rule (recovery)                 -> passed
