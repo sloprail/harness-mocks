@@ -1,10 +1,14 @@
 # Every capability is implemented once in core, adapted and proven for every
 # harness that provides it, and every harness mock has a cell for it
-# [deterministic], over the whole committed tree. Enforces adr/capability-once.
+# [deterministic], over the whole committed tree, including that the ADR each
+# deviation names exists (an ADR deleted or renamed re-runs it). The adapter half
+# (sr:provides against supported cells, both ways) is file-guard/capability-reconciled's.
+# Enforces adr/capability-once.
 match: >-
   path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/"
-  or any(markers, .kind == "capability" or .kind == "provides" or .kind == "proves")
-  or any(oldMarkers, .kind == "capability" or .kind == "provides" or .kind == "proves")
+  or path matches "^adr/[^/]+/ADR\\.md$"
+  or any(markers, .kind == "capability" or .kind == "proves")
+  or any(oldMarkers, .kind == "capability" or .kind == "proves")
 deletions: include
 checks:
   - script: ./covered.sh
