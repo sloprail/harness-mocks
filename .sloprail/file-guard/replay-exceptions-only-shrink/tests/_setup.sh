@@ -11,12 +11,16 @@ install_checker() {
     case "$g" in *_test.go) ;; *) cp "$g" tools/replaycheck/ ;; esac
   done
   [ -f go.mod ] || printf 'module example.com/m\n\ngo 1.21\n' > go.mod
-  go=""
-  for g in /usr/local/go/bin/go /opt/homebrew/bin/go /usr/local/bin/go /usr/bin/go \
-    /Users/*/.asdf/installs/golang/*/go/bin/go /opt/hostedtoolcache/go/*/x64/bin/go /root/go/bin/go; do
-    [ -x "$g" ] && { go="$g"; break; }
-  done
-  [ -n "$go" ] || { echo "no go found: the rule builds tools/replaycheck with it" >&2; return 1; }
+  go="$(command -v go 2>/dev/null || true)"
+  if [ -z "$go" ]; then
+    for g in "${GOROOT:-/nonexistent}/bin/go" "${RUNNER_TOOL_CACHE:-/nonexistent}"/go/*/x64/bin/go "${RUNNER_TOOL_CACHE:-/nonexistent}"/go/*/arm64/bin/go \
+      /usr/local/go/bin/go /opt/homebrew/bin/go /usr/local/bin/go /usr/bin/go \
+      /Users/*/.asdf/installs/golang/*/go/bin/go /opt/hostedtoolcache/go/*/x64/bin/go /root/go/bin/go; do
+      [ -x "$g" ] && { go="$g"; break; }
+    done
+  fi
+  # a missing go is an error of the case, never a pass: the rule cannot build its checker without it
+  [ -n "$go" ] || { echo "no go found: the rule builds tools/replaycheck with it, so this case cannot run" >&2; return 1; }
   mkdir -p bin
   ln -sf "$go" bin/go
   printf 'bin\nout\n' >> .gitignore
@@ -36,7 +40,13 @@ good_gen() {
     '' \
     'const flakyRuns = 3' \
     '' \
-    'func replayUntilGreen(run func() (string, error), attempts int) (string, error) { return run() }' \
+    'func replayUntilGreen(run func() (string, error), attempts int) (string, error) {' \
+    '	diff, err := run()' \
+    '	for i := 1; i < attempts && (err != nil || diff != ""); i++ {' \
+    '		diff, err = run()' \
+    '	}' \
+    '	return diff, err' \
+    '}' \
     '' \
     'func TestGeneratedReplay(t *testing.T) {' \
     '	for name := range notReplaying {' \

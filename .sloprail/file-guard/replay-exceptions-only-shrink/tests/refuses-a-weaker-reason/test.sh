@@ -5,7 +5,7 @@ set -euo pipefail
 # this rule's outcome is asserted. Proves the refusal of an existing entry whose reason moves to a weaker category (untriaged:/adapter: to flaky:), beside the permit of a stronger one.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
-install_checker
+install_checker || exit 1
 mkdir -p claude-mock/e2e/018_replay
 list=claude-mock/e2e/018_replay/replay_allowlist_test.go
 head='package e2e\n\nvar notReplaying = map[string]string{\n'

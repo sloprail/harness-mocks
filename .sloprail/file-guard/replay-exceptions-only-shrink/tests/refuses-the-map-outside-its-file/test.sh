@@ -5,7 +5,7 @@ set -euo pipefail
 # this rule's outcome is asserted. Proves notReplaying is read and written only in its own package files: a mutation from another file, or the map moved to another file, is refused, beside the permit of an emptied list.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
-install_checker
+install_checker || exit 1
 mkdir -p codex-mock/e2e/001_hooks
 list=codex-mock/e2e/001_hooks/replay_allowlist_test.go
 gen=codex-mock/e2e/001_hooks/generated_replay_test.go

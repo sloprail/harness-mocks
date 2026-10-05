@@ -5,7 +5,7 @@ set -euo pipefail
 # this rule's outcome is asserted. Proves the list is read as Go reads it, not as text: a comment, a one-line map, an escape or a commented header cannot hide a weakened or added entry.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
-install_checker
+install_checker || exit 1
 mkdir -p claude-mock/e2e/018_replay
 list=claude-mock/e2e/018_replay/replay_allowlist_test.go
 head='package e2e\n\nvar notReplaying = map[string]string{\n'

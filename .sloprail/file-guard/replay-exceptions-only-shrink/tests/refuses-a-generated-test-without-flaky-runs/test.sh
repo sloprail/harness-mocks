@@ -5,7 +5,7 @@ set -euo pipefail
 # this rule's outcome is asserted. Proves the generated replay test is read from its syntax tree: shadowing flakyRuns, a dropped retry, wiring only in comments, or a write to the list from inside it are refused, and a good one passes.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
-install_checker
+install_checker || exit 1
 mkdir -p codex-mock/e2e/001_hooks
 list=codex-mock/e2e/001_hooks/replay_allowlist_test.go
 gen=codex-mock/e2e/001_hooks/generated_replay_test.go
@@ -62,7 +62,7 @@ gen_with 'diff, err = replayUntilGreen(run, flakyRuns)' 'var flakyRuns int; diff
 refuses "a local var shadowing flakyRuns" "is declared again here"
 
 gen_with 'case flaky && (err != nil || diff != ""):' 'case false:' "the failing case is gone"
-refuses "no failing case" "a case"
+refuses "no failing case" "fail a flaky: entry that is never green"
 
 gen_with 't.Errorf("never green in %d runs, see notReplaying", flakyRuns)' 't.Errorf("x", func() int { notReplaying["z"] = "flaky: z"; return 0 }())' "a write inside a t.Errorf call"
 refuses "a write inside a t.Errorf call" "the generated test may only read notReplaying"
@@ -72,6 +72,25 @@ refuses "a write after a t.Errorf" "the generated test may only read notReplayin
 
 gen_with 'for name := range notReplaying {' 'delete(notReplaying, "a"); for name := range notReplaying {' "a delete"
 refuses "a delete" "the generated test may only read notReplaying"
+
+gen_with '_ = name' '(notReplaying["z"]) = "flaky:y"' "a parenthesised write"
+refuses "a parenthesised write to the list" "the generated test may only read notReplaying"
+
+gen_with $'\tdiff, err := run()\n\tfor i := 1; i < attempts && (err != nil || diff != "");' $'\tdiff, err := run()\n\tfor i := 1; i < 1 && (err != nil || diff != "");' "a loop not bounded by attempts"
+refuses "a loop that ignores attempts" "must loop up to its attempts parameter"
+
+gen_with $'\tdiff, err := run()\n\tfor i := 1; i < attempts && (err != nil || diff != ""); i++ {\n\t\tdiff, err = run()\n\t}\n\treturn diff, err' $'\treturn run()' "a stub replayUntilGreen"
+refuses "a stub replayUntilGreen" "must loop up to its attempts parameter"
+
+gen_with $'\tswitch {\n' $'\tif false {\n\tswitch {\n' "the failing case under a constant false"
+python3 - "$gen" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+i = s.rindex("\t}\n}\n")
+open(p, 'w').write(s[:i] + "\t}\n\t}\n}\n")
+PY
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "close the dead block"
+refuses "the failing case under a constant false" "fail a flaky: entry that is never green"
 
 # recovery: the good test again, with one more read of the list, and the same range passes
 gen_with '_ = name' '_, _ = name, notReplaying["a"]' "another read"

@@ -5,7 +5,7 @@ set -euo pipefail
 # this rule's outcome is asserted. Proves the refusal of an added entry, beside the permit of a shrinking list.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
-install_checker
+install_checker || exit 1
 mkdir -p codex-mock/e2e/001_hooks
 list=codex-mock/e2e/001_hooks/replay_allowlist_test.go
 head='package e2e\n\nvar notReplaying = map[string]string{\n'
