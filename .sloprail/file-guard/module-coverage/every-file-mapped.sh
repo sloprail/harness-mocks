@@ -52,7 +52,9 @@ if [ "${#exc[@]}" -gt 0 ]; then
   ids="$(jq -r '.[].id' <<<"$ADRS")" || refuse "could not list the ADRs, so it cannot be told whether the exceptions grew"
   for id in $ids; do
     txt="$(git -C "$SR_TREE" show "$base:adr/$id/ADR.md" 2>/dev/null)" || continue   # a new ADR: nothing excepted before it
-    fm="$(printf '%s\n' "$txt" | awk 'NR == 1 && $0 == "---" { i = 1; next } i && $0 == "---" { exit } i { print }' | yq -o=json -I=0 '.' 2>&1)" ||
+    # (awk reads a here-string, not a pipe: it exits at the closing ---, and a printf still writing to it
+    # would die of SIGPIPE and fail the whole pipeline under pipefail)
+    fm="$(awk 'NR == 1 && $0 == "---" { i = 1; next } i && $0 == "---" { exit } i { print }' <<<"$txt" | yq -o=json -I=0 '.' 2>&1)" ||
       refuse "adr/$id/ADR.md at the range's base has frontmatter that is not valid YAML, so its exceptions cannot be compared: $fm"
     # exit 1 is "not linked to this rule" (skip it); any other failure is a lookup that did not work
     jq -e --arg q "$(rule_qname)" '(.sloprails // []) | index($q)' <<<"${fm:-null}" >/dev/null 2>&1; rc=$?
@@ -63,7 +65,7 @@ if [ "${#exc[@]}" -gt 0 ]; then
   done
   tracked="$(git -C "$SR_TREE" ls-files -- ':!proposals/**' 2>&1)" || refuse "could not list the tracked files: $tracked"
   for g in "${exc[@]}"; do
-    printf '%s\n' "${bexc[@]+"${bexc[@]}"}" | grep -Fxq -- "$g" && continue
+    grep -Fxq -- "$g" <<<"$(printf '%s\n' "${bexc[@]+"${bexc[@]}"}")" && continue   # (a here-string: grep -q exits early, and a printf into a pipe would fail it under pipefail)
     # a new entry is a narrowing only when it matches something and everything it matches the base's entries matched
     hit=0; wider=""
     while IFS= read -r f; do
