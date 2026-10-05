@@ -11,11 +11,15 @@
 #                            would mix versions) unless --rerecord drops them first
 #   capture.sh pin <version> install that exact claude (tools/harness-bin) and make it
 #                            the one captures run; nothing already recorded changes
-#   capture.sh doc <url>     freeze a doc page (e.g. https://code.claude.com/docs/en/hooks):
-#                            its sha256 and fetch date go in the MANIFEST; its text only
-#                            into a cache under the git dir, never into the repo
 #   capture.sh drop <run> <ts>  remove one sample (a bad or non-hermetic capture)
-#   capture.sh all           re-record every run at the pin and re-freeze every doc
+#   capture.sh all           re-record every run at the pin (each re-freezes its docs, below)
+#
+# Docs follow recordings. Recording a run (run, all) also re-freezes the doc pages this
+# harness's capability cells cite (spec/capabilities/*.yaml, providers.claude.docs) that are not
+# already frozen at the live page's hash: the MANIFEST holds each page's sha256 and fetch date, the
+# text only a cache under the git dir, never the repo. There is no standalone doc re-freeze: an
+# upstream doc that changed is no PR's problem (no check reads the live website); the
+# next recording that cites it pulls it.
 #
 # Two versions, kept apart: the claude a run was recorded with is the run's own (run.yaml),
 # and a doc page is frozen by its own sha256 (MANIFEST docs). MANIFEST `pin` is only which
@@ -188,21 +192,39 @@ capture_run() {
 # capture_doc URL — freeze a doc page: fetch <url>.md, record its sha256 in the
 # MANIFEST, and keep the text only in the cache under the git dir (the rules'
 # doc_copy reads it there). The page's text is never committed: it is the
-# harness vendor's.
+# harness vendor's. A page already frozen at the live hash is left as it is (its fetch date too).
 capture_doc() {
-  local url="${1%%#*}" tmp sha cache
+  local url="${1%%#*}" tmp sha cache old
   url="${url%/}"; tmp="$(mktemp)"
   curl -fsSL "$url.md" -o "$tmp" || die "could not fetch $url.md"
   head -c 200 "$tmp" | grep -q '<html' && die "$url.md is not markdown"
   sha="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
   cache="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/sloprail-doc-cache"
+  old="$(U="$url" yq -r '.docs[strenv(U)].sha256 // ""' "$manifest" 2>/dev/null || true)"
+  if [ "$old" = "$sha" ]; then mkdir -p "$cache" && mv "$tmp" "$cache/$sha.md"; echo "$url already frozen at sha256 $sha"; return 0; fi
   mkdir -p "$cache" && mv "$tmp" "$cache/$sha.md"
   URL="$url" FETCHED="$(date -u +%F)" SHA="$sha" yq -i '.docs[strenv(URL)] = {"sha256": strenv(SHA), "fetched": strenv(FETCHED)}' "$manifest"
   echo "froze $url at sha256 $sha (text cached, not committed)"
 }
 
+# cited_docs — the doc pages (no anchor) this harness's capability cells cite, one per line.
+cited_docs() {
+  local h; h="$(basename "$(dirname "$here")")"; h="${h%%-mock}"
+  for f in "$root"/spec/capabilities/*.yaml; do
+    [ -f "$f" ] || continue
+    H="$h" yq -r '(.providers[strenv(H)] | select(tag == "!!map") | .docs // [])[]' "$f" 2>/dev/null || true
+  done | sed 's/#.*$//' | sort -u
+}
+
+# refreeze_cited — a recording is when docs are pulled: re-freeze every cited page not already
+# frozen at its live hash. Runs after every `run` and `all`, whether or not it added a sample.
+refreeze_cited() {
+  local u
+  for u in $(cited_docs); do capture_doc "$u"; done
+}
+
 case "${1:-}" in
-  run) [ -n "${2:-}" ] || die "usage: capture.sh run <name> [--rerecord]"; capture_run "$2" "${3:-}" ;;
+  run) [ -n "${2:-}" ] || die "usage: capture.sh run <name> [--rerecord]"; capture_run "$2" "${3:-}"; refreeze_cited ;;
   pin)
     [ -n "${2:-}" ] || die "usage: capture.sh pin <version>"
     hbin install claude "$2" >/dev/null || die "could not install claude $2"
@@ -218,11 +240,10 @@ case "${1:-}" in
     rm -rf "$here/runs/$2/samples/$3"
     echo "dropped runs/$2/samples/$3"
     ;;
-  doc) [ -n "${2:-}" ] || die "usage: capture.sh doc <url>"; capture_doc "$2" ;;
   all)
     pinned_bin >/dev/null || exit 1   # before any sample is dropped: no pinned binary, nothing is lost
     for r in "$here"/runs/*/; do rm -rf "$r/samples"; capture_run "$(basename "$r")"; done
-    for u in $(yq -r '.docs // {} | keys | .[]' "$manifest"); do capture_doc "$u"; done
+    refreeze_cited
     ;;
-  *) die "usage: capture.sh run <name> [--rerecord] | pin <version> | drop <run> <ts> | doc <url> | all" ;;
+  *) die "usage: capture.sh run <name> [--rerecord] | pin <version> | drop <run> <ts> | all" ;;
 esac

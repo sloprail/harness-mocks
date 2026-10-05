@@ -2,56 +2,17 @@
 # What a changeset really touches, narrower than "the file changed". Source after changeset.sh
 # and snapshots.sh.
 #
-# A capability's judges read (a) the doc pages its cells cite, each frozen by its own sha256 in a
-# harness MANIFEST, and (b) the declarations its markers sit on. A re-frozen page is no reason to
-# judge a capability that cites a different page, and an edit to one function in a file that
-# also carries other capabilities' markers is no reason to judge theirs. So:
+# A capability's judges read the declarations its markers sit on, its recordings and its cell. An
+# edit to one function in a file that also carries other capabilities' markers is no reason to
+# judge theirs. A doc page is NOT in this list: recordings own the truth and a doc is re-frozen
+# only together with one (capture.sh), so a MANIFEST doc entry changing touches no capability and
+# is in no verdict's key (adr/pinned-harness-versions). So:
 #
-#   load_doc_changes     DOC_CHANGES_TSV   "<harness>\t<url>" per doc entry added, removed or
-#                                          re-hashed (anchor dropped); "<harness>\t*" when the
-#                                          MANIFEST was added, deleted or cannot be compared
-#                                          (every page of that harness is then in question).
-#                                          Nothing else in a MANIFEST counts: not its `pin` (which
-#                                          harness binary capture.sh runs next; a recording's own
-#                                          version is in its run.yaml) and not a page's `fetched`
-#                                          date, so a binary bump or a re-freeze that finds the
-#                                          same sha256 invalidates nothing
-#   load_doc_shas        DOC_SHAS          JSON {<harness>: {docs: {<url>: <sha256>}}}
-#                                          from the head tree: what a verdict's key must carry
-#                                          for each page it reads, in place of the whole MANIFEST
 #   load_touched_markers TOUCHED_MARKERS_TSV  "<path>\t<kind>\t<fqn>" per capability marker
 #                                          whose declaration (the comment block it sits in and
 #                                          the declaration that follows, to its closing brace)
 #                                          has a changed line, or whose file was added, deleted
 #                                          or renamed
-
-load_doc_changes() {
-  [ -z "${DOC_CHANGES_READY:-}" ] || return 0
-  DOC_CHANGES_READY=1
-  local out
-  if out="$(printf '%s' "$payload" | jq -c '[.changeset.files[] | select(.path | test("^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$"))
-        | {h: (.path | split("-mock/")[0]), st: .status, old: ((.oldContent // "") | if . == "" then "null" else . end), new: ((.newContent // "") | if . == "" then "null" else . end)}]' |
-      yq -p=json -o=json -I=0 '.[] | .old |= (@yamld) | .new |= (@yamld)' 2>/dev/null |
-      jq -r '. as $f | if $f.st != "M" or ($f.old | type) != "object" or ($f.new | type) != "object"
-               then [$f.h, "*"] | @tsv
-               else (($f.old.docs // {}) as $o | ($f.new.docs // {}) as $n | ($o + $n) | keys[] as $u
-                     | select(($o[$u].sha256 // "") != ($n[$u].sha256 // "")) | [$f.h, $u] | @tsv) end' 2>/dev/null)"; then
-    DOC_CHANGES_TSV="$out"
-  else   # cannot compare: every harness whose MANIFEST changed is wholly in question (the cautious side)
-    DOC_CHANGES_TSV="$(cs '.changeset.files[].path | select(test("^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$")) | sub("-mock/.*$"; "") + "\t*"')"
-  fi
-}
-
-load_doc_shas() {
-  [ -z "${DOC_SHAS_READY:-}" ] || return 0
-  DOC_SHAS_READY=1; DOC_SHAS='{}'
-  local h m one
-  for h in $(harnesses); do
-    m="$(snap_dir "$h")/MANIFEST.yaml"; [ -f "$m" ] || continue
-    one="$(yq -o=json -I=0 '{"docs": ((.docs // {}) | map_values(.sha256))}' "$m" 2>/dev/null)" || continue
-    DOC_SHAS="$(jq -c --arg h "$h" --argjson o "$one" '. + {($h): $o}' <<<"$DOC_SHAS")"
-  done
-}
 
 # diff_lines — stdin: a unified diff; one "o N" per removed line and "n N" per added line.
 diff_lines() {

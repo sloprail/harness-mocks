@@ -45,10 +45,11 @@ Each `<harness>-mock/snapshots/` holds recordings of the real harness
 
 - The binary a recording was made with is the run's own: `version` in its
   `run.yaml`. The MANIFEST's `pin` is only which binary `capture.sh` runs next.
-- A doc page is frozen by its own `sha256` (and the `fetched` date). Only a
-  page whose `sha256` changed puts the capabilities that cite it back in
-  judgement; bumping `pin`, or re-freezing a page that hashes the same,
-  invalidates nothing. See [adr/pinned-harness-versions](adr/pinned-harness-versions/ADR.md).
+- A doc page is frozen by its own `sha256` (and the `fetched` date), pulled
+  together with a recording (`capture.sh run`). A doc change alone, a re-freeze
+  or a bumped `pin` puts no capability back in judgement: only recordings, the
+  capability's cell and the code it points at do. See
+  [adr/pinned-harness-versions](adr/pinned-harness-versions/ADR.md).
 
 `capture.sh` never uses the `claude`/`codex`/`cursor-agent` on your `PATH`: it
 runs the pinned version from a cache of its own, so a global auto-update does not

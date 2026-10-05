@@ -59,8 +59,10 @@ doc_sha() {
 # DOC_ERROR — why doc_copy failed, for the caller's refusal.
 # doc_copy HARNESS URL — prints the path of the cached copy of URL's frozen
 # page, fetching it on a miss. Exit 1 (DOC_ERROR set) when the MANIFEST does
-# not freeze the URL, the page cannot be fetched, or the live page's hash
-# differs from the frozen one (stale).
+# not freeze the URL or the page cannot be fetched. When the page was fetched and its hash is not the
+# frozen one (the doc changed upstream since), the live page is returned instead: a caller READS the
+# doc (a judge) and its verdict never depends on the text. Nothing compares a page with the live
+# website to refuse on it.
 doc_copy() {
   local sha dir f tmp got u="${2%%#*}"
   DOC_ERROR=""
@@ -69,19 +71,23 @@ doc_copy() {
   [ -f "$f" ] && { printf '%s' "$f"; return 0; }
   mkdir -p "$dir" && tmp="$(mktemp "$dir/fetch.XXXXXX")" || { DOC_ERROR="the doc cache $dir is not writable"; return 1; }
   if ! curl -fsSL --max-time 30 "$u.md" -o "$tmp"; then
-    rm -f "$tmp"; DOC_ERROR="could not fetch $u.md to check it against its frozen hash"; return 1
+    rm -f "$tmp"; DOC_ERROR="could not fetch $u.md to read it"; return 1
   fi
   got="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
-  if [ "$got" != "$sha" ]; then
-    rm -f "$tmp"; DOC_ERROR="$u changed since it was captured (its hash is no longer the frozen one): re-capture it with capture.sh doc $u, and re-check what cites it"; return 1
-  fi
+  [ "$got" = "$sha" ] || f="$dir/live-$got.md"
   mv "$tmp" "$f" && printf '%s' "$f"
 }
 
-# doc_ref_section HARNESS URL#ANCHOR — the cited section's text, from the
-# frozen page. Exit 1 when the page cannot be had (DOC_ERROR) or has no such section.
-doc_ref_section() {
-  local f
-  f="$(doc_copy "$1" "$2")" || return 1
-  doc_section "$f" "${2#*#}"
+# doc_copy_var HARNESS URL — doc_copy for a caller that needs DOC_ERROR: `f="$(doc_copy ...)"`
+# runs doc_copy in a subshell, so its DOC_ERROR never reaches the caller (under `set -u` that is an
+# unbound-variable crash instead of the reason). This runs it in the caller's shell, through a temp
+# file, and sets DOC_PATH (the page) on success; on failure DOC_ERROR is the reason and always non-empty.
+doc_copy_var() {
+  local t rc
+  DOC_PATH=""
+  t="$(mktemp)" || { DOC_ERROR="could not make a temp file to read the frozen page of $2"; return 1; }
+  doc_copy "$1" "$2" >"$t"; rc=$?
+  DOC_PATH="$(cat "$t")"; rm -f "$t"
+  [ "$rc" -eq 0 ] || DOC_ERROR="${DOC_ERROR:-could not read the frozen page of $2}"
+  return "$rc"
 }

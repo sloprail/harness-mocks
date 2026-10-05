@@ -1,15 +1,15 @@
 ---
-concern: which version a snapshot is frozen at, for the harness binary and for its doc pages
+concern: what a capability verdict's key is made of, and what puts a capability back in judgement
 sloprails: [file-guard/capability-grounded, file-guard/capability-rigor]
 ---
 
-# A recording carries its harness version, a doc page is frozen by its hash; a binary update re-judges nothing
+# A capability verdict's key carries recordings, never a doc page or a binary version
 
 ## Concern
 
-A harness binary's version and its documentation are separate things: a binary update does not mean a doc page changed. A binary version never stands in for a doc page's freshness, and never appears in a capability verdict's key.
+A harness binary's version and its documentation are separate things, and recordings own the truth (adr/capability-grounding: a recording outranks a doc): a doc page is pulled when a recording is captured, not on its own. So neither a doc page's change nor a binary update may put a capability back in judgement.
 
 ## Decision
 
-- A doc page is frozen by its own `sha256` in `<harness>-mock/snapshots/MANIFEST.yaml`. Only a page whose `sha256` changed (added, removed or re-hashed) puts the capabilities that cite it back in judgement; a binary update, or a re-freeze that finds the same `sha256`, invalidates nothing.
-- A verdict's key carries each cited page's `sha256` and never a harness binary version: the binary a recording was made with is recorded in the run's own `run.yaml`, not in the key.
+- `file-guard/capability-grounded/subjects.sh` and `file-guard/capability-rigor/subjects.sh`, which compute the verdict key and which capabilities are judged, never read `<harness>-mock/snapshots/MANIFEST.yaml`: a doc re-freeze of a page, or a bumped `pin`, re-judges nothing, and the key carries no doc page's hash or text.
+- The key never carries a harness binary version: the binary a recording was made with is recorded in the run's own `run.yaml`, not in the key.

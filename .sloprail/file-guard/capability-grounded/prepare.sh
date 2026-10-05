@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # prepare: the capability this check's subject names (subjects.sh: one per capability whose
-# file changed, or which cites a doc page that changed; all of them when the rule runs unsplit),
+# file changed, or which cites a recording that changed; all of them when the rule runs unsplit),
 # as additionalContext.subjects, with only the harnesses in
 # question: those whose cell changed (cells.sh; every harness when the statement
-# or the whole file changed) or whose cited doc page was re-frozen. Per capability: the statement (a short
+# or the whole file changed) or whose cited recording changed. A doc re-freeze is no trigger. Per capability: the statement (a short
 # string) and, per providing harness, each cited doc ref with the path of its
-# frozen page (a local file in the doc cache under the git dir, fetched on a miss
-# and checked against the MANIFEST's sha256 by doc_copy; a page that cannot be
-# had fails this check closed) and the line its cited section starts at; and
+# page (a local file in the doc cache under the git dir: the frozen copy or, when the
+# page has drifted since, the live one (a doc is read here, never part of
+# the verdict's key); a page that cannot be had fails this check closed) and the line its cited section starts at; and
 # each cited run's directory.
 # A harness whose cell is {supported: false, reason, docs?, runs?} is a subject too:
 # its docs and runs are listed as kind "absent", with the reason, for the judge to check
@@ -20,7 +20,7 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/snapshots.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
-load_spec capabilities; caps="$SPEC"; load_touched; load_doc_changes
+load_spec capabilities; caps="$SPEC"; load_touched
 changed="$(cs '.changeset.files[].path')"
 subjects="[]"
 while IFS= read -r c; do
@@ -31,11 +31,11 @@ while IFS= read -r c; do
   printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && hs="$(touched_harnesses "spec/capabilities/$id.yaml")"
   refs="$(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h
     | (if .value.supported == false then "absent" else "supports" end) as $k | .value.docs[] | [$h, $k, .] | @tsv' <<<"$c")"
-  while IFS=$'\t' read -r h _ ref; do
+  # a changed recording: a file under a run this capability's cell cites
+  while IFS=$'\t' read -r h r; do
     [ -n "$h" ] || continue
-    # a re-frozen doc: this page's MANIFEST entry changed (its sha256, not a bumped pin or a new fetch date)
-    printf '%s\n' "$DOC_CHANGES_TSV" | awk -F'\t' -v h="$h" -v u="${ref%%#*}" '$1 == h && ($2 == "*" || $2 == u) {f = 1} END {exit !f}' && hs="$(printf '%s\n%s' "$hs" "$h")"
-  done <<<"$refs"
+    printf '%s\n' "$changed" | grep -q "^$r/" && hs="$(printf '%s\n%s' "$hs" "$h")"
+  done < <(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h | (.value.runs // [])[] | [$h, .] | @tsv' <<<"$c")
   hs="$(printf '%s\n' "$hs" | sed '/^$/d' | sort -u)"
   [ -n "$hs" ] || continue
   # keep only the cited docs and runs of the harnesses in question
@@ -46,7 +46,7 @@ while IFS= read -r c; do
   docs="[]"
   while IFS=$'\t' read -r h kind ref; do
     [ -n "$h" ] || continue
-    f="$(doc_copy "$h" "$ref")" || { echo "$DOC_ERROR" >&2; exit 1; }
+    doc_copy_var "$h" "$ref" || { echo "${DOC_ERROR:-could not read the frozen page of $ref}" >&2; exit 1; }; f="$DOC_PATH"
     a="${ref#*#}"; [ "$a" = "$ref" ] && a=""
     line="$(awk -v a="$a" 'a != "" && /^#+ / { t = tolower($0); sub(/^#+ +/, "", t); gsub(/[^a-z0-9 -]/, "", t); gsub(/ /, "-", t); if (t == a) { print NR; exit } }' "$f")"
     docs="$(jq -c --arg h "$h" --arg k "$kind" --arg r "$ref" --arg p "$f" --arg l "${line:-0}" --arg n "$(wc -l <"$f" | tr -d ' ')" \

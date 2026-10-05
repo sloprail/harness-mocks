@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The judge's inputs exist, before a model is asked [deterministic]. For each
-# touched (capability, harness): every cited doc is frozen and still hashes to
-# its MANIFEST sha256, every cited run has a sealed sample, and some test proves
+# touched (capability, harness): every cited doc is frozen in the MANIFEST (offline: the
+# live page is never compared), every cited run has a sealed sample, and some test proves
 # the pair. Each of these is another rule's to own (snapshots-current,
 # capability-covered) across the whole tree; this re-checks only the slice the
 # judge consumes, so a broken input refuses here, in one line naming its
@@ -20,7 +20,7 @@ while IFS=$'\t' read -r pair cell _; do
   [ -n "$pair" ] || continue
   h="${pair#*/}"
   for ref in $(jq -r '.docs[]' <<<"$cell"); do
-    doc_copy "$h" "$ref" >/dev/null || add "$pair: $DOC_ERROR (file-guard/snapshots-current owns this)"
+    doc_sha "$h" "$ref" >/dev/null || add "$pair: $h-mock/snapshots/MANIFEST.yaml does not freeze ${ref%%#*} (file-guard/snapshots-current owns this)"
   done
   for r in $(jq -r '.runs[]' <<<"$cell"); do
     ls "$SR_TREE/$r"/samples/*/SEAL >/dev/null 2>&1 ||

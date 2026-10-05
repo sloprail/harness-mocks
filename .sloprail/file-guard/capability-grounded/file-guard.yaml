@@ -13,7 +13,7 @@
 # (adr/capability-grounding). One subject per capability touched (its file, or a doc
 # page it cites): subjects.sh splits the changeset, so a change to one capability leaves
 # another's verdict alone, and prepare.sh builds the context of the subject it is handed.
-match: path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$"
+match: path startsWith "spec/capabilities/" or path matches "^[a-z0-9]+-mock/snapshots/runs/"
 deletions: include
 require:
   - citation: {source_types: [user]}
@@ -24,5 +24,5 @@ checks:
   - script: ./harness-lacks-cited.sh
   - prepare: ./prepare.sh
     judge: ./docs-support-statement.md.j2
-    # the frozen doc pages live in a cache under the git dir, outside the project
+    # the doc pages live in a cache under the git dir, outside the project
     allowed_tools: [Read]

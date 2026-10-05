@@ -4,26 +4,23 @@
 # capability file changed in that harness's cell (cells.sh; its statement, or
 # the whole file, changing touches every providing harness); a marker naming it changed
 # (sr:capability → every harness; sr:provides/sr:proves <id>/<h> → that harness);
-# or a snapshot it cites for <h> changed (a run, or one of its cited doc
-# pages re-frozen: touched.sh narrows a marker to its declaration and a MANIFEST to the
-# entries that changed, so a change to one page or one function leaves another's
-# capability alone). Only the capability this check's subject names, when the rule is split (subjects.sh).
+# or a recording it cites for <h> changed (a run). A doc page re-frozen is none of these: docs
+# follow recordings and never re-judge alone. touched.sh narrows a marker to its declaration,
+# so a change to one function leaves another's capability alone. Only the capability this check's subject names, when the rule is split (subjects.sh).
 # Source after changeset.sh, spec.sh and snapshots.sh; no event logic.
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
 rigor_pairs() {
-  load_spec capabilities; load_touched; load_doc_changes; load_touched_markers
+  load_spec capabilities; load_touched; load_touched_markers
   # one jq over the payload, the specs and the touched table: no process per capability or pair
-  printf '%s' "$payload" | jq -r --argjson caps "$SPEC" --arg tt "$TOUCHED_TSV" --arg tm "$TOUCHED_MARKERS_TSV" --arg dc "$DOC_CHANGES_TSV" --arg want "$(subject_id)" '
+  printf '%s' "$payload" | jq -r --argjson caps "$SPEC" --arg tt "$TOUCHED_TSV" --arg tm "$TOUCHED_MARKERS_TSV" --arg want "$(subject_id)" '
     [.changeset.files[].path] as $changed
     | [$tm | split("\n")[] | select(length > 0) | split("\t") | .[2]] as $fq
-    | [$dc | split("\n")[] | select(length > 0) | split("\t") | {h: .[0], u: .[1]}] as $dcs
     | [$tt | split("\n")[] | select(length > 0) | split("\t") | {p: .[0], h: .[1]}] as $tr
     | $caps[] | select($want == "" or .id == $want) | . as $c | .id as $id | "spec/capabilities/\($id).yaml" as $cp
     | (.doc.providers // {}) | to_entries[] | select(.value | type == "object" and .supported == null) | .key as $h | .value as $cell
     | select(any($tr[]; .p == $cp and (.h == "*" or .h == $h))
              or any($fq[]; . == $id or . == "\($id)/\($h)")
-             or any(($cell.runs // [])[]; . as $r | any($changed[]; startswith($r + "/")))
-             or any(($cell.docs // [])[]; (split("#")[0]) as $u | any($dcs[]; .h == $h and (.u == "*" or .u == $u))))
+             or any(($cell.runs // [])[]; . as $r | any($changed[]; startswith($r + "/"))))
     | ["\($id)/\($h)", ($cell | tojson), ($c | tojson)] | join("\t")'
 }
