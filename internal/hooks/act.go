@@ -16,10 +16,11 @@ func (o Outcome) Counts() bool { return o.Started && !o.TimedOut }
 // acted, 3 of 3; ending 75 ms apart with the last configured last
 // (close-second): it, 3 of 3; ending 1 s apart (slow-first): the one that
 // finished last, whichever it was configured as. Ending 75 ms apart with the
-// first configured last (all-hooks-close-first, three samples: A acted, then B,
-// then A) the harness itself raced, so no rule matches all of it; a gap that
-// small is not told apart reliably. That recording is not kept: it can have no
-// replay that is green in every sample.
+// first configured last (all-hooks-close-first): the last finisher, A, in seven
+// of the eight samples we kept; in an earlier capture the harness acted on B
+// once in three (A, B, A), so at that gap it is not told apart reliably, and a
+// replay accepts either recorded outcome where the samples disagree
+// (internal/replay.Reconcile).
 const together = 50 * time.Millisecond
 
 // ActedBlock is which of the commands of one event a block is acted on for.

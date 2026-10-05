@@ -32,7 +32,9 @@ func observe(rules core.Rules, recStream, recHooks, mockStream, mockHooks []map[
 // event stream and hook payloads with the mock's, normalised, one section per
 // sample under a header: a replay is green only when every sample is.
 func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed, err error) {
-	for _, sample := range sampleDirs(rec.Dir) {
+	samples := sampleDirs(rec.Dir)
+	var wants, gots []core.Observed
+	for _, sample := range samples {
 		one, err := a.LoadSample(rec.Dir, sample)
 		if err != nil {
 			return want, got, err
@@ -50,9 +52,13 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 		w, g := observe(Rules(repo, work, RunIDs(recStream, mockStream, recHooks, mockHooks)), recStream, recHooks, mockStream, mockHooks)
-		header := "sample " + filepath.Base(sample)
-		want.Events, got.Events = append(append(want.Events, header), w.Events...), append(append(got.Events, header), g.Events...)
-		want.Hooks, got.Hooks = append(append(want.Hooks, header), w.Hooks...), append(append(got.Hooks, header), g.Hooks...)
+		wants, gots = append(wants, w), append(gots, g)
+	}
+	// where the recorded samples disagree (the harness races), a mock outcome that one of them shows is accepted
+	for i, g := range core.Reconcile(wants, gots) {
+		header := "sample " + filepath.Base(samples[i])
+		want.Events, got.Events = append(append(want.Events, header), wants[i].Events...), append(append(got.Events, header), g.Events...)
+		want.Hooks, got.Hooks = append(append(want.Hooks, header), wants[i].Hooks...), append(append(got.Hooks, header), g.Hooks...)
 	}
 	return want, got, nil
 }
