@@ -1,0 +1,5 @@
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# No core: each mock's output frames are built in its own files below.
+concern: "the wire format of the events a mock prints: the frames and items of its output stream"
+home: ["internal/frames/**", "codex-mock/internal/events/**", "cursor-mock/internal/runner/frames.go"]   # everything about the concern lives here
+api: ["codex-mock/internal/events"]       # the only packages others may import
