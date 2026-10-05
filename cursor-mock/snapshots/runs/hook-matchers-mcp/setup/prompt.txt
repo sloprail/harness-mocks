@@ -1,0 +1,1 @@
+Use the echo tool of the local MCP server with the text HELLO. Then reply only DONE.

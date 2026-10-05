@@ -33,46 +33,28 @@ var toolTable = map[string]struct {
 	"Task":  {"taskToolCall", "Task", taskRequired},
 }
 
+// lookup is the table's entry for a tool name: an MCP tool's name is
+// mcp__<server>__<tool>, a call the mock makes of the server's tool.
+func lookup(name string) (kind, hookName string, required []string, ok bool) {
+	if _, _, isMCP := mcpName(name); isMCP {
+		return "mcpToolCall", "", nil, true
+	}
+	t, ok := toolTable[name]
+	return t.kind, t.hookName, t.required, ok
+}
+
 // Required is the parameters a call to the named tool must carry, and whether
 // the mock has the tool.
 func Required(name string) ([]string, bool) {
-	t, ok := toolTable[name]
-	return t.required, ok
-}
-
-// FromScript is the Cursor call a scenario script's tool call stands for.
-func FromScript(name string, input json.RawMessage) Call {
-	var in map[string]any
-	_ = json.Unmarshal(input, &in)
-	str := func(k string) string { s, _ := in[k].(string); return s }
-	c := Call{Kind: toolTable[name].kind, Args: map[string]any{}}
-	switch c.Kind {
-	case "shellToolCall":
-		c.Args["command"] = str("command")
-		// block_until_ms 0 (or run_in_background) is a shell left running in the
-		// background (recorded: runs/task-notifications-bg).
-		if v, ok := in["block_until_ms"].(float64); (ok && v == 0) || in["run_in_background"] == true {
-			c.Args["isBackground"], c.Args["timeout"] = true, 0
-			if d := str("description"); d != "" {
-				c.Args["description"] = d
-			}
-		}
-	case "readToolCall":
-		c.Args["path"] = str("file_path")
-	case "editToolCall":
-		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
-	case "grepToolCall":
-		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
-	case "deleteToolCall":
-		c.Args["path"] = str("file_path")
-	case "taskToolCall":
-		c.Args["description"], c.Args["prompt"] = str("description"), str("prompt")
-	}
-	return c
+	_, _, req, ok := lookup(name)
+	return req, ok
 }
 
 // Name is the tool's name in hooks: Shell, Read or Write.
 func (c Call) Name() string {
+	if c.Kind == "mcpToolCall" {
+		return "MCP:" + c.str("toolName")
+	}
 	for _, t := range toolTable {
 		if t.kind == c.Kind {
 			return t.hookName
@@ -101,24 +83,6 @@ func (c Call) Description() string { return c.str("description") }
 // Command is the shell line of a Shell call.
 func (c Call) Command() string { return c.str("command") }
 
-// HookInput is the call's input as hooks see it.
-func (c Call) HookInput(dir string) map[string]any {
-	switch c.Kind {
-	case "shellToolCall":
-		return map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory"), "timeout": 30000}
-	case "readToolCall":
-		return map[string]any{"file_path": c.Path(dir)}
-	case "taskToolCall":
-		return map[string]any{"description": c.str("description"), "prompt": c.str("prompt"), "subagent_type": "generalPurpose"}
-	case "grepToolCall":
-		return map[string]any{"pattern": c.str("pattern")}
-	case "deleteToolCall":
-		return map[string]any{"file_path": c.Path(dir)}
-	default:
-		return map[string]any{"file_path": c.Path(dir), "content": c.str("streamContent")}
-	}
-}
-
 // Execute runs the call: a shell command in dir with env, or a file tool on
 // the file it names.
 func Execute(ctx context.Context, c Call, dir string, env []string) Result {
@@ -131,6 +95,8 @@ func Execute(ctx context.Context, c Call, dir string, env []string) Result {
 		return ran(func() Result { return grep(c, dir) })
 	case "deleteToolCall":
 		return ran(func() Result { return deleteFile(c, dir) })
+	case "mcpToolCall":
+		return ran(func() Result { return mcp(ctx, c, dir) })
 	}
 	return timed(c, dir)
 }
