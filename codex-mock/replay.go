@@ -32,7 +32,7 @@ func newReplay() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			diff, err := replay.Run(self, args[0])
+			diff, err := replay.Run(self, args[0], os.Environ())
 			if u, ok := err.(*replay.Unbuildable); ok {
 				fmt.Fprintf(cmd.OutOrStdout(), "not replayable: %s\n", u.Reason)
 				os.Exit(2)

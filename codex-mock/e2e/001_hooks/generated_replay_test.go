@@ -39,7 +39,7 @@ func TestGeneratedReplay(t *testing.T) {
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			diff, err := codexreplay.Run(mockBinary, filepath.Join(runsDir, name))
+			diff, err := codexreplay.Run(mockBinary, filepath.Join(runsDir, name), os.Environ())
 			var unbuildable *codexreplay.Unbuildable
 			reason, listed := notReplaying[name]
 			switch {

@@ -6,14 +6,14 @@
 package replay
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/sloprail/harness-mocks/internal/procexec"
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
@@ -21,12 +21,17 @@ import (
 // codex recording into the unified form (Load), turns that into the scenario the
 // codex mock takes (Denormalize), runs the mock, and normalises both outputs by
 // codex's own rules (Rules).
-type Adapter struct{}
+type Adapter struct {
+	// Environ is the environment the mock and its children inherit; the entrypoint reads it once and passes it down.
+	Environ []string
+}
 
 // Run replays the recording in runDir: the mock binary is run on the scenario
 // generated from it, and what differs from the recording is returned; empty is
 // a green replay. A recording the adapter cannot build is an *Unbuildable.
-func Run(mock, runDir string) (string, error) { return core.Run(Adapter{}, mock, runDir) }
+func Run(mock, runDir string, environ []string) (string, error) {
+	return core.Run(Adapter{Environ: environ}, mock, runDir)
+}
 
 // Script is the generated scenario for debugging: the main script and each
 // sub-agent's.
@@ -46,7 +51,7 @@ func (Adapter) Script(rec core.Recording) (string, error) {
 
 // Replay runs the mock on rec's scenario in a hermetic repository, and returns
 // the recording's event stream and hook payloads with the mock's, normalised.
-func (Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed, err error) {
+func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed, err error) {
 	s := Denormalize(rec)
 	sample := sampleDir(rec.Dir)
 	root, err := os.MkdirTemp("", "codex-replay-*")
@@ -61,8 +66,16 @@ func (Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed,
 			return want, got, err
 		}
 	}
-	if err := exec.Command("git", "-C", repo, "init", "-q").Run(); err != nil {
-		return want, got, fmt.Errorf("git init: %w", err)
+	// hermetic but for the tools (sh, git, jq) the hooks use: no CODEX_* or CLAUDE* variable of ours reaches the mock
+	env := []string{"CODEX_HOME=" + home, "TMPDIR=" + tmp, "HOOK_LOG=" + filepath.Join(tmp, "hook.log")}
+	for _, kv := range a.Environ {
+		if !strings.HasPrefix(kv, "CODEX") && !strings.HasPrefix(kv, "CLAUDE") && !strings.HasPrefix(kv, "TMPDIR=") {
+			env = append(env, kv)
+		}
+	}
+	ctx := context.Background()
+	if res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"git", "-C", repo, "init", "-q"}, Env: env}); err != nil || res.ExitCode != 0 {
+		return want, got, fmt.Errorf("git init: %v %s", err, res.Stderr)
 	}
 	if err := os.WriteFile(filepath.Join(home, "hooks.json"), []byte(s.HooksJSON), 0o644); err != nil {
 		return want, got, err
@@ -77,19 +90,11 @@ func (Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed,
 		return want, got, err
 	}
 
-	// hermetic but for the tools (sh, git, jq) the hooks use: no CODEX_* or CLAUDE* variable of ours reaches the mock
-	env := []string{"CODEX_HOME=" + home, "TMPDIR=" + tmp, "HOOK_LOG=" + filepath.Join(tmp, "hook.log")}
-	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "CODEX") && !strings.HasPrefix(kv, "CLAUDE") && !strings.HasPrefix(kv, "TMPDIR=") {
-			env = append(env, kv)
-		}
-	}
-	cmd := exec.Command(mock, "exec", "--dangerously-bypass-hook-trust", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt)
-	cmd.Dir, cmd.Env = repo, env
-	var out, errb bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	if err := cmd.Run(); err != nil {
-		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v: %s", err, errb.String())}
+	res, err := procexec.Run(ctx, procexec.Spec{
+		Argv: []string{mock, "exec", "--dangerously-bypass-hook-trust", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt},
+		Dir:  repo, Env: env})
+	if err != nil || res.ExitCode != 0 {
+		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
 	}
 	hookLog, _ := os.ReadFile(filepath.Join(tmp, "hook.log"))
 
@@ -97,7 +102,7 @@ func (Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed,
 	rules := Rules(repo, tmp)
 	wantC, gotC := core.New(rules), core.New(rules)
 	want.Events = wantC.Lines(jsonLines(readFile(filepath.Join(sample, "stream.jsonl"))))
-	got.Events = gotC.Lines(jsonLines(out.String()))
+	got.Events = gotC.Lines(jsonLines(string(res.Stdout)))
 	want.Hooks = wantC.Lines(jsonLines(readFile(filepath.Join(sample, "payloads.jsonl"))))
 	got.Hooks = gotC.Lines(jsonLines(string(hookLog)))
 	// hooks of one event run at the same time, so the order they log in is not the behaviour
