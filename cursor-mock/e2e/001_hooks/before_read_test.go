@@ -25,6 +25,7 @@ import (
 // sr:proves file-tools/cursor
 // sr:proves hook-exit-code-semantics/cursor
 // sr:proves tool-failure-hook/cursor
+// sr:proves pretooluse-refusal/cursor
 func TestABeforeReadFileHookThatRefusesBlocksTheRead(t *testing.T) {
 	got, want := replay(t, "before-read-refusal")
 	conforms(t, got, want)
