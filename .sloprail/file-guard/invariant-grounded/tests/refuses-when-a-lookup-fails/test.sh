@@ -38,7 +38,8 @@ run_script() {
 }
 expect_refused() {   # LABEL SUBSTRING
   [ "$rc" -ne 0 ] && [[ "$out" == *"$2"* ]] || { echo "$1: wanted a refusal saying '$2', got exit $rc: $out" >&2; exit 1; }
-  case "$1" in control*|violation|implemented*|new\ code*) return 0 ;; esac
+  # a failing subjects.sh is reported by the engine itself ("its subjects script failed"), with no check verdict to flag
+  case "$1" in control*|violation|implemented*|new\ code*|subjects.sh*) return 0 ;; esac
   [[ "$out" == *'"error": true'* ]] || { echo "$1: refused without \"error\": true, so the engine would cache it as a verdict: $out" >&2; exit 1; }
 }
 
