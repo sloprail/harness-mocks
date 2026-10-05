@@ -14,6 +14,7 @@ providers:
       - codex-mock/snapshots/runs/shell-exit-status
   cursor:
     supported: false
-    reason: Cursor's stream carries an output-less command's result as empty strings and its transcript records no tool results, so no placeholder naming the tool appears.
+    reason: Cursor gives a successful (exit 0) output-less command no placeholder naming the tool. Its stream carries the result as empty stdout, stderr and interleavedOutput strings, its postToolUse hook carries {"output":"","exitCode":0}, and its transcript records no tool results.
     runs:
+      - cursor-mock/snapshots/runs/background-bash-start
       - cursor-mock/snapshots/runs/shell-exit-status
