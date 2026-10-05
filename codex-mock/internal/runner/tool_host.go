@@ -67,6 +67,9 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 	if c.Name == patchTool {
 		return h.applyPatch(c)
 	}
+	if option := h.unimplemented(c); option != "" {
+		return refused(option)
+	}
 	cmd := command(c)
 	id := h.events.CommandStarted(cmd)
 	var r tools.BashResult
@@ -77,6 +80,10 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 		}
 	} else {
 		r = tools.Bash(ctx, cmd, h.cfg.Cwd, h.toolEnv)
+	}
+	r.Output = ttyOutput(c, r.Output)
+	if tooLong(c, r.Output) {
+		return refused("max_output_tokens below the command's output (the output is not truncated)")
 	}
 	h.events.CommandCompleted(id, cmd, r.Output, r.ExitCode)
 	return toolcall.Result{Output: r.Output, Failed: r.Failed()}
