@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/session"
 )
 
 // Fire invokes every handler configured for the event and matcher and returns
@@ -34,14 +35,7 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 		corehooks.Agent{ID: inv.agentID, Type: inv.agentType})
 	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
 	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
-	if input.HookEventName == EventUserPromptSubmit {
-		input.PromptID = inv.turn.begin()
-	} else if input.PromptID == "" {
-		input.PromptID = inv.turn.current()
-	}
-	if input.PermissionMode == "" && turnEvents[input.HookEventName] {
-		input.PermissionMode = inv.permissionMode
-	}
+	input.PromptID, input.PermissionMode = corehooks.PromptFields(inv.turn, session.NewID, promptEvent(input), inv.permissionMode)
 	handlers := inv.settings.EntriesFor(input.HookEventName, matcherSubject(input))
 	if len(handlers) == 0 {
 		return Output{}, nil, nil

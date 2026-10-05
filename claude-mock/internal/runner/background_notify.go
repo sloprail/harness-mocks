@@ -109,7 +109,7 @@ func submitNotification(ctx context.Context, cfg Config, inv *hooks.Invoker, tr 
 		return true
 	}
 	out, err := inv.WithRecorder(tr.holdHookRuns).Fire(ctx, hooks.Input{
-		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note,
+		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note, ContinuesPrompt: true,
 	})
 	if refused, _ := corehooks.PromptOutcome(err != nil || out.Decision == "block", ""); refused {
 		tr.dropHeldHookRuns()

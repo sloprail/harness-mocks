@@ -65,6 +65,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 		preserve = *rec.Preserve
 	}
 	started := time.Now()
+	inv.EnsureTurn() // a compaction with no prompt before it acts as one
 	var preRuns, postRuns []hooks.HandlerRun
 	var sum map[string]any
 	var anchor, summaryText string
