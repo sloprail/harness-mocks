@@ -26,7 +26,16 @@ providers:
           manual-compaction cell.
   cursor:
     supported: false
-    reason: a cursor-agent -p run that compacted twice (preCompact fired) left no boundary or summary record in its transcript, only the user prompt written again, and no record carries a link to another.
+    reason: >-
+      A cursor-agent -p run that compacted twice (preCompact fired at lines 65 and
+      111 of its events, trigger "auto") left in its transcript no boundary record
+      and no summary: after each compaction the transcript carries the user prompt
+      again, byte-identical to the first record and so no marker that a compaction
+      happened, and the records written after it are new tool calls, not an
+      account of the dropped ones; the one other new record is a
+      `<dynamic_tools>` tool-discovery message, which is not a summary. Records
+      hold only role and message, so no record links to another and the harness
+      keeps no chain of its own.
     docs:
       - https://cursor.com/docs/hooks#precompact
     runs:
