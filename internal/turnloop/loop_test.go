@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/sloprail/harness-mocks/internal/scenario"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 )
 
 // host records the turn, and answers the hooks from its fields.
@@ -65,7 +66,7 @@ printf '%%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":
 	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go", BlockCap: h.cap})
+	return Run(context.Background(), h, Params{Tools: testTools, Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go", BlockCap: h.cap})
 }
 
 func TestRunStepsThroughToolCallsToTheResult(t *testing.T) {
@@ -139,7 +140,7 @@ printf '%s\n' '{"type":"result","result":"done"}'`
 	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go",
+	if _, err := Run(context.Background(), h, Params{Tools: testTools, Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go",
 		Added: func() string { return strings.Join(h.added, "\n") }}); err != nil {
 		t.Fatal(err)
 	}
@@ -150,5 +151,26 @@ printf '%s\n' '{"type":"result","result":"done"}'`
 	want := "ctx,\nctx,after-c0,\nctx,after-c0,after-c1,\n"
 	if string(got) != want {
 		t.Fatalf("the script was given %q, want %q: the prompt hooks' context, then what the host added so far", got, want)
+	}
+}
+
+// testTools are the tools the loop's test scripts call.
+var testTools = toolspec.Schema{Harness: "test", Tools: []toolspec.Tool{
+	{Name: "Bash", Params: []toolspec.Param{{Name: "n", Type: toolspec.Integer}, {Name: "a", Type: toolspec.Integer}}},
+	{Name: "Task"},
+}}
+
+// A call the schema refuses ends the run with the refusal, before the host is
+// given the call.
+func TestRunRefusesAScriptCallTheSchemaDoesNotAllow(t *testing.T) {
+	h := &host{}
+	_, err := run(t, h, 0, `printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"x","name":"Teleport","input":{}}]}}'`)
+	if err == nil || !strings.Contains(err.Error(), "Teleport") {
+		t.Fatalf("err = %v, want a refusal naming the tool", err)
+	}
+	for _, line := range h.log {
+		if strings.HasPrefix(line, "tool:") {
+			t.Fatalf("the refused call was played: %v", h.log)
+		}
 	}
 }

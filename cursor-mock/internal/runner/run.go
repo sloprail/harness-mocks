@@ -11,6 +11,7 @@ import (
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -21,6 +22,9 @@ type session struct {
 	tr      *transcript
 	hooks   *hooks.Hooks
 	started time.Time
+	// refused is the first error a scenario script of the run ended with, a
+	// sub-agent's too: it fails the run.
+	refused *toolspec.Refusals
 	texts   []string // what the agent said, in order: the result frame's text
 	// named: hook payloads carry the transcript path. Cursor leaves it null
 	// until the conversation's first tool call is past its preToolUse hooks
@@ -82,7 +86,7 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now()}
+	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), refused: &toolspec.Refusals{}}
 	if s.id == "" {
 		s.id = coresession.NewID()
 	}
@@ -104,13 +108,16 @@ func Run(ctx context.Context, cfg Config) error {
 		s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	}
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
-	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
+	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Tools: Schema(), Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
 	s.named = true
 	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
 		"is_background_agent": false, "final_status": "completed",
 	})
 	s.tr.end()
+	if err := s.refused.Err(); err != nil { // the cause, whatever else the run ended with
+		runErr = err
+	}
 	if runErr != nil {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}

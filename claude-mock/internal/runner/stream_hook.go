@@ -56,6 +56,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	finish := func() { final.Finish(func(line []byte) { writeStreamLine(cfg, line) }) }
 	blockCap := stopHookBlockCap()
 	for {
+		if err := bg.refused.Err(); err != nil { // a sub-agent's script asked for what the mock does not implement
+			return err
+		}
 		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
 		if err != nil {
 			return err

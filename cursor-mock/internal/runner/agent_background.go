@@ -71,8 +71,9 @@ func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	t.ToolUseID, t.Description, t.Owner, t.Meta = tu.ID, in.Description, s.owner, in.Prompt
 	s.registry().StartAgent(t, func(ctx context.Context) {
 		sub.tr.user(in.Prompt)
-		if _, err := turnloop.Run(ctx, &sub, turnloop.Params{Script: in.Script, Dir: s.cfg.Dir, Environ: s.cfg.Environ, Prompt: in.Prompt, Added: sub.Context}); err != nil {
+		if _, err := turnloop.Run(ctx, &sub, turnloop.Params{Tools: Schema(), Script: in.Script, Dir: s.cfg.Dir, Environ: s.cfg.Environ, Prompt: in.Prompt, Added: sub.Context}); err != nil {
 			t.Failure = err.Error()
+			s.refused.Set(err)
 		}
 		sub.named = true
 		sub.tr.end()

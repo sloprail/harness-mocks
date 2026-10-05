@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/sloprail/harness-mocks/internal/scenario"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 )
 
 // Host is the harness side of a turn: its hooks and its record of the session.
@@ -43,6 +44,10 @@ type Params struct {
 	// BlockCap is how many blocks in a row may continue the turn; zero is no
 	// limit.
 	BlockCap int
+	// Tools is the schema every tool call the script asks for is checked against
+	// before it is played (adr/tool-calls-validated). A mistake the harness answers
+	// itself passes on to the host, which answers it.
+	Tools toolspec.Schema
 	// Added, when set, is the context the harness's hooks have added to the
 	// conversation since the prompt (at the start of the session, after a tool
 	// call), all of it so far in the order added. The script is given it as
@@ -124,6 +129,11 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		}
 		if t.Tool == nil && t.Compact == nil {
 			return last, nil
+		}
+		for _, c := range t.Tools {
+			if _, err := p.Tools.Check(c.Name, c.Input); err != nil {
+				return "", err
+			}
 		}
 		calls := turnCalls(h, t)
 		// A scenario script that emits the same tool_use 5 turns in a row makes

@@ -15,6 +15,7 @@ import (
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -55,6 +56,9 @@ type state struct {
 	toolEnv []string
 	// bg holds the commands a call left running (see background.go).
 	bg *tasks.Registry
+	// refused is the first error a scenario script of the run ended with, a
+	// sub-agent's too: it fails the run.
+	refused *toolspec.Refusals
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
@@ -78,7 +82,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	s := &state{cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
+	s := &state{refused: &toolspec.Refusals{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
 		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
@@ -108,7 +112,7 @@ func Run(ctx context.Context, cfg Config) error {
 	last, err := "", error(nil)
 	// Codex honours a start hook's `continue: false` (runs/session-start-continue-false).
 	if !corehooks.StartHookEndsTurn(halted, true) {
-		last, err = turnloop.Run(ctx, turnHost{s}, turnloop.Params{
+		last, err = turnloop.Run(ctx, turnHost{s}, turnloop.Params{Tools: Schema(),
 			Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
 	}
 	s.events.TurnCompleted()
@@ -118,6 +122,9 @@ func Run(ctx context.Context, cfg Config) error {
 	s.hooks.Fire(ctx, hooks.SessionEnd, "other", map[string]any{"reason": "other"})
 	if !cfg.JSON && last != "" {
 		fmt.Fprintln(cfg.Stdout, last)
+	}
+	if err == nil {
+		err = s.refused.Err()
 	}
 	return err
 }

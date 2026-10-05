@@ -96,7 +96,9 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	}
 	sub.hooks = &hooks.Hooks{Config: s.hooks.Config, Dir: s.cfg.Dir, Env: sub.hookEnv, Common: sub.common}
 	sub.tr.user(in.Prompt)
-	_, _ = turnloop.Run(ctx, &sub, turnloop.Params{Script: in.Script, Dir: s.cfg.Dir, Environ: s.cfg.Environ, Prompt: in.Prompt, Added: sub.Context})
+	if _, err := turnloop.Run(ctx, &sub, turnloop.Params{Tools: Schema(), Script: in.Script, Dir: s.cfg.Dir, Environ: s.cfg.Environ, Prompt: in.Prompt, Added: sub.Context}); err != nil {
+		s.refused.Set(err)
+	}
 	sub.named = true
 	sub.tr.end()
 	result := map[string]any{"success": map[string]any{

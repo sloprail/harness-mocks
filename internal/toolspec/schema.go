@@ -28,6 +28,13 @@ type Param struct {
 	Recorded string
 	Type     Type
 	Required bool
+	// MockOnly: the mock's own parameter, which the real tool does not have (a
+	// sub-agent's script); no recording shows it.
+	MockOnly bool
+	// Doc is the page of the harness's docs that names the parameter, for one the mock
+	// implements and no recorded run happens to show; it grounds the parameter in
+	// place of a recording.
+	Doc string
 	// Values are the only values of this option the mock implements; none: any value of its type.
 	Values []any
 }

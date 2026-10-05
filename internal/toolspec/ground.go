@@ -23,25 +23,23 @@ func (s Schema) Ungrounded(calls []Recorded) []string {
 	seenParam := map[string]bool{}
 	var problems []string
 	for _, c := range calls {
-		t, ok := s.byRecorded(c.Tool)
-		if !ok {
-			continue
-		}
-		seenTool[t.Name] = true
-		in := map[string]any{}
-		for k, v := range c.Input {
-			name := k
-			for _, p := range t.Params {
-				if p.recorded() == k {
-					name = p.Name
-					seenParam[t.Name+"."+p.Name] = true
+		for _, t := range s.byRecorded(c.Tool) { // a tool's aliases (Bash and Shell) all stand for the recorded name
+			seenTool[t.Name] = true
+			in := map[string]any{}
+			for k, v := range c.Input {
+				name := k
+				for _, p := range t.Params {
+					if p.recorded() == k {
+						name = p.Name
+						seenParam[t.Name+"."+p.Name] = true
+					}
 				}
+				in[name] = v
 			}
-			in[name] = v
-		}
-		raw, _ := json.Marshal(in)
-		if _, err := (Schema{s.Harness, []Tool{t}}).Check(t.Name, raw); err != nil {
-			problems = append(problems, fmt.Sprintf("a recorded call of %s: %v", c.Tool, err))
+			raw, _ := json.Marshal(in)
+			if _, err := (Schema{s.Harness, []Tool{t}}).Check(t.Name, raw); err != nil {
+				problems = append(problems, fmt.Sprintf("a recorded call of %s: %v", c.Tool, err))
+			}
 		}
 	}
 	for _, t := range s.Tools {
@@ -49,7 +47,7 @@ func (s Schema) Ungrounded(calls []Recorded) []string {
 			problems = append(problems, fmt.Sprintf("tool %s is declared and no recording shows it", t.Name))
 		}
 		for _, p := range t.Params {
-			if seenTool[t.Name] && !seenParam[t.Name+"."+p.Name] {
+			if seenTool[t.Name] && !p.MockOnly && p.Doc == "" && !seenParam[t.Name+"."+p.Name] {
 				problems = append(problems, fmt.Sprintf("parameter %s of %s is declared and no recording shows it", p.Name, t.Name))
 			}
 		}
@@ -58,13 +56,13 @@ func (s Schema) Ungrounded(calls []Recorded) []string {
 	return dedupe(problems)
 }
 
-func (s Schema) byRecorded(name string) (Tool, bool) {
+func (s Schema) byRecorded(name string) (found []Tool) {
 	for _, t := range s.Tools {
 		if t.recorded() == name {
-			return t, true
+			found = append(found, t)
 		}
 	}
-	return Tool{}, false
+	return found
 }
 
 func (t Tool) recorded() string {
