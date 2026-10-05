@@ -136,7 +136,7 @@ func promptBlocked(cfg Config, tr *transcript, err error) error {
 	})
 	if line, merr := json.Marshal(map[string]any{"type": "result", "subtype": "success", "result": text}); merr == nil {
 		// no turn was taken, and no sub-agent run (recorded: snapshots/runs/prompt-blocked)
-		writeStreamLine(cfg, withResultFields(withSubagentStats(line, newBackgroundTasks()), 0, cfg.SessionID))
+		writeStreamLine(cfg, withResultFields(withSubagentStats(line, newBackgroundTasks()), &runState{}, cfg.SessionID))
 	}
 	return nil
 }

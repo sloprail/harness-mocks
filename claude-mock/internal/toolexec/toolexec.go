@@ -34,6 +34,10 @@ type Result struct {
 	// file tool's error), for which real Claude Code fires PostToolUseFailure;
 	// input the tool could not take is an error that did not run.
 	Failed bool
+	// NonExecution is why the tool did not run at all, where it was refused
+	// before running ("permission-rule": a hook refused the call); the stream's
+	// result frame names it as tool_result_meta (recorded: snapshots/runs/all-hooks).
+	NonExecution string
 	// ContentAsBlocks writes the tool_result content as a list of text blocks
 	// rather than a string — the shape real Claude Code gives some tools'
 	// results (an async Agent receipt).

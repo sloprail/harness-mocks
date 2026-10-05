@@ -94,12 +94,15 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 
 	// The stream frame carries the tool's structured result as tool_use_result
 	// (the file's record calls it toolUseResult, below).
-	frame := record
+	frame := map[string]any{}
+	for k, v := range record {
+		frame[k] = v
+	}
 	if res.ToolUseResult != nil {
-		frame = map[string]any{"tool_use_result": res.ToolUseResult}
-		for k, v := range record {
-			frame[k] = v
-		}
+		frame["tool_use_result"] = res.ToolUseResult
+	}
+	if res.NonExecution != "" {
+		frame["tool_result_meta"] = []any{map[string]any{"id": call.ToolUseID, "non_execution_kind": res.NonExecution}}
 	}
 	line, err := marshalRecord(frame)
 	if err != nil {

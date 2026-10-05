@@ -53,7 +53,14 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var stopBlocks int
 	var lastText string
 	var final scenario.Result // the run's one result frame, held until its turn really ends
-	finish := func() { final.Finish(func(line []byte) { writeStreamLine(cfg, line) }) }
+	finish := func() {
+		final.Finish(func(line []byte) {
+			if cfg.AgentID == "" { // the run's own result frames carry the run's state; a sub-agent's are internal
+				line = withResultFields(line, &bg.run, cfg.SessionID)
+			}
+			writeStreamLine(cfg, line)
+		})
+	}
 	blockCap := stopHookBlockCap()
 	for {
 		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)

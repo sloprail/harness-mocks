@@ -38,15 +38,11 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	}
 	pending := sc.pending
 	if cfg.AgentID == "" && (pending.ToolName != "" || sc.lastText != "") {
-		bg.modelTurns.Add(1) // the main agent's model took a turn: it called a tool or answered
+		bg.run.turn()
 	}
 	if pending.ToolName == "" {
 		if sc.done || sc.compactSig == "" {
-			result := withSubagentStats(sc.resultLine, bg)
-			if cfg.AgentID == "" {
-				result = withResultFields(result, bg.modelTurns.Load(), cfg.SessionID)
-			}
-			return turnResult{done: true, lastText: sc.lastText, resultLine: result}, nil
+			return turnResult{done: true, lastText: sc.lastText, resultLine: withSubagentStats(sc.resultLine, bg)}, nil
 		}
 		// The invocation compacted the context and stopped: the turn goes on
 		// after a compaction, so the script runs again.
@@ -72,10 +68,11 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// sr:docs https://code.claude.com/docs/en/hooks#pretooluse
 	if pending.Blocked {
 		text := "PreToolUse:" + pending.ToolName + " hook error: " + pending.BlockReason
-		blockRes := toolexec.Result{Output: text, IsError: true, ToolUseResult: "Error: " + text}
+		blockRes := toolexec.Result{Output: text, IsError: true, ToolUseResult: "Error: " + text, NonExecution: "permission-rule"}
 		if err := emitToolResult(cfg, pending, blockRes, tr); err != nil {
 			return turnResult{}, err
 		}
+		bg.run.deny(pending)
 		bg.deliverMidTurn(ctx, cfg, inv, tr)
 		return turnResult{sig: "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
 	}
