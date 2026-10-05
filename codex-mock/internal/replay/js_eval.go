@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dop251/goja/ast"
 )
@@ -23,7 +24,10 @@ type number struct{ f float64 }
 func (r *jsRun) eval(e ast.Expression) (any, error) {
 	switch x := e.(type) {
 	case *ast.StringLiteral:
-		return x.Value.String(), nil
+		if v := x.Value.String(); !strings.ContainsRune(v, '\uFFFD') || strings.ContainsRune(x.Literal, '\uFFFD') {
+			return v, nil
+		}
+		return nil, fmt.Errorf("the model's script has a string with a lone surrogate")
 	case *ast.NumberLiteral:
 		switch n := x.Value.(type) {
 		case int64:
@@ -58,21 +62,28 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 	case *ast.Identifier:
 		return r.ident(x.Name.String())
 	case *ast.DotExpression:
-		return r.member(x.Left, x.Identifier.Name.String())
+		left, err := r.eval(x.Left)
+		if err != nil {
+			return nil, err
+		}
+		return propertyOf(left, x.Identifier.Name.String())
 	case *ast.BracketExpression:
+		left, err := r.eval(x.Left) // the object before the key, as JS does
+		if err != nil {
+			return nil, err
+		}
 		key, err := r.eval(x.Member)
 		if err != nil {
 			return nil, err
 		}
 		if k, ok := key.(string); ok {
-			return r.member(x.Left, k)
+			return propertyOf(left, k)
 		}
-		_, err = r.eval(x.Left)
-		return opaque{}, err
+		return opaque{}, nil
 	case *ast.OptionalChain:
-		return r.eval(x.Expression)
+		return r.maybe(x.Expression)
 	case *ast.Optional:
-		return r.eval(x.Expression)
+		return r.maybe(x.Expression)
 	case *ast.AwaitExpression:
 		return r.eval(x.Argument)
 	case *ast.BinaryExpression:
@@ -91,6 +102,9 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 
 func (r *jsRun) ident(name string) (any, error) {
 	if v, ok := r.lookup(name); ok {
+		if v == any(unset{}) {
+			return nil, fmt.Errorf("the model's script reads %s before it is declared", name)
+		}
 		return v, nil
 	}
 	switch name {

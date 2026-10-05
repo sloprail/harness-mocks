@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -81,12 +82,18 @@ func unify(m jsCall) (core.Call, error) {
 			if !ok {
 				return core.Call{}, fmt.Errorf("an exec_command whose yield_time_ms is not a number")
 			}
+			if n.f != math.Trunc(n.f) || math.Abs(n.f) > 1<<31 {
+				return core.Call{}, fmt.Errorf("an exec_command whose yield_time_ms is not a whole number of milliseconds")
+			}
 			in["yield_time_ms"] = int(n.f)
 		}
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
 	case "multi_agent_v1__spawn_agent":
 		if err := knownKeys(arg, "message", "", ""); err != nil {
 			return core.Call{}, err
+		}
+		if len(arg) == 0 { // a call with no arguments, which the harness refuses (recorded: runs/agent-input-validation)
+			return core.Call{Tool: core.ToolSpawn, Input: map[string]any{}}, nil
 		}
 		msg, ok := arg["message"].(string)
 		if !ok {

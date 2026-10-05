@@ -35,7 +35,7 @@ func (r *jsRun) script(js string) ([]jsCall, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.scope, r.calls = []map[string]any{{}}, nil
+	r.scope, r.calls = []map[string]any{pending(body)}, nil
 	for _, st := range body {
 		if err := r.stmt(st); err != nil {
 			return nil, err
@@ -72,6 +72,9 @@ func (r *jsRun) block(list []ast.Statement, names map[string]any) error {
 	if names == nil {
 		names = map[string]any{}
 	}
+	for k, v := range pending(list) {
+		names[k] = v
+	}
 	r.scope = append(r.scope, names)
 	defer func() { r.scope = r.scope[:len(r.scope)-1] }()
 	for _, st := range list {
@@ -106,7 +109,7 @@ func (r *jsRun) declare(list []*ast.Binding) error {
 		}
 		name := id.Name.String()
 		top := r.scope[len(r.scope)-1]
-		if _, again := top[name]; again || reserved[name] {
+		if v, again := top[name]; (again && v != any(unset{})) || reserved[name] {
 			return fmt.Errorf("the model's script declares %s, which is the harness's or already declared", name)
 		}
 		if r.cond > 0 { // declared by code that may not run: its value is not known
@@ -115,4 +118,23 @@ func (r *jsRun) declare(list []*ast.Binding) error {
 		top[name] = v
 	}
 	return nil
+}
+
+// unset is a name declared further down its block: reading it is an error in JS
+// (the temporal dead zone), so reading it here is refused too.
+type unset struct{}
+
+// pending is the names the block's own declarations bring, not yet set.
+func pending(list []ast.Statement) map[string]any {
+	names := map[string]any{}
+	for _, st := range list {
+		if d, ok := st.(*ast.LexicalDeclaration); ok {
+			for _, b := range d.List {
+				if id, ok := b.Target.(*ast.Identifier); ok {
+					names[id.Name.String()] = unset{}
+				}
+			}
+		}
+	}
+	return names
 }

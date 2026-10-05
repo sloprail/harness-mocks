@@ -9,12 +9,15 @@ import (
 	"github.com/dop251/goja/ast"
 )
 
-// member is left.name: a property of an object the script wrote, of a call's answer, or of something opaque.
-func (r *jsRun) member(left ast.Expression, name string) (any, error) {
-	v, err := r.eval(left)
-	if err != nil {
-		return nil, err
-	}
+// maybe evaluates a part of an optional chain, which may not run: a tool call in it is refused.
+func (r *jsRun) maybe(e ast.Expression) (any, error) {
+	r.cond++
+	defer func() { r.cond-- }()
+	return r.eval(e)
+}
+
+// propertyOf is v.name: a property of an object the script wrote, of a call's answer, or of something opaque.
+func propertyOf(v any, name string) (any, error) {
 	switch o := v.(type) {
 	case map[string]any:
 		if _, own := o[name]; !own && objectProto[name] {
@@ -39,6 +42,9 @@ func (r *jsRun) template(t *ast.TemplateLiteral) (any, error) {
 	for i, el := range t.Elements {
 		if !el.Valid {
 			return nil, fmt.Errorf("the model's script has a template literal with an invalid escape")
+		}
+		if s := el.Parsed.String(); strings.ContainsRune(s, '\uFFFD') && !strings.ContainsRune(el.Literal, '\uFFFD') {
+			return nil, fmt.Errorf("the model's script has a string with a lone surrogate")
 		}
 		b.WriteString(el.Parsed.String())
 		if i < len(t.Expressions) {

@@ -14,6 +14,14 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 	if tool, ok := toolName(c.Callee); ok && r.cond > 0 {
 		return nil, fmt.Errorf("a call of tools.%s that depends on what an earlier tool answered", tool)
 	}
+	var recv any // JS evaluates a method's receiver before its arguments
+	d, isDot := c.Callee.(*ast.DotExpression)
+	if _, isTool := toolName(c.Callee); isDot && !isTool {
+		var err error
+		if recv, err = r.eval(d.Left); err != nil {
+			return nil, err
+		}
+	}
 	for i, a := range c.ArgumentList {
 		v, err := r.eval(a)
 		if err != nil {
@@ -49,13 +57,12 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 		}
 		return nil, fmt.Errorf("the model's script calls %s, which the adapter does not know", id.Name)
 	}
-	if d, ok := c.Callee.(*ast.DotExpression); ok { // a method of something opaque (ALL_TOOLS.filter, JSON.stringify)
-		recv, err := r.eval(d.Left)
+	if isDot { // a method of something opaque (ALL_TOOLS.filter, JSON.stringify)
 		switch recv.(type) {
 		case []any, map[string]any: // a method may change what the script wrote (reverse, push), which is not followed
 			return nil, fmt.Errorf("the model's script calls %s on a value it wrote, which the adapter does not follow", d.Identifier.Name)
 		}
-		return opaque{}, err // its arguments are evaluated above, so a tool call in one is a call (or refused under a function)
+		return opaque{}, nil
 	}
 	return nil, fmt.Errorf("the model's script calls a %T, which the adapter does not read", c.Callee)
 }

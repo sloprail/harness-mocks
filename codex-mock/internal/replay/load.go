@@ -96,7 +96,7 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	}
 	n := 0
 	for i := range agent.Calls {
-		if agent.Calls[i].Tool != core.ToolSpawn {
+		if agent.Calls[i].Tool != core.ToolSpawn || agent.Calls[i].Input["message"] == nil { // a spawn with no message is refused: no sub-agent
 			continue
 		}
 		if n >= len(subs) {

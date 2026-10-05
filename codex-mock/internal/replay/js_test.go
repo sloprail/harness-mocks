@@ -45,6 +45,9 @@ func TestScriptRefusesWhatItCannotFollow(t *testing.T) {
 		"an exponent-form number":         "await tools.exec_command({cmd:`${1e21}`});",
 		"a prototype property":            "const o = {}; await tools.exec_command({cmd:o.toString});",
 		"__proto__":                       "const o = {__proto__:{cmd:\"a\"}}; await tools.exec_command(o);",
+		"an optional chain's call":        "const o = null; o?.f(await tools.exec_command({cmd:\"a\"}));",
+		"a read before its declaration":   "const x = \"a\"; { const y = x; const x = \"b\"; await tools.exec_command({cmd:y}); }",
+		"a lone surrogate":                "await tools.exec_command({cmd:\"a\\ud800\"});",
 		"a redeclaration":                 "const x = 1; const x = 2;",
 		"a store that may not run":        "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) { store(\"k\", 1); }",
 	} {
@@ -80,4 +83,27 @@ func TestUnifyRefusesWhatItDrops(t *testing.T) {
 	assert.Error(t, err)
 	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>"}}})
 	assert.NoError(t, err)
+}
+
+func TestScriptCallsKeepJavaScriptsOrder(t *testing.T) {
+	calls, err := newJSRun().script("(await tools.exec_command({cmd:\"a\"})).output.slice(await tools.exec_command({cmd:\"b\"})); const o = {k:\"x\"}; o[(await tools.exec_command({cmd:\"c\"})).k];")
+	require.NoError(t, err)
+	var cmds []any
+	for _, c := range calls {
+		cmds = append(cmds, c.Args[0].(map[string]any)["cmd"])
+	}
+	assert.Equal(t, []any{"a", "b", "c"}, cmds)
+}
+
+func TestUnifyYieldIsAWholeNumber(t *testing.T) {
+	for _, y := range []float64{1.9, 1e20} {
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": number{y}}}})
+		assert.Error(t, err, "%v", y)
+	}
+}
+
+func TestUnifyASpawnWithNoArgumentsIsTheRefusedCall(t *testing.T) {
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}})
+	require.NoError(t, err)
+	assert.Empty(t, c.Input)
 }
