@@ -37,3 +37,27 @@ func TestASessionStartHookFiresOnceAtTheStartAndCannotStopTheSession(t *testing.
 	require.Contains(t, got.frames, "tool_call/completed/shellToolCall/success", "the command ran")
 	require.Equal(t, "result/success", got.frames[len(got.frames)-1])
 }
+
+// TestTheSessionStartHookOfARunFromASymlinkedDirectoryFiresOnceWithNoTranscript:
+// recorded (runs/symlinked-cwd: cursor-agent started from a symlink to the
+// workspace), the sessionStart hook fires once, at the start, and its payload's
+// transcript_path is null (the transcript file does not exist yet). The mock
+// replays the run the same: one sessionStart, no transcript path.
+// sr:proves session-start-hook/cursor
+func TestTheSessionStartHookOfARunFromASymlinkedDirectoryFiresOnceWithNoTranscript(t *testing.T) {
+	got, want := replay(t, "symlinked-cwd")
+	conforms(t, got, want)
+
+	recorded := readJSONL(t, filepath.Join(newestSample(t, "symlinked-cwd"), "payloads.jsonl"))
+	for name, payloads := range map[string][]map[string]any{"recorded": recorded, "mock": got.raw} {
+		var starts []map[string]any
+		for _, h := range payloads {
+			if h["hook_event_name"] == "sessionStart" {
+				starts = append(starts, h)
+			}
+		}
+		require.Len(t, starts, 1, name+": one sessionStart")
+		require.Contains(t, starts[0], "transcript_path", name)
+		require.Nil(t, starts[0]["transcript_path"], name+": no transcript yet at the start")
+	}
+}
