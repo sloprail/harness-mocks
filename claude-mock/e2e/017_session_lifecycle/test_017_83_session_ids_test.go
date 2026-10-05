@@ -60,6 +60,7 @@ func TestT017_83_ForkHooksCarryTheForksSessionID(t *testing.T) {
 	for _, p := range payloads(t, log) {
 		events = append(events, p["hook_event_name"])
 		assert.Equal(t, forkID, p["session_id"], p["hook_event_name"])
+		assert.True(t, strings.HasSuffix(p["transcript_path"].(string), "/"+forkID+".jsonl"), "%v names the fork's own file: %v", p["hook_event_name"], p["transcript_path"])
 	}
 	assert.Equal(t, []any{"SessionStart", "UserPromptSubmit", "Stop", "SessionEnd"}, events)
 	for _, id := range streamIDs(t, out) {
@@ -115,4 +116,23 @@ func TestT017_83_UnknownResumeNamesTheIDEverywhere(t *testing.T) {
 	require.NotNil(t, result, out)
 	assert.Equal(t, true, result["is_error"])
 	assert.Equal(t, asked, result["session_id"])
+}
+
+// A resume with A10N_MOCK_NO_RESUME=1 of a session that exists is refused
+// exactly as the resume of a session that never existed is, without the env
+// var (adr fail-fast: the same message, exit status and result frame, bar the id).
+// sr:proves session-resume-unknown/claude
+// sr:invariant no-resume
+func TestT017_83_NoResumeIsAnUnknownSessionsRefusal(t *testing.T) {
+	dir, cfg, _ := sessionSetup(t, "SessionStart")
+	run := func(env []string, id string) (string, int) {
+		out, code := runInDir(t, dir, env, "--script", script(t, dir, "s2"), "--resume", id,
+			"--project-dir", dir, "--config-dir", cfg, "--output-format", "stream-json", "-p", "again")
+		return strings.ReplaceAll(out, id, "<ID>"), code
+	}
+	hidden, hiddenCode := run([]string{"A10N_MOCK_NO_RESUME=1"}, origID)
+	unknown, unknownCode := run(nil, "00000000-0000-4000-8000-0000000000ee")
+	assert.Equal(t, 1, hiddenCode)
+	assert.Equal(t, unknownCode, hiddenCode)
+	assert.Equal(t, unknown, hidden, "the same refusal, bar the id")
 }
