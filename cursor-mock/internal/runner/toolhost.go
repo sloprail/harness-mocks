@@ -23,6 +23,9 @@ type toolHost struct {
 	failure, result string
 	res             toolexec.Result
 	read            bool // res is the read Before made
+	// contexts are what the call's after-tool hooks gave the agent, as its
+	// completed frame carries them.
+	contexts []any
 }
 
 func (h *toolHost) emit(line []byte) {
@@ -86,7 +89,6 @@ func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result
 	} else if !h.read {
 		h.res = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, env)
 	}
-	h.emit(completedFrame(h.s.id, h.tool.UseID, h.call, h.res.Frame))
 	return toolcall.Result{Output: h.res.Output, Failed: h.res.Failed}
 }
 
@@ -105,7 +107,7 @@ func (h *toolHost) After(ctx context.Context, _ toolcall.Call, _ toolcall.Result
 	own["duration"] = ms(h.res.Took)
 	if h.refused {
 		own["error_message"], own["failure_type"], own["is_interrupt"] = h.failure, "permission_denied", false
-		h.s.keep(h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own))
+		h.keepContext(ctx, hooks.PostToolUseFailure, own)
 		return "", false
 	}
 	switch {
@@ -118,23 +120,33 @@ func (h *toolHost) After(ctx context.Context, _ toolcall.Call, _ toolcall.Result
 	switch kind {
 	case corehooks.AfterSuccess:
 		own["tool_output"] = h.res.ToolOutput
-		h.s.keep(h.s.hooks.Fire(ctx, hooks.PostToolUse, h.tool.Name, own))
+		h.keepContext(ctx, hooks.PostToolUse, own)
 	case corehooks.AfterFailure:
 		own["error_message"], own["failure_type"], own["is_interrupt"] = h.res.ErrorMessage, "error", false
-		h.s.keep(h.s.hooks.Fire(ctx, hooks.PostToolUseFailure, h.tool.Name, own))
+		h.keepContext(ctx, hooks.PostToolUseFailure, own)
 	}
 	return "", false
 }
 
-// Answer tells the agent how a call that did not run ended: refused by a hook,
-// a tool the mock does not have, or input that lacks parameters (no hook
-// fires for the last two; their wording is the mock's own).
+// keepContext fires the event's hooks for the call: what they add to the
+// agent's context is kept, and shown on the call's completed frame.
+func (h *toolHost) keepContext(ctx context.Context, e hooks.Event, own map[string]any) {
+	ds := h.s.hooks.Fire(ctx, e, h.tool.Name, own)
+	h.s.keep(ds)
+	h.contexts = hooks.Contexts(e, ds)
+}
+
+// Answer ends the call on the stream: it ran, or a hook refused it, or it is a
+// tool the mock does not have, or its input lacks parameters (no hook fires for
+// the last two; their wording is the mock's own).
 func (h *toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 	switch a.Kind {
+	case toolcall.Done:
+		h.emit(completedFrame(h.s.id, h.tool.UseID, h.call, h.res.Frame, h.contexts))
 	case toolcall.Refused:
-		h.emit(rejectedFrame(h.s.id, c.ID, h.call, h.result))
+		h.emit(rejectedFrame(h.s.id, c.ID, h.call, h.result, h.contexts))
 	case toolcall.Unknown:
-		h.emit(errorFrame(h.s.id, c.ID, toolexec.Call{Kind: "unknownToolCall"}, "Unknown tool: "+c.Name))
+		h.emit(errorFrame(h.s.id, c.ID, toolexec.Call{Kind: "unknownToolCall"}, "Unknown tool: "+c.Name, nil))
 	case toolcall.Invalid:
 		h.emit(invalidFrame(h.s.id, c, a.Missing))
 	}

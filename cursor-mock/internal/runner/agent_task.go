@@ -121,6 +121,6 @@ func taskFrame(session, id, subtype string, args, result map[string]any) []byte 
 	}
 	return jsonLine(map[string]any{
 		"type": "tool_call", "subtype": subtype, "call_id": id, "session_id": session,
-		"tool_call": map[string]any{"taskToolCall": body},
+		"tool_call": envelope(map[string]any{"taskToolCall": body}, id, nil),
 	})
 }
