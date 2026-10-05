@@ -28,8 +28,9 @@ providers:
         kind: harness-lacks
         statement: >-
           Doc and recording conflict: the hooks doc (#subagentstop) says
-          subagentStop fires when a sub-agent completes, and the recording shows
-          it does not fire for the background sub-agent in print mode
+          subagentStop is "Called when a subagent completes, errors, or is
+          aborted", and the recording shows it does not fire for the background
+          sub-agent in print mode, though configured
           (runs/print-waits-for-background-agents). The recording decides.
       - adr: capability-grounding
         kind: harness-lacks
