@@ -12,5 +12,4 @@ harness binary) and finds it missing.
 
 ## Decision
 
-- A test whose required tool is missing fails; it never skips. CI installs every
-  tool the tests need.
+- A test whose required tool is missing fails; it never skips.
