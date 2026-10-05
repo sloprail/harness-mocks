@@ -34,7 +34,7 @@ EOS
 # run_script SCRIPT SHIMMED — runs the rule's script on the head subject's payload; sets out and rc
 run_script() {
   local p="$PATH"; [ "$2" = shimmed ] && p="$TMPDIR/shim:$PATH"
-  out="$(cd ".sloprail/file-guard/$RULE" && SR_TREE="$ROOT" SR_GUARDRAIL_DIR="$PWD" PATH="$p" bash "./$1" <"$TMPDIR/payload.json" 2>&1)" && rc=0 || rc=$?
+  out="$(cd ".sloprail/file-guard/$RULE" && SR_TREE="$ROOT" SR_GUARDRAIL_DIR="$PWD" PATH="$p" bash "./$1" <"${3:-$TMPDIR/payload.json}" 2>&1)" && rc=0 || rc=$?
 }
 expect_refused() {   # LABEL SUBSTRING
   [ "$rc" -ne 0 ] && [[ "$out" == *"$2"* ]] || { echo "$1: wanted a refusal saying '$2', got exit $rc: $out" >&2; exit 1; }
@@ -81,6 +81,81 @@ expect_refused "the judge's input cannot be built" "the judge's input could not 
 shim is '-sc'
 run_script prepare.sh shimmed
 expect_refused "the specs cannot be read" "the specs under spec/invariants could not be read, so none could be checked"
+
+# the shared subjects library (_lib/subjects.sh), through subjects.sh run directly on the head subject's payload: each of its lookups
+# refuses with its own reason when it fails, never a subject without its fingerprint (a stale verdict served after a dependency
+# changed) or none at all. The shims here are jq, git, awk, sed and mktemp (a git shim would break the engine, so no `sr-checks`
+# runs under it); one that `quiet`ly prints nothing and succeeds makes a lookup come back short.
+# shimtool TOOL MARKER [quiet] — TOOL fails (exit 5), or with `quiet` prints nothing and succeeds, when an argument
+# contains MARKER (or, when MARKER starts with "=", equals the rest of it) and otherwise runs the real TOOL
+shimtool() {
+  local act=5; [ -z "${3:-}" ] || act=0
+  rm -rf "$TMPDIR/shim"; mkdir -p "$TMPDIR/shim"
+  printf '%s' "$2" >"$TMPDIR/shim/marker"
+  cat >"$TMPDIR/shim/$1" <<EOS
+#!/bin/bash
+m="\$(cat "$TMPDIR/shim/marker")"
+for a in "\$@"; do
+  if [ "\${m:0:1}" = "=" ]; then [ "\$a" = "\${m:1}" ] && exit $act
+  else case "\$a" in *"\$m"*) exit $act ;; esac; fi
+done
+exec $(command -v "$1") "\$@"
+EOS
+  chmod +x "$TMPDIR/shim/$1"
+}
+# control: nothing injected, subjects.sh prints the subject, fingerprinted
+run_script subjects.sh plain
+[ "$rc" -eq 0 ] && jq -e 'length == 1 and .[0].id == "holds" and (.[0].fingerprint | length > 0)' <<<"$out" >/dev/null ||
+  { echo "control: subjects.sh did not print the fingerprinted subject (exit $rc): $out" >&2; exit 1; }
+
+# each lookup, failed in turn: refused with its own reason, never a subject without its fingerprint
+shimtool jq '.[].deps'
+run_script subjects.sh shimmed
+expect_refused "the deps' listing fails" "the subjects' deps could not be listed, so no subject could be made"
+shimtool jq '.[].bdeps'
+run_script subjects.sh shimmed
+expect_refused "the bdeps' listing fails" "the subjects' bdeps could not be listed, so no subject could be made"
+shimtool jq '.changeset.head'
+run_script subjects.sh shimmed
+expect_refused "the range's head cannot be read" "the range's head could not be read, so no subject could be made"
+shimtool git '--batch-check'
+run_script subjects.sh shimmed
+expect_refused "the object ids cannot be read" "could not read object ids at"
+shimtool git '--batch-check' quiet
+run_script subjects.sh shimmed
+expect_refused "the object ids come back short" "object id lookup at"
+shimtool awk 'missing'
+run_script subjects.sh shimmed
+expect_refused "the object ids cannot be told apart" "could not read the object ids at"
+shimtool jq '{(.[0]): .[1]}'
+run_script subjects.sh shimmed
+expect_refused "the deps' ids cannot be paired with their paths" "the deps' object ids could not be read, so no subject could be made"
+shimtool jq '$h[0][.]'
+run_script subjects.sh shimmed
+expect_refused "the deps cannot be resolved" "the subjects' deps could not be resolved, so no subject could be made"
+shimtool mktemp 'sr-subjects'
+run_script subjects.sh shimmed
+expect_refused "the fingerprint inputs' directory cannot be made" "cannot make a directory for the subjects' fingerprints"
+shimtool jq 'tojson'
+run_script subjects.sh shimmed
+expect_refused "the fingerprint inputs cannot be prepared" "the subjects' fingerprints could not be prepared, so no subject could be made"
+shimtool sed 'sr-subjects'
+run_script subjects.sh shimmed
+expect_refused "the fingerprint inputs cannot be named" "the subjects' fingerprint inputs could not be named"
+shimtool git 'hash-object'
+run_script subjects.sh shimmed
+expect_refused "the fingerprints cannot be computed" "the subjects' fingerprints could not be computed, so no subject could be made"
+shimtool git 'hash-object' quiet
+run_script subjects.sh shimmed
+expect_refused "the fingerprints come back short" "the subjects' fingerprints came back the wrong number"
+shimtool jq 'range(0;'
+run_script subjects.sh shimmed
+expect_refused "the subjects cannot be built" "the subjects could not be built"
+shimtool jq '=length'
+run_script subjects.sh shimmed
+expect_refused "the subjects cannot be counted" "the subjects could not be counted, so no subject could be made"
+
+rm -rf "$TMPDIR/shim"
 
 # subjects.sh, through the engine: a failed listing refuses the rule, never "no subjects"
 shim has '$pv['
