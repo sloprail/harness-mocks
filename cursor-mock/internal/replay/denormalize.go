@@ -109,9 +109,13 @@ func mockCall(c core.Call) scriptCall {
 		delete(in, "path")
 	case core.ToolMCP:
 		name = fmt.Sprintf("mcp__%v__%v", in["server"], in["tool"])
+		description := in["description"]
 		in, _ = in["arguments"].(map[string]any)
 		if in == nil {
 			in = map[string]any{}
+		}
+		if description != nil { // the mock takes the model's description of the call in a key of its own
+			in["__description"] = description
 		}
 	}
 	return scriptCall{Name: name, Input: in}

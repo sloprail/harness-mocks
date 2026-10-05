@@ -28,6 +28,11 @@ func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]a
 		}
 	}
 	body := map[string]any{"args": args}
+	if d, ok := args["__description"]; ok { // an MCP call's description sits beside its args (recorded: runs/hook-matchers-mcp)
+		body["description"] = d
+		args = copyWithout(args, "__description")
+		body["args"] = args
+	}
 	if result != nil {
 		body["result"] = result
 	}
@@ -101,4 +106,14 @@ func invalidFrame(session string, c toolcall.Call, missing []string) []byte {
 // errorFrame ends a call that could not run.
 func errorFrame(session, id string, c toolexec.Call, message string, contexts []any) []byte {
 	return toolFrame(session, id, "completed", c, map[string]any{"error": map[string]any{"errorMessage": message}}, contexts)
+}
+
+func copyWithout(m map[string]any, key string) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		if k != key {
+			out[k] = v
+		}
+	}
+	return out
 }

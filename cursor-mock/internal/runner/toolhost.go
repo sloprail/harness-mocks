@@ -7,6 +7,7 @@ import (
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/procexec"
+	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
@@ -44,7 +45,11 @@ func (h *toolHost) Tool(name string) ([]string, bool) { return toolexec.Required
 // sr:docs https://cursor.com/docs/hooks#pretooluse
 func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	h.call = toolexec.FromScript(c.Name, c.Input)
-	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: c.ID}
+	useID := c.ID
+	if h.call.Kind == "mcpToolCall" {
+		useID = coresession.NewID() // an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp)
+	}
+	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: useID}
 	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
 		h.failure, h.result = hooks.PreToolRefusal(msg)
 		h.refused = true
@@ -97,7 +102,7 @@ func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result
 func (h *toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 	switch a.Kind {
 	case toolcall.Done:
-		h.emit(completedFrame(h.s.id, h.tool.UseID, h.call, h.res.Frame, h.contexts))
+		h.emit(completedFrame(h.s.id, c.ID, h.call, h.res.Frame, h.contexts))
 	case toolcall.Refused:
 		h.emit(rejectedFrame(h.s.id, c.ID, h.call, h.result, h.contexts))
 	case toolcall.Unknown:

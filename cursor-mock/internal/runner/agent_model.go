@@ -22,10 +22,13 @@ func (s *session) refusesTaskModel(ctx context.Context, tu scenario.ToolUse) boo
 	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil || in.Model == nil || *in.Model == "default" || *in.Model == "inherit" {
 		return false
 	}
-	_, args := s.announceTask(ctx, tu, in)
-	args["model"] = *in.Model
+	s.announceTask(ctx, tu, in)
 	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt})
 	msg := "Invalid model selection \"" + *in.Model + "\". Model could not be resolved to a valid subagent model.\nAllowed model slugs:\n- default"
-	s.forward(taskFrame(s.id, tu.ID, "completed", args, map[string]any{"error": map[string]any{"error": msg}}))
+	// the completed frame carries no args, only the error (recorded)
+	s.forward(jsonLine(map[string]any{
+		"type": "tool_call", "subtype": "completed", "call_id": tu.ID, "session_id": s.id,
+		"tool_call": envelope(map[string]any{"taskToolCall": map[string]any{"result": map[string]any{"error": map[string]any{"error": msg}}}}, tu.ID, nil),
+	}))
 	return true
 }
