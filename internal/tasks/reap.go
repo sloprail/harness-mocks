@@ -38,8 +38,6 @@ func (r *Registry) EndOfResponse(owner string) []*Task { return r.stopOwned(owne
 // response until the harness's stream is owed them: Cursor reports them after
 // the parent's next tool call, or at the end of the run (recorded:
 // runs/foreground-subagent-bash-ends-with-response).
-//
-// sr:capability foreground-subagent-bash-ends-with-response
 type Deferred struct{ frames [][]byte }
 
 // Hold keeps a frame until Release.
