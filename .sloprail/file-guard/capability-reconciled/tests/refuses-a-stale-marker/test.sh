@@ -20,17 +20,23 @@ cap() {
 }
 # marker FILE FQN — adapter code carrying sr:provides
 marker() { mkdir -p claude-mock/internal; printf 'package internal\n\n// sr:provides %s\nfunc adapter() {}\n' "$2" > "$1"; }
-# verdict BASE — this rule's outcome over BASE..HEAD: its refusal reason, or "passed"
-verdict() {
+# run_rule BASE — judge BASE..HEAD with the project's rules; this rule's FileGuardChecked events land in $SR_EVENTS_FILE
+run_rule() {
   : > "$SR_EVENTS_FILE"
-  sr-checks run --base "$1" --head HEAD >/dev/null 2>&1 || true
-  jq -rs '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-reconciled")] | if length == 0 then "did not run" elif all(.[]; .outcome=="passed") then "passed" else map(.reason // .outcome) | join(" | ") end' "$SR_EVENTS_FILE"
+  sr-checks run --base "$1" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 }
-expect_passed() { v="$(verdict "$1")"; [ "$v" = passed ] || { echo "$2: expected passed, got: $v" >&2; exit 1; }; }
-expect_refused() {   # BASE LABEL SUBSTRING...
-  v="$(verdict "$1")"; l="$2"; shift 2
-  [ "$v" != passed ] && [ "$v" != "did not run" ] || { echo "$l: expected a refusal, got: $v" >&2; exit 1; }
-  for s in "$@"; do case "$v" in *"$s"*) ;; *) echo "$l: the refusal does not say '$s': $v" >&2; exit 1 ;; esac; done
+expect_passed() {   # BASE LABEL
+  run_rule "$1"
+  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-reconciled")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
+    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$2: capability-reconciled did not pass (sr-checks exit $ran)" >&2; exit 1; }
+}
+expect_refused() {   # BASE LABEL SUBSTRING... : refused, and the reason says each substring
+  local base="$1" label="$2" s; shift 2
+  run_rule "$base"
+  for s in "$@"; do
+    jq -es --arg s "$s" 'any(.[]; .kind=="FileGuardChecked" and .rule=="capability-reconciled" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+      { jq -c . "$SR_EVENTS_FILE" >&2; echo "$label: capability-reconciled did not refuse with a reason saying '$s' (sr-checks exit $ran)" >&2; exit 1; }
+  done
 }
 
 mkdir -p claude-mock/snapshots/runs/r1 codex-mock
