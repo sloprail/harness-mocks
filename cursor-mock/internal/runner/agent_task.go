@@ -83,7 +83,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	sub.id, sub.parent = coresession.NewID(), s
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.added, sub.named = nil, nil, false
+	sub.texts, sub.added, sub.named, sub.owed = nil, nil, false, nil
 	var err error
 	if sub.tr, err = newSubagentTranscript(s.tr, sub.id); err != nil {
 		sub.tr = s.tr
@@ -100,7 +100,8 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	}}
 	s.forward(taskFrame(s.id, tu.ID, "completed", args, result))
 	// the sub-agent has given its final response: what it left running ends, before
-	// the parent goes on
+	// the parent goes on; the stream reports it only after the parent's next tool
+	// call (recorded: runs/foreground-subagent-bash-ends-with-response)
 	var ending []*tasks.Task
 	for _, t := range s.registry().Running() {
 		if t.Owner == sub.owner {
@@ -109,7 +110,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	}
 	s.registry().EndOfResponse(sub.owner)
 	for _, t := range ending {
-		s.forward(notificationFrame(s.id, t))
+		s.owed = append(s.owed, notificationFrame(s.id, t))
 	}
 }
 

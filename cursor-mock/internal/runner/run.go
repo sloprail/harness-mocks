@@ -35,6 +35,17 @@ type session struct {
 	// parent's background shells, owning what it starts.
 	owner  string
 	parent *session
+	// owed: stream frames reporting what ended at a sub-agent's final response,
+	// printed after the next tool call of this session, or at the end of its run.
+	owed [][]byte
+}
+
+// flushOwed prints the frames owed.
+func (s *session) flushOwed() {
+	for _, f := range s.owed {
+		s.forward(f)
+	}
+	s.owed = nil
 }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
@@ -107,6 +118,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if runErr != nil {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}
+	s.flushOwed()
 	s.forward(resultFrame(s.id, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }

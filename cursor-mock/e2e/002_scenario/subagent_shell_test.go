@@ -196,18 +196,11 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"ty
 	notes := notifications(frames)
 	require.Len(t, notes, 1)
 	require.Equal(t, "aborted", notes[0]["status"])
-	var order []string
-	for _, f := range frames {
-		switch {
-		case f["type"] == "tool_call" && f["subtype"] == "completed" && f["tool_call"].(map[string]any)["taskToolCall"] != nil:
-			order = append(order, "task done")
-		case f["subtype"] == "task_notification":
-			order = append(order, "aborted")
-		case f["type"] == "result":
-			order = append(order, "result")
-		}
-	}
-	require.Equal(t, []string{"task done", "aborted", "result"}, order, "the notice follows the Task call and comes before the result, as recorded")
+	order := streamOrder(frames)
+	recStream := streamOrder(jsonLines(t, filepath.Join(sample, "stream.jsonl")))
+	wantOrder := []string{"task started", "task done", "shell started", "shell done", "aborted", "result"}
+	require.Equal(t, wantOrder, recStream, "the recording")
+	require.Equal(t, wantOrder, order, "the notice follows the parent's next tool call and comes before the result, as recorded")
 	require.Equal(t, command, notes[0]["title"])
 	require.Equal(t, parent, notes[0]["session_id"])
 	require.EqualValues(t, receipt.ShellID, mustAtoi(t, notes[0]["task_id"]))
@@ -215,6 +208,33 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"ty
 	require.Len(t, recNotes, 1)
 	require.Equal(t, "aborted", recNotes[0]["status"])
 	require.Equal(t, "sleep 47; echo SUBBG", recNotes[0]["title"])
+}
+
+// streamOrder is the tool calls, task notices and result of a stream, in order
+// (the thinking and message frames left out).
+func streamOrder(frames []map[string]any) []string {
+	var order []string
+	for _, f := range frames {
+		if tc, ok := f["tool_call"].(map[string]any); ok {
+			kind := "shell"
+			if tc["taskToolCall"] != nil {
+				kind = "task"
+			}
+			word := "started"
+			if f["subtype"] == "completed" {
+				word = "done"
+			}
+			order = append(order, kind+" "+word)
+			continue
+		}
+		switch {
+		case f["subtype"] == "task_notification":
+			order = append(order, f["status"].(string))
+		case f["type"] == "result":
+			order = append(order, "result")
+		}
+	}
+	return order
 }
 
 func mustAtoi(t *testing.T, v any) int {
