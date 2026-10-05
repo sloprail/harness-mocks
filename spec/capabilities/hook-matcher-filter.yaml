@@ -44,15 +44,12 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/hook-matchers
       - cursor-mock/snapshots/runs/hook-matchers-after-events
-      - cursor-mock/snapshots/runs/hook-matchers-task-read
-      - cursor-mock/snapshots/runs/hook-matchers-grep-delete
-      - cursor-mock/snapshots/runs/hook-matchers-mcp
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
           The mock fires only the events it fires (sessionStart, sessionEnd,
           preToolUse, postToolUse, postToolUseFailure, beforeShellExecution,
-          afterShellExecution, afterFileEdit and beforeReadFile), so the matchers of the
-          other events (subagentStart, subagentStop, beforeSubmitPrompt, stop,
+          afterShellExecution and afterFileEdit), so the matchers of the other events
+          (subagentStart, subagentStop, beforeReadFile, beforeSubmitPrompt, stop,
           afterAgentResponse, afterAgentThought and the rest) are not modeled.
