@@ -16,7 +16,7 @@ load_spec capabilities
 load_markers proves; proves="$MARKERS"
 # loaded here, in this shell: a $(...) loses what a loader sets, and a refusal inside one exits only it
 load_spec capabilities; load_touched
-load_touched_markers || refuse "the capability markers this change touches could not be worked out, so the judge's inputs could not be checked"
+load_touched_markers || refuse_error "the capability markers this change touches could not be worked out, so the judge's inputs could not be checked"
 
 problems=""
 add() { problems="${problems}- $1"$'\n'; }

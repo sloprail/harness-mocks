@@ -53,7 +53,7 @@ load_touched() {
   fi
   TOUCHED_TSV=""
   paths="$(cs '.changeset.files[].path | select(test("^spec/capabilities/[^/]+\\.yaml$"))')" ||
-    refuse "the changed capability files could not be listed, so what they touch could not be worked out"
+    refuse_error "the changed capability files could not be listed, so what they touch could not be worked out"
   for p in $paths; do
     TOUCHED_TSV="${TOUCHED_TSV}$(touched_harnesses_slow "$p" | awk -v p="$p" '{print p "\t" $0}')"$'\n'
   done

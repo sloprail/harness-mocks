@@ -96,7 +96,7 @@ expect_not_refused "a providers that is not an object" "its cells could not be r
 git checkout -q -b no-mocks "$BASE"
 git rm -q -r claude-mock; c "the only mock is gone"
 run_rule SHIM_JQ_FAIL=
-expect_refused "no harness mock" "there is no <harness>-mock/ in the tree, so it could not be worked out what to check"
+expect_refused "no harness mock" "no *-mock/ directory in the committed tree"
 
 # a stray file named like a mock, sorted after the real one, is no mock and no failure: the real mock is still listed
 git checkout -q -b stray-file "$BASE"
