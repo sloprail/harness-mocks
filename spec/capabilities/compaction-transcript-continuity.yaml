@@ -1,7 +1,7 @@
 statement: >-
-  A compaction leaves a boundary in the transcript, followed by a summary and
-  a preserved tail of earlier records, so a reader can still follow the record
-  chain across it.
+  A compaction leaves in the transcript what a reader needs to follow the
+  record chain across it: a boundary followed by a summary and a preserved
+  tail of earlier records, or a chain the harness keeps of its own.
 providers:
   claude:
     docs:
@@ -10,16 +10,30 @@ providers:
       - claude-mock/snapshots/runs/compact
       - claude-mock/snapshots/runs/compact-nohooks
   codex:
-    supported: false
-    reason: >-
-      Codex leaves a compaction as one compacted record holding the new window and
-      a replacement history, not a boundary followed by a summary and a tail of
-      earlier records; a reader follows the windows (window_id,
-      previous_window_id), not parent links between records.
+    notes:
+      - >-
+        Codex leaves a compaction as one `compacted` record in the rollout, not a
+        boundary followed by a summary and a tail of earlier records: the record
+        holds the new window and the one it closes, and a replacement history of the
+        kept user message (named by its retained source) and then the summary, an
+        opaque encrypted item. A reader follows the chain across the compaction by
+        the windows (window_id, previous_window_id, window_number), not by the
+        parent links between records (recorded:
+        runs/compaction-transcript-continuity).
     docs:
       - https://developers.openai.com/codex/hooks#precompact
     runs:
       - codex-mock/snapshots/runs/compaction-transcript-continuity
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock keeps only the last user message of the rollout as the kept
+          message, writes a placeholder for the encrypted summary, and does not
+          write the records Codex adds around a compaction (turn_context,
+          retained_context, resume_metadata). It compacts when a scenario's
+          compact record asks for it, not at a context limit, as in the
+          manual-compaction cell.
   cursor:
     supported: false
     reason: a cursor-agent -p run that compacted twice (preCompact fired) left no boundary or summary record in its transcript, only the user prompt written again, and no record carries a link to another.

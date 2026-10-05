@@ -1,8 +1,8 @@
 statement: >-
-  Hooks contributed by enabled plugins, resolved through the marketplace the
-  settings declare, run alongside the project's own hooks; an undeclared
-  marketplace or disabled plugin contributes none. (Where a plugin's files are
-  fetched from, beyond a directory on disk, is not part of this.)
+  Hooks contributed by the plugins a run has enabled run alongside the
+  project's own hooks; a plugin that is not enabled, or not loaded,
+  contributes none. (Where a plugin's files are fetched from, beyond a
+  directory on disk, is not part of this.)
 providers:
   claude:
     docs:
@@ -29,13 +29,24 @@ providers:
           in the plugin manifest, the PLUGIN_ROOT and PLUGIN_DATA variables a
           plugin's hook command gets, or the trust review of a plugin's hooks.
   cursor:
-    supported: false
-    reason: >-
-      Cursor has no settings file that declares a marketplace or enables a plugin:
-      marketplaces and enabled plugins are the account's, managed in Customize,
-      and what was recorded is only a plugin directory loaded with --plugin-dir.
+    notes:
+      - >-
+        Cursor has no settings file that declares a marketplace or enables a plugin:
+        marketplaces and enabled plugins are the account's, managed in Customize and
+        by `agent plugin marketplace`, which the recording cannot drive headlessly.
+        What is recorded is a plugin directory loaded with --plugin-dir: its hooks
+        ran alongside the project's, and a plugin directory not loaded contributed
+        none (runs/plugin-hooks).
     docs:
       - https://cursor.com/docs/reference/plugins#hooks-format
       - https://cursor.com/docs/plugins#what-plugins-contain
     runs:
       - cursor-mock/snapshots/runs/plugin-hooks
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock loads the directories given with --plugin-dir: the hooks file
+          their .cursor-plugin/plugin.json names as a path, or hooks/hooks.json.
+          It does not read marketplace manifests, an inline hooks object in the
+          manifest, or the account's installed plugins.
