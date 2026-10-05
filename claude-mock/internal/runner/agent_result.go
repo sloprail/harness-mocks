@@ -120,13 +120,7 @@ func buildAgentResult(sub *subagentRun, in agentToolInput, model string, out sub
 			text = "  " + notice + "\n  "
 		}
 	}
-	wt := ""
-	if worktreePath != "" {
-		wt = "\nworktreePath: " + worktreePath
-		if sub.branch != "" {
-			wt += "\nworktreeBranch: " + sub.branch // recorded: snapshots/runs/isolated-worktree
-		}
-	}
+	wt := worktreeTrailer(worktreePath, sub.branch)
 	text += "\nagentId: " + sub.agentID + " (use SendMessage with to: '" + sub.agentID + "', summary: '<5-10 word recap>' to continue this agent)" + wt +
 		fmt.Sprintf("\n<usage>subagent_tokens: 0\ntool_uses: %d\nduration_ms: %d</usage>", out.toolUses, durationMs)
 	if in.Model != "" {
