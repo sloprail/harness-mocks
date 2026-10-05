@@ -40,6 +40,16 @@ func (r *Result) Hold(line []byte) { r.line = line }
 // Continue drops the held result: the turn went on.
 func (r *Result) Continue() { r.line = nil }
 
+// Failed reports whether the held result says the run failed (is_error true):
+// the model API failed, so the turn ended on an error and no Stop follows
+// (recorded: claude snapshots/runs/run-failure). It is false with none held.
+func (r *Result) Failed() bool {
+	var frame struct {
+		IsError bool `json:"is_error"`
+	}
+	return r.line != nil && json.Unmarshal(r.line, &frame) == nil && frame.IsError
+}
+
 // Finish hands the held result to write exactly once, ending the run, and
 // reports whether there was one.
 //

@@ -10,6 +10,7 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bashfail
+      - claude-mock/snapshots/runs/run-failure
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#basic-usage
