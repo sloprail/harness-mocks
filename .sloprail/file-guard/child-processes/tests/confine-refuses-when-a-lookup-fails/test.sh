@@ -72,3 +72,11 @@ EOS
 chmod +x "$TMPDIR/shim/git"; rm -f "$TMPDIR/shim/jq"
 run_script spawn-via-procexec.sh shimmed
 expect_refused "the site count fails" "could not count the sites at"
+
+# through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
+# own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
+shim is .path
+: >"$SR_EVENTS_FILE"
+PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es --arg s a\ changed\ file\'s\ path\ could\ not\ be\ read,\ so\ no\ site\ could\ be\ judged 'any(.[]; .kind=="FileGuardChecked" and .rule=="child-processes" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: child-processes did not refuse with a reason saying 'a changed file's path could not be read, so no site could be judged' (sr-checks exit $ran)" >&2; exit 1; }
