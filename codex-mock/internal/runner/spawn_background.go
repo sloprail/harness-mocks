@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
@@ -53,6 +54,7 @@ func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	h.bg.StartAgent(t, func(ctx context.Context) {
 		rollout, err := h.createSub(r.AgentID)
 		if err != nil {
+			t.Failure = fmt.Sprintf("failed to start the sub-agent: %v", err) // a wait tells it, not an empty completion
 			return
 		}
 		defer rollout.Close()

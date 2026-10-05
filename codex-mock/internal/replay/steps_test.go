@@ -138,3 +138,21 @@ func TestWaitTargetsAreFilledInStructurally(t *testing.T) {
 	assert.Contains(t, string(out), `"targets":["id-0","id-10"]`)
 	assert.Contains(t, string(out), "AGENT1 IDPLACE")
 }
+
+// A wait for a spawn that has no receipt in the session stops the script loudly.
+func TestWaitForAMissingReceiptFailsTheScript(t *testing.T) {
+	rec := core.Recording{Agent: core.Agent{Calls: []core.Call{
+		{Tool: core.ToolWait, Input: map[string]any{"targets": []int{3}, "timeout_ms": 5}},
+	}}}
+	script := strings.Replace(Denormalize(rec).Script, `n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")`, `n=0`, 1)
+	dir := t.TempDir()
+	session := filepath.Join(dir, "session.jsonl")
+	require.NoError(t, os.WriteFile(session, []byte(`{"payload":{"type":"function_call_output","output":"{\"agent_id\":\"id-0\"}"}}`+"\n"), 0o644))
+	path := filepath.Join(dir, "s.sh")
+	require.NoError(t, os.WriteFile(path, []byte(script), 0o755))
+	cmd := exec.Command("sh", path)
+	cmd.Env = append(os.Environ(), "A10N_MOCK_SESSION_FILE="+session)
+	out, err := cmd.CombinedOutput()
+	assert.Error(t, err)
+	assert.Contains(t, string(out), "no spawn receipt at position 3")
+}

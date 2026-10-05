@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -39,13 +40,17 @@ func (in waitInput) timeout() time.Duration {
 // that a wait for several returns at the first to finish is the tool's
 // description ("whichever finishes first"); a timed-out wait answers an empty
 // status, as the description says ("Returns empty status when timed out").
-// One run per process: the sub-agents are looked up in the process's table
-// (agents), so an id of another run is not_found only by being absent.
+// The sub-agents are looked up in the session's task registry: an id it does
+// not hold is not_found.
 //
 // sr:provides foreground-subagent-result/codex
 func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Result {
 	var in waitInput
-	_ = json.Unmarshal(c.Input, &in)
+	dec := json.NewDecoder(bytes.NewReader(c.Input))
+	dec.DisallowUnknownFields() // a field the real tool has not is the script's mistake, not ignored
+	if err := dec.Decode(&in); err != nil {
+		return toolcall.Result{Output: fmt.Sprintf("wait_agent: invalid input: %v", err), Failed: true}
+	}
 	item := h.events.CollabStarted("wait", h.id, in.Targets, nil)
 	res, err := subagents.Wait(ctx, h.bg, in.Targets, in.timeout())
 	if err != nil {
@@ -55,9 +60,9 @@ func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Resul
 	var status []string
 	for _, st := range res.States {
 		switch st.Status {
-		case subagents.WaitCompleted:
-			states[st.ID] = events.AgentState{Status: "completed", Message: st.Report}
-			status = append(status, fmt.Sprintf("%q:{\"completed\":%q}", st.ID, st.Report))
+		case subagents.WaitCompleted, subagents.WaitErrored:
+			states[st.ID] = events.AgentState{Status: st.Status, Message: st.Report}
+			status = append(status, fmt.Sprintf("%q:{%q:%q}", st.ID, st.Status, st.Report))
 		default:
 			status = append(status, fmt.Sprintf("%q:%q", st.ID, st.Status))
 		}

@@ -34,6 +34,7 @@ func HandBack(frame, empty, report string) string {
 // Wait states of a sub-agent a wait tells of.
 const (
 	WaitCompleted = "completed"
+	WaitErrored   = "errored" // it ended without an answer: Report says why
 	WaitRunning   = "running"
 	WaitNotFound  = "not_found"
 )
@@ -41,7 +42,7 @@ const (
 // WaitState is where one sub-agent a wait named stands.
 type WaitState struct {
 	ID     string
-	Status string // WaitCompleted, WaitRunning or WaitNotFound
+	Status string // WaitCompleted, WaitErrored, WaitRunning or WaitNotFound
 	Report string // a completed one's final report
 }
 
@@ -89,6 +90,8 @@ func Wait(ctx context.Context, reg *tasks.Registry, ids []string, timeout time.D
 		switch t := agentTask(reg, id); {
 		case t == nil:
 			states = append(states, WaitState{ID: id, Status: WaitNotFound})
+		case t.Finished() && t.Failure != "":
+			states = append(states, WaitState{ID: id, Status: WaitErrored, Report: t.Failure})
 		case t.Finished():
 			states = append(states, WaitState{ID: id, Status: WaitCompleted, Report: t.Result})
 		default:
