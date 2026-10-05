@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,8 +16,8 @@ import (
 // The two recordings of a run's start outside a repository, and the one of
 // --output-schema: Codex refuses to run outside a repository unless told
 // (--skip-git-repo-check), and does not refuse when it bypasses approvals and
-// the sandbox; a schema file shapes only the model's final message, not the
-// stream.
+// the sandbox. (The mock refuses --output-schema: it implements none of it,
+// see unimplemented_refused_test.go.)
 
 // execIn runs the mock with args in dir, with a fresh CODEX_HOME, and returns
 // what it left.
@@ -127,39 +126,4 @@ func TestBypassingTheSandboxRunsOutsideARepository(t *testing.T) {
 		strings.TrimSpace(readFile(t, filepath.Join(rec.setup, "prompt.txt"))))
 	require.Equal(t, recordedExit(t, rec), got.Code, got.Stderr)
 	assert.Equal(t, recordedShapes(t, rec), shapes(got.stream()))
-}
-
-// --output-schema takes a schema file; the recording shows the model's final
-// message conforming to it and the stream otherwise as without it, so the run
-// that names a schema streams the same frames, exits 0 and, with no model in
-// the mock, ends on the script's message (runs/noninteractive-run-output-schema).
-// sr:proves noninteractive-run/codex
-func TestOutputSchemaIsAcceptedAndTheStreamIsUnchanged(t *testing.T) {
-	rec := loadRecording(t, "noninteractive-run-output-schema")
-	require.Equal(t, 0, recordedExit(t, rec))
-	var schema struct {
-		Required []string `json:"required"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(readFile(t, filepath.Join(rec.setup, "schema.json"))), &schema))
-	var msg map[string]any
-	for _, e := range rec.stream(t) {
-		if item, ok := e["item"].(map[string]any); ok && item["type"] == "agent_message" {
-			require.NoError(t, json.Unmarshal([]byte(item["text"].(string)), &msg), "recorded: the final message is JSON")
-		}
-	}
-	require.NotNil(t, msg, "recorded: an agent message")
-	assert.Equal(t, "DONE", msg["answer"])
-	assert.EqualValues(t, 3, msg["count"], "recorded: the schema's integer field is a number")
-	for _, k := range schema.Required {
-		assert.Contains(t, msg, k)
-	}
-
-	dir, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "schema.json"), []byte(readFile(t, filepath.Join(rec.setup, "schema.json"))), 0o644))
-	got := execIn(t, dir, "--json", "--skip-git-repo-check", "--dangerously-bypass-hook-trust", "--output-schema", "schema.json",
-		strings.TrimSpace(readFile(t, filepath.Join(rec.setup, "prompt.txt"))))
-	require.Equal(t, 0, got.Code, got.Stderr)
-	assert.Equal(t, recordedShapes(t, rec), shapes(got.stream()))
-	assert.Contains(t, got.Stdout, `"text":"DONE"`, "the message is the script's, the schema does not shape it")
 }

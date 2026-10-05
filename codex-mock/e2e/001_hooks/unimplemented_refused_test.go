@@ -1,0 +1,28 @@
+package e2e
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// The mock fails fast on what it does not implement (adr/fail-fast-unimplemented):
+// a flag it implements nothing of, or a -c key it does not read, is refused with a
+// clear error and nothing runs, so a recording made with it cannot be replayed and
+// pass as a run without it.
+// sr:proves noninteractive-run/codex
+func TestUnimplementedFlagsAreRefused(t *testing.T) {
+	for _, args := range [][]string{
+		{"--enable", "multi_agent_v2"}, {"--disable", "multi_agent_v2"},
+		{"--output-schema", "schema.json"}, {"-o", "last.txt"}, {"--ephemeral"},
+		{"--sandbox", "read-only"}, {"--profile", "p"}, {"--color", "never"},
+		{"-c", "model_reasoning_effort=high"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
+			r := execIn(t, t.TempDir(), append([]string{"--skip-git-repo-check"}, append(args, "go")...)...)
+			assert.NotZero(t, r.Code)
+			assert.Contains(t, r.Stderr, "not implemented by the mock")
+			assert.Empty(t, r.hookLog(), "nothing ran")
+		})
+	}
+}
