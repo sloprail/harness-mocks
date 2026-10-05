@@ -8,6 +8,7 @@ import (
 
 // Rules are what a recording and a replay of it may differ in, and why:
 // no capability cell is about any of it.
+// sr:invariant replay-fidelity
 func Rules(repo, root string) rp.Rules {
 	re := regexp.MustCompile
 	return rp.Rules{

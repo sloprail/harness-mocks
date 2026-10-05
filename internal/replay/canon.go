@@ -12,7 +12,9 @@ import (
 )
 
 // Rules say what may differ between a recording and a replay of it. The
-// adapter that fills them in says why each entry is not behaviour.
+// adapter that fills them in says why each entry is not behaviour; no entry
+// may be something a capability cell is about.
+// sr:invariant replay-fidelity
 type Rules struct {
 	// DropKeys are object keys removed wherever they occur (a timestamp, a token count).
 	DropKeys []string

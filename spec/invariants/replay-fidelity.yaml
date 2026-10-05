@@ -1,0 +1,9 @@
+statement: >-
+  A replay compares everything a capability cell is about. An adapter drops,
+  scrubs, sorts or reorders only fields and orderings that no capability cell
+  names; where a cell is about a field's presence (a path, a working
+  directory, a duration), the value is replaced by a placeholder and the key
+  stays. Output of different events keeps the recorded order: sorting is only
+  within a group of the same event that started together. An entry on a
+  replay's exception list never hides a difference a cell is about without
+  saying which cell and why.

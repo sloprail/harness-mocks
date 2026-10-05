@@ -12,6 +12,7 @@ import (
 // which the recording has as the capture wrote them: <RUN>, <TMP>, and the run
 // directory as claude encodes it into a folder name, <RUN_DIRNAME>. taskIDs
 // are the run's task and agent ids (see RunIDs), which have no pattern.
+// sr:invariant replay-fidelity
 func Rules(repo, work string, taskIDs []string) rp.Rules {
 	re := regexp.MustCompile
 	enc := re(`[^A-Za-z0-9]`).ReplaceAllString(repo, "-")
