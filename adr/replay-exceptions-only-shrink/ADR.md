@@ -27,3 +27,9 @@ every difference between a recording and its mock into an accepted one.
   times and fails when none of them is green (the file-guard requires each
   `generated_replay_test.go` to declare `const flakyRuns = 3` and to run a
   `flaky:` entry through `replayUntilGreen`).
+
+## Source
+
+The user's words for the last two bullets: "A replay exception's reason may not
+move to a weaker category (flaky < untriaged < triaged), and a flaky entry runs
+3 times and fails if never green; it is never skipped."
