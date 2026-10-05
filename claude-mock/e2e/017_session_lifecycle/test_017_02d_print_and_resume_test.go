@@ -65,7 +65,9 @@ func TestT017_17_UnknownResume(t *testing.T) {
 	for _, p := range payloads(t, log) {
 		events = append(events, p["hook_event_name"])
 		assert.Equal(t, "other", p["reason"], "SessionEnd of a failed resume, as recorded")
-		assert.NotEmpty(t, p["session_id"])
+		assert.Contains(t, []any{"nosuch", "new-fork"}, p["session_id"], "the id asked for, or the fork's own")
+		assert.Contains(t, p["transcript_path"], "nosuch.jsonl", "the file the asked-for session would have (recorded: runs/resume-unknown)")
+		assert.NotEmpty(t, p["cwd"])
 	}
 	assert.Equal(t, []any{"SessionEnd", "SessionEnd"}, events)
 }

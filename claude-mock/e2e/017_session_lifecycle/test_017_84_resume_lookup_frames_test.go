@@ -116,6 +116,7 @@ func TestT017_84_ForkHooksNameTheForksTranscript(t *testing.T) {
 // A10N_MOCK_NO_RESUME=1 makes a resume by name behave as an unknown session as
 // well, and so does a resume that also forks.
 // sr:proves session-resume-unknown/claude
+// sr:invariant no-resume
 func TestT017_84_NoResumeAppliesToNamesAndForks(t *testing.T) {
 	for _, args := range [][]string{{"--resume", "some-name"}, {"--resume", "some-id", "--fork-session"}} {
 		dir := t.TempDir()
