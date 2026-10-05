@@ -69,6 +69,10 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				finish()
 				return nil
 			}
+			if resultFailed(turn.resultLine) {
+				finish()
+				return errRunFailed
+			}
 			// sr:provides stop-hook-payload/claude
 			stop := corehooks.NewStop(lastText, stopBlocks)
 			active, last := stop.Continuing, stop.LastMessage
