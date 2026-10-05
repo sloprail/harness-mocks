@@ -91,6 +91,9 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if len(want.Events) == 0 && len(got.Events) == 0 {
+		return "event stream: none recorded and none produced: nothing was compared\n", nil
+	}
 	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks), nil
 }
 
