@@ -66,13 +66,21 @@ func TestAFileReadReturnsItsContentAndAWriteReplacesItWhole(t *testing.T) {
 	require.Contains(t, got.frames, "tool_call/completed/readToolCall/success")
 	// a read's structured result is its file and the length of the content it
 	// returned, as the postToolUse hook's tool_output
-	var reads int
+	var reads, beforeReads int
 	for _, h := range got.raw {
+		if h["hook_event_name"] == "beforeReadFile" {
+			// recorded: each successful read reports the file's path and content
+			beforeReads++
+			require.Equal(t, got.ws+"/note.txt", h["file_path"])
+			require.Equal(t, "hi\n", h["content"])
+			require.Equal(t, []any{}, h["attachments"])
+		}
 		if h["hook_event_name"] == "postToolUse" && h["tool_name"] == "Read" {
 			reads++
 			require.JSONEq(t, `{"file_path":"`+got.ws+`/note.txt","content_length":3}`, h["tool_output"].(string))
 		}
 	}
+	require.Equal(t, reads, beforeReads, "each read fires beforeReadFile")
 	require.NotZero(t, reads, "a read has its result as the postToolUse hook's tool_output")
 }
 

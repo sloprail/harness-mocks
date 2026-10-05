@@ -8,7 +8,7 @@ type Event string
 
 // The events the mock fires. Cursor's docs name more (beforeSubmitPrompt, stop,
 // afterAgentResponse, subagentStart/Stop, the MCP and Tab hooks, preCompact,
-// beforeReadFile, workspaceOpen); the recordings show cursor-agent in print
+// workspaceOpen); the recordings show cursor-agent in print
 // mode firing none of the first three, and the mock does not model the rest.
 const (
 	SessionStart         Event = "sessionStart"
@@ -19,6 +19,7 @@ const (
 	BeforeShellExecution Event = "beforeShellExecution"
 	AfterShellExecution  Event = "afterShellExecution"
 	AfterFileEdit        Event = "afterFileEdit"
+	BeforeReadFile       Event = "beforeReadFile"
 )
 
 // addsContext reports whether a hook of the event can hand the agent context,

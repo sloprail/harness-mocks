@@ -96,6 +96,8 @@ func (h *toolHost) After(ctx context.Context, _ toolcall.Call, _ toolcall.Result
 			"command": h.call.Command(), "output": h.res.Output, "duration": ms(h.res.Took), "sandbox": false})
 	case h.call.Kind == "editToolCall" && !h.res.Failed:
 		h.s.hooks.Fire(ctx, hooks.AfterFileEdit, "Write", map[string]any{"file_path": h.call.Path(h.s.cfg.Dir), "edits": h.res.Edits})
+	case h.call.Kind == "readToolCall" && h.res.Read != nil:
+		h.s.hooks.Fire(ctx, hooks.BeforeReadFile, "Read", map[string]any{"file_path": h.res.Read.Path, "content": h.res.Read.Content, "attachments": []any{}})
 	}
 	switch kind {
 	case corehooks.AfterSuccess:
