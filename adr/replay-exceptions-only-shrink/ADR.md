@@ -9,8 +9,7 @@ sloprails: [file-guard/replay-exceptions-only-shrink]
 
 The recorded runs a mock's replay does not reproduce yet are listed with a
 reason in the `notReplaying` map of that mock's `replay_allowlist_test.go`
-(every such file in the repo, today those of `claude-mock/e2e/018_replay/` and
-`codex-mock/e2e/001_hooks/`). A list that can grow, or whose reasons can be softened, turns
+(every such file in the repo). A list that can grow, or whose reasons can be softened, turns
 every difference between a recording and its mock into an accepted one.
 
 ## Decision
@@ -26,5 +25,5 @@ every difference between a recording and its mock into an accepted one.
   `untriaged:` to a stronger category, is allowed.
 - A `flaky:` entry is never skipped: the generated replay test runs it three
   times and fails when none of them is green (the file-guard requires each
-  `generated_replay_test.go` to declare `flakyRuns` of at least 2 and to run a
+  `generated_replay_test.go` to declare `const flakyRuns = 3` and to run a
   `flaky:` entry through `replayUntilGreen`).
