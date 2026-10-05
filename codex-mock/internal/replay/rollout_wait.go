@@ -1,11 +1,11 @@
 package replay
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 )
 
 // unifyWait is the unified wait of a tools.multi_agent_v1__wait_agent call: each
@@ -41,18 +41,15 @@ func unifyWait(arg map[string]any, spawns []int, told []string) (core.Call, erro
 }
 
 // agentIDs are the sub-agent ids a tool call's output tells the model of: the
-// output is a list of text items, and an item whose text is a JSON object with an
-// agent_id (a spawn_agent receipt, as the script printed it) names one.
+// output is a list of text items, and an item whose text is a spawn receipt, as
+// the script printed it, names one.
 func agentIDs(output any) (ids []string) {
 	items, _ := output.([]any)
 	for _, it := range items {
 		m, _ := it.(map[string]any)
 		text, _ := m["text"].(string)
-		var r struct {
-			AgentID string `json:"agent_id"`
-		}
-		if json.Unmarshal([]byte(text), &r) == nil && r.AgentID != "" {
-			ids = append(ids, r.AgentID)
+		if id := subagents.ReceiptAgentID(text); id != "" {
+			ids = append(ids, id)
 		}
 	}
 	return ids
