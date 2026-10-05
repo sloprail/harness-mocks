@@ -7,7 +7,6 @@ package e2e
 // the recording shows (each gap is a PR of its own).
 var notReplaying = map[string]string{
 	"all-hooks":                   "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; result frames lack api_error_status, is_error, num_turns, permission_denials, queued_turn_count, result_index, session_id, stop_reason, terminal_reason, time_to_request_ms, ttft_ms, ttft_stream_ms; user frames lack parent_tool_use_id, session_id, tool_result_meta, tool_use_result",
-	"all-hooks-slow-first":        "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; result frames lack api_error_status, is_error, num_turns, permission_denials, queued_turn_count, result_index, session_id, stop_reason, terminal_reason, time_to_request_ms, ttft_ms, ttft_stream_ms; user frames lack parent_tool_use_id, session_id, tool_result_meta, tool_use_result",
 	"bgagent":                     "adapter: the model said two things before one call: the adapter keeps one",
 	"bgagent-concurrent-limit":    "adapter: the setup has env, which the adapter does not install",
 	"bgagent-definition":          "adapter: the setup has prepare.sh, which the adapter does not install",
@@ -27,7 +26,6 @@ var notReplaying = map[string]string{
 	"file-tools":                  "adapter: the setup has args, which the adapter does not install",
 	"forkresume":                  "adapter: the setup has args, which the adapter does not install",
 	"hook-exit-codes":             "adapter: the model called Read: the adapter maps Bash and Agent",
-	"hook-exit-json":              "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; result frames lack api_error_status, is_error, num_turns, permission_denials, queued_turn_count, result_index, session_id, stop_reason, terminal_reason, time_to_request_ms, ttft_ms, ttft_stream_ms; user frames lack parent_tool_use_id, session_id, tool_result_meta, tool_use_result; system/notification value; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"hook-timeout":                "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 6 vs 4; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"hookerrors":                  "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 11 vs 10; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"hookmix":                     "adapter: sub-agent: the model called Read: the adapter maps Bash and Agent",
