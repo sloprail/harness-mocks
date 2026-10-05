@@ -69,6 +69,19 @@ shim has 'map(select(. != ""))'
 run_script prepare.sh shimmed
 expect_refused "the proving tests' listing fails" "invariant 'holds': its proving tests could not be listed, so it could not be judged"
 
+shim is 'length'
+run_script prepare.sh shimmed
+expect_refused "the invariants to judge cannot be counted" "the invariants to judge could not be counted"
+shim has '. + [{id: $id, path: $p'
+run_script prepare.sh shimmed
+expect_refused "an invariant cannot be listed for the judge" "it could not be listed for the judge"
+shim has 'additionalContext'
+run_script prepare.sh shimmed
+expect_refused "the judge's input cannot be built" "the judge's input could not be built"
+shim is '-sc'
+run_script prepare.sh shimmed
+expect_refused "the specs cannot be read" "the specs under spec/invariants could not be read, so none could be checked"
+
 # subjects.sh, through the engine: a failed listing refuses the rule, never "no subjects"
 shim has '$pv['
 out="$(PATH="$TMPDIR/shim:$PATH" sr-checks changeset --rule "$RULE" --base "$BASE" --head HEAD 2>&1)" && rc=0 || rc=$?

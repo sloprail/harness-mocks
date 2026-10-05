@@ -63,6 +63,16 @@ expect_refused "a file's path cannot be read" "a changed file's path could not b
 shim is '.newContent // ""'
 run_script spawn-via-procexec.sh shimmed
 expect_refused "a file's content cannot be read" "its content could not be read, so its sites could not be counted"
+shim has 'endswith(".go")'
+run_script spawn-via-procexec.sh shimmed
+expect_refused "the changed Go files cannot be listed" "the changed Go files could not be listed, so no site could be judged"
+shim is '.changeset.base'
+run_script spawn-via-procexec.sh shimmed
+expect_refused "the range's base cannot be read" "the range's base could not be read, so the site count could not be compared"
+shim is '.changeset.head'
+run_script spawn-via-procexec.sh shimmed
+expect_refused "the range's head cannot be read" "the range's head could not be read, so the site count could not be compared"
+
 # the site count: git grep fails (an unknown revision exits 128, not the 1 of "no match")
 cat >"$TMPDIR/shim/git" <<'EOS'
 #!/bin/bash
@@ -72,6 +82,20 @@ EOS
 chmod +x "$TMPDIR/shim/git"; rm -f "$TMPDIR/shim/jq"
 run_script spawn-via-procexec.sh shimmed
 expect_refused "the site count fails" "could not count the sites at"
+
+# the total of the sites (awk) cannot be taken, and the allowed-path match (grep) errors rather than missing (exit 2, not the 1 of "no match")
+rawshim() {   # TOOL ARG-SUBSTRING — TOOL exits 2 when an argument contains ARG-SUBSTRING, else runs the real one
+  rm -rf "$TMPDIR/shim"; mkdir -p "$TMPDIR/shim"
+  printf '#!/bin/bash\nfor a in "$@"; do case "$a" in *%q*) exit 2 ;; esac; done\nexec %q "$@"\n' "$2" "$(command -v "$1")" >"$TMPDIR/shim/$1"
+  chmod +x "$TMPDIR/shim/$1"
+}
+rawshim awk 'NF && $1'
+run_script spawn-via-procexec.sh shimmed
+expect_refused "the sites cannot be totaled" "could not total the sites at"
+rawshim grep '-Eq'
+run_script spawn-via-procexec.sh shimmed
+expect_refused "the allowed paths cannot be matched" "the allowed paths could not be matched, so its sites could not be counted"
+rm -rf "$TMPDIR/shim"
 
 # through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
 # own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.

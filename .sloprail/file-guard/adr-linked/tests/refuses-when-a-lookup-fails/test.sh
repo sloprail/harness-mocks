@@ -71,6 +71,10 @@ shim has 'ltrimstr($root)'
 run_script links-resolve.sh shimmed
 expect_refused "the loader cannot list the ADRs" "the ADRs could not be listed, so no ADR could be checked"
 
+shim has 'if (.sloprails | type)'
+run_script links-resolve.sh shimmed
+expect_refused "an ADR's linked rules cannot be read" "its linked rules could not be read, so it could not be checked"
+
 # through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
 # own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
 shim is .\[\]

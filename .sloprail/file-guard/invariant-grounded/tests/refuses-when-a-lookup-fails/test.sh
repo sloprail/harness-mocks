@@ -64,6 +64,37 @@ shim is '.[]'
 run_script prepare.sh shimmed
 expect_refused "the loop's listing fails" "the changed invariant files could not be listed, so none could be judged"
 
+shim is '.path'
+run_script prepare.sh shimmed
+expect_refused "a changed file's path cannot be read" "a changed invariant file's path could not be read"
+shim is '.status'
+run_script prepare.sh shimmed
+expect_refused "a changed file's status cannot be read" "its status could not be read"
+shim is '.oldContent // ""'
+run_script prepare.sh shimmed
+expect_refused "a changed file's old content cannot be written" "its old content could not be written for the judge"
+shim has '. + [{id: $id, status: $st'
+run_script prepare.sh shimmed
+expect_refused "a changed file cannot be listed for the judge" "it could not be listed for the judge"
+shim has 'additionalContext'
+run_script prepare.sh shimmed
+expect_refused "the judge's input cannot be built" "the judge's input could not be built"
+# the second count (the invariants to judge): the Nth jq call whose program is exactly `length` fails
+nth_length_fails() {
+  rm -rf "$TMPDIR/shim"; mkdir -p "$TMPDIR/shim"; echo 0 >"$TMPDIR/shim/n"
+  cat >"$TMPDIR/shim/jq" <<EOS
+#!/bin/bash
+for a in "\$@"; do
+  if [ "\$a" = length ]; then n=\$(( \$(cat "$TMPDIR/shim/n") + 1 )); echo \$n >"$TMPDIR/shim/n"; [ \$n -eq $1 ] && exit 5; fi
+done
+exec $REAL_JQ "\$@"
+EOS
+  chmod +x "$TMPDIR/shim/jq"
+}
+nth_length_fails 2
+run_script prepare.sh shimmed
+expect_refused "the invariants to judge cannot be counted" "the invariants to judge could not be counted"
+
 # subjects.sh, through the engine: a failed listing refuses the rule, never "no subjects"
 shim has 'bdeps: [.path]'
 out="$(PATH="$TMPDIR/shim:$PATH" sr-checks changeset --rule "$RULE" --base "$BASE" --head HEAD 2>&1)" && rc=0 || rc=$?

@@ -62,6 +62,19 @@ shim is '.[]'
 run_script prepare.sh shimmed
 expect_refused "the loop's listing fails" "the changed ADRs could not be listed, so none could be judged"
 
+shim is '.path'
+run_script prepare.sh shimmed
+expect_refused "a changed ADR's path cannot be read" "a changed ADR's path could not be read"
+shim is '.diff // ""'
+run_script prepare.sh shimmed
+expect_refused "a changed ADR's diff cannot be written" "its diff could not be written for the judge"
+shim has '. + [{id: $id, path: $p'
+run_script prepare.sh shimmed
+expect_refused "a changed ADR cannot be listed for the judge" "it could not be listed for the judge"
+shim has 'additionalContext'
+run_script prepare.sh shimmed
+expect_refused "the judge's input cannot be built" "the judge's input could not be built"
+
 # through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
 # own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
 shim has select\(.status\ !=\ \"D\"

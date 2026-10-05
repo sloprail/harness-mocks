@@ -68,6 +68,25 @@ shim is '{adr, path, status}'
 run_script prepare.sh shimmed
 expect_refused "a file's fields cannot be read" "its fields could not be read"
 
+shim is '.path'
+run_script prepare.sh shimmed
+expect_refused "a file's path cannot be read" "a changed ADR file's path could not be read"
+shim is '.diff // ""'
+run_script prepare.sh shimmed
+expect_refused "a file's diff cannot be written" "its diff could not be written for the judge"
+shim is '.oldContent // ""'
+run_script prepare.sh shimmed
+expect_refused "a file's old content cannot be written" "its old content could not be written for the judge"
+shim has '. + [{adr: $m.adr'
+run_script prepare.sh shimmed
+expect_refused "a file cannot be listed for the judge" "it could not be listed for the judge"
+shim has 'group_by(.adr)'
+run_script prepare.sh shimmed
+expect_refused "the ADR subjects cannot be built" "the ADR subjects could not be built"
+shim has 'additionalContext'
+run_script prepare.sh shimmed
+expect_refused "the judge's input cannot be built" "the judge's input could not be built"
+
 # subjects.sh, through the engine: a failed listing refuses the rule, never "no subjects"
 shim has 'group_by(.id)'
 out="$(PATH="$TMPDIR/shim:$PATH" sr-checks changeset --rule "$RULE" --base "$BASE" --head HEAD 2>&1)" && rc=0 || rc=$?

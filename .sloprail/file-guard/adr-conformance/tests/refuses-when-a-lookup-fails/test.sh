@@ -73,6 +73,22 @@ shim has 'reduce inputs'
 run_script ../../_lib/linked-adrs.sh shimmed
 expect_refused "the loader cannot read the ADR texts" "the ADR texts could not be read, so no ADR could be checked"
 
+shim is '.status'
+run_script ../../_lib/linked-adrs.sh shimmed
+expect_refused "a file's status cannot be read" "its status could not be read"
+shim is '.oldPath // ""'
+run_script ../../_lib/linked-adrs.sh shimmed
+expect_refused "a file's old path cannot be read" "its old path could not be read"
+shim is '.diff // ""'
+run_script ../../_lib/linked-adrs.sh shimmed
+expect_refused "a file's diff cannot be written" "its diff could not be written for the judge"
+shim has '{path: $p, status: $s'
+run_script ../../_lib/linked-adrs.sh shimmed
+expect_refused "a file cannot be listed for the judge" "it could not be listed for the judge"
+shim has 'additionalContext'
+run_script ../../_lib/linked-adrs.sh shimmed
+expect_refused "the judge's input cannot be built" "the judge's input could not be built"
+
 # through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
 # own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
 shim is \[.\[\]\ \|\ \{id,\ path\}\]

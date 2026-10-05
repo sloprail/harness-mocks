@@ -74,6 +74,26 @@ shim has 'ltrimstr($root)'
 run_script prepare.sh shimmed
 expect_refused "the loader cannot list the ADRs" "the ADRs could not be listed, so no ADR could be checked"
 
+shim is '.path'
+run_script prepare.sh shimmed
+expect_refused "an ADR's path cannot be read" "adr/one: its path could not be read, so it could not be judged"
+shim is '.changeset.files[].path'
+run_script prepare.sh shimmed
+expect_refused "the changed paths cannot be listed" "the changed paths could not be listed, so no ADR could be judged"
+shim is 'length'
+run_script prepare.sh shimmed
+expect_refused "the ADRs to judge cannot be counted" "the ADRs to judge could not be counted"
+shim has 'additionalContext'
+run_script prepare.sh shimmed
+expect_refused "the judge's input cannot be built" "the judge's input could not be built"
+
+# a big changeset: the ADR's own path comes first of 40000 changed paths. The ADR is matched by a bash pattern, not
+# `printf | grep -q`, whose early exit SIGPIPEs the printf (under pipefail that read as no match: the ADR was skipped)
+jq -c '.changeset.files = ([.changeset.files[] | select(.path | startswith("adr/one/"))] + [range(40000) | {path: "pad/\(.)/file.txt"}])' "$TMPDIR/payload.json" >"$TMPDIR/big.json"
+mv "$TMPDIR/big.json" "$TMPDIR/payload.json"
+run_script prepare.sh plain
+[ "$rc" -eq 0 ] && jq -e '.additionalContext.subjects | length == 1' <<<"$out" >/dev/null || { echo "a big changeset: the ADR was skipped (exit $rc): $out" >&2; exit 1; }
+
 # subjects.sh, through the engine: a failed listing refuses the rule, never "no subjects"
 shim has '$adrs0[0]'
 out="$(PATH="$TMPDIR/shim:$PATH" sr-checks changeset --rule "$RULE" --base "$BASE" --head HEAD 2>&1)" && rc=0 || rc=$?
