@@ -68,7 +68,7 @@ func Wait(ctx context.Context, reg *tasks.Registry, ids []string, timeout time.D
 	ended := make(chan struct{}, len(ids))
 	known := 0
 	for _, id := range ids {
-		if t := reg.Find(id); t != nil {
+		if t := agentTask(reg, id); t != nil {
 			known++
 			go func() { <-t.Done(); ended <- struct{}{} }()
 		}
@@ -86,7 +86,7 @@ func Wait(ctx context.Context, reg *tasks.Registry, ids []string, timeout time.D
 	}
 	var states []WaitState
 	for _, id := range ids {
-		switch t := reg.Find(id); {
+		switch t := agentTask(reg, id); {
 		case t == nil:
 			states = append(states, WaitState{ID: id, Status: WaitNotFound})
 		case t.Finished():
@@ -96,4 +96,13 @@ func Wait(ctx context.Context, reg *tasks.Registry, ids []string, timeout time.D
 		}
 	}
 	return WaitResult{States: states}, nil
+}
+
+// agentTask is the sub-agent of the registry with this id; a background command
+// of the same registry (its session id is a number) is no sub-agent to wait for.
+func agentTask(reg *tasks.Registry, id string) *tasks.Task {
+	if t := reg.Find(id); t != nil && t.Kind == tasks.Agent {
+		return t
+	}
+	return nil
 }
