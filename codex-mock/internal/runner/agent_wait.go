@@ -32,15 +32,19 @@ func (in waitInput) timeout() time.Duration {
 // timeout is up, and tells the agent where each stands: a status map keyed by
 // sub-agent id, a finished one's value its completion with its final report as
 // text, one still going "running", one that is not a sub-agent of the session
-// "not_found" (the statuses the tool's own description lists, recorded in every
-// run that calls it), and timed_out. The stream shows a wait started, then
+// "not_found" (the last two are the tool description's statuses, which no
+// recording shows; recorded is only {completed} with timed_out false; the
+// description's pending_init, interrupted, shutdown and errored are not
+// modelled), and timed_out. The stream shows a wait started, then
 // completed with each sub-agent's state and the report of a finished one as
 // its message; there is no frame of a task of its own (recorded:
 // runs/foreground-subagent-result, runs/foreground-subagent-bash-ends-with-response).
 // Recorded are only waits for one sub-agent that finished within the timeout:
 // that a wait for several returns at the first to finish is the tool's
-// description ("whichever finishes first"), and what a timed-out wait tells is
-// the mock's reading of the same description.
+// description ("whichever finishes first"); a timed-out wait answers an empty
+// status, as the description says ("Returns empty status when timed out").
+// One run per process: the sub-agents are looked up in the process's table
+// (agentTasks), so an id of another run is not_found only by being absent.
 //
 // sr:provides foreground-subagent-result/codex
 func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Result {
@@ -82,6 +86,9 @@ func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Resul
 	states := map[string]events.AgentState{}
 	var status []string
 	for _, id := range in.Targets {
+		if timedOut {
+			break
+		}
 		v, ok := agentTasks.Load(id)
 		switch t, _ := v.(*tasks.Task); {
 		case !ok:

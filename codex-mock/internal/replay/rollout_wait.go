@@ -28,6 +28,9 @@ func unifyWait(arg map[string]any, spawns []int, told []string) (core.Call, erro
 		case string:
 			pos = slices.Index(told, v)
 		}
+		if pos >= 9 {
+			return core.Call{}, fmt.Errorf("a wait_agent for the 10th or later sub-agent: the generated script names nine")
+		}
 		if pos < 0 {
 			return core.Call{}, fmt.Errorf("a wait_agent for something that is not a sub-agent the model spawned")
 		}
