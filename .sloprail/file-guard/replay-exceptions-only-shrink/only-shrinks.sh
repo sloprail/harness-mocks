@@ -34,7 +34,8 @@ while [ "$i" -lt "$count" ]; do
     refuse "could not read the base of $path from the changeset, so it could not be checked"
   new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
     refuse "could not read $path from the changeset, so it could not be checked"
-  [ -n "$(keys "$new")" ] || refuse "$path: no notReplaying entries could be read; keep the map as 'var notReplaying = map[string]string{' with one \"run\": \"reason\" per line"
+  printf '%s\n' "$new" | grep -q '^var notReplaying = map\[string\]string{' ||
+    refuse "$path: the notReplaying map could not be found; keep it as 'var notReplaying = map[string]string{' with one \"run\": \"reason\" per line"
   added="$(comm -13 <(keys "$old") <(keys "$new"))"
   [ -z "$added" ] || refuse "$path: the replay exception list may only shrink, and these entries were added: $(printf '%s' "$added" | tr '\n' ' '): make the run replay instead of listing it"
 done
