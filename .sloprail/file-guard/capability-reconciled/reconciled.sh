@@ -16,6 +16,7 @@ slim_payload '^spec/capabilities/'
 load_markers provides; provides="$MARKERS"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
 load_spec capabilities; caps="$SPEC"
+[ -n "$(harnesses)" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness cell could be checked (an incomplete tree?)"
 
 pairs="$(reconcile_pairs)" || refuse "the touched capability pairs could not be worked out, so nothing could be reconciled"
 problems=""
