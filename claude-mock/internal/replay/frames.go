@@ -3,8 +3,9 @@ package replay
 // unmodelled are the frames of the real stream that say nothing the mock could
 // be told to say: the real run's own tools, commands and model, the account's
 // rate limits, the model's thinking estimates. They are left out of both sides.
-// What a recording shows of them is not replayed: the mock sends no init frame,
-// so the cells' statements about init have no replay evidence yet.
+// What a recording shows of them is not replayed: the mock writes an init frame
+// only after a compaction, never at a session's start, and that one is dropped
+// too, so the cells' statements about init have no replay evidence yet.
 var unmodelled = map[string]bool{
 	"system/init":             true, // the real run's tools, skills, slash commands and model
 	"system/commands_changed": true, // the account's slash commands
