@@ -65,9 +65,6 @@ providers:
       - codex-mock/snapshots/runs/prompt-blocked
       - codex-mock/snapshots/runs/posttool-block
       - codex-mock/snapshots/runs/stops
-      - codex-mock/snapshots/runs/subagent-stop-block-loop
-      - codex-mock/snapshots/runs/subagent-stop-continue-false
-      - codex-mock/snapshots/runs/subagent-stop-plain-text
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -81,9 +78,10 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock fires no PermissionRequest and no Interrupt event (a
-          non-interactive run has nothing to request or interrupt), so the
-          docs' exit-code rows for those two are not modeled.
+          The mock fires SessionStart, UserPromptSubmit, PreToolUse,
+          PostToolUse and Stop, and no others. The docs' exit-code rows for
+          PermissionRequest, PreCompact, PostCompact, SubagentStart,
+          SubagentStop, Interrupt and SessionEnd are not modeled.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#command-based-hooks
