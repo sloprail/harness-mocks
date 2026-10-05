@@ -32,10 +32,11 @@ providers:
       and no summary: after each compaction the transcript carries the user prompt
       again, byte-identical to the first record and so no marker that a compaction
       happened, and the records written after it are new tool calls, not an
-      account of the dropped ones; the one other new record is a
-      `<dynamic_tools>` tool-discovery message, which is not a summary. Records
-      hold only role and message, so no record links to another and the harness
-      keeps no chain of its own.
+      account of the dropped ones; the one other new record, ahead of the
+      second re-written prompt, is a `<dynamic_tools>` tool-discovery message,
+      which is not a summary. Its records hold only role and message (plus a
+      final turn_ended status line), so no record links to another and the
+      harness keeps no chain of its own.
     docs:
       - https://cursor.com/docs/hooks#precompact
     runs:
