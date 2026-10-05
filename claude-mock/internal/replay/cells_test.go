@@ -17,6 +17,7 @@ import (
 // test, so the list only shrinks.
 var notAbout = map[string]string{
 	"background-agent/script":          "prose: a mock sub-agent is a scenario script",
+	"noninteractive-run/script":        "prose: the stream is produced from the scenario script",
 	"session-fork/script":              "prose: the scenario script writes the init and result frames",
 	"session-resume/script":            "prose: the scenario script writes the init frame",
 	"session-fork/init":                "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
