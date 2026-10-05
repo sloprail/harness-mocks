@@ -95,21 +95,14 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 	}
-	script := filepath.Join(root, "scenario.sh")
-	if err := os.WriteFile(script, []byte(scriptText(s.Script, scriptsAt, repo)), 0o755); err != nil {
+	stdout, err := runSteps(ctx, mock, s, repo, root, scriptsAt, env)
+	if err != nil {
 		return want, got, err
-	}
-
-	res, err := procexec.Run(ctx, procexec.Spec{
-		Argv: []string{mock, "exec", "--dangerously-bypass-hook-trust", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", s.Prompt},
-		Dir:  repo, Env: env})
-	if err != nil || res.ExitCode != 0 {
-		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
 	}
 	hookLog, _ := os.ReadFile(filepath.Join(tmp, "hook.log"))
 
 	// the mock's output is compared with every sample of the recording, each under a header
-	mockStream, err := parseJSONL(string(res.Stdout))
+	mockStream, err := parseJSONL(stdout)
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's stream: %w", err)
 	}

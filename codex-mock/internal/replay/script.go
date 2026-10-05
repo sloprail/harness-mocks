@@ -15,8 +15,9 @@ import (
 // told right after an answer), each of which spent an answer. The steps are inside the script, so a sub-agent's script is a file of
 // its own. Call ids are unique across the run's scripts (tag), as the real ones
 // are: the mock keys a still-running command by its call's id. Past the last
-// step (an answer) the last step is played again.
-func scriptFor(tag string, steps []modelCall, final string, unfinished bool, finalGate scenario.Gate) string {
+// step (an answer) the last step is played again. A script of a later run of the harness
+// (a resume, a fork) starts after the base steps the session already holds.
+func scriptFor(tag string, base int, steps []modelCall, final string, unfinished bool, finalGate scenario.Gate) string {
 	steps = append(steps, modelCall{Final: &final, Hang: unfinished, Gate: finalGate})
 	var lines []string
 	for _, c := range steps {
@@ -48,7 +49,7 @@ steps=$(cat <<'STEPS_EOF'
 %s
 STEPS_EOF
 )
-step=$(printf '%%s\n' "$steps" | sed -n "$((n+k+1))p")
+step=$(printf '%%s\n' "$steps" | sed -n "$((n+k+1-%d))p")
 [ -n "$step" ] || step=$(printf '%%s\n' "$steps" | tail -1)
 case "$step" in
 '{"hang":true}') exec sleep 86400 ;;
@@ -62,5 +63,5 @@ case "$step" in
   printf '%%s\n' "$step" | jq -c --argjson ids "$ids" --arg id "call_%s_$n" '.message.content |= map(if .type=="tool_use" then .id = $id | (if .input.targets then .input.targets |= map(if type=="object" then ($ids[.spawned] // error("no spawn receipt at position \(.spawned)")) else . end) else . end) else . end)'
   ;;
 esac
-`, strings.Join(lines, "\n"), tag)
+`, strings.Join(lines, "\n"), base, tag)
 }

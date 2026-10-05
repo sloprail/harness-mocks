@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -18,8 +17,8 @@ type Unbuildable = core.Unbuildable
 func unbuildable(err error) error { return &core.Unbuildable{Reason: err.Error()} }
 
 // the command line every replayable recording was made with: the mock is run
-// with the equivalent flags, and a recording made another way (a resume, a -c
-// override, an output schema) is not replayed by this adapter.
+// with the equivalent flags, and a recording made another way (a -c override,
+// an output schema) is not replayed by this adapter.
 const standardCommand = "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna"
 
 // Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the
@@ -35,13 +34,12 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
 	}
-	cmd := run.Command
-	if cmd != standardCommand {
-		return core.Recording{}, unbuildable(fmt.Errorf("recorded with another command line: %q", cmd))
+	if run.Command != standardCommand {
+		return core.Recording{}, unbuildable(fmt.Errorf("recorded with another command line: %q", run.Command))
 	}
 	entries, _ := os.ReadDir(setup)
 	for _, e := range entries {
-		if n := e.Name(); n != "hooks.json" && n != "hook.sh" && n != "prompt.txt" {
+		if n := e.Name(); !setupFileOK(n) {
 			return core.Recording{}, unbuildable(fmt.Errorf("the setup has %s, which the adapter does not install", n))
 		}
 	}
@@ -52,7 +50,6 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if len(paths) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout was recorded: the model's turns are unknown"))
 	}
-	main := ""
 	stream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
 	if err != nil {
 		return core.Recording{}, err
@@ -60,28 +57,35 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if _, err := readJSONL(filepath.Join(sample, "payloads.jsonl")); err != nil {
 		return core.Recording{}, err
 	}
-	for _, l := range stream {
-		if l["type"] == "thread.started" {
-			main, _ = l["thread_id"].(string)
-		}
+	threads := threadsOf(stream)
+	if len(threads) == 0 {
+		return core.Recording{}, unbuildable(fmt.Errorf("the stream starts no thread"))
 	}
-	var mainRollout []map[string]any
-	subs := map[string][]map[string]any{} // the sub-agents' rollouts, by thread id
+	main := threads[0]
+	rollouts := map[string][]map[string]any{} // every rollout, by thread id
 	for _, p := range paths {
 		rollout, err := readJSONL(p)
 		if err != nil {
 			return core.Recording{}, err
 		}
-		if threadOf(p) == main {
-			mainRollout = rollout
-		} else {
-			subs[threadOf(p)] = rollout
+		rollouts[threadOf(p)] = rollout
+	}
+	specs := stepSpecs(setup)
+	records, err := stepRecords(specs, threads, rollouts)
+	if err != nil {
+		return core.Recording{}, unbuildable(err)
+	}
+	subs := map[string][]map[string]any{} // the sub-agents' rollouts, by thread id: those no run of the harness worked in
+	for thread, rollout := range rollouts {
+		if !contains(threads, thread) {
+			subs[thread] = rollout
 		}
 	}
-	if len(mainRollout) == 0 {
-		return core.Recording{}, unbuildable(fmt.Errorf("no rollout of the main thread"))
+	agent, err := modelTurns(records[0], spawnReceipts(stream, main))
+	if err != nil {
+		return core.Recording{}, unbuildable(err)
 	}
-	agent, err := modelTurns(mainRollout, spawnReceipts(stream, main))
+	then, err := thenSteps(specs[1:], records[1:])
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
 	}
@@ -106,12 +110,13 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	}
 	return core.Recording{
 		Dir:    runDir,
-		Prompt: strings.TrimSpace(readFile(filepath.Join(setup, "prompt.txt"))),
+		Prompt: specs[0].prompt,
 		Setup: map[string]string{
 			"hooks.json": readFile(filepath.Join(setup, "hooks.json")),
 			"hook.sh":    readFile(filepath.Join(setup, "hook.sh")),
 		},
 		Agent: agent,
+		Then:  then,
 	}, nil
 }
 
