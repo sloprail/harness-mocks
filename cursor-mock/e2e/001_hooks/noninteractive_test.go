@@ -19,3 +19,16 @@ func TestARecordedNonInteractiveRunReplaysToTheSameToolCalls(t *testing.T) {
 	require.NotEmpty(t, want.frames)
 	require.Equal(t, want.frames, got.frames)
 }
+
+// TestThePrintFlagInItsLongFormRunsNonInteractively: recorded
+// (runs/print-long-form), cursor-agent takes print mode as -p or --print (the
+// headless doc's "-p, --print"); a run given both ends with the command made
+// and its hooks fired as with -p alone. The mock does the same.
+// sr:proves noninteractive-run/cursor
+func TestThePrintFlagInItsLongFormRunsNonInteractively(t *testing.T) {
+	got, want := replayWith(t, "print-long-form", "--print")
+	conforms(t, got, want)
+
+	require.NotEmpty(t, want.frames)
+	require.Equal(t, want.frames, got.frames)
+}
