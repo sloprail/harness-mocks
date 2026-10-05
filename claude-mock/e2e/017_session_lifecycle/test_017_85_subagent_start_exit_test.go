@@ -14,7 +14,6 @@ import (
 // sr:proves foreground-subagent-result/claude
 func TestT017_85_SubagentStartExit2StillHandsBackTheReport(t *testing.T) {
 	want := recordedAgentPost(t, "hookerrors", 0)["tool_response"].(map[string]any)
-	assert.Equal(t, "completed", want["status"], "recorded")
 
 	dir := t.TempDir()
 	cfg, log := filepath.Join(dir, "config"), filepath.Join(dir, "payloads.log")
@@ -34,7 +33,11 @@ func TestT017_85_SubagentStartExit2StillHandsBackTheReport(t *testing.T) {
 	got := agentPosts(payloads(t, log))
 	require.Len(t, got, 1)
 	resp := got[0]["tool_response"].(map[string]any)
-	assert.Equal(t, "completed", resp["status"])
-	assert.Contains(t, recordedAgentResultText(t, "hookerrors"), "HELPED")
+	// the mock's hand-back against the recorded one: the same status, the same
+	// report as content, the same fields bar the ids, timings and model
+	for _, k := range []string{"status", "content", "harnessNoteCount", "harnessTailCount", "totalToolUseCount"} {
+		assert.Equal(t, want[k], resp[k], k)
+	}
+	assert.Equal(t, keysOf(want), keysOf(resp))
 	assert.Contains(t, out, "HELPED")
 }
