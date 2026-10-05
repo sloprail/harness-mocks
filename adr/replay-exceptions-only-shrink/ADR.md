@@ -17,18 +17,14 @@ every difference between a recording and its mock into an accepted one.
 - A change to the `notReplaying` map of any `replay_allowlist_test.go` removes
   keys and never adds one: adding an entry fails CI (the
   `replay-exceptions-only-shrink` file-guard compares the map's keys at the base
-  and at the head). A new `flaky:` entry is an addition, and a new list file
-  carries no entries. The list file is never deleted (the map is
-  emptied instead), and the map is named only on its declaration line.
+  and at the head). A new `flaky:` entry is an addition.
 - An existing entry's reason never moves to a weaker category: `flaky:` is the
   weakest, `untriaged:` is weaker than every triaged reason, and a triaged
   reason is any reason that is neither `flaky:` nor `untriaged:` (`adapter:`,
   `mock gap:`, ...); a move between triaged reasons, or from `flaky:` or
   `untriaged:` to a stronger category, is allowed.
 - A `flaky:` entry is never skipped: the generated replay test runs it three
-  times and fails when none of them is green (the file-guard requires each
-  `generated_replay_test.go` to declare `const flakyRuns = 3` and to run a
-  `flaky:` entry through `replayUntilGreen`).
+  times and fails when none of them is green.
 
 ## Source
 
