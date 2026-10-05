@@ -17,7 +17,17 @@ func jsonLine(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
 // toolFrame is a tool_call frame: the call's kind and args, and, once it has
 // ended, its result.
 func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]any, contexts []any) []byte {
-	body := map[string]any{"args": c.Args}
+	args := c.Args
+	switch c.Kind {
+	case "grepToolCall", "deleteToolCall", "mcpToolCall", "getMcpToolsToolCall":
+		// these tools' args name their own call (recorded: runs/hook-matchers-grep-delete,
+		// runs/hook-matchers-mcp)
+		args = map[string]any{"toolCallId": id}
+		for k, v := range c.Args {
+			args[k] = v
+		}
+	}
+	body := map[string]any{"args": args}
 	if result != nil {
 		body["result"] = result
 	}

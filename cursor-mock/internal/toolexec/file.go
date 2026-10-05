@@ -2,6 +2,7 @@ package toolexec
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -63,7 +64,7 @@ func read(c Call, dir string) Result {
 	return Result{
 		Frame: map[string]any{"success": map[string]any{
 			"content": content, "isEmpty": content == "", "exceededLimit": false, "totalLines": total, "fileSize": len(content),
-			"path": path, "readRange": map[string]any{"startLine": 1, "endLine": total},
+			"path": filepath.Clean(path), "readRange": map[string]any{"startLine": 1, "endLine": total}, // the result names the file resolved; the hooks, as given (recorded: runs/no-add-dir-access)
 			"relatedCursorRulePaths": []string{}, "relatedCursorRules": []string{},
 		}},
 		Read: &ReadFile{path, content},
