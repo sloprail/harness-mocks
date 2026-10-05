@@ -59,6 +59,25 @@ func recordedCalls(t *testing.T) []toolspec.Recorded {
 	return calls
 }
 
+// spawnCalls are the spawn_agent calls a rollout holds as function calls (the
+// others are in the model's JavaScript, which the replay adapter reads).
+func spawnCalls(t *testing.T, rollout []byte) []toolspec.Recorded {
+	var out []toolspec.Recorded
+	for _, line := range strings.Split(string(rollout), "\n") {
+		var rec struct {
+			Payload struct {
+				Type, Name, Arguments string
+			} `json:"payload"`
+		}
+		var in map[string]any
+		if json.Unmarshal([]byte(line), &rec) == nil && rec.Payload.Type == "function_call" && rec.Payload.Name == agentTool &&
+			json.Unmarshal([]byte(rec.Payload.Arguments), &in) == nil {
+			out = append(out, toolspec.Recorded{Tool: agentTool, Input: in})
+		}
+	}
+	return out
+}
+
 // Every tool and parameter the schema declares is one a recorded run shows the
 // model use, and every call a recording shows of a declared tool is one the mock
 // can play or Codex itself answers (adr/tool-calls-validated). apply_patch is
@@ -68,12 +87,14 @@ func TestTheSchemaIsGroundedInTheRecordings(t *testing.T) {
 	var problems []string
 	patched := false
 	rollouts, _ := filepath.Glob(filepath.Join(runs, "*", "samples", "*", "transcript", "rollout-*.jsonl"))
+	calls := recordedCalls(t)
 	for _, f := range rollouts {
 		b, err := os.ReadFile(f)
 		require.NoError(t, err)
 		patched = patched || strings.Contains(string(b), "tools.apply_patch(")
+		calls = append(calls, spawnCalls(t, b)...)
 	}
-	for _, p := range Schema().Ungrounded(recordedCalls(t)) {
+	for _, p := range Schema().Ungrounded(calls) {
 		if patched && strings.Contains(p, "tool "+patchTool+" is declared") {
 			continue
 		}
