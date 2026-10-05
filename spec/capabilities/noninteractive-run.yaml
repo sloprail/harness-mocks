@@ -25,8 +25,9 @@ providers:
     deviations:
       - adr: modeled-surface
         statement: >-
-          The mock refuses -o/--output-last-message, --output-schema and the
-          other flags it implements nothing of (adr fail-fast-unimplemented):
+          The mock refuses -o/--output-last-message, --output-schema,
+          --ignore-user-config, --ignore-rules, the deprecated --full-auto and
+          the other flags it implements nothing of (adr fail-fast-unimplemented):
           it has no model, so the final message is the scenario's own, not
           shaped by a schema (the real run's message conforms to it and the
           stream is otherwise unchanged, as recorded in

@@ -16,6 +16,7 @@ func TestUnimplementedFlagsAreRefused(t *testing.T) {
 		{"--enable", "multi_agent_v2"}, {"--disable", "multi_agent_v2"},
 		{"--output-schema", "schema.json"}, {"-o", "last.txt"}, {"--ephemeral"},
 		{"--sandbox", "read-only"}, {"--profile", "p"}, {"--color", "never"},
+		{"--ignore-user-config"}, {"--ignore-rules"}, {"--strict-config"}, {"--approve-for-me"}, {"--thread-source", "x"},
 		{"-c", "model_reasoning_effort=high"},
 	} {
 		t.Run(args[0], func(t *testing.T) {
@@ -25,4 +26,13 @@ func TestUnimplementedFlagsAreRefused(t *testing.T) {
 			assert.Empty(t, r.hookLog(), "nothing ran")
 		})
 	}
+}
+
+// --full-auto, the deprecated compatibility flag the docs name, is a flag the mock does not know at
+// all: refused as unknown, not accepted.
+func TestFullAutoIsRefused(t *testing.T) {
+	r := execIn(t, t.TempDir(), "--skip-git-repo-check", "--full-auto", "go")
+	assert.NotZero(t, r.Code)
+	assert.Contains(t, r.Stderr, "unknown flag: --full-auto")
+	assert.Empty(t, r.hookLog(), "nothing ran")
 }

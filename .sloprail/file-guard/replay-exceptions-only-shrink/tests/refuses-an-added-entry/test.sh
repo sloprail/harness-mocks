@@ -13,6 +13,8 @@ BASE=$(git rev-parse HEAD)
 printf 'package e2e\n\nvar notReplaying = map[string]string{\n\t"run-a": "adapter: x",\n\t"run-b": "untriaged: y",\n\t"run-c": "untriaged: z",\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "add an entry"
 
-sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 || true
+set +e
+sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1
+set -e
 jq -es 'any(.[]; .kind=="FileGuardChecked" and .rule=="replay-exceptions-only-shrink" and .outcome=="refused" and (.reason|contains("run-c")))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; echo "the added entry run-c was not refused by replay-exceptions-only-shrink" >&2; exit 1; }

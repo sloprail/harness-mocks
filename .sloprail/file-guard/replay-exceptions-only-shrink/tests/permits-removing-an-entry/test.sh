@@ -15,6 +15,8 @@ git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b replays"
 printf 'package e2e\n\nvar notReplaying = map[string]string{\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-a replays"
 
-sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 || true
-jq -es 'any(.[]; .kind=="FileGuardChecked" and .rule=="replay-exceptions-only-shrink" and .outcome=="passed") and (any(.[]; .rule=="replay-exceptions-only-shrink" and .outcome=="refused")|not)' "$SR_EVENTS_FILE" >/dev/null ||
+set +e
+sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1
+set -e
+jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="replay-exceptions-only-shrink")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; echo "a shrinking list was not passed by replay-exceptions-only-shrink" >&2; exit 1; }
