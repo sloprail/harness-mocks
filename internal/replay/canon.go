@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 )
 
@@ -16,6 +17,10 @@ import (
 type Rules struct {
 	// DropKeys are object keys removed wherever they occur (a timestamp, a token count).
 	DropKeys []string
+	// MaskKeys are object keys whose value differs per run but whose presence is
+	// behaviour (a transcript path, a token count): the key stays, its value is
+	// replaced by <key>, so a payload that lacks it is a difference.
+	MaskKeys []string
 	// Scrub rewrites every string value (a path, a pid, a duration).
 	Scrub []Scrub
 	// Rewrite changes the string value of the named key wherever it occurs (a
@@ -77,6 +82,10 @@ func (c *canon) walk(v any) any {
 				if k == d {
 					continue next
 				}
+			}
+			if slices.Contains(c.r.MaskKeys, k) {
+				out[c.str(k)] = "<" + k + ">"
+				continue
 			}
 			if fn := c.r.Rewrite[k]; fn != nil {
 				if str, ok := e.(string); ok {

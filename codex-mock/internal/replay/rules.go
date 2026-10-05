@@ -11,14 +11,16 @@ import (
 func Rules(repo, root string) rp.Rules {
 	re := regexp.MustCompile
 	return rp.Rules{
-		DropKeys: []string{
+		// what differs in every run but is there in every run: the key is compared, its value is not
+		MaskKeys: []string{
 			"usage",                  // token counts: the mock has no model
 			"model",                  // gpt-5.6-luna against the mock's name
-			"transcript_path",        // where the rollout is kept: a path
-			"cwd",                    // the run's directory: a path
+			"transcript_path",        // where the rollout is kept: a path with the time and the thread id in it
+			"agent_transcript_path",  // a sub-agent's
 			"turn_id", "tool_use_id", // ids that differ in every run
 			"wall_time_seconds", "duration_ms", // timings
-			"agent_transcript_path",
+		},
+		DropKeys: []string{
 			"script", // the mock's own spawn_agent parameter: the sub-agent's script
 		},
 		Rewrite: map[string]func(string) string{
