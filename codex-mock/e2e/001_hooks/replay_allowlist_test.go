@@ -45,5 +45,4 @@ var notReplaying = map[string]string{
 	"subagent-worktree-isolation":                 "untriaged: the replay differs from the recording (hook payloads: recording 4 lines, mock 3, first difference at line 1)",
 	"subprocess-session-env":                      "untriaged: the replay differs from the recording (event stream: recording 8 lines, mock 8, first difference at line 5)",
 	"task-stream-frames":                          "adapter: the model called tools.write_stdin: the adapter maps exec_command and spawn_agent",
-	"user-prompt-submit-hook-bg":                  "untriaged: the replay differs from the recording (event stream: recording 7 lines, mock 8, first difference at line 6)",
 }
