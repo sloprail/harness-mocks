@@ -64,6 +64,7 @@ inject() {
   run_rule; expect_refused "$1" "$2"
 }
 RULE=module-leaks
+# (expect_passed and expect_refused above select the events of this rule by its literal name, as rule-tests-rigorous requires)
 # the judge is a mock that passes: what is under test is what feeds it (subjects.sh, find-leaks.sh, leaks-lib.sh).
 # subjects.sh runs first and leaks-lib.sh's setup is the same in both scripts, so a failure there is reported by
 # the first one that makes it

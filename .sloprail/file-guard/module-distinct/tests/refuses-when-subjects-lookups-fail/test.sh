@@ -64,6 +64,7 @@ inject() {
   run_rule; expect_refused "$1" "$2"
 }
 RULE=module-distinct
+# (expect_passed and expect_refused above select the events of this rule by its literal name, as rule-tests-rigorous requires)
 # the judge is a mock that passes: what is under test is what feeds it (subjects.sh, which runs first)
 export SR_CHECKS_JUDGE_MOCKS='{"file-guard/module-distinct/distinct-concern":"'"$SR_TEST_CASE_DIR"'/judge.sh"}'
 mkdir -p internal/a internal/b
