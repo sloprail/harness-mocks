@@ -26,8 +26,6 @@ var notReplaying = map[string]string{
 	"noninteractive-run-output-schema":           "adapter: the setup has args, which the adapter does not install",
 	"noninteractive-run-text-output":             "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
 	"plugin-hooks":                               "adapter: the setup has prepare.sh, which the adapter does not install",
-	"session-fork":                               "adapter: the setup has then-01-args, which the adapter does not install",
-	"session-resume":                             "adapter: the setup has then-01-args, which the adapter does not install",
 	"session-resume-unknown":                     "adapter: the setup has args, which the adapter does not install",
 	"session-start-compact-continue-false":       "adapter: the setup has args, which the adapter does not install",
 	"subagent-stop-block-loop-cap":               "adapter: the model called wait: the adapter maps only exec",

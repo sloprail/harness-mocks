@@ -21,6 +21,16 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
+	// Then are the later runs of the harness (a resume, a fork), each with its own script.
+	Then []ThenStep
+}
+
+// ThenStep is a later run of the harness: its words, directory, prompt and script.
+type ThenStep struct {
+	Args   []string
+	Cwd    string
+	Prompt string
+	Script string
 }
 
 // scriptsDir stands, in the scenario's calls, for the directory the sub-agents'
@@ -66,7 +76,7 @@ func Denormalize(rec core.Recording) Scenario {
 				subCalls[j] = mockCall(sc)
 				subCalls[j].Gate = subGates[j]
 			}
-			scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), subCalls, c.Sub.Final, c.Sub.Unfinished, subGates[len(subCalls)])
+			scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), 0, subCalls, c.Sub.Final, c.Sub.Unfinished, subGates[len(subCalls)])
 			calls[i].Input["script"] = scriptsDir + "/" + name
 			n++
 		}
@@ -75,7 +85,8 @@ func Denormalize(rec core.Recording) Scenario {
 		HooksJSON: rec.Setup["hooks.json"],
 		Files:     files,
 		Scripts:   scripts,
-		Script:    scriptFor("main", calls, rec.Agent.Final, false, mainGates[len(calls)]),
+		Script:    scriptFor("main", 0, calls, rec.Agent.Final, false, mainGates[len(calls)]),
+		Then:      thenScenario(rec),
 		Prompt:    rec.Prompt,
 	}
 }
