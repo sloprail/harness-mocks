@@ -97,3 +97,45 @@ scenario; inject_exact 'length'
 expect_refused "the subject count fails" "the prepared subjects could not be counted, so nothing could be handed to the judge"
 scenario; inject '{additionalContext: {subjects: .}}'
 expect_refused "the output write fails" "the prepared subjects could not be written, so nothing could be handed to the judge"
+
+# The lookups the CI path cannot reach on its own: subjects.sh runs first and would refuse first for a failure
+# it shares, so inputs-ready.sh and prepare.sh are run as the engine runs them, over the payload
+# `sr-checks changeset` prints for the subject, in the rule's own environment. A refusal is {"reason"} on stdout.
+# The failures: the touched pairs (rigor_pairs), the capability markers (their jq read) and the diff of a
+# modified file that carries a marker (a git shim: a diff that cannot be had is not "no changed lines").
+git checkout -q -b direct "$BASE"
+mkdir -p internal
+printf 'package core\n\n// sr:capability c\nfunc C() {}\n' >internal/c.go
+git add -A && git commit -q -m "c, with its marker" && DBASE=$(git rev-parse HEAD)
+printf 'package core\n\n// sr:capability c\nfunc C() { _ = 1 }\n' >internal/c.go
+git add -A && git commit -q -m "c's declaration changes"
+sr-checks changeset --rule capability-rigor --base "$DBASE" --head HEAD | jq -c '.subjects[0].payload' >direct.payload
+jq -e '.changeset.files | length > 0' direct.payload >/dev/null || { echo "no payload for the direct scripts" >&2; exit 1; }
+printf '#!/bin/bash\ncase " $* " in *" diff "*) [ -n "${SHIM_GIT_DIFF_FAIL:-}" ] && exit 5 ;; esac\nexec "%s" "$@"\n' "$(command -v git)" >shim/git
+chmod +x shim/git
+direct() {   # SCRIPT [ENV=VALUE...] — the script over the payload; its stdout is left in $out, its status in $rc
+  local s="$1"; shift
+  out="$(cd .sloprail/file-guard/capability-rigor && env "$@" SR_TREE="$OLDPWD" SR_GUARDRAIL_DIR="$PWD" bash "./$s" <"$OLDPWD/direct.payload")" && rc=0 || rc=$?
+}
+expect_direct_refused() {   # LABEL SUBSTRING
+  [ "$rc" -ne 0 ] && printf '%s' "$out" | jq -e --arg s "$2" '.reason | contains($s)' >/dev/null ||
+    { echo "$1: not refused with a reason saying '$2' (exit $rc): $out" >&2; exit 1; }
+}
+direct inputs-ready.sh SHIM_JQ_FAIL=
+[ "$rc" -eq 0 ] || { echo "control: inputs-ready.sh refused a ready input: $out" >&2; exit 1; }
+direct prepare.sh SHIM_JQ_FAIL=
+[ "$rc" -eq 0 ] && printf '%s' "$out" | jq -e '.additionalContext.subjects[0].id == "c/claude"' >/dev/null ||
+  { echo "control: prepare.sh did not hand the judge the pair (exit $rc): $out" >&2; exit 1; }
+
+for s in inputs-ready.sh prepare.sh; do
+  case "$s" in
+    inputs-ready.sh) tail_reason="so the judge's inputs could not be checked" ;;
+    prepare.sh) tail_reason="so nothing could be prepared for the judge" ;;
+  esac
+  direct "$s" "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=select($want == "" or .id == $want)' SHIM_JQ_IN=capability-rigor SHIM_JQ_COUNT="$TMPDIR/direct.count"
+  expect_direct_refused "$s: the pairs lookup fails" "the touched capability pairs could not be worked out, $tail_reason"
+  direct "$s" "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=(.newMarkers // [])' SHIM_JQ_IN=capability-rigor SHIM_JQ_COUNT="$TMPDIR/direct.count"
+  expect_direct_refused "$s: the markers read fails" "the capability markers this change touches could not be worked out, $tail_reason"
+  direct "$s" "PATH=$PWD/shim:$PATH" SHIM_JQ_FAIL= SHIM_GIT_DIFF_FAIL=1
+  expect_direct_refused "$s: the diff of a changed file fails" "the capability markers this change touches could not be worked out, $tail_reason"
+done
