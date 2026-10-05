@@ -28,6 +28,7 @@ providers:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/file-tools
+      - cursor-mock/snapshots/runs/subagent-lifecycle-hooks
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -42,12 +43,15 @@ providers:
           sessionStart and in the first events, until the conversation's
           transcript file exists. The mock does the same (recorded:
           runs/tool-failure, runs/file-tools, runs/pretool-refusal).
-      - adr: modeled-surface
-        kind: mock-not-modeled
+      - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
-          The mock has no sub-agents (no Task tool and no subagentStart or
-          subagentStop event), so the payload fields that name a sub-agent are not
-          modeled.
+          Cursor names a sub-agent on an event raised inside it only by that
+          event's own session_id and conversation_id (the sub-agent's, not the
+          main agent's, as in a Shell call's preToolUse and postToolUse payloads):
+          no field names the sub-agent, its type or its parent, and in print mode
+          neither subagentStart nor subagentStop fires for the Task call (recorded:
+          runs/subagent-lifecycle-hooks). The mock does the same.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
