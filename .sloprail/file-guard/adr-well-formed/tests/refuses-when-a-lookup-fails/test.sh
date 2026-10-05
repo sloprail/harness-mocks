@@ -89,3 +89,10 @@ shim has additionalContext
 PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 jq -es --arg s "the judge's input could not be built" 'any(.[]; .kind=="FileGuardChecked" and .rule=="adr-well-formed" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: adr-well-formed did not refuse with a reason saying 'the judge's input could not be built' (sr-checks exit $ran)" >&2; exit 1; }
+
+# and for the count of the changed ADRs (the same engine path, one more lookup)
+shim is length
+: >"$SR_EVENTS_FILE"
+PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es --arg s "the changed ADRs could not be counted, so none could be judged" 'any(.[]; .kind=="FileGuardChecked" and .rule=="adr-well-formed" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: adr-well-formed did not refuse with a reason saying 'the changed ADRs could not be counted, so none could be judged' (sr-checks exit $ran)" >&2; exit 1; }
