@@ -41,16 +41,15 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          Cursor does not settle when the payload first names the transcript:
-          the payload's transcript_path is null at sessionStart and on the first
-          preToolUse in every capture and names the file from the first
-          command's afterShellExecution on (recorded: runs/symlinked-cwd,
-          runs/tool-failure), but between the first preToolUse and the first command's
-          afterShellExecution, the first beforeShellExecution names the file in
-          some captures (recorded: runs/tool-failure, runs/symlinked-cwd) and
-          carries null in others (recorded: runs/shell-exit-status,
-          runs/hook-json-nonzero). The mock names it from the first
-          beforeShellExecution on, one of the two recorded behaviours.
+          Cursor does not settle when the payload first names the transcript.
+          Its transcript_path is null at sessionStart and on the first
+          preToolUse in every capture, and names the file from the first
+          command's afterShellExecution on; in between, the first
+          beforeShellExecution names it in some captures (recorded:
+          runs/tool-failure, runs/symlinked-cwd) and carries null in others
+          (recorded: runs/shell-exit-status, runs/hook-json-nonzero). The mock
+          names it from the first beforeShellExecution on, one of the two
+          recorded behaviours.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
