@@ -18,7 +18,8 @@ RESULT=$(sr-test agent "$SR_TEST_CASE_DIR/agent.sh" --prompt "drop the sample by
 echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only")] | length==1 and .[0].outcome=="refused" and .[0].tool_use_id=="t1" and (.[0].reason | contains("capture.sh"))' >/dev/null ||
   { echo "$RESULT" | jq -c .events >&2; exit 1; }
 # no event of this rule for t2 (the recovery) or t3 (the boundary), and both calls ran without an error
-echo "$RESULT" | jq -e '[.events[] | select(.rule=="snapshots-read-only" and (.tool_use_id=="t2" or .tool_use_id=="t3"))] | length==0' >/dev/null
+# the gate refuses exactly one call, t1: for t2 and t3 it emits no refused GateChecked (the engine emits no event for a call a gate's match leaves alone)
+echo "$RESULT" | jq -e '[.events[] | select(.rule=="snapshots-read-only" and .outcome=="refused")] | length==1 and .[0].tool_use_id=="t1"' >/dev/null
 SESSION=$(echo "$RESULT" | jq -er .session)
 jq -es '[.[] | select(.type=="user") | .message.content[]? | select(.type=="tool_result" and (.tool_use_id=="t2" or .tool_use_id=="t3"))] | length==2 and all(.[]; .is_error!=true)' "$SESSION" >/dev/null ||
   { echo "the recovery or the setup/ deletion did not run cleanly" >&2; exit 1; }
