@@ -65,3 +65,12 @@ providers:
           A conversation resumed by its id (`--resume`) fires no sessionStart
           hook in cursor-agent, and the mock does the same
           (recorded: runs/session-resume).
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor's sessionStart payload does not say how the session began: it
+          has no source or start-kind field, only the common fields and
+          is_background_agent (the hooks doc, #sessionstart, lists none, and
+          the recorded payloads carry none: runs/session-start-block,
+          runs/session-start-continue-false, runs/session-resume). The mock
+          does the same.
