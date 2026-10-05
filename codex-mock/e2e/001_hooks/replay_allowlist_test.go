@@ -31,7 +31,6 @@ var notReplaying = map[string]string{
 	"session-resume":                             "adapter: the setup has then-01-args, which the adapter does not install",
 	"session-resume-unknown":                     "adapter: the setup has args, which the adapter does not install",
 	"session-start-compact-continue-false":       "adapter: the setup has args, which the adapter does not install",
-	"stops":                                      "untriaged: the replay differs from the recording (event stream: recording 11 lines, mock 11, first difference at line 8)",
 	"subagent-stop-block-loop-cap":               "adapter: the model called wait: the adapter maps only exec",
 	"subagent-transcripts-v2":                    "adapter: the setup has args, which the adapter does not install",
 	"task-stream-frames":                         "adapter: the model called tools.write_stdin: the adapter maps exec_command and spawn_agent",
