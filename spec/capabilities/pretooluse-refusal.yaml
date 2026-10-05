@@ -51,8 +51,8 @@ providers:
           The mock models a non-interactive run with no one to ask, so a hook's
           "ask" (a permission prompt) decides nothing in the mock; it only ranks
           below deny when several hooks decide one call. The call-refusing
-          hooks the mock fires are preToolUse and beforeShellExecution;
-          beforeMCPExecution, beforeReadFile and subagentStart, which refuse
+          hooks the mock fires are preToolUse, beforeShellExecution and
+          beforeReadFile; beforeMCPExecution and subagentStart, which refuse
           too, are not modeled.
       - adr: modeled-surface
         kind: mock-not-modeled
