@@ -23,6 +23,11 @@ func newReplay() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if print, _ := cmd.Flags().GetBool("print-script"); print {
 				s, err := replay.Script(args[0])
+				var u *replay.Unbuildable
+				if errors.As(err, &u) {
+					fmt.Fprintf(cmd.OutOrStdout(), "not replayable: %s\n", u.Reason)
+					os.Exit(2)
+				}
 				if err != nil {
 					return err
 				}
