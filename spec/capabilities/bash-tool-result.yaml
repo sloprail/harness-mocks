@@ -15,15 +15,6 @@ providers:
       - claude-mock/snapshots/runs/bashfail
       - claude-mock/snapshots/runs/stops
   codex:
-    notes:
-      - >-
-        Codex does not make a failed command an error result for the agent: what it
-        is told is the command's output alone, the same text a success would have,
-        with no exit code stated and none marked as an error (recorded:
-        runs/shell-exit-status). The failure is shown only in the event stream's
-        command_execution item, whose status is "failed" and whose exit_code and
-        aggregated_output carry the exit status and what the command printed, and
-        the mock does the same.
     docs:
       - https://developers.openai.com/codex/hooks#posttooluse
     runs:

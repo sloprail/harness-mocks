@@ -16,16 +16,6 @@ providers:
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/cap-sub
   codex:
-    notes:
-      - >-
-        Codex's event stream has no task frames: no start, update or notification
-        frame of its own, and a shell command is never a task (a command started "in
-        the background" ran as an ordinary command_execution item). Only a sub-agent
-        is announced, by the collab_tool_call item of the spawn_agent call (started,
-        then completed naming the sub-agent's thread, its state pending_init), and
-        its status and end are told only in the item completing a wait on it, as its
-        state ("completed") with its answer as the message (recorded:
-        runs/task-stream-frames). The mock does the same.
     docs:
       - https://developers.openai.com/codex/noninteractive#make-output-machine-readable
     runs:
@@ -40,17 +30,6 @@ providers:
           wait call, and a sub-agent running while the agent does something
           else, are not modelled.
   cursor:
-    notes:
-      - >-
-        Cursor's stream-json has no task_started or task_updated frame: a sub-agent
-        and a background command are announced by the tool_call frames of the call
-        that launched them (taskToolCall started, then completed with the
-        sub-agent's final reply; shellToolCall completed at once with isBackground
-        and the task's shellId), and only the end of a background command is a frame
-        of its own, a system task_notification frame with the task's id, a status
-        ("success" when it exited 0) and its title (recorded:
-        runs/task-stream-frames). A sub-agent has no notification frame. The mock
-        does the same for a background command.
     docs:
       - https://cursor.com/docs/cli/headless#real-time-progress-tracking
     runs:

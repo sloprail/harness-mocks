@@ -3,10 +3,6 @@ statement: >-
   refused with an input-validation error, and nothing runs.
 providers:
   claude:
-    notes:
-      - >-
-        Claude requires a description and a prompt, and refuses a call lacking
-        either with an input-validation error before any hook runs.
     docs:
       - https://code.claude.com/docs/en/tools-reference#agent-tool-behavior
     runs:
@@ -14,14 +10,6 @@ providers:
       - claude-mock/snapshots/runs/agent-invalid-description
       - claude-mock/snapshots/runs/tool-invalid-input
   codex:
-    notes:
-      - >-
-        Codex does not refuse the dispatch (spawn_agent) before any hook runs: the
-        PreToolUse hook fires with the call as the agent made it, even an empty one,
-        and only then is the call refused with "Provide one of: message or items".
-        Nothing runs after that: no sub-agent starts and no PostToolUse hook fires
-        (recorded: runs/agent-input-validation). What it requires is a message or a
-        list of items, not a description and a prompt.
     docs:
       - https://developers.openai.com/codex/hooks#pretooluse
     runs:
@@ -35,14 +23,6 @@ providers:
           spawn_agent, and it runs no sub-agent: a complete dispatch passes
           the check, fires its hooks, and is answered as an error.
   cursor:
-    notes:
-      - >-
-        Cursor's Task call requires only a prompt: a call without a description is
-        not refused but runs with the description empty (recorded:
-        runs/agent-input-validation-description). A call without its prompt is
-        refused with "Invalid arguments:" and "prompt: Required" before any hook
-        (not even preToolUse) fires, and nothing runs (recorded:
-        runs/agent-input-validation).
     docs:
       - https://cursor.com/docs/hooks#pretooluse
     runs:
