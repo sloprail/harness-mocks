@@ -1,6 +1,9 @@
 package e2e
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -61,6 +64,48 @@ func TestABeforeReadFileHookThatRefusesBlocksTheRead(t *testing.T) {
 	for _, o := range []observed{want, got} {
 		require.Equal(t, []string{"tool_call/completed/readToolCall/error", "tool_call/completed/readToolCall/error", "tool_call/completed/readToolCall/error", "tool_call/completed/readToolCall/success", "tool_call/completed/readToolCall/error", "tool_call/completed/readToolCall/error"}, completedReads(o.frames))
 	}
+}
+
+// readErrors are the error messages of the read calls' completed frames in a
+// stream (the text the agent is given for a blocked read), in order.
+func readErrors(stream, ws string) (out []string) {
+	for _, l := range strings.Split(stream, "\n") {
+		var f struct {
+			Subtype  string
+			ToolCall struct {
+				Read struct {
+					Result struct{ Error struct{ ErrorMessage string } }
+				} `json:"readToolCall"`
+			} `json:"tool_call"`
+		}
+		if json.Unmarshal([]byte(l), &f) == nil && f.Subtype == "completed" && f.ToolCall.Read.Result.Error.ErrorMessage != "" {
+			msg := f.ToolCall.Read.Result.Error.ErrorMessage
+			if ws != "" {
+				msg = strings.ReplaceAll(msg, ws, "<RUN>")
+			}
+			out = append(out, msg)
+		}
+	}
+	return out
+}
+
+// TestABlockedReadTellsTheAgentWhatTheFailureHookIsTold: recorded, the text the
+// agent gets for a blocked read (the error of the read's completed frame) is
+// the failure hook's error_message, word for word, for each way of blocking.
+// sr:proves file-tools/cursor
+func TestABlockedReadTellsTheAgentWhatTheFailureHookIsTold(t *testing.T) {
+	got, want := replay(t, "before-read-refusal")
+	recorded, err := os.ReadFile(filepath.Join(newestSample(t, "before-read-refusal"), "stream.jsonl"))
+	require.NoError(t, err)
+	var hooked []string
+	for _, h := range want.hooks {
+		if h["hook_event_name"] == "postToolUseFailure" {
+			hooked = append(hooked, h["error_message"].(string))
+		}
+	}
+	require.Len(t, hooked, 5)
+	require.Equal(t, hooked, readErrors(string(recorded), ""), "recorded")
+	require.Equal(t, hooked, readErrors(got.stdout, got.ws), "mock")
 }
 
 func completedReads(frames []string) (out []string) {
