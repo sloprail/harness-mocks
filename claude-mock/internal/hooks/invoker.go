@@ -1,9 +1,9 @@
 package hooks
 
 import (
-	"sync"
 	"time"
 
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/session"
 )
 
@@ -45,33 +45,16 @@ type Invoker struct {
 
 	// turn is the user prompt the session is on, shared with every invoker of a
 	// sub-agent run inside it; permissionMode is what the session runs in.
-	turn           *Turn
+	turn           *corehooks.Turn
 	permissionMode string
-}
-
-// Turn is the user prompt a session is on: it gets a new id when a
-// UserPromptSubmit fires, and every later event carries it.
-type Turn struct {
-	mu sync.Mutex
-	id string
-}
-
-func (t *Turn) begin() string {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.id = session.NewID()
-	return t.id
-}
-
-func (t *Turn) current() string {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	return t.id
 }
 
 // Turn is the prompt this invoker's events belong to; a sub-agent's invoker
 // is given the session's (SetTurn).
 func (inv *Invoker) Turn() *Turn { return inv.turn }
+
+// EnsureTurn puts the session on a prompt when it is on none (a compaction).
+func (inv *Invoker) EnsureTurn() { inv.turn.Ensure(session.NewID) }
 
 // SetTurn makes the invoker share the prompt state of the session it runs inside.
 func (inv *Invoker) SetTurn(t *Turn) { inv.turn = t }
@@ -80,14 +63,6 @@ func (inv *Invoker) SetTurn(t *Turn) { inv.turn = t }
 // ("bypassPermissions" for a run with --dangerously-skip-permissions).
 // sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
 func (inv *Invoker) SetPermissionMode(mode string) { inv.permissionMode = mode }
-
-// turnEvents are the events that carry permission_mode: the ones about a turn
-// of the conversation, not a session's or a sub-agent's start and end, nor a
-// compaction (recorded: snapshots/runs/bgagent, compact).
-var turnEvents = map[EventName]bool{
-	EventUserPromptSubmit: true, EventPreToolUse: true, EventPostToolUse: true,
-	EventPostToolUseFailure: true, EventStop: true, EventSubagentStop: true,
-}
 
 // SetProjectDir sets the project root every command hook is told as
 // CLAUDE_PROJECT_DIR (docs, Reference scripts by path).
@@ -119,33 +94,6 @@ func (inv *Invoker) WithRecorder(fn func(Input, []HandlerRun)) *Invoker {
 // SetRecorder installs the function every fired event's handler runs are handed
 // to, after the handlers have run. See HandlerRun.
 func (inv *Invoker) SetRecorder(fn func(Input, []HandlerRun)) { inv.recorder = fn }
-
-// HandlerRun is what one hook handler did, in the terms real Claude Code
-// records it in a transcript's hook attachment: its command, its streams, its
-// exit code and how long it took. Blocked is an exit 2.
-type HandlerRun struct {
-	Command    string
-	Stdout     string
-	Stderr     string
-	ExitCode   int
-	DurationMs int64
-	Blocked    bool
-	Output     Output
-	// JSONParsed: stdout was a JSON object the mock read; on a non-blocking
-	// exit status it then decides, not the status (docs, "Other exit codes").
-	// JSONError: stdout looked like JSON but did not parse or validate.
-	JSONParsed bool
-	JSONError  string
-	// BlockReason is the blocking reason a blocked handler's JSON gave.
-	BlockReason string
-	// TimedOut: its timeout cancelled it (TimeoutMs is the limit); its output
-	// is discarded.
-	TimedOut  bool
-	TimeoutMs int64
-	// HTTPError: an HTTP hook that failed or answered what cannot be read,
-	// a non-blocking error.
-	HTTPError string
-}
 
 // NewInvoker creates an Invoker backed by the given settings. Every command hook
 // runs with three Claude-Code environment variables the real CLI sets on each

@@ -4,7 +4,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/subagents"
 	coretools "github.com/sloprail/harness-mocks/internal/tools"
 )
@@ -103,16 +102,7 @@ type Config struct {
 	// response, and its receipts say so (the 2.1.282 Bash tool's
 	// backgroundEndsWithFinalResponse).
 	SyncSubagent bool
-
-	// PermissionMode is the permission_mode the hooks about a turn are told:
-	// "bypassPermissions" for --dangerously-skip-permissions, else the
-	// --permission-mode given, else "default".
-	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
-	PermissionMode string
-	// Turn is the user prompt the session is on, shared with the sub-agent runs
-	// inside it; the root run makes it.
-	Turn *hooks.Turn
-
+	Prompting    // what hook payloads tell of the prompt the session is on
 	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
 	// after its final turn; zero waits without a limit.
 	BgWaitCeiling time.Duration
