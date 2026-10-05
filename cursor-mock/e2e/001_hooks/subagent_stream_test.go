@@ -113,6 +113,7 @@ func TestASubAgentsEventsCarryItsOwnSessionIdAndNoFieldNamingIt(t *testing.T) {
 			if p["hook_event_name"] == "afterAgentThought" || p["hook_event_name"] == "BackgroundTick" {
 				continue
 			}
+			assert.NotContains(t, []any{"subagentStart", "subagentStop"}, p["hook_event_name"], "%s: neither fires for the Task call in print mode", name)
 			assert.Equal(t, p["session_id"], p["conversation_id"], "%s: %v", name, p["hook_event_name"])
 			for k := range p {
 				assert.NotContains(t, strings.ToLower(k), "subagent", "%s: %s", name, k)

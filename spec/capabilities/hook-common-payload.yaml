@@ -65,8 +65,9 @@ providers:
         statement: >-
           Doc and recording conflict: the hooks doc (its event list, #subagentstart,
           #subagentstop) lists "subagentStart / subagentStop - Subagent (Task
-          tool) lifecycle" events whose payloads carry subagent_type and
-          parent_conversation_id, and the recording shows neither firing for the
+          tool) lifecycle" events, subagentStart carrying subagent_type and
+          parent_conversation_id and subagentStop carrying subagent_type and
+          agent_transcript_path, and the recording shows neither firing for the
           Task call in print mode, though the run's hooks.json registers both
           (runs/subagent-lifecycle-hooks). The recording decides.
       - adr: modeled-surface
