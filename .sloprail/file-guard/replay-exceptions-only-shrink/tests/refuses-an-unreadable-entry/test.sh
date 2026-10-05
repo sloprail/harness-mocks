@@ -35,6 +35,11 @@ printf 'package e2e\n\nvar notReplaying = map[string]string{"run-a": "adapter: x
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "one-line map"
 refuses "a one-line map" "the notReplaying map could not be found"
 
+# a commented copy of the header beside a one-line real map hides the real entries too
+printf 'package e2e\n\n/*\nvar notReplaying = map[string]string{\n}\n*/\nvar notReplaying = map[string]string{"run-a": "adapter: x", "run-d": "flaky: z"}\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "commented header"
+refuses "a commented header beside a one-line map" "notReplaying must be declared exactly once"
+
 # recovery: one entry per line, and the list only shrank
 printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b replays"
