@@ -15,7 +15,7 @@ func concurrentGroups(objs []map[string]any) []int {
 	prev, n := "", -1
 	for i, o := range objs {
 		if _, isPayload := o["hook_event_name"]; isPayload {
-			k := fmt.Sprint(o["hook_event_name"], "|", o["turn_id"], "|", o["tool_use_id"], "|", o["session_id"], "|", o["agent_id"])
+			k := fmt.Sprint(o["hook_event_name"], "|", o["turn_id"], "|", o["tool_use_id"], "|", o["session_id"], "|", o["agent_id"], "|", o["stop_hook_active"])
 			if k != prev || n < 0 {
 				n++
 			}
