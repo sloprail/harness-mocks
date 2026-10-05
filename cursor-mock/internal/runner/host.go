@@ -16,13 +16,14 @@ func (s *session) SubmitPrompt(context.Context) (string, bool) { return "", fals
 func (s *session) Say(text string) {
 	s.texts = append(s.texts, text)
 	s.tr.text(text)
-	s.forward(assistantFrame(s.id, text))
+	s.pending = append(s.pending, text)
 }
 
 // EndOfTurn fires no hook: cursor-agent in print mode was recorded not firing
 // the stop hook, so nothing blocks the end of the turn. What can continue it is
 // a background shell's end (afterTurn).
 func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
+	s.flushText()
 	if s.owner != "" { // a sub-agent ends with its final response: its parent goes on
 		return "", false
 	}

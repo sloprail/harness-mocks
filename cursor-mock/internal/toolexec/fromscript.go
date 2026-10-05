@@ -34,6 +34,10 @@ func FromScript(name string, input json.RawMessage) Call {
 		if args == nil {
 			args = map[string]any{}
 		}
+		if d, ok := args["__description"]; ok { // the model's description of the call: the frame carries it beside the args
+			c.Args["__description"] = d
+			delete(args, "__description")
+		}
 		c.Args["name"], c.Args["args"], c.Args["providerIdentifier"], c.Args["toolName"] = server+"-"+tool, args, server, tool
 		c.Args["smartModeApprovalOnly"], c.Args["skipApproval"], c.Args["serverIdentifier"] = false, false, server
 	case "taskToolCall":

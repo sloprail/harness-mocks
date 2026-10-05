@@ -39,7 +39,7 @@ func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	sub.id, sub.parent = coresession.NewID(), s
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.added, sub.named = nil, nil, false
+	sub.texts, sub.pending, sub.added, sub.named = nil, nil, nil, false
 	var err error
 	if sub.tr, err = newTranscript(s.cfg.Home, s.cfg.Dir, sub.id); err != nil {
 		sub.tr = s.tr

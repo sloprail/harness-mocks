@@ -76,7 +76,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	sub.id, sub.parent = coresession.NewID(), s
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.added, sub.named, sub.owed = nil, nil, false, tasks.Deferred{}
+	sub.texts, sub.pending, sub.added, sub.named, sub.owed = nil, nil, nil, false, tasks.Deferred{}
 	var err error
 	if sub.tr, err = newSubagentTranscript(s.tr, sub.id); err != nil {
 		sub.tr = s.tr
