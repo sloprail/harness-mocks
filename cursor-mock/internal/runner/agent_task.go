@@ -108,7 +108,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	// the sub-agent has given its final response: what it left running ends, before
 	// the parent goes on; the stream reports it only after the parent's next tool
 	// call (recorded: runs/foreground-subagent-bash-ends-with-response)
-	for _, t := range s.registry().EndOfResponse(sub.owner) {
+	for _, t := range s.registry().EndedAtResponse(sub.owner) {
 		s.owed.Hold(notificationFrame(s.id, t))
 	}
 }
