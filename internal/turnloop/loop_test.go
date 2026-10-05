@@ -188,3 +188,46 @@ printf '%s\n' '{"type":"result","result":"done"}'`
 		t.Fatalf("the gate was held after the call was taken: %s", joined)
 	}
 }
+
+// noticeHost has something to tell the agent of from the moment the first call is
+// carried out.
+type noticeHost struct {
+	host
+	pending []string
+}
+
+func (h *noticeHost) Notice() (string, bool) {
+	if len(h.pending) == 0 {
+		return "", false
+	}
+	text := h.pending[0]
+	h.pending = h.pending[1:]
+	return text, true
+}
+func (h *noticeHost) Told(text string) { h.log = append(h.log, "told:"+text) }
+
+// The agent is told of what ended after the last call of a script of the model, not
+// between the calls one script made (More), and when its turn would end it is told
+// instead of the turn ending: no end-of-turn hook runs for that, and it is not a block.
+func TestRunTellsTheAgentWhatEndedAfterAScriptsLastCallAndAtTheTurnsEnd(t *testing.T) {
+	h := &noticeHost{pending: []string{"A", "B", "C"}}
+	body := `n=$(grep -c '^output' "$A10N_MOCK_SESSION_FILE" 2>/dev/null); n=${n:-0}
+case "$n" in
+0) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c0","name":"Bash","input":{}, "more":true}]}}';;
+1) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c1","name":"Bash","input":{}}]}}';;
+*) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' '{"type":"result","result":"done"}';;
+esac`
+	dir := t.TempDir()
+	h.host.sessionLog = filepath.Join(dir, "session")
+	script := filepath.Join(dir, "s.sh")
+	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"prompt", "tool:Bash", "tool:Bash", "told:A", "say:done", "told:B", "say:done", "told:C", "say:done", "stop:done:false"}
+	if !reflect.DeepEqual(h.log, want) {
+		t.Fatalf("log = %v, want %v", h.log, want)
+	}
+}

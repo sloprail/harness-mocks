@@ -27,6 +27,9 @@ type ToolUse struct {
 	ID    string
 	Name  string
 	Input json.RawMessage
+	// More is that another call of the same script of the model follows this one: the
+	// model is not asked again between them, so nothing is told the agent in between.
+	More bool
 }
 
 // Compact is a request of the script to compact the session, naming what
