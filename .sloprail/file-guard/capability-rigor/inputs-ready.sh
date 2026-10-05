@@ -15,7 +15,8 @@ payload="$(cat)"
 load_spec capabilities
 load_markers proves; proves="$MARKERS"
 # loaded here, in this shell: a $(...) loses what a loader sets, and a refusal inside one exits only it
-load_spec capabilities; load_touched; load_touched_markers
+load_spec capabilities; load_touched
+load_touched_markers || refuse "the capability markers this change touches could not be worked out, so the judge's inputs could not be checked"
 
 problems=""
 add() { problems="${problems}- $1"$'\n'; }
@@ -33,7 +34,7 @@ while IFS=$'\t' read -r pair cell _; do
     ls "$SR_TREE/$r"/samples/*/SEAL >/dev/null 2>&1 ||
       add "$pair: $r has no sealed sample: capture it with $h-mock/snapshots/capture.sh run ${r##*/} (file-guard/snapshots-current owns this)"
   done
-  printf '%s\n' "$proves" | awk -F'\t' -v q="$pair" '$2 == q && $1 ~ /_test\.go$/' | grep -q . ||
+  printf '%s\n' "$proves" | awk -F'\t' -v q="$pair" '$2 == q && $1 ~ /_test\.go$/ {ok = 1} END {exit !ok}' ||
     add "$pair: no test carries // sr:proves $pair (file-guard/capability-covered owns this)"
 done <<<"$pairs"
 
