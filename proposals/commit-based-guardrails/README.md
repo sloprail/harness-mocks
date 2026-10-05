@@ -12,7 +12,7 @@ spec/
   invariants/<id>.yaml           statement                                   features: the user's words
   capabilities/<id>.yaml         statement · providers.<harness>: {docs: [full URL#anchor], runs: [repo path]} | false
 <harness>-mock/snapshots/        the real harness, frozen at one version; written ONLY by capture.sh
-  capture.sh                     one per harness: run <scenario> | doc <url> | all (re-capture at the installed version)
+  capture.sh                     one per harness: run <scenario> | all (re-capture at the installed version)
   MANIFEST.yaml                  version · docs: {<page URL>: {version, sha256}}
   docs/<host>/<path>.md          doc pages pulled as markdown (<url>.md), once per page, shared by every capability;
                                  the path is a pure function of the URL: …/docs/en/hooks#x → docs/code.claude.com/docs/en/hooks.md

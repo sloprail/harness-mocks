@@ -15,17 +15,17 @@ while IFS=$'\t' read -r pair cell c; do
   [ -n "$pair" ] || continue
   id="${pair%%/*}"; h="${pair#*/}"
   # Nothing that can grow is inlined: the judge gets paths and reads them.
-  # Runs and tests are in the project; each doc is its frozen page, a local file
-  # (fetched on a miss and checked against the MANIFEST's sha256 by doc_copy; a
-  # page that cannot be had fails this check closed), with the line its cited
-  # section starts at.
+  # Runs and tests are in the project; each doc is its page, a local file (the frozen
+  # copy or, when the page has drifted since, the live one; the doc is read,
+  # never part of the verdict's key; a page that cannot be had fails this check closed), with
+  # the line its cited section starts at.
   runs="[]"; for r in $(jq -r '.runs[]' <<<"$cell"); do
     samples="$(cd "$SR_TREE" && for s in "$r"/samples/*/events.jsonl; do [ -f "$s" ] && printf '%s\n' "$s"; done | jq -R . | jq -sc .)"
     runs="$(jq -c --arg r "$r" --argjson sm "$samples" \
       '. + [{name: ($r | split("/") | last), dir: $r, setup: ($r + "/setup"), samples: $sm}]' <<<"$runs")"; done
   tests="$(printf '%s\n' "$proves" | awk -F'\t' -v q="$id/$h" '$2 == q {print $1}' | sort -u | jq -R . | jq -sc 'map(select(. != ""))')"
   docs="[]"; for ref in $(jq -r '.docs[]' <<<"$cell"); do
-    f="$(doc_copy "$h" "$ref")" || { echo "$DOC_ERROR" >&2; exit 1; }
+    doc_copy_var "$h" "$ref" || { echo "${DOC_ERROR:-could not read the frozen page of $ref}" >&2; exit 1; }; f="$DOC_PATH"
     a="${ref#*#}"; [ "$a" = "$ref" ] && a=""
     line="$(awk -v a="$a" 'a != "" && /^#+ / { t = tolower($0); sub(/^#+ +/, "", t); gsub(/[^a-z0-9 -]/, "", t); gsub(/ /, "-", t); if (t == a) { print NR; exit } }' "$f")"
     docs="$(jq -c --arg r "$ref" --arg p "$f" --arg l "${line:-1}" --arg n "$(wc -l <"$f" | tr -d ' ')" \
