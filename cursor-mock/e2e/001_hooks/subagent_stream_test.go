@@ -70,6 +70,9 @@ func TestASubAgentIsAnnouncedByItsTaskCallFramesAndHasNoFrameOfItsOwn(t *testing
 	want := taskCall(completed)["result"].(map[string]any)["success"].(map[string]any)
 	assert.Equal(t, "PONG", want["conversationSteps"].([]any)[0].(map[string]any)["assistantMessage"].(map[string]any)["text"])
 
+	assert.Equal(t, false, want["isBackground"])
+	assert.NotEmpty(t, want["agentId"])
+
 	frames, _ := subagentRun(t, "task-stream-frames", pongScript)
 	var seen []string
 	var got map[string]any
@@ -198,6 +201,7 @@ func bgStream(t *testing.T, name string, frames []map[string]any) bgStreamOf {
 func TestABackgroundCommandIsAnnouncedByItsCallFramesAndOneNotificationNamingItsShellId(t *testing.T) {
 	rec := bgStream(t, "recording", recordedStream(t, "task-stream-frames"))
 	assert.Equal(t, true, rec.args["isBackground"])
+	assert.Equal(t, "notification", rec.order[len(rec.order)-1], "the notification comes after the calls' ends")
 	assert.EqualValues(t, rec.notification["task_id"], fmt.Sprint(int64(rec.receipt["shellId"].(float64))))
 	assert.Equal(t, "success", rec.notification["status"])
 	assert.Equal(t, rec.args["description"], rec.notification["title"])
