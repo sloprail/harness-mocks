@@ -60,9 +60,10 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 // unify is the unified call of one of codex's tool calls.
 func unify(m jsCall) (core.Call, error) {
 	var arg map[string]any
-	if len(m.Args) == 1 {
-		arg, _ = m.Args[0].(map[string]any)
+	if len(m.Args) != 1 {
+		return core.Call{}, fmt.Errorf("the model called tools.%s with %d arguments: the adapter maps one", m.Name, len(m.Args))
 	}
+	arg, _ = m.Args[0].(map[string]any)
 	switch m.Name {
 	case "exec_command":
 		cmd, ok := arg["cmd"].(string)

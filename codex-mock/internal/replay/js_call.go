@@ -29,6 +29,9 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 	if id, ok := c.Callee.(*ast.Identifier); ok {
 		switch id.Name.String() {
 		case "store":
+			if r.cond > 0 {
+				return nil, fmt.Errorf("a store that depends on what an earlier tool answered")
+			}
 			if k, ok := argString(args, 0); ok && len(args) == 2 {
 				r.store[k] = args[1]
 				return nil, nil
@@ -48,7 +51,7 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 	}
 	if d, ok := c.Callee.(*ast.DotExpression); ok { // a method of something opaque (ALL_TOOLS.filter, JSON.stringify)
 		_, err := r.eval(d.Left)
-		return opaque{}, err
+		return opaque{}, err // its arguments are evaluated above, so a tool call in one is a call (or refused under a function)
 	}
 	return nil, fmt.Errorf("the model's script calls a %T, which the adapter does not read", c.Callee)
 }

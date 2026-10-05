@@ -35,8 +35,12 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 		return x.Value, nil
 	case *ast.NullLiteral:
 		return nil, nil
-	case *ast.ArrowFunctionLiteral, *ast.FunctionLiteral, *ast.RegExpLiteral:
+	case *ast.RegExpLiteral:
 		return opaque{}, nil
+	case *ast.ArrowFunctionLiteral:
+		return opaque{}, r.function(x.ParameterList, x.Body)
+	case *ast.FunctionLiteral:
+		return opaque{}, r.function(x.ParameterList, x.Body)
 	case *ast.TemplateLiteral:
 		return r.template(x)
 	case *ast.ObjectLiteral:
@@ -56,10 +60,15 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 	case *ast.DotExpression:
 		return r.member(x.Left, x.Identifier.Name.String())
 	case *ast.BracketExpression:
-		if _, err := r.eval(x.Member); err != nil {
+		key, err := r.eval(x.Member)
+		if err != nil {
 			return nil, err
 		}
-		return r.member(x.Left, "[]")
+		if k, ok := key.(string); ok {
+			return r.member(x.Left, k)
+		}
+		_, err = r.eval(x.Left)
+		return opaque{}, err
 	case *ast.OptionalChain:
 		return r.eval(x.Expression)
 	case *ast.Optional:
@@ -81,14 +90,16 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 }
 
 func (r *jsRun) ident(name string) (any, error) {
-	if v, ok := r.env[name]; ok {
+	if v, ok := r.lookup(name); ok {
 		return v, nil
 	}
 	switch name {
 	case "undefined":
 		return nil, nil
-	case "ALL_TOOLS", "JSON", "text", "store", "load", "tools":
+	case "ALL_TOOLS", "JSON", "text", "store", "load":
 		return opaque{}, nil
+	case "tools":
+		return nil, fmt.Errorf("the model's script uses tools other than as tools.<name>(...)")
 	}
 	return nil, fmt.Errorf("the model's script names %s, which the adapter does not know", name)
 }

@@ -21,7 +21,7 @@ type jsCall struct {
 // cannot be replayed from the recording of one run.
 type jsRun struct {
 	store map[string]any // store(k, v) / load(k): kept across the rollout's scripts
-	env   map[string]any // the current script's constants
+	scope []map[string]any // the current script's names, innermost last
 	calls []jsCall       // the current script's tool calls, in the order it made them
 	cond  int            // > 0 inside code that may not run
 	n     int            // the tool calls of the rollout so far: a ref names one by its number
@@ -35,7 +35,7 @@ func (r *jsRun) script(js string) ([]jsCall, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.env, r.calls = map[string]any{}, nil
+	r.scope, r.calls = []map[string]any{{}}, nil
 	for _, st := range body {
 		if err := r.stmt(st); err != nil {
 			return nil, err
@@ -64,14 +64,36 @@ func (r *jsRun) stmt(st ast.Statement) error {
 		}
 		return r.stmt(s.Alternate)
 	case *ast.BlockStatement:
-		for _, in := range s.List {
-			if err := r.stmt(in); err != nil {
-				return err
-			}
-		}
-		return nil
+		return r.block(s.List, nil)
 	}
 	return fmt.Errorf("the model's script has a %T, which the adapter does not read", st)
+}
+
+// block runs statements in a scope of their own, with the given names.
+func (r *jsRun) block(list []ast.Statement, names map[string]any) error {
+	if names == nil {
+		names = map[string]any{}
+	}
+	r.scope = append(r.scope, names)
+	defer func() { r.scope = r.scope[:len(r.scope)-1] }()
+	for _, st := range list {
+		if err := r.stmt(st); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// reserved are the names a script gets from its harness; it may not declare them.
+var reserved = map[string]bool{"tools": true, "store": true, "load": true, "text": true, "ALL_TOOLS": true, "JSON": true, "undefined": true}
+
+func (r *jsRun) lookup(name string) (any, bool) {
+	for i := len(r.scope) - 1; i >= 0; i-- {
+		if v, ok := r.scope[i][name]; ok {
+			return v, true
+		}
+	}
+	return nil, false
 }
 
 func (r *jsRun) declare(list []*ast.Binding) error {
@@ -84,7 +106,12 @@ func (r *jsRun) declare(list []*ast.Binding) error {
 		if err != nil {
 			return err
 		}
-		r.env[id.Name.String()] = v
+		name := id.Name.String()
+		top := r.scope[len(r.scope)-1]
+		if _, again := top[name]; again || reserved[name] {
+			return fmt.Errorf("the model's script declares %s, which is the harness's or already declared", name)
+		}
+		top[name] = v
 	}
 	return nil
 }

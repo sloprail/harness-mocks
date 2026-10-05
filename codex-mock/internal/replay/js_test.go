@@ -35,8 +35,33 @@ func TestScriptRefusesWhatItCannotFollow(t *testing.T) {
 		"a loop":                          "for (const x of [1]) { await tools.exec_command({cmd:\"a\"}); }",
 		"a load nobody stored":            "load(\"x\");",
 		"not JavaScript":                  "const = ;",
+		"a call inside a function":        "[1].map(async () => tools.exec_command({cmd:\"a\"}));",
+		"a tools alias":                   "const t = tools; await t.exec_command({cmd:\"a\"});",
+		"a shadowed harness name":         "const tools = {}; await tools.exec_command({cmd:\"a\"});",
+		"a redeclaration":                 "const x = 1; const x = 2;",
+		"a store that may not run":        "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) { store(\"k\", 1); }",
 	} {
 		_, err := newJSRun().script(js)
 		assert.Error(t, err, name)
 	}
+}
+
+func TestScriptNamesAreScoped(t *testing.T) {
+	calls, err := newJSRun().script("const x = \"a\"; { const x = \"b\"; await tools.exec_command({cmd:x}); } await tools.exec_command({cmd:x}); const o = {cmd:\"c\"}; await tools.exec_command({cmd:o[\"cmd\"]});")
+	require.NoError(t, err)
+	require.Len(t, calls, 3)
+	assert.Equal(t, "b", calls[0].Args[0].(map[string]any)["cmd"])
+	assert.Equal(t, "a", calls[1].Args[0].(map[string]any)["cmd"])
+	assert.Equal(t, "c", calls[2].Args[0].(map[string]any)["cmd"])
+}
+
+func TestScriptCallsInMethodArguments(t *testing.T) {
+	calls, err := newJSRun().script("text(JSON.stringify(await tools.exec_command({cmd:\"a\"}))); ALL_TOOLS.slice(await tools.exec_command({cmd:\"b\"}));")
+	require.NoError(t, err)
+	assert.Len(t, calls, 2)
+}
+
+func TestUnifyTakesOneArgument(t *testing.T) {
+	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}})
+	assert.ErrorContains(t, err, "2 arguments")
 }

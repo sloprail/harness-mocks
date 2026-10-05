@@ -80,3 +80,30 @@ func (r *jsRun) object(o *ast.ObjectLiteral) (any, error) {
 	}
 	return out, nil
 }
+
+// function is a function the script wrote: not followed, but it may not call a
+// tool (its body is read as code that may not run, with its parameters opaque).
+func (r *jsRun) function(params *ast.ParameterList, body any) error {
+	names := map[string]any{}
+	if params != nil {
+		for _, b := range params.List {
+			id, ok := b.Target.(*ast.Identifier)
+			if !ok {
+				return fmt.Errorf("the model's script has a function with a destructured parameter")
+			}
+			names[id.Name.String()] = opaque{}
+		}
+	}
+	r.cond++
+	defer func() { r.cond-- }()
+	switch b := body.(type) {
+	case *ast.BlockStatement:
+		return r.block(b.List, names)
+	case *ast.ExpressionBody:
+		r.scope = append(r.scope, names)
+		defer func() { r.scope = r.scope[:len(r.scope)-1] }()
+		_, err := r.eval(b.Expression)
+		return err
+	}
+	return fmt.Errorf("the model's script has a function body that is a %T", body)
+}
