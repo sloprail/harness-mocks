@@ -73,6 +73,14 @@ providers:
           agent_transcript_path, and the recording shows neither firing for the
           Task call in print mode, though the run's hooks.json registers both
           (runs/subagent-lifecycle-hooks). The recording decides.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (its event list) says
+          "preToolUse / postToolUse / postToolUseFailure - Generic tool use hooks
+          (fires for all tools)", and the recording shows the Task call raising
+          preToolUse only, no postToolUse, though the run's hooks.json registers
+          postToolUse (runs/subagent-lifecycle-hooks). The recording decides.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-

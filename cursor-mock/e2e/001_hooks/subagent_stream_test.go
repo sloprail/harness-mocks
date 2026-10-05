@@ -116,6 +116,9 @@ func TestASubAgentsEventsCarryItsOwnSessionIdAndNoFieldNamingIt(t *testing.T) {
 			if p["hook_event_name"] == "afterAgentThought" || p["hook_event_name"] == "BackgroundTick" {
 				continue
 			}
+			if p["tool_name"] == "Task" {
+				assert.Equal(t, "preToolUse", p["hook_event_name"], "%s: the Task call raises preToolUse only", name)
+			}
 			assert.NotContains(t, []any{"subagentStart", "subagentStop"}, p["hook_event_name"], "%s: neither fires for the Task call in print mode", name)
 			if p["tool_name"] != "Shell" {
 				assert.NotContains(t, p, "cwd", "%s: %v of %v carries no cwd, as the Task call's preToolUse does not", name, p["hook_event_name"], p["tool_name"])
