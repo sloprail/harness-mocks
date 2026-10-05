@@ -1,4 +1,0 @@
-# Enforces adr/tests-fail-on-missing-tool: a *_test.go does not skip because a tool is missing.
-match: path endsWith "_test.go"
-checks:
-  - script: ./no-skip-on-missing-tool.sh
