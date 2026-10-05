@@ -56,7 +56,9 @@ providers:
           The mock refuses --ephemeral (it always writes the session's rollout
           file), and reads no piped stdin: a
           prompt argument plus piped input is not combined as additional
-          context.
+          context, and `codex exec -` (stdin as the prompt) is not modeled.
+          `codex exec resume --last` is refused as well: only a session named
+          by its id resumes.
   cursor:
     docs:
       - https://cursor.com/docs/cli/headless#how-it-works
