@@ -50,7 +50,11 @@ func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt, "subagent_type": typ, "run_in_background": true})
 
 	t := tasks.NewTask(tasks.Agent, sub.id)
-	t.ToolUseID, t.Description, t.Owner, t.Meta = tu.ID, in.Description, s.owner, in.Prompt
+	// A background sub-agent belongs to the run, not to the sub-agent that launched it:
+	// that one's end does not end it, and its own end is announced on the run's stream
+	// (recorded: runs/nested-subagents-background, the launching sub-agent reports
+	// STARTED while the other goes on, and the main stream carries its task_notification).
+	t.ToolUseID, t.Description, t.Owner, t.Meta = tu.ID, in.Description, "", in.Prompt
 	s.registry().StartAgent(t, func(ctx context.Context) {
 		sub.tr.user(in.Prompt)
 		if _, err := turnloop.Run(ctx, &sub, turnloop.Params{Script: in.Script, Dir: s.cfg.Dir, Environ: s.cfg.Environ, Prompt: in.Prompt, Added: sub.Context}); err != nil {
