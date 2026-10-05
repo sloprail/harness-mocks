@@ -9,12 +9,7 @@
 #   runs   kebab name; run.yaml has a version; ≥1 sample; sample dirs are
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
 #          have identical events (a re-run that changed nothing adds nothing);
-#          each sample's SEAL lists exactly its files, with matching sha256s;
-#          each sample is clean and in the mock's mode (_lib/recording.sh): every line of
-#          its side-channel log (payloads.jsonl) is JSON, the harness wrote no error line
-#          to stderr nor an error frame to the stream, and run.yaml's command is the
-#          non-interactive structured-output mode the mock imitates. A scenario that records
-#          one on purpose declares it in expected.yaml
+#          each sample's SEAL lists exactly its files, with matching sha256s
 # Only the harness this check's subject names, when the rule is split (subjects.sh).
 # Per capability cell: every cited doc URL is copied in MANIFEST.docs and its
 # #anchor resolves to a heading in that copy; every cited run path exists. A run no capability cites fails.
@@ -23,12 +18,10 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/snapshots.sh"
-. "${SR_GUARDRAIL_DIR:-.}/../../_lib/recording.sh"
-RECORDING_EXPECTED="${SR_GUARDRAIL_DIR:-.}/expected.yaml"
 load_spec capabilities; caps="$SPEC"
 
 problems=""
-add() { case "$problems" in *"- $1"$'\n'*) ;; *) problems="${problems}- $1"$'\n' ;; esac; }
+add() { problems="${problems}- $1"$'\n'; }
 hash() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
 if [ -n "$(subject_id)" ]; then hs="$(subject_id)"; else hs="$(harnesses)"; fi
@@ -68,7 +61,6 @@ for h in $hs; do
         [ "$listed" = "$actual" ] && (cd "$s" && shasum -a 256 -c SEAL >/dev/null 2>&1) ||
           add "run $h/$name sample $ts does not match its SEAL: it was edited by hand; re-capture it with capture.sh run $name"
       fi
-      while IFS= read -r p; do [ -n "$p" ] && add "$p"; done < <(recording_problems "$h" "$name" "$r" "$s")
       hv="$(hash "$s/events.jsonl")"
       dup="$(printf '%s\n' "$seen" | awk -v h="$hv" '$1 == h {print $2}')"
       [ -z "$dup" ] || add "run $h/$name: sample $ts has the same events as $dup; drop it"

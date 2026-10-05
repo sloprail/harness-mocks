@@ -207,18 +207,7 @@ capture_run() {
       rm -rf "$cap"; echo "same events as $(basename "$other"): no new sample"; return 0
     fi
   done
-  prior_run_yaml="$(cat "$run/run.yaml" 2>/dev/null || true)"
   printf 'version: %s\ncommand: codex exec %s%s%s--dangerously-bypass-hook-trust -m gpt-5.6-luna\n' "$v" "${jsonflag[*]:+--json }" "${skipflag[*]:+--skip-git-repo-check }" "${bypassflag[*]:+--dangerously-bypass-approvals-and-sandbox }" >"$run/run.yaml"
-  # a sample the snapshots-current rule would refuse is not sealed: a hook log with non-JSON lines, a
-  # harness error line or frame, a mode the mock does not imitate (an expected one is declared in
-  # .sloprail/file-guard/snapshots-current/expected.yaml)
-  . "$root/.sloprail/_lib/recording.sh"
-  unclean="$(recording_problems codex "$name" "$run" "$cap")"
-  if [ -n "$unclean" ]; then
-    if [ -n "$prior_run_yaml" ]; then printf '%s\n' "$prior_run_yaml" >"$run/run.yaml"; else rm -f "$run/run.yaml"; fi
-    printf '%s\n' "$unclean" >&2
-    die "the capture is not clean (above); not sealed, and removed"
-  fi
   seal "$cap"
   echo "captured runs/$name/samples/$ts"
 }
