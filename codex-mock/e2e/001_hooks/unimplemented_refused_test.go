@@ -36,3 +36,12 @@ func TestFullAutoIsRefused(t *testing.T) {
 	assert.Contains(t, r.Stderr, "unknown flag: --full-auto")
 	assert.Empty(t, r.hookLog(), "nothing ran")
 }
+
+// `codex exec resume --last` resumes the newest session; the mock resumes only a session named by its id,
+// so --last is a flag it does not know: refused, nothing runs.
+func TestResumeLastIsRefused(t *testing.T) {
+	r := execIn(t, t.TempDir(), "--skip-git-repo-check", "resume", "--last", "go")
+	assert.NotZero(t, r.Code)
+	assert.Contains(t, r.Stderr, "unknown flag: --last")
+	assert.Empty(t, r.hookLog(), "nothing ran")
+}
