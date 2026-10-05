@@ -70,3 +70,8 @@ expect_refused "$BASE" "a cell citing a missing recording" "'x' × 'claude'" "cl
 git checkout -q -b emptyruns "$BASE"
 printf 'statement: x works\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: []\n' > spec/capabilities/x.yaml; c "x cites no run"
 expect_refused "$BASE" "a cell citing no recording" "'x' × 'claude'" "cites no recorded run"
+
+# a cited recording deleted while the cell stays: refused, naming the run
+git checkout -q -b rundeleted "$BASE"
+git rm -q -r claude-mock/snapshots/runs/r1; c "r1 deleted"
+expect_refused "$BASE" "a cited recording deleted" "'x' × 'claude'" "claude-mock/snapshots/runs/r1"

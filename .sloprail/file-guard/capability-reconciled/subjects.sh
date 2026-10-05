@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # subjects: one per capability with a (capability, harness) pair this change touches (pairs-lib.sh).
-#   files        the changed files that touch it: its capability file, and those whose sr:provides
-#                markers name it
+#   files        the changed files that touch it: its capability file, the files under the runs its
+#                touched cells cite, and those whose sr:provides markers name it
 #   fingerprint  what the verdict reads beyond them: the pairs in question, the capability file,
 #                the cited run directories, and every file at the head that carries a marker for
 #                its pairs (the counterpart of a change to the cell, which the range may not select).
@@ -27,6 +27,7 @@ arr="$(printf '%s' "$payload" | jq -c --arg pairs "$pairs" --arg head "$provides
           | select(.key as $k | $hs | index($k)) | (.value | if type == "object" then (.runs // []) else [] end)[]]) as $runs
       | {id: $id,
          files: ((if $changed | index("spec/capabilities/\($id).yaml") then ["spec/capabilities/\($id).yaml"] else [] end)
+                 + [$runs[] | . as $r | $changed[] | select(startswith($r + "/"))]
                  + [$hm[] | select(.f as $f | $fq | index($f) != null) | .p | select(. as $p | $changed | index($p) != null)]),
          deps: (["spec/capabilities/\($id).yaml"] + $runs + [$hm[] | select(.f as $f | $fq | index($f) != null) | .p]),
          extra: ("pairs:" + ($hs | join(" ")))})')"
