@@ -72,3 +72,54 @@ func TestAnExcuseNoCellNeedsFails(t *testing.T) {
 		t.Fatalf("got %v", errs)
 	}
 }
+
+// sr:proves replay-fidelity
+func TestAdjacentUsesOfADroppedKeyAreEachSeen(t *testing.T) {
+	for _, text := range []string{"A model model here.", "A model/model here."} {
+		if errs := run(t, cells(t, text, "Nothing.")); len(errs) != 2 {
+			t.Fatalf("%q: want both uses reported, got %v", text, errs)
+		}
+	}
+}
+
+// sr:proves replay-fidelity
+func TestAnExcuseExcusesOneOccurrenceOnly(t *testing.T) {
+	root := cells(t, "It does not model the model.", "Nothing.")
+	errs := run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model the model", Why: "x"})
+	if len(errs) == 0 {
+		t.Fatal("an excuse naming the key twice must be refused")
+	}
+	// the excuse for one occurrence leaves the other reported
+	errs = run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model the", Why: "x"})
+	if len(errs) != 1 || !strings.Contains(errs[0], `names "model"`) {
+		t.Fatalf("the second use must stay reported, got %v", errs)
+	}
+}
+
+// sr:proves replay-fidelity
+func TestAnExcuseThatIsAmbiguousOrAbsentFails(t *testing.T) {
+	root := cells(t, "It does not model a. It does not model b.", "Nothing.")
+	if errs := run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model", Why: "x"}); len(errs) == 0 {
+		t.Fatal("an excuse text occurring twice must be refused")
+	}
+	errs := run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model a", Why: "x"}, Excuse{Cell: "c", Key: "model", Text: "does not model b", Why: "x"}, Excuse{Cell: "c", Key: "model", Text: "words that are not there model", Why: "x"})
+	if len(errs) != 1 || !strings.Contains(errs[0], "occurs 0 times") {
+		t.Fatalf("only the absent excuse is refused, once, got %v", errs)
+	}
+}
+
+// sr:proves replay-fidelity
+func TestExcusesMatchWithoutRegardToCaseAndTheRunsPathsAreNotText(t *testing.T) {
+	root := cells(t, "The mock does NOT Model it.", "Nothing.")
+	if errs := run(t, root, Excuse{Cell: "c", Key: "MODEL", Text: "Does Not model it", Why: "x"}); len(errs) != 0 {
+		t.Fatalf("case must not matter, got %v", errs)
+	}
+	dir := filepath.Join(root, "spec", "capabilities")
+	doc := "statement: x\nproviders:\n  h:\n    runs:\n      - claude-mock/snapshots/runs/cwd\n"
+	if err := os.WriteFile(filepath.Join(dir, "c.yaml"), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if errs := run(t, root); len(errs) != 0 {
+		t.Fatalf("a run's path is not what the cell says: %v", errs)
+	}
+}

@@ -29,7 +29,7 @@ var excuses = []replaytest.Excuse{
 	{Cell: "session-start-hook", Key: "model", Text: "or model request after it", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
 	{Cell: "subagent-lifecycle-hooks", Key: "model", Text: "the mock does not model. only the stop hook's", Why: "prose: 'model' is a verb (the mock does not model it), not the payload's model key"},
 	{Cell: "task-stream-frames", Key: "model", Text: "the mock runs no model", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
-	{Cell: "task-stream-frames", Key: "script", Text: "the scenario script the spawn_agent call names", Why: "prose: the scenario script the mock plays, not a script key"},
+	{Cell: "task-stream-frames", Key: "script", Text: "the scenario script the spawn_agent call names", Why: "the mock's own spawn_agent input that names a sub-agent's script, which the real tool has no such key for: the cell declares it as mock-only (mock-not-modeled)"},
 }
 
 // The codex replay drops a key from both sides only if no capability cell is

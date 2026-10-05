@@ -5,7 +5,6 @@ package replaytest
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -43,6 +42,7 @@ func NoCellNames(t TB, repoRoot, harness string, keys []string, excuses []Excuse
 	sorted := append([]string(nil), keys...)
 	sort.Strings(sorted)
 	used := make([]bool, len(excuses))
+	bad := make([]bool, len(excuses)) // the excuses already refused, once each
 	for _, path := range cells {
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -63,22 +63,27 @@ func NoCellNames(t TB, repoRoot, harness string, keys []string, excuses []Excuse
 		collect(section, &parts)
 		text := fold(strings.Join(parts, "\n"))
 		for _, k := range sorted {
-			re := regexp.MustCompile(`(^|[^a-z0-9_])(` + regexp.QuoteMeta(strings.ToLower(k)) + `)($|[^a-z0-9_])`)
-			for _, m := range re.FindAllStringSubmatchIndex(text, -1) {
-				start, end := m[4], m[5]
+			for _, m := range occurrences(text, strings.ToLower(k)) {
+				start, end := m[0], m[1]
 				excused := false
 				for i, e := range excuses {
 					if e.Cell != name || strings.ToLower(e.Key) != strings.ToLower(k) {
 						continue
 					}
 					et := fold(e.Text)
-					if !strings.Contains(et, strings.ToLower(k)) {
-						t.Errorf("excuse %s/%s: the text %q does not contain the key", e.Cell, e.Key, e.Text)
+					if n := len(occurrences(et, strings.ToLower(k))); n != 1 {
+						if !bad[i] {
+							bad[i] = true
+							t.Errorf("excuse %s/%s: the text %q names the key %d times, it must name it once (it excuses one occurrence)", e.Cell, e.Key, e.Text, n)
+						}
 						used[i] = true
 						continue
 					}
 					if n := strings.Count(text, et); n != 1 {
-						t.Errorf("excuse %s/%s: the text %q occurs %d times in the cell, it must occur once: lengthen it", e.Cell, e.Key, e.Text, n)
+						if !bad[i] {
+							bad[i] = true
+							t.Errorf("excuse %s/%s: the text %q occurs %d times in the cell, it must occur once: lengthen it", e.Cell, e.Key, e.Text, n)
+						}
 						used[i] = true
 						continue
 					}
@@ -98,6 +103,31 @@ func NoCellNames(t TB, repoRoot, harness string, keys []string, excuses []Excuse
 		if !used[i] {
 			t.Errorf("the excuse %s/%s %q is not needed by any cell: remove it", e.Cell, e.Key, e.Text)
 		}
+	}
+}
+
+// occurrences are the [start, end) offsets of key in text as a whole word: not
+// next to a letter, digit or underscore. Overlapping is impossible, and two
+// occurrences may share a separator ("model model").
+func occurrences(text, key string) [][2]int {
+	var out [][2]int
+	word := func(i int) bool {
+		if i < 0 || i >= len(text) {
+			return false
+		}
+		c := text[i]
+		return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z'
+	}
+	for from := 0; ; {
+		i := strings.Index(text[from:], key)
+		if i < 0 {
+			return out
+		}
+		i += from
+		if !word(i-1) && !word(i+len(key)) {
+			out = append(out, [2]int{i, i + len(key)})
+		}
+		from = i + 1
 	}
 }
 
