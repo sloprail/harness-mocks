@@ -102,3 +102,11 @@ run_script subjects.sh plain "$TMPDIR/unclaimed.json"
 shim jq '[{id: "unclaimed"'
 run_script subjects.sh shimmed "$TMPDIR/unclaimed.json"
 expect_refused "the unclaimed files cannot be listed" "the unclaimed files could not be listed, so no subject could be made"
+
+# through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's own
+# refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
+shim jq '.[].bdeps'
+: >"$SR_EVENTS_FILE"
+PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es --arg s "the subjects' bdeps could not be listed, so no subject could be made" 'any(.[]; .kind=="FileGuardChecked" and .rule=="invariant-grounded" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: invariant-grounded did not refuse with a reason saying 'the subjects' bdeps could not be listed, so no subject could be made' (sr-checks exit $ran)" >&2; exit 1; }
