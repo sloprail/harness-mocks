@@ -26,9 +26,8 @@ printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"
 
 // A command runs by the shell the call names: zsh sets ZSH_VERSION, and zsh -l is a login shell.
 func TestExecCommandRunsByTheNamedShell(t *testing.T) {
-	if _, err := exec.LookPath("zsh"); err != nil {
-		t.Skip("zsh is not installed here: the mock refuses a call that names it")
-	}
+	_, err := exec.LookPath("zsh")
+	require.NoError(t, err, "zsh must be installed to run this suite (CI installs it): the mock refuses a call that names a shell it lacks")
 	r := execMock(t, scenario{BypassTrust: true, Prompt: "go", Script: `#!/bin/sh
 n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
 case "$n" in
