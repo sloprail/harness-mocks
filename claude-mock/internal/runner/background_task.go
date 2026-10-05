@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
@@ -15,6 +16,8 @@ type backgroundTasks struct {
 	*tasks.Registry
 	// stats is the session's count of its sub-agents (the result's subagent_stats).
 	stats subagents.Stats
+	// modelTurns is how many turns the main agent's model took (the result's num_turns).
+	modelTurns atomic.Int64
 }
 
 func newBackgroundTasks() *backgroundTasks {

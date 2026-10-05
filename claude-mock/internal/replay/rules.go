@@ -30,8 +30,8 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		DropKeys: []string{
 			"uuid", "request_id", // ids that differ in every run
 			"usage", "modelUsage", "total_cost_usd", "duration_ms", "duration_api_ms", // the model's cost: the mock has no model
-			"signature",                                                              // the model's thinking, signed
-			"first_content_frame_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
+			"signature",                                                                                                                 // the model's thinking, signed
+			"first_content_frame_ms", "ttft_ms", "ttft_stream_ms", "time_to_request_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
 		},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
