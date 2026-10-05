@@ -32,7 +32,10 @@ while IFS= read -r c; do
   id="$(jq -r '.id' <<<"$c")" || refuse_error "a capability's id could not be read, so it could not be prepared for the judge"
   want_subject "$id" || continue
   hs=""   # the harnesses in question, one per line ("*": all)
-  printf '%s\n' "$changed" | grep -Fxq "spec/capabilities/$id.yaml" && hs="$(touched_harnesses "spec/capabilities/$id.yaml")"
+  # a match by case, not `printf | grep -q`: grep -q quits at the first hit and printf dies of SIGPIPE on a long list, which pipefail reads as no match
+  case $'\n'"$changed"$'\n' in
+    *$'\n'"spec/capabilities/$id.yaml"$'\n'*) hs="$(touched_harnesses "spec/capabilities/$id.yaml")" || refuse "$id: the harnesses its cells touch could not be worked out, so it could not be prepared for the judge" ;;
+  esac
   refs="$(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h
     | (if .value.supported == false then "absent" else "supports" end) as $k | (.value.docs // [])[] | [$h, $k, .] | @tsv' <<<"$c")" ||
     refuse_error "$id: its cited docs could not be listed, so it could not be prepared for the judge"
@@ -46,7 +49,8 @@ while IFS= read -r c; do
   hs="$(printf '%s\n' "$hs" | sed '/^$/d' | sort -u)"
   [ -n "$hs" ] || continue
   # keep only the cited docs and runs of the harnesses in question
-  if ! printf '%s\n' "$hs" | grep -Fxq '*'; then
+  case $'\n'"$hs"$'\n' in *$'\n*\n'*) all=1 ;; *) all="" ;; esac
+  if [ -z "$all" ]; then
     refs="$(printf '%s\n' "$refs" | awk -F'\t' -v keep="$(printf '%s ' $hs)" 'BEGIN{n=split(keep,k," "); for(i=1;i<=n;i++) want[k[i]]=1} want[$1]')"
     c="$(jq -c --slurpfile hs <(printf '%s\n' "$hs" | jq -R . | jq -sc .) '.doc.providers = ((.doc.providers // {}) | with_entries(select(.key as $k | $hs[0] | index($k))))' <<<"$c")" ||
       refuse_error "$id: its harnesses in question could not be narrowed, so it could not be prepared for the judge"
