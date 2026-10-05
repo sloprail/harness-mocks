@@ -18,12 +18,6 @@ providers:
       - https://developers.openai.com/codex/hooks#common-input-fields
     runs:
       - codex-mock/snapshots/runs/session-transcript-file
-    deviations:
-      - adr: capability-grounding
-        statement: >-
-          Codex creates a fresh session's file before the start hook runs: the
-          file the SessionStart payload's transcript_path names already exists
-          then, and the mock does the same (recorded: runs/session-transcript-file).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema
