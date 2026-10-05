@@ -56,12 +56,8 @@ func runExec(cmd *cobra.Command, args []string) error {
 		resume, args = args[1], args[2:]
 	}
 	f := cmd.Flags()
-	// a feature switch the mock implements none of: running as if it were on would pass for the real
-	// thing (a --enable multi_agent_v2 recording replayed on the default mode), so it is refused
-	for _, name := range []string{"enable", "disable"} {
-		if v, _ := f.GetStringArray(name); len(v) > 0 {
-			return fmt.Errorf("codex-mock: --%s %s: the mock implements no feature switch", name, strings.Join(v, ","))
-		}
+	if err := refuseFeatureSwitches(f); err != nil {
+		return err
 	}
 	script, _ := f.GetString("script")
 	if script == "" {
