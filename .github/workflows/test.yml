@@ -54,7 +54,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make -C codex-mock test-unit COUNT=3
+      - run: go test -race -count=3 ./internal/... ./codex-mock/internal/...
 
   codex-e2e:
     name: codex-mock e2e tests
@@ -76,7 +76,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make -C cursor-mock test-unit COUNT=3
+      - run: go test -race -count=3 ./cursor-mock/internal/...
 
   cursor-e2e:
     name: cursor-mock e2e tests
@@ -112,8 +112,18 @@ jobs:
       # the cursor and codex suites replay recorded runs, whose hook scripts use jq
       - name: jq
         run: sudo apt-get install -y jq
-      # the claude suite's git identity comes from its Makefile's test-e2e environment
-      - run: make -C ${{ matrix.mock }}-mock test-e2e
+      # the same commands as each mock's Makefile test-e2e (race build, same environment), with
+      # -count=1 only: the Makefile pins it, and each replica is one more run of the suite
+      - name: e2e
+        run: |
+          make -C ${{ matrix.mock }}-mock build-race
+          export GIT_AUTHOR_NAME=harness-mocks-test GIT_AUTHOR_EMAIL=harness-mocks-test@sloprail.invalid
+          export GIT_COMMITTER_NAME=harness-mocks-test GIT_COMMITTER_EMAIL=harness-mocks-test@sloprail.invalid
+          case "${{ matrix.mock }}" in
+            claude) export A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock" ;;
+            cursor) export A10N_CURSOR_MOCK_TEST_BINARY="$PWD/bin/a10n-cursor-mock" ;;
+          esac
+          go test -race -count=1 -v ./${{ matrix.mock }}-mock/e2e/...
 
   subject-tests:
     name: rule subject tests

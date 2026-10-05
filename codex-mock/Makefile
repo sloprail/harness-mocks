@@ -1,6 +1,3 @@
-# How many times go test runs each test (CI passes COUNT=3 to surface timing-flaky tests).
-COUNT        ?= 1
-
 BIN_DIR     := ../bin
 CODEX_MOCK  := $(BIN_DIR)/a10n-codex-mock
 
@@ -16,12 +13,12 @@ build-race:
 
 # The shared core's tests run with it: the mock is an adapter on them.
 test-unit:
-	cd .. && go test -race -count=$(COUNT) \
+	cd .. && go test -race -count=1 \
 		./internal/... \
 		./codex-mock/internal/...
 
 # The e2e suite builds its own race-instrumented binary and drives it; the
 # hooks it replays are shell scripts that need jq and git.
 test-e2e:
-	cd .. && go test -race -count=$(COUNT) -v \
+	cd .. && go test -race -count=1 -v \
 		./codex-mock/e2e/...

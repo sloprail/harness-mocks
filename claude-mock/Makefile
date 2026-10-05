@@ -1,6 +1,3 @@
-# How many times go test runs each test (CI passes COUNT=3 to surface timing-flaky tests).
-COUNT        ?= 1
-
 BIN_DIR      := ../bin
 CLAUDE_MOCK  := $(BIN_DIR)/a10n-claude-mock
 
@@ -17,7 +14,7 @@ build-race:
 	go build -race -o $(CLAUDE_MOCK) .
 
 test-unit:
-	cd .. && go test -race -count=$(COUNT) \
+	cd .. && go test -race -count=1 \
 		./claude-mock/internal/...
 
 # The e2e suite commits in throwaway repos; a runner with no global identity needs one. It is
@@ -30,5 +27,5 @@ test-e2e: export GIT_COMMITTER_NAME := harness-mocks-test
 test-e2e: export GIT_COMMITTER_EMAIL := harness-mocks-test@sloprail.invalid
 test-e2e: build-race
 	cd .. && A10N_CLAUDE_MOCK_TEST_BINARY=$(abspath $(CLAUDE_MOCK)) \
-		go test -race -count=$(COUNT) -v \
+		go test -race -count=1 -v \
 		./claude-mock/e2e/...
