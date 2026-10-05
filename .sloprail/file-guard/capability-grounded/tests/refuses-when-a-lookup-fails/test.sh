@@ -77,8 +77,10 @@ expect_refused "the comparison fails" "what spec/capabilities/c.yaml changed cou
 # prepare.sh: what the judge is handed
 scenario; inject_exact '.[]'
 expect_refused "the capability list fails" "the capability files could not be listed, so nothing could be prepared for the judge"
-scenario; inject '(.value.docs // [])'
+scenario; inject '"absent" else "supports"'
 expect_refused "the cited docs listing fails" "c: its cited docs could not be listed, so it could not be prepared for the judge"
+scenario; inject '(.value.runs // [])[] | [$h, .]'
+expect_refused "the cited runs listing fails" "c: its cited runs could not be listed, so it could not be prepared for the judge"
 scenario; inject '.doc.statement'
 expect_refused "the statement read fails" "c: its statement could not be read, so it could not be prepared for the judge"
 scenario; inject 'select(.value == "pending")'
