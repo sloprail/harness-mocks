@@ -71,15 +71,16 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 		return refused(option)
 	}
 	cmd := command(c)
+	argv := shellArgv(c, cmd)
 	id := h.events.CommandStarted(cmd)
 	var r tools.BashResult
 	if y, yields := yieldTime(c); yields {
 		var running bool
-		if r, running = h.runYielding(ctx, c, cmd, y); running {
+		if r, running = h.runYielding(ctx, c, argv, y); running {
 			return toolcall.Result{Output: r.Output} // still running: no end to report
 		}
 	} else {
-		r = tools.Bash(ctx, cmd, h.cfg.Cwd, h.toolEnv)
+		r = tools.BashArgv(ctx, argv, h.cfg.Cwd, h.toolEnv)
 	}
 	r.Output = ttyOutput(c, r.Output)
 	if tooLong(c, r.Output) {

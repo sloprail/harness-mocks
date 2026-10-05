@@ -26,7 +26,13 @@ func (r BashResult) Failed() bool { return r.ExitCode != 0 }
 // (procexec.Env builds it), and waits for it. A shell that cannot start is
 // reported as the output of an exit status of -1.
 func Bash(ctx context.Context, command, dir string, env []string) BashResult {
-	res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"/bin/sh", "-c", command}, Dir: dir, Env: env})
+	return BashArgv(ctx, []string{"/bin/sh", "-c", command}, dir, env)
+}
+
+// BashArgv is Bash with the command line a harness runs it by (a named shell
+// and its flags): the same, but for the argv.
+func BashArgv(ctx context.Context, argv []string, dir string, env []string) BashResult {
+	res, err := procexec.Run(ctx, procexec.Spec{Argv: argv, Dir: dir, Env: env})
 	if err != nil {
 		return BashResult{Output: err.Error(), ExitCode: -1}
 	}

@@ -29,3 +29,23 @@ func TestUnimplementedNamesAnotherDirectory(t *testing.T) {
 	assert.NotEqual(t, "", h.unimplemented(call(`{"command":"x","workdir":"/"}`)))
 	assert.Contains(t, h.unimplemented(call(`{"command":"x","shell":"fish"}`)), "shell fish")
 }
+
+func TestACommandRunsByTheShellItNames(t *testing.T) {
+	old := zsh
+	defer func() { zsh = old }()
+	zsh = func() string { return "/usr/bin/zsh" }
+	assert.Equal(t, []string{"/bin/sh", "-c", "x"}, shellArgv(call(`{"command":"x"}`), "x"))
+	assert.Equal(t, []string{"/usr/bin/zsh", "-c", "x"}, shellArgv(call(`{"command":"x","shell":"zsh","login":false}`), "x"))
+	assert.Equal(t, []string{"/usr/bin/zsh", "-lc", "x"}, shellArgv(call(`{"command":"x","shell":"zsh","login":true}`), "x"))
+}
+
+// A named shell that is not installed is refused, never replaced by /bin/sh; so is a login with no shell.
+func TestAMissingShellIsRefusedNotReplaced(t *testing.T) {
+	old := zsh
+	defer func() { zsh = old }()
+	zsh = func() string { return "" }
+	h := toolHost{state: &state{cfg: Config{Cwd: t.TempDir()}}}
+	assert.Contains(t, h.unimplemented(call(`{"command":"x","shell":"zsh"}`)), "zsh is not installed")
+	assert.Equal(t, "", h.unimplemented(call(`{"command":"x"}`)))
+	assert.Equal(t, "login without a shell", h.unimplemented(call(`{"command":"x","login":true}`)))
+}
