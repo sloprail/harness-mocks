@@ -50,8 +50,14 @@ func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in tas
 	s.hooks.Fire(ctx, hooks.PreToolUse, tool.Name, hooks.ToolFields(tool))
 	s.named = true
 
+	// the hook says generalPurpose where the stream says unspecified (recorded:
+	// runs/foreground-subagent-result)
+	streamType := typ
+	if typ == "generalPurpose" {
+		streamType = "unspecified"
+	}
 	args := map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{typ: map[string]any{}},
+		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{streamType: map[string]any{}},
 		"model": "default", "agentId": coresession.NewID(),
 	}
 	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
