@@ -22,13 +22,13 @@ payload="$(cat)"
 load_modules; load_adrs; leak_setup; leak_prefetch
 printf '%s' "$CHANGED" >"$LEAK_WORK/changed"
 printf '%s' "$EXC" >"$LEAK_WORK/exc-text"
-mlist="$(jq -c '.[]' <<<"$MODULES")" || refuse "could not list the modules, so their leaks cannot be found"
+mlist="$(jq -c '.[]' <<<"$MODULES")" || refuse_error "could not list the modules, so their leaks cannot be found"
 out=""
 while IFS= read -r m; do
   [ -n "$m" ] || continue
-  dir="$(jq -r '.dir' <<<"$m")" || refuse "could not read a module's directory, so its leaks cannot be found"
+  dir="$(jq -r '.dir' <<<"$m")" || refuse_error "could not read a module's directory, so its leaks cannot be found"
   leak_left "$m" || continue
-  nleft="$(jq 'length' <<<"$LEFT")" || refuse "could not count the candidates of $dir"
+  nleft="$(jq 'length' <<<"$LEFT")" || refuse_error "could not count the candidates of $dir"
   [ "$nleft" -gt 0 ] || continue
   printf '%s' "$LEFT" >"$LEAK_WORK/left"
   entry="$(jq -nc --arg d "$dir" --slurpfile left "$LEAK_WORK/left" --rawfile changed "$LEAK_WORK/changed" --rawfile exc "$LEAK_WORK/exc-text" \
@@ -37,8 +37,8 @@ while IFS= read -r m; do
         files: ([$left[].path, "\($d)/module.yaml", "\($d)/candidates.sh"] | map(select(. as $p | $c | index($p)))),
         deps: ["\($d)/module.yaml", "\($d)/candidates.sh"],
         extra: ("exceptions:" + $exc + "\nleft:" + ($left | map("\(.path):\(.line):\(.text)") | join("\n")))}')" ||
-    refuse "could not build the subject of module $dir"
+    refuse_error "could not build the subject of module $dir"
   out="$out$entry"$'\n'
 done <<<"$mlist"
-subs="$(printf '%s' "$out" | jq -sc .)" || refuse "the subjects could not be collected into one list"
+subs="$(printf '%s' "$out" | jq -sc .)" || refuse_error "the subjects could not be collected into one list"
 sub_finish no-leak-candidates "$subs"

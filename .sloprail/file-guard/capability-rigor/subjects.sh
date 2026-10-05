@@ -21,7 +21,7 @@ load_markers proves
 # loaded here, in this shell: a $(...) loses what a loader sets
 load_spec capabilities; load_touched; load_touched_markers
 # a failed lookup is a refusal, never an empty list (which would be the `unclaimed` subject, judging nothing)
-pairs="$(rigor_pairs)" || refuse "the touched capability pairs could not be worked out, so nothing could be judged"   # one "<id>/<h>\t<cell>\t<capability>" per pair touched
+pairs="$(rigor_pairs)" || refuse_error "the touched capability pairs could not be worked out, so nothing could be judged"   # one "<id>/<h>\t<cell>\t<capability>" per pair touched
 # the pairs (each carries its cell and the whole capability) and the tables go through files, not the command line
 arr="$(printf '%s' "$payload" | jq -c --rawfile pairs <(printf '%s' "$pairs") --rawfile proves <(printf '%s' "$MARKERS") --rawfile tm <(printf '%s' "$TOUCHED_MARKERS_TSV") '
   .changeset.files as $files
@@ -41,5 +41,5 @@ arr="$(printf '%s' "$payload" | jq -c --rawfile pairs <(printf '%s' "$pairs") --
                 + [$mine[] | (.cell.runs // [])[]]
                 + [$mine[].pair as $pr | $pv[] | select(.q == $pr) | .p]),
          extra: ("pairs:" + ([$mine[].pair] | join(" ")))})')" ||
-  refuse "the capabilities this change touches could not be worked out, so nothing could be judged"
+  refuse_error "the capabilities this change touches could not be worked out, so nothing could be judged"
 sub_finish unclaimed "$arr"

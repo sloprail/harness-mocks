@@ -18,7 +18,7 @@ load_markers provides; provides="$MARKERS"
 load_spec capabilities; caps="$SPEC"
 [ -n "$(harnesses)" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness cell could be checked (an incomplete tree?)"
 
-pairs="$(reconcile_pairs)" || refuse "the touched capability pairs could not be worked out, so nothing could be reconciled"
+pairs="$(reconcile_pairs)" || refuse_error "the touched capability pairs could not be worked out, so nothing could be reconciled"
 problems=""
 add() { problems="${problems}- $1"$'\n'; }
 # `// "missing"` would read a false cell as missing: jq's // treats false as absent.

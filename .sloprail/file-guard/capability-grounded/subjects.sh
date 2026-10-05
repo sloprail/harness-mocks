@@ -37,5 +37,5 @@ arr="$(printf '%s' "$payload" | jq -c --slurpfile caps0 <(printf '%s' "$SPEC") -
          extra: ("harnesses:" + ($hs | join(" ")))}])
     + [.changeset.files[] | select(.status == "D" and (.path | startswith("spec/capabilities/")))
        | {id: (.path | ltrimstr("spec/capabilities/") | rtrimstr(".yaml")), files: [.path]}]')" ||
-  refuse "the capabilities this change touches could not be worked out, so nothing could be judged"
+  refuse_error "the capabilities this change touches could not be worked out, so nothing could be judged"
 sub_finish unclaimed "$arr"

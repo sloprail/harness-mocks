@@ -34,6 +34,9 @@ expect_passed() {   # LABEL
 expect_refused() {   # LABEL SUBSTRING : refused, and the reason says it
   jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="concern-undeclared" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE did not refuse with a reason saying '$2' (sr-checks exit $ran)" >&2; exit 1; }
+  case "$1" in control*|violation|implemented*|new\ code*) return 0 ;; esac
+  jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .outcome=="refused" and (.reason|contains($s)) and (.reason|contains("could not be evaluated")))' "$SR_EVENTS_FILE" >/dev/null ||
+    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: refused as a verdict, not reported as an error (no verdict to cache)" >&2; exit 1; }
 }
 # inject LABEL EXACT HAS REASON — a fresh commit on BASE (change_for N makes it), the lookup failing: refused with REASON
 n=0

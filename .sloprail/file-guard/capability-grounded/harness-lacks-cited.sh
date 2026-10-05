@@ -13,13 +13,20 @@ refuse() {
   exit 1
 }
 
+# refuse_error MESSAGE — the tooling failed, not the change: still refused, but "error": true makes the
+# engine store no verdict, so the next run tries again (see _lib/changeset.sh)
+refuse_error() {
+  jq -n --arg r "$1" '{reason: $r, error: true}'
+  exit 1
+}
+
 [ "$(printf '%s' "$payload" | jq -r '.event.kind // ""')" = "Changeset" ] ||
-  refuse "expected a Changeset event, so the changed files could not be checked"
+  refuse_error "expected a Changeset event, so the changed files could not be checked"
 printf '%s' "$payload" | jq -e '.changeset.files | type == "array"' >/dev/null 2>&1 ||
-  refuse "the changeset's files could not be read, so they could not be checked"
+  refuse_error "the changeset's files could not be read, so they could not be checked"
 count="$(printf '%s' "$payload" | jq -r '.changeset.files | length')" || count=""
-case "$count" in '' | *[!0-9]*) refuse "the changeset's files could not be read, so they could not be checked" ;; esac
-command -v yq >/dev/null 2>&1 || refuse "yq is not installed, so the capability files could not be checked"
+case "$count" in '' | *[!0-9]*) refuse_error "the changeset's files could not be read, so they could not be checked" ;; esac
+command -v yq >/dev/null 2>&1 || refuse_error "yq is not installed, so the capability files could not be checked"
 
 # fine PATH CONTENT: return 0 when no cell has a harness-lacks deviation without a cited doc or run
 fine() {
@@ -38,13 +45,13 @@ fine() {
 i=0
 while [ "$i" -lt "$count" ]; do
   path="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].path')" ||
-    refuse "could not read file $i of the changeset, so it could not be checked"
+    refuse_error "could not read file $i of the changeset, so it could not be checked"
   status="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].status')" ||
-    refuse "could not read $path from the changeset, so it could not be checked"
+    refuse_error "could not read $path from the changeset, so it could not be checked"
   i=$((i + 1))
   [ "$status" = "D" ] && continue
   content="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
-    refuse "could not read $path from the changeset, so it could not be checked"
+    refuse_error "could not read $path from the changeset, so it could not be checked"
   if ! why="$(fine "$path" "$content")"; then
     refuse "$path: $why"
   fi

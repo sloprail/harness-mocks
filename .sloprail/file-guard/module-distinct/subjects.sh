@@ -16,23 +16,23 @@ slim_payload
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/modules.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 load_modules
-work="$(mktemp -d "${TMPDIR:-/tmp}/sr-subjects-module-distinct.XXXXXX")" || refuse "cannot make a directory for the subjects' work files"
+work="$(mktemp -d "${TMPDIR:-/tmp}/sr-subjects-module-distinct.XXXXXX")" || refuse_error "cannot make a directory for the subjects' work files"
 trap 'rm -rf "$work"' EXIT
 printf '%s' "$MODULES" >"$work/modules"
-paths="$(changed_paths)" || refuse "the changed paths could not be listed, so the modules to judge cannot be worked out"
+paths="$(changed_paths)" || refuse_error "the changed paths could not be listed, so the modules to judge cannot be worked out"
 mpaths="$(grep '/module\.yaml$' <<<"$paths" || true)"
 out=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
   d="$(dirname "$p")"
-  m="$(jq -c --arg d "$d" '[.[] | select(.dir == $d)][0] // empty' <<<"$MODULES")" || refuse "could not look up the module in $d"
-  [ -n "$m" ] || m="$(jq -nc --arg d "$d" '{dir: $d, home: []}')" || refuse "could not build the entry of the removed module $d"
-  module_home_files "$m" >"$work/home" || refuse "the files $d's home globs match could not be listed, so its subject cannot be keyed"
+  m="$(jq -c --arg d "$d" '[.[] | select(.dir == $d)][0] // empty' <<<"$MODULES")" || refuse_error "could not look up the module in $d"
+  [ -n "$m" ] || m="$(jq -nc --arg d "$d" '{dir: $d, home: []}')" || refuse_error "could not build the entry of the removed module $d"
+  module_home_files "$m" >"$work/home" || refuse_error "the files $d's home globs match could not be listed, so its subject cannot be keyed"
   entry="$(jq -nc --arg p "$p" --slurpfile all "$work/modules" --argjson m "$m" --rawfile h "$work/home" \
     '{id: $m.dir, files: [$p],
       extra: ("others:" + ([$all[0][] | select(.dir != $m.dir)] | sort_by(.dir) | tojson) + "\nhome:" + ($h | sub("\n+$"; "")))}')" ||
-    refuse "could not build the subject of $p"
+    refuse_error "could not build the subject of $p"
   out="$out$entry"$'\n'
 done <<<"$mpaths"
-subs="$(printf '%s' "$out" | jq -sc .)" || refuse "the subjects could not be collected into one list"
+subs="$(printf '%s' "$out" | jq -sc .)" || refuse_error "the subjects could not be collected into one list"
 sub_finish unclaimed "$subs"

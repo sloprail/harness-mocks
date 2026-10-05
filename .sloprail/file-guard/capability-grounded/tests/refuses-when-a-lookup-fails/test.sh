@@ -52,6 +52,10 @@ expect_passed() {   # LABEL
 expect_refused() {   # LABEL SUBSTRING
   jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="capability-grounded" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: capability-grounded did not refuse with a reason saying '$2' (sr-checks exit $ran)" >&2; exit 1; }
+  # the citation requirement (added-or-removed.sh) answers an unreadable change with "the user's words are required", a verdict on what the change needs
+  case "$1" in control*|violation|implemented*|new\ code*|*changed-files*|*comparison*) return 0 ;; esac
+  jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .outcome=="refused" and (.reason|contains($s)) and (.reason|contains("could not be evaluated")))' "$SR_EVENTS_FILE" >/dev/null ||
+    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: refused as a verdict, not reported as an error (no verdict to cache)" >&2; exit 1; }
 }
 inject() {   # MARKER — the lookups whose jq program carries MARKER fail, for this run only
   run_rule "PATH=$PWD/shim:$PATH" "SHIM_JQ_FAIL=$1"

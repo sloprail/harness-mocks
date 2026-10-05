@@ -12,12 +12,12 @@
 load_modules() {
   local files out
   MODULES="[]"
-  files="$(git -C "$SR_TREE" ls-files -- '*module.yaml' ':!proposals/**' 2>&1)" || refuse "could not list module.yaml files: $files"
+  files="$(git -C "$SR_TREE" ls-files -- '*module.yaml' ':!proposals/**' 2>&1)" || refuse_error "could not list module.yaml files: $files"
   [ -n "$files" ] || return 0
   # one yq over every module.yaml: it names each document by its file
   out="$(cd "$SR_TREE" && printf '%s\n' "$files" | xargs yq -o=json -I=0 '{"dir": (filename | sub("/?module\\.yaml$"; "") | (select(. != "") // ".")), "concern": (.concern // ""), "home": (.home // []), "api": (.api // [])}' 2>&1)" ||
     refuse "a module.yaml is not valid YAML: $out"
-  MODULES="$(jq -sc . <<<"$out")" || refuse "the module.yaml documents could not be collected into one list: $out"
+  MODULES="$(jq -sc . <<<"$out")" || refuse_error "the module.yaml documents could not be collected into one list: $out"
 }
 
 # in_globs PATH GLOB… — PATH matches one of the globs (** and * both cross /).
