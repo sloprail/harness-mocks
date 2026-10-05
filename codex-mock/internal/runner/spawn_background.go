@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
@@ -53,6 +54,11 @@ func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	t := tasks.NewTask(tasks.Agent, r.AgentID)
 	t.Owner = h.id // the agent that started it is the one told when it ends
 	h.bg.StartAgent(t, func(ctx context.Context) {
+		select { // its first step is a model call, which takes a while
+		case <-time.After(modelCall):
+		case <-ctx.Done():
+			return
+		}
 		rollout, err := h.createSub(r.AgentID)
 		if err != nil {
 			t.Failure = fmt.Sprintf("failed to start the sub-agent: %v", err) // a wait refuses it, not an empty completion

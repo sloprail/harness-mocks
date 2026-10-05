@@ -100,6 +100,12 @@ func (r *jsRun) lookup(name string) (any, bool) {
 
 func (r *jsRun) declare(list []*ast.Binding) error {
 	for _, b := range list {
+		if pat, ok := b.Target.(*ast.ArrayPattern); ok {
+			if err := r.declareAll(pat, b.Initializer); err != nil {
+				return err
+			}
+			continue
+		}
 		id, ok := b.Target.(*ast.Identifier)
 		if !ok || b.Initializer == nil {
 			return fmt.Errorf("the model's script declares something other than name = value")
@@ -108,15 +114,9 @@ func (r *jsRun) declare(list []*ast.Binding) error {
 		if err != nil {
 			return err
 		}
-		name := id.Name.String()
-		top := r.scope[len(r.scope)-1]
-		if v, again := top[name]; (again && v != any(unset{})) || reserved[name] {
-			return fmt.Errorf("the model's script declares %s, which is the harness's or already declared", name)
+		if err := r.bind(id.Name.String(), v); err != nil {
+			return err
 		}
-		if r.cond > 0 { // declared by code that may not run: its value is not known
-			v = opaque{}
-		}
-		top[name] = v
 	}
 	return nil
 }

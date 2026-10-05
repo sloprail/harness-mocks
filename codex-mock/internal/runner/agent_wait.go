@@ -20,6 +20,7 @@ import (
 type waitInput struct {
 	Targets []string `json:"targets"`
 	Timeout *int     `json:"timeout_ms"`
+	More    bool     `json:"more"` // the mock's own parameter (moreFollows)
 }
 
 func (in waitInput) timeout() time.Duration {
@@ -27,23 +28,17 @@ func (in waitInput) timeout() time.Duration {
 }
 
 // waitAgent waits until one of the sub-agents it names has finished, or its
-// timeout is up, and tells the agent where each stands: a status map keyed by
-// sub-agent id, a finished one's value its completion with its final report as
-// text, one still going "running", one that is not a sub-agent of the session
-// "not_found" (the last two are the tool description's statuses, which no
-// recording shows; recorded is only {completed} with timed_out false; the
-// description's pending_init, interrupted, shutdown and errored are not
-// modelled: a wait that names a sub-agent which failed is refused, no status
-// is made up for it), and timed_out. The stream shows a wait started, then
-// completed with each sub-agent's state and the report of a finished one as
-// its message; there is no frame of a task of its own (recorded:
-// runs/foreground-subagent-result, runs/foreground-subagent-bash-ends-with-response).
-// Recorded are only waits for one sub-agent that finished within the timeout:
-// that a wait for several returns at the first to finish is the tool's
-// description ("whichever finishes first"); a timed-out wait answers an empty
-// status, as the description says ("Returns empty status when timed out").
-// The sub-agents are looked up in the session's task registry: an id it does
-// not hold is not_found.
+// timeout is up, and tells the agent how it stands: a status map keyed by
+// sub-agent id with, for each finished one, its completion with its final report
+// as text (recorded: runs/foreground-subagent-result), and timed_out. A wait for
+// several returns at the first to finish, and a target still running then is not
+// listed, nor is it among the receivers of the stream's completed wait item
+// (recorded: runs/foreground-subagent-wait-many; the doc says Codex waits for
+// all). An id that is not a sub-agent of the session's task registry is
+// "not_found" (the tool description's status; no recording shows it); a timed-out
+// wait answers an empty status, as the description says. What a wait tells of a
+// sub-agent that failed is not recorded: it is refused, not made up. The stream
+// shows a wait started, then completed; there is no frame of a task of its own.
 //
 // sr:provides foreground-subagent-result/codex
 func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Result {
@@ -63,16 +58,19 @@ func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Resul
 		return toolcall.Result{Output: "wait interrupted", Failed: true}
 	}
 	states := map[string]events.AgentState{}
-	var status []string
+	var status, told []string
 	for _, st := range res.States {
 		switch st.Status {
 		case subagents.WaitCompleted:
 			states[st.ID] = events.AgentState{Status: "completed", Message: st.Report}
 			status = append(status, fmt.Sprintf("%q:{\"completed\":%q}", st.ID, st.Report))
-		default:
+		case subagents.WaitNotFound:
 			status = append(status, fmt.Sprintf("%q:%q", st.ID, st.Status))
+		default: // still running: a wait that returned at the first to finish does not list it (recorded: runs/foreground-subagent-wait-many)
+			continue
 		}
+		told = append(told, st.ID)
 	}
-	h.events.CollabCompleted(item, "wait", h.id, in.Targets, nil, states)
+	h.events.CollabCompleted(item, "wait", h.id, told, nil, states)
 	return toolcall.Result{Output: fmt.Sprintf(`{"status":{%s},"timed_out":%t}`, strings.Join(status, ","), res.TimedOut)}
 }

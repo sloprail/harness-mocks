@@ -182,3 +182,19 @@ func TestAMethodOnAValueNotFollowedIsRefusedUnlessItOnlyLooksAround(t *testing.T
 	_, err = newJSRun().script("const r = await tools.exec_command({cmd:\"a\"}); text(r.output.trim());")
 	assert.Error(t, err)
 }
+
+func TestPromiseAllOfToolCallsBindsEachName(t *testing.T) {
+	calls, err := newJSRun().script("const [a, b] = await Promise.all([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]); await tools.exec_command({cmd:a.output});")
+	require.NoError(t, err)
+	require.Len(t, calls, 3)
+	assert.Equal(t, ref{call: 0, path: ".output"}, calls[2].Args[0].(map[string]any)["cmd"])
+	for _, js := range []string{
+		"const [a] = await Promise.all([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]);",
+		"const [a, ...r] = await Promise.all([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]);",
+		"const [a, b] = await Promise.race([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]);",
+		"const [a, b] = [tools.exec_command({cmd:\"x\"}), 1];",
+	} {
+		_, err := newJSRun().script(js)
+		assert.Error(t, err, js)
+	}
+}

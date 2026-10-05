@@ -156,3 +156,13 @@ func TestWaitForAMissingReceiptFailsTheScript(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, string(out), "no spawn receipt at position 3")
 }
+
+// An agent the recording shows still at work does not end in the replay: its script hangs
+// instead of answering (recorded: runs/print-waits-for-background-agents, a sub-agent cut short).
+func TestAnUnfinishedAgentsScriptHangs(t *testing.T) {
+	sub := &core.Agent{Unfinished: true}
+	rec := core.Recording{Agent: core.Agent{Calls: []core.Call{{Tool: core.ToolSpawn, Input: map[string]any{"message": "m"}, Sub: sub}}}}
+	s := Denormalize(rec)
+	assert.Contains(t, s.Files["sub0.sh"]+s.Scripts["sub0.sh"], "{\"hang\":true}\nSTEPS_EOF")
+	assert.NotContains(t, s.Script, "{\"hang\":true}\nSTEPS_EOF")
+}

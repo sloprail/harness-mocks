@@ -24,6 +24,7 @@ func Rules(repo, root string) rp.Rules {
 		},
 		DropKeys: []string{
 			"script", // the mock's own spawn_agent parameter: the sub-agent's script
+			"more",   // the mock's own parameter of a call that another call of its script follows
 		},
 		Rewrite: map[string]func(string) string{
 			// a `ps` listing is the host's: only the job's own processes are the behaviour

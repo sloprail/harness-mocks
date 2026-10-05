@@ -141,7 +141,11 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 		}
 	}
 	h.rollout.ToolOutput(c.ID, text)
-	h.tellFinishedSubAgents()
+	if !moreFollows(c) { // the model is asked again after this call, and told of a sub-agent that ended, one at a time
+		if text, ok := h.nextNotice(false); ok {
+			h.rollout.User(text)
+		}
+	}
 	if c.Name == agentTool && a.Kind == toolcall.Done && !a.Replaced && !a.Result.Failed {
 		h.startBackground(c, a.Result.Output) // a dispatch not waited for runs once it is answered
 	}

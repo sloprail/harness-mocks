@@ -37,7 +37,18 @@ providers:
       - https://developers.openai.com/codex/subagents#orchestration-and-thread-controls
     runs:
       - codex-mock/snapshots/runs/foreground-subagent-result
+      - codex-mock/snapshots/runs/foreground-subagent-wait-many
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          The docs say that with many agents running Codex waits until all the
+          requested results are available and returns a consolidated response.
+          Recorded, a wait naming two sub-agents returned as soon as the first
+          finished, telling only of it (its status map had that one entry, and the
+          stream's completed wait item named only it), and the second was told of
+          afterwards, as a notification of its own, which the agent answered
+          (runs/foreground-subagent-wait-many). The mock does the same.
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
