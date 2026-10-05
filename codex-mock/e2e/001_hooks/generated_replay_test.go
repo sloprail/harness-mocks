@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	codexreplay "github.com/sloprail/harness-mocks/codex-mock/internal/replay"
-	corereplay "github.com/sloprail/harness-mocks/internal/replay"
 )
 
 // Every recorded run, replayed by the mock's own replay (codexreplay.Run, which
@@ -37,11 +36,9 @@ func TestGeneratedReplay(t *testing.T) {
 			t.Errorf("notReplaying lists %s, which has no recording: remove the entry", name)
 		}
 	}
-	gate := corereplay.NewGate() // adr/replay-concurrency
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			defer gate.Hold()()
 			diff, err := codexreplay.Run(mockBinary, filepath.Join(runsDir, name), os.Environ())
 			var unbuildable *codexreplay.Unbuildable
 			reason, listed := notReplaying[name]

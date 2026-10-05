@@ -10,13 +10,12 @@ import (
 
 // No more replays hold a slot at once than the gate is wide.
 func TestGateLimitsWhoHoldsASlot(t *testing.T) {
-	g := NewGate()
 	var in, most atomic.Int32
 	done := make(chan struct{})
-	for range 3 * cap(g) {
+	for range 3 * cap(replays) {
 		go func() {
 			defer func() { done <- struct{}{} }()
-			defer g.Hold()()
+			defer hold()()
 			n := in.Add(1)
 			for m := most.Load(); n > m && !most.CompareAndSwap(m, n); m = most.Load() {
 			}
@@ -24,10 +23,10 @@ func TestGateLimitsWhoHoldsASlot(t *testing.T) {
 			in.Add(-1)
 		}()
 	}
-	for range 3 * cap(g) {
+	for range 3 * cap(replays) {
 		<-done
 	}
-	assert.LessOrEqual(t, int(most.Load()), cap(g))
-	assert.GreaterOrEqual(t, cap(g), 1)
-	assert.LessOrEqual(t, cap(g), 4)
+	assert.LessOrEqual(t, int(most.Load()), cap(replays))
+	assert.GreaterOrEqual(t, cap(replays), 1)
+	assert.LessOrEqual(t, cap(replays), 4)
 }

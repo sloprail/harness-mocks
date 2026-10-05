@@ -12,7 +12,6 @@ import (
 
 	"github.com/sloprail/harness-mocks/claude-mock/e2etest"
 	claudereplay "github.com/sloprail/harness-mocks/claude-mock/internal/replay"
-	"github.com/sloprail/harness-mocks/internal/replay"
 )
 
 // runsDir is where the recorded runs are.
@@ -41,11 +40,9 @@ func TestGeneratedReplay(t *testing.T) {
 			t.Errorf("notReplaying lists %s, which has no recording: remove the entry", name)
 		}
 	}
-	gate := replay.NewGate() // adr/replay-concurrency
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			defer gate.Hold()()
 			diff, err := claudereplay.Run(e2etest.MockBinaryPath, filepath.Join(runsDir, name), os.Environ())
 			var unbuildable *claudereplay.Unbuildable
 			reason, listed := notReplaying[name]
