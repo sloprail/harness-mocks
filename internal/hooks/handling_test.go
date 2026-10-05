@@ -64,15 +64,22 @@ func TestActedBlockIsTheLastToFinish(t *testing.T) {
 	}
 }
 
-// Two blockers that finish together have no order of their own: the one
-// configured last is acted on, whichever the scheduler finished first.
-func TestActedBlockOfBlockersThatFinishTogetherIsTheLastConfigured(t *testing.T) {
-	for i := 0; i < 20; i++ {
-		out := RunAll(context.Background(), []Command{
-			{Line: `echo A >&2; exit 2`}, {Line: `echo B >&2; exit 2`}, {Line: "exit 0"},
-		}, nil, rt)
-		if idx, ok := ActedBlock(out, false); !ok || idx != 1 {
-			t.Fatalf("run %d: ActedBlock = (%d, %v), want (1, true)", i, idx, ok)
+// ActedBlock goes by the order the commands finished in (Done), not by their
+// order of configuration or what they took: built outcomes, no shells.
+func TestActedBlockIsTheBlockerWithTheLastDone(t *testing.T) {
+	block := func(done int) Outcome { return Outcome{Exit: 2, Started: true, Done: done} }
+	pass := Outcome{Exit: 0, Started: true, Done: 3}
+	for _, tc := range []struct {
+		name string
+		outs []Outcome
+		want int
+	}{
+		{"the first configured finished last", []Outcome{block(2), block(1), pass}, 0},
+		{"the second configured finished last", []Outcome{block(1), block(2), pass}, 1},
+		{"a passing command finished last", []Outcome{block(1), pass, block(2)}, 2},
+	} {
+		if i, ok := ActedBlock(tc.outs, false); !ok || i != tc.want {
+			t.Errorf("%s: ActedBlock = (%d, %v), want (%d, true)", tc.name, i, ok, tc.want)
 		}
 	}
 }

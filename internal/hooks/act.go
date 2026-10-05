@@ -7,31 +7,18 @@ import "time"
 // and a command that could not start has none to read either.
 func (o Outcome) Counts() bool { return o.Started && !o.TimedOut }
 
-// simultaneous is how close two commands' run times must be to count as
-// finishing together: commands started at once that take about as long have no
-// order of their own, and the one configured last is the one acted on (recorded:
-// claude snapshots/runs/all-hooks, two blockers that both exit at once: the
-// second configured is acted on in every sample).
-const simultaneous = 150 * time.Millisecond
-
 // ActedBlock is which of the commands of one event a block is acted on for.
 // Every matching command runs to completion before the results are merged,
 // whatever one of them decides; of those that block (by exit status, as the
 // event reads it: strict is VerdictOf's), the one that finished last is acted
-// on, and of several that finished together the one configured last. ok is
-// false when none blocked.
+// on. ok is false when none blocked.
 //
 // sr:capability hooks-all-matching-run
 func ActedBlock(outs []Outcome, strict bool) (index int, ok bool) {
-	var longest time.Duration
-	for _, o := range outs {
-		if o.Counts() && VerdictOf(o.Exit, strict) == Blocked && o.Took > longest {
-			longest = o.Took
-		}
-	}
+	last := 0
 	for i, o := range outs {
-		if o.Counts() && VerdictOf(o.Exit, strict) == Blocked && o.Took >= longest-simultaneous {
-			index, ok = i, true
+		if o.Counts() && VerdictOf(o.Exit, strict) == Blocked && o.Done >= last {
+			index, ok, last = i, true, o.Done
 		}
 	}
 	return index, ok
