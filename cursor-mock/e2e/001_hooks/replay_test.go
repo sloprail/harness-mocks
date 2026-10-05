@@ -349,6 +349,10 @@ func scriptCall(t *testing.T, frame string, writes []string) (string, []string) 
 				content, writes = writes[0], writes[1:]
 			}
 			name, input = "Write", map[string]any{"file_path": args["path"], "content": content}
+		case "grepToolCall":
+			name, input = "Grep", map[string]any{"pattern": args["pattern"]}
+		case "deleteToolCall":
+			name, input = "Delete", map[string]any{"file_path": args["path"]}
 		case "taskToolCall":
 			// a sub-agent the recorded agent started: the mock's sub-agent plays
 			// the script of its Task call's input (a knob of its own), here one that

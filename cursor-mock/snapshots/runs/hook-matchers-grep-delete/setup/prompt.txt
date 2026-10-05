@@ -1,0 +1,1 @@
+Do these as separate tool calls, one per call, in order: 1) search the files here for the word NEEDLE with your Grep tool 2) delete the file gone.txt with your Delete tool, not the shell. Then reply only DONE.

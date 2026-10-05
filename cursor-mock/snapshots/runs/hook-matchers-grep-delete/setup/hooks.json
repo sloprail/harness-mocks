@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/ran.sh start" }],
+    "preToolUse": [
+      { "command": ".cursor/hooks/ran.sh pre-Grep", "matcher": "Grep" },
+      { "command": ".cursor/hooks/ran.sh pre-Delete", "matcher": "Delete" },
+      { "command": ".cursor/hooks/ran.sh pre-Shell", "matcher": "Shell" },
+      { "command": ".cursor/hooks/ran.sh pre-all" }
+    ],
+    "postToolUse": [
+      { "command": ".cursor/hooks/ran.sh post-Grep", "matcher": "Grep" },
+      { "command": ".cursor/hooks/ran.sh post-Delete", "matcher": "Delete" }
+    ],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/ran.sh fail-all" }]
+  }
+}
