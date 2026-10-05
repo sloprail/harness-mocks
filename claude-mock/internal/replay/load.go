@@ -123,6 +123,7 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 			"prepare.sh":    readFile(filepath.Join(setup, "prepare.sh")),
 			"args":          strings.Join(args, "\n"),
 			"exit":          code,
+			"result":        failedResult(stream),
 		},
 		Agent: agent,
 	}, nil

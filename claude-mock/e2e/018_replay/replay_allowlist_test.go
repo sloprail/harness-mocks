@@ -7,7 +7,6 @@ package e2e
 // the recording shows (each gap is a PR of its own).
 var notReplaying = map[string]string{
 	"all-hooks-close-first":       "race: the two blockers finish 75 ms apart (A last) and the real harness acted on A twice and on B once in its three samples, so no deterministic mock replays all three",
-	"all-hooks-close-second":      "adapter: the model called Read: the adapter maps Bash and Agent (in one sample; the recorded acted-on block is B in all three, B finishing last)",
 	"bgagent":                     "adapter: the model said two things before one call: the adapter keeps one",
 	"bgagent-concurrent-limit":    "adapter: the setup has env, which the adapter does not install",
 	"bgagent-definition":          "adapter: the model said two things before one call: the adapter keeps one",
@@ -30,7 +29,6 @@ var notReplaying = map[string]string{
 	"hookerrors":                  "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 11 vs 10; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"hookmix":                     "adapter: sub-agent: the model called Read: the adapter maps Bash and Agent",
 	"isolated-worktree":           "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 19 vs 9; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
-	"matcher":                     "adapter: the model called Read: the adapter maps Bash and Agent",
 	"meta":                        "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 22 vs 17; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"midturn":                     "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; result frames lack api_error_status, is_error, num_turns, permission_denials, queued_turn_count, result_index, session_id, stop_reason, terminal_reason, time_to_request_ms, ttft_ms, ttft_stream_ms; user frames lack parent_tool_use_id, session_id, tool_use_result; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"nested-fork-limit":           "adapter: the setup has env, which the adapter does not install",
@@ -45,12 +43,9 @@ var notReplaying = map[string]string{
 	"resume-name":                 "adapter: no transcript of the main session was recorded: the model's turns are unknown",
 	"resume-path":                 "adapter: no transcript of the main session was recorded: the model's turns are unknown",
 	"resume-unknown":              "adapter: no transcript of the main session was recorded: the model's turns are unknown",
-	"run-failure":                 "adapter: the setup's args have --model, which the adapter does not map to a mock flag",
 	"schedule-wakeup-limits":      "adapter: the model called ScheduleWakeup: the adapter maps Bash and Agent",
 	"stops":                       "adapter: the model said two things before one call: the adapter keeps one",
 	"subprocess-session-env":      "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; result frames lack api_error_status, is_error, num_turns, permission_denials, queued_turn_count, result_index, session_id, stop_reason, terminal_reason, time_to_request_ms, ttft_ms, ttft_stream_ms; user frames lack parent_tool_use_id, session_id, tool_use_result; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"symlinked-cwd":               "adapter: the setup has cwd, which the adapter does not install",
-	"tool-errors":                 "adapter: the model called Read: the adapter maps Bash and Agent",
-	"tool-invalid-input":          "adapter: the model called Read: the adapter maps Bash and Agent",
 	"worktree-hooks":              "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 10 vs 9; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 }

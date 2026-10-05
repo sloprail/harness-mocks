@@ -81,6 +81,12 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 		return nil, nil, "", "", err
 	}
 	s := Denormalize(rec, scripts)
+	// the recording names its run directory <RUN> (as a capture sanitises it): in the calls it is this replay's repository
+	fill := strings.NewReplacer("<RUN>", repo, "\\u003cRUN\\u003e", repo) // as the script's JSON writes it too
+	s.Script = fill.Replace(s.Script)
+	for name, body := range s.Scripts {
+		s.Scripts[name] = fill.Replace(body)
+	}
 	env := a.env(home, tmp, filepath.Join(work, "hook.log"))
 	ctx := context.Background()
 	for _, argv := range [][]string{

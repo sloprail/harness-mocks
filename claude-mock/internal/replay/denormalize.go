@@ -47,7 +47,11 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 				calls[i].Input["script"] = dir + "/" + name
 			}
 		}
-		return script(tag, calls, a.Final)
+		extra := ""
+		if tag == "main" {
+			extra = rec.Setup["result"]
+		}
+		return script(tag, calls, a.Final, extra)
 	}
 	main := scriptFor("main", rec.Agent)
 	return Scenario{
@@ -64,8 +68,11 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 // the input already carries.
 func mockCall(c core.Call) scriptCall {
 	name := "Bash"
-	if c.Tool == core.ToolSpawn {
+	switch c.Tool {
+	case core.ToolSpawn:
 		name = "Agent"
+	case toolRead:
+		name = "Read"
 	}
 	in := make(map[string]any, len(c.Input))
 	for k, v := range c.Input {
@@ -81,12 +88,12 @@ func mockCall(c core.Call) scriptCall {
 // file of its own. The mock runs the script once per tool call and the session
 // file holds the results so far, so the script's n-th run makes the n-th call.
 // Call ids are unique across the run's scripts (tag), as the real ones are.
-func script(tag string, calls []scriptCall, final string) string {
+func script(tag string, calls []scriptCall, final, extra string) string {
 	lines := make([]string, 0, len(calls)+1)
 	for i, c := range calls {
 		lines = append(lines, callLine(fmt.Sprintf("toolu_%s%d", tag, i), c))
 	}
-	lines = append(lines, finalLines(final))
+	lines = append(lines, finalLines(final, extra))
 	return fmt.Sprintf(`#!/bin/sh
 n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
 sed -n "$((n+1))p" <<'CALLS_EOF' | tr '\001' '\n'
@@ -95,18 +102,41 @@ CALLS_EOF
 `, strings.Join(lines, "\n"))
 }
 
-// finalLines is what the script prints to end: the answer and the result.
-func finalLines(final string) string {
+// finalLines is what the script prints to end: the answer and the result, which
+// is an error when the recorded one was (extra: its is_error and api_error_status,
+// what the mock cannot know of a model API that failed).
+func finalLines(final, extra string) string {
 	var parts []string
+	var more map[string]any
+	_ = json.Unmarshal([]byte(extra), &more)
 	if final != "" {
-		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": final}))
+		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": final}, more["assistant"]))
 	}
-	result, _ := json.Marshal(map[string]any{"type": "result", "subtype": "success", "result": final})
+	frame := map[string]any{"type": "result", "subtype": "success", "result": final}
+	for k, v := range more {
+		if k != "assistant" {
+			frame[k] = v
+		}
+	}
+	result, _ := json.Marshal(frame)
 	return strings.Join(append(parts, string(result)), "\x01")
 }
 
-func assistantFrame(block map[string]any) string {
-	b, _ := json.Marshal(map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "content": []any{block}}})
+func assistantFrame(block map[string]any, extra ...any) string {
+	msg := map[string]any{"role": "assistant", "content": []any{block}}
+	frame := map[string]any{"type": "assistant", "message": msg}
+	if len(extra) > 0 { // what the harness added to a message it wrote itself (an API error): its flags and the message's stop reason
+		if e, ok := extra[0].(map[string]any); ok {
+			for k, v := range e {
+				if k == "stop_reason" || k == "stop_sequence" {
+					msg[k] = v
+				} else {
+					frame[k] = v
+				}
+			}
+		}
+	}
+	b, _ := json.Marshal(frame)
 	return string(b)
 }
 

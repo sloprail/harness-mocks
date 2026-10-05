@@ -104,6 +104,9 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 	if res.NonExecution != "" {
 		frame["tool_result_meta"] = []any{map[string]any{"id": call.ToolUseID, "non_execution_kind": res.NonExecution}}
 	}
+	if !res.IsError && call.ToolName != "Bash" {
+		frame["message"] = withoutIsError(record["message"].(map[string]any)) // only a Bash result says it is not an error (recorded: 83 results)
+	}
 	line, err := marshalRecord(frame)
 	if err != nil {
 		return fmt.Errorf("claude-mock: marshal tool_result: %w", err)
@@ -139,4 +142,25 @@ func toolNameInTranscript(tr *transcript, toolUseID string) string {
 		}
 	}
 	return ""
+}
+
+// withoutIsError is the message with its tool_result's is_error left out, a copy.
+func withoutIsError(msg map[string]any) map[string]any {
+	blocks, _ := msg["content"].([]map[string]any)
+	out := make([]map[string]any, len(blocks))
+	for i, b := range blocks {
+		c := map[string]any{}
+		for k, v := range b {
+			if k != "is_error" {
+				c[k] = v
+			}
+		}
+		out[i] = c
+	}
+	m := map[string]any{}
+	for k, v := range msg {
+		m[k] = v
+	}
+	m["content"] = out
+	return m
 }
