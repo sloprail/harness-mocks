@@ -201,7 +201,8 @@ func bgStream(t *testing.T, name string, frames []map[string]any) bgStreamOf {
 func TestABackgroundCommandIsAnnouncedByItsCallFramesAndOneNotificationNamingItsShellId(t *testing.T) {
 	rec := bgStream(t, "recording", recordedStream(t, "task-stream-frames"))
 	assert.Equal(t, true, rec.args["isBackground"])
-	assert.Equal(t, "notification", rec.order[len(rec.order)-1], "the notification comes after the calls' ends")
+	wantOrder := []string{"shell/started", "task/started", "shell/completed", "task/completed", "notification"}
+	assert.Equal(t, wantOrder, rec.order, "both calls of the turn started before either completes, then the notification")
 	assert.EqualValues(t, rec.notification["task_id"], fmt.Sprint(int64(rec.receipt["shellId"].(float64))))
 	assert.Equal(t, "success", rec.notification["status"])
 	assert.Equal(t, rec.args["description"], rec.notification["title"])
@@ -214,11 +215,11 @@ func TestABackgroundCommandIsAnnouncedByItsCallFramesAndOneNotificationNamingIts
 	require.NoError(t, os.WriteFile(sub, []byte(pongScript), 0o755))
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
 n=$(grep -c '"type":"tool_use"' "$A10N_MOCK_SESSION_FILE" 2>/dev/null)
-case "${n:-0}" in
-0) printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_0","name":"Bash","input":{"command":"sh -c '"'"'sleep 1; echo BGDONE'"'"'","block_until_ms":0,"description":"Background sleep then echo"}}]}}' ;;
-1) printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_1","name":"Task","input":{"description":"Reply with PONG","prompt":"Reply with the single word PONG.","subagent_type":"generalPurpose","script":"`+sub+`"}}]}}' ;;
-*) printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"DONE"}]}}' '{"type":"result","subtype":"success","result":"DONE"}' ;;
-esac
+if [ "${n:-0}" = 0 ]; then
+  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_0","name":"Bash","input":{"command":"sh -c '"'"'sleep 1; echo BGDONE'"'"'","block_until_ms":0,"description":"Background sleep then echo"}}]}}' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_1","name":"Task","input":{"description":"Reply with PONG","prompt":"Reply with the single word PONG.","subagent_type":"generalPurpose","script":"`+sub+`"}}]}}'
+else
+  printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"DONE"}]}}' '{"type":"result","subtype":"success","result":"DONE"}'
+fi
 `), 0o755))
 	cmd := exec.Command(binary, "-p", "--force", "--trust", "--output-format", "stream-json", "--script", script, "go")
 	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "TMPDIR=" + scratch}
@@ -233,5 +234,5 @@ esac
 	assert.Equal(t, fmt.Sprint(int64(got.receipt["shellId"].(float64))), got.notification["task_id"])
 	assert.Equal(t, rec.notification["status"], got.notification["status"])
 	assert.Equal(t, got.args["description"], got.notification["title"])
-	assert.Equal(t, []string{"shell/started", "shell/completed", "task/started", "task/completed", "notification"}, got.order, "the notification follows the calls that launched the tasks")
+	assert.Equal(t, wantOrder, got.order, "the mock interleaves the calls of the turn as the recording does")
 }
