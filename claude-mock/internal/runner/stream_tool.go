@@ -92,7 +92,16 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 		},
 	}
 
-	line, err := marshalRecord(record)
+	// The stream frame carries the tool's structured result as tool_use_result
+	// (the file's record calls it toolUseResult, below).
+	frame := record
+	if res.ToolUseResult != nil {
+		frame = map[string]any{"tool_use_result": res.ToolUseResult}
+		for k, v := range record {
+			frame[k] = v
+		}
+	}
+	line, err := marshalRecord(frame)
 	if err != nil {
 		return fmt.Errorf("claude-mock: marshal tool_result: %w", err)
 	}

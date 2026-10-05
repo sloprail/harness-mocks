@@ -77,6 +77,7 @@ func writeStreamLine(cfg Config, line []byte) {
 	if len(line) == 0 {
 		return
 	}
+	line = stampFrame(cfg, line)
 	buf := make([]byte, 0, len(line)+1)
 	buf = append(append(buf, line...), '\n')
 	cfg.Out.Write(buf) //nolint:errcheck
