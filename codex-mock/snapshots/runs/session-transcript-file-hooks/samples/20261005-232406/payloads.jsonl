@@ -1,0 +1,10 @@
+{"session_id":"01a10e61-b477-7133-b27a-4c4c6faf7352","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T01-24-08-01a10e61-b477-7133-b27a-4c4c6faf7352.jsonl","cwd":"<RUN>","hook_event_name":"SessionStart","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","source":"startup"}
+{"probe":"SessionStart","transcript_exists":true}
+{"session_id":"01a10e61-b477-7133-b27a-4c4c6faf7352","turn_id":"01a10e61-ba96-7352-a0a6-33f1e65398cf","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T01-24-08-01a10e61-b477-7133-b27a-4c4c6faf7352.jsonl","cwd":"<RUN>","hook_event_name":"PreToolUse","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo one"},"tool_use_id":"exec-4e8586bd-18e1-4001-bc31-89ba38f6b534"}
+{"probe":"PreToolUse","transcript_exists":true}
+{"session_id":"01a10e61-b477-7133-b27a-4c4c6faf7352","turn_id":"01a10e61-ba96-7352-a0a6-33f1e65398cf","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T01-24-08-01a10e61-b477-7133-b27a-4c4c6faf7352.jsonl","cwd":"<RUN>","hook_event_name":"PostToolUse","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo one"},"tool_response":"one\n","tool_use_id":"exec-4e8586bd-18e1-4001-bc31-89ba38f6b534"}
+{"probe":"PostToolUse","transcript_exists":true}
+{"session_id":"01a10e61-b477-7133-b27a-4c4c6faf7352","turn_id":"01a10e61-ba96-7352-a0a6-33f1e65398cf","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T01-24-08-01a10e61-b477-7133-b27a-4c4c6faf7352.jsonl","cwd":"<RUN>","hook_event_name":"Stop","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","stop_hook_active":false,"last_assistant_message":"DONE"}
+{"probe":"Stop","transcript_exists":true}
+{"session_id":"01a10e61-b477-7133-b27a-4c4c6faf7352","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T01-24-08-01a10e61-b477-7133-b27a-4c4c6faf7352.jsonl","cwd":"<RUN>","hook_event_name":"SessionEnd","reason":"other"}
+{"probe":"SessionEnd","transcript_exists":true}
