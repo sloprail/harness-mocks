@@ -12,30 +12,41 @@
 #   be listed: the ADR's exception list is where legacy code is named.)
 # Prints nothing and returns when fine; refuses otherwise.
 confine() {
-  local re="$1" allowed="$2" label="$3" exc problems="" f path base head n
+  local re="$1" allowed="$2" label="$3" exc problems="" f path base head n files body
   load_adrs "$(rule_qname)"
-  exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")"
+  # every lookup below refuses when it fails: a failed one read as empty would find no site and pass
+  exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")" ||
+    refuse "the linked ADRs' exceptions could not be read, so no site could be judged"
+  files="$(cs_json '.changeset.files[] | select(.status != "D" and (.path | endswith(".go")))')" ||
+    refuse "the changed Go files could not be listed, so no site could be judged"
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    path="$(jq -r '.path' <<<"$f")"
+    path="$(jq -r '.path' <<<"$f")" || refuse "a changed file's path could not be read, so no site could be judged"
     case "$path" in *_test.go) continue ;; esac
     printf '%s' "$path" | grep -Eq -- "$allowed" && continue
     printf '%s\n' "$exc" | grep -Fxq -- "$path" && continue
-    n="$(jq -r '.newContent // ""' <<<"$f" | grep -cE "$re" || true)"
+    body="$(jq -r '.newContent // ""' <<<"$f")" || refuse "$path: its content could not be read, so its sites could not be counted"
+    n="$(grep -cE "$re" <<<"$body" || true)"
     [ "$n" -eq 0 ] || problems="${problems}- $path $label"$'\n'
-  done < <(cs_json '.changeset.files[] | select(.status != "D" and (.path | endswith(".go")))')
+  done <<<"$files"
 
   # The ratchet: total sites across the whole tree outside the allowed paths,
   # base vs head. A pure move keeps it equal whatever the files are called.
-  base="$(cs '.changeset.base')"; head="$(cs '.changeset.head')"
-  total() {   # REV
-    # the rules' own scope: the shared internal/ and every harness mock
-    git -C "$SR_TREE" grep -c -E "$re" "$1" -- ':(glob)internal/**/*.go' ':(glob)*-mock/**/*.go' ':!*_test.go' 2>/dev/null |
-      sed "s#^$1:##" | awk -F: -v re="$allowed" '$1 !~ re {s += $NF} END {print s + 0}'
+  base="$(cs '.changeset.base')" || refuse "the range's base could not be read, so the site count could not be compared"
+  head="$(cs '.changeset.head')" || refuse "the range's head could not be read, so the site count could not be compared"
+  total() {   # REV — sets TOTAL (no refuse here: this may run in a subshell)
+    local out rc
+    # the rules' own scope: the shared internal/ and every harness mock. git grep exits 1 on no match
+    # (fine: zero sites) and >1 on an error (refuse)
+    out="$(git -C "$SR_TREE" grep -c -E "$re" "$1" -- ':(glob)internal/**/*.go' ':(glob)*-mock/**/*.go' ':!*_test.go' 2>&1)"
+    rc=$?
+    [ "$rc" -le 1 ] || refuse "could not count the sites at $1: $out"
+    TOTAL="$(printf '%s\n' "$out" | sed "s#^$1:##" | awk -F: -v re="$allowed" 'NF && $1 !~ re {s += $NF} END {print s + 0}')" ||
+      refuse "could not total the sites at $1"
   }
   if [ -n "$base" ] && [ -n "$head" ]; then
     local tb th
-    tb="$(total "$base")"; th="$(total "$head")"
+    total "$base"; tb="$TOTAL"; total "$head"; th="$TOTAL"
     [ "$th" -le "$tb" ] ||
       problems="${problems}- the code outside the allowed place now holds $th sites, up from $tb: legacy sites may only be removed"$'\n'
   fi
