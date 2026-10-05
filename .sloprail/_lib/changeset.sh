@@ -25,6 +25,15 @@ refuse() {
   exit 1
 }
 
+# refuse_error MESSAGE — the tooling failed, not the change: a partly materialised tree, a failed
+# ls/git grep, a missing yq or jq. Still refused (fail-closed), but "error": true makes the engine
+# store no verdict, so the next run tries again instead of replaying a fail that says nothing about
+# the change. A verdict on the content (a missing marker, a bad cell) stays a plain refuse.
+refuse_error() {
+  jq -n --arg r "$1" '{reason: $r, error: true}'
+  exit 1
+}
+
 # slim_payload [KEEP_REGEX] — drops every file's diff and contents from $payload except those of the
 # paths matching KEEP_REGEX (a jq regex). A `subjects:` script runs in `verify` on every Stop and
 # push and a payload can be tens of megabytes: one jq pass here, and every `cs` after it reads a
@@ -47,7 +56,7 @@ want_subject() { local s; s="$(subject_id)"; [ -z "$s" ] || [ "$s" = "$1" ]; }
 # leave its JSON in a variable, so no helper below refuses from inside one:
 # they set variables instead.)
 [ -n "${SR_TREE:-}" ] && [ -d "${SR_TREE:-}" ] ||
-  refuse "SR_TREE is not set, so the committed tree cannot be read; this rule only judges commits"
+  refuse_error "SR_TREE is not set, so the committed tree cannot be read; this rule only judges commits"
 tree() { printf '%s' "$SR_TREE"; }
 
 # load_markers KIND — sets MARKERS to every `sr:<KIND> <fqn>` marker in the
@@ -61,7 +70,7 @@ load_markers() {
     "^[[:space:]]*(//|#|--)[[:space:]]*sr:${kind}[[:space:]]+(\"[^\"]*\"|[^[:space:]\"][^[:space:]]*)[[:space:]]*$" \
     -- . ':!proposals/**' 2>&1)"
   rc=$?
-  [ "$rc" -le 1 ] || refuse "could not search the committed tree for sr:${kind} markers: $out"
+  [ "$rc" -le 1 ] || refuse_error "could not search the committed tree for sr:${kind} markers: $out"
   [ -n "$out" ] || return 0
   MARKERS="$(printf '%s\n' "$out" | sed -E \
     "s#^([^:]+):[0-9]+:[[:space:]]*(//|\#|--)[[:space:]]*sr:${kind}[[:space:]]+\"?([^\"[:space:]]+)\"?[[:space:]]*\$#\1\t\3#")"
