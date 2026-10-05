@@ -187,7 +187,7 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 	require.NoError(t, err)
 	for _, l := range strings.Split(string(b), "\n") {
 		var f map[string]any
-		if json.Unmarshal([]byte(l), &f) == nil && f["type"] == "tool_call" && f["subtype"] == "started" {
+		if json.Unmarshal([]byte(l), &f) == nil && f["type"] == "tool_call" && f["subtype"] == "started" && !strings.Contains(l, "getMcpToolsToolCall") {
 			calls = append(calls, l)
 		}
 	}
@@ -349,6 +349,10 @@ func scriptCall(t *testing.T, frame string, writes []string) (string, []string) 
 				content, writes = writes[0], writes[1:]
 			}
 			name, input = "Write", map[string]any{"file_path": args["path"], "content": content}
+		case "mcpToolCall":
+			// an MCP tool the recorded agent called: the mock calls the server's
+			// tool of the project's .cursor/mcp.json
+			name, input = "mcp__"+args["serverIdentifier"].(string)+"__"+args["toolName"].(string), args["args"].(map[string]any)
 		case "grepToolCall":
 			name, input = "Grep", map[string]any{"pattern": args["pattern"]}
 		case "deleteToolCall":

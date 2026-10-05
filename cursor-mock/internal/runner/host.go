@@ -62,6 +62,15 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 		return s.startSubagent(ctx, tu, in)
 	}
 	c := toolexec.FromScript(tu.Name, tu.Input)
+	if c.Kind == "mcpToolCall" {
+		if !s.cfg.ApproveMCPs {
+			s.forward(startedFrame(s.id, tu.ID, c))
+			s.tr.toolUse(tu.Name, c.Args)
+			s.forward(errorFrame(s.id, tu.ID, c, "cursor-mock: an MCP tool call is modeled only with --approve-mcps (the mode it was recorded in)", nil))
+			return func() {}
+		}
+		s.readsMcpTool(ctx, tu, c)
+	}
 	s.forward(startedFrame(s.id, tu.ID, c))
 	s.tr.toolUse(tu.Name, c.Args)
 	return func() {
