@@ -18,6 +18,3 @@ mock is never noticed.
 - A mock's replay command replays every captured sample of a recorded run, and
   "replays green" means all of them do; a mock that replays only the newest
   sample is a gap to close, not a convention.
-- The cursor mock's replay (`cursor-mock/internal/replay`) replays every sample.
-  The claude and codex mocks' replays, which replay only the newest sample, are
-  to be brought to the same.
