@@ -27,8 +27,7 @@ func commands(c Config) (out []string) {
 	return out
 }
 
-// A plugin loaded from a directory contributes its hooks alongside the project's (hooks run at the same time, recorded in
-// runs/hooks-together, so there is no order between them to pin):
+// A plugin loaded from a directory contributes its hooks before the project's, as recorded:
 // from hooks/hooks.json when its manifest names no hooks file (the doc's
 // default location), from the file the manifest names when it does, and
 // nothing when the directory is not loaded.
@@ -46,7 +45,7 @@ func TestPluginHooksAreFoundByDefaultOrByTheManifest(t *testing.T) {
 
 	c, err := Load(ws, "plugins/a", named)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"project-hook", "plugin-hook", "plugin-hook"}, commands(c), "the project's and each loaded plugin's; c is not loaded")
+	assert.Equal(t, []string{"plugin-hook", "plugin-hook", "project-hook"}, commands(c), "each loaded plugin's, then the project's; c is not loaded")
 
 	c, err = Load(ws)
 	require.NoError(t, err)
