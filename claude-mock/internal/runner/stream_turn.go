@@ -14,6 +14,9 @@ import (
 // runOneTurnSig executes the script once, processes its JSONL output, and
 // executes the tool call it ended on, if any.
 func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, bg *backgroundTasks) (turnResult, error) {
+	if err := bg.refused.Err(); err != nil { // a sub-agent's script asked for what the mock does not implement
+		return turnResult{}, err
+	}
 	cmd := exec.CommandContext(ctx, "/bin/sh", cfg.ScriptPath) //nolint:gosec
 	cmd.Dir = cfg.Cwd
 	cmd.Env = buildEnv(cfg, tr)

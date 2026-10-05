@@ -12,11 +12,10 @@ import (
 // runSubagent drives the sub-agent's script as a turn of its own and reports
 // its last message.
 func runSubagent(ctx context.Context, sub *state, in spawnInput) subagents.Outcome {
-	last, err := turnloop.Run(ctx, subHost{sub, in.Message}, turnloop.Params{Tools: Schema(),
+	last, err := turnloop.Run(ctx, subHost{sub, in.Message}, turnloop.Params{
 		Script: in.Script, Dir: sub.cfg.Cwd, Environ: sub.cfg.Environ, Prompt: in.Message})
 	out := subagents.Outcome{LastAssistant: last, FinalText: last}
 	if err != nil {
-		sub.refused.Set(err)
 		out.Failure = err.Error()
 	}
 	return out

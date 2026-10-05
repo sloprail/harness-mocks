@@ -63,8 +63,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				// A call the mock does not implement ends the run before it is played
-				// (adr/tool-calls-validated).
+				// a call the mock does not implement ends the run (adr/tool-calls-validated)
 				if _, err := Schema().Check(toolName, toolInput); err != nil {
 					return scanResult{}, err
 				}

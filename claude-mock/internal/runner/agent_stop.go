@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strconv"
 	"unicode/utf16"
@@ -13,7 +12,6 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/subagents"
-	"github.com/sloprail/harness-mocks/internal/toolspec"
 )
 
 // run drives the sub-agent's script as a nested run writing its sidechain
@@ -55,10 +53,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
 		out.Failure = err.Error()
-		var refused *toolspec.Error
-		if errors.As(err, &refused) {
-			bg.refused.Set(err)
-		}
+		bg.refused.Set(err)
 	}
 	// A sub-agent does not wait for the background agents it launched: they go to
 	// whoever launched it, and report there (recorded: bgagent-nested-launcher).

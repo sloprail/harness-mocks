@@ -34,7 +34,7 @@ func TestRunStartsAllTheCallsOfATurnBeforeCompletingAnyForAnInterleaver(t *testi
 	if err := os.WriteFile(script, []byte(twoCalls), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := Run(context.Background(), h, Params{Tools: testTools, Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go"})
+	_, err := Run(context.Background(), h, Params{Script: script, Dir: dir, Environ: []string{"PATH=/usr/bin:/bin"}, Prompt: "go"})
 	want := []string{"prompt", "start:Bash", "start:Task", "tool:Bash", "tool:Task", "stop::false"}
 	if err != nil || !reflect.DeepEqual(h.log, want) {
 		t.Fatalf("err=%v log=%v, want %v", err, h.log, want)

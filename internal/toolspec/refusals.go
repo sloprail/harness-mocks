@@ -1,6 +1,9 @@
 package toolspec
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 // Refusals holds the first error a scenario script of a run ended with, above
 // all a call it asked for that the mock does not implement. The sessions of a
@@ -11,8 +14,13 @@ type Refusals struct {
 	first error
 }
 
-// Set keeps err unless the run already holds an earlier one.
+// Set keeps err, when it is a refusal of a call (an *Error), unless the run
+// already holds an earlier one; any other error of a script is not kept.
 func (r *Refusals) Set(err error) {
+	var refusal *Error
+	if !errors.As(err, &refusal) {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.first == nil {

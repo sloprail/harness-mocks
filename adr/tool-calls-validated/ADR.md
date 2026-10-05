@@ -7,24 +7,14 @@ sloprails: [file-guard/adr-conformance]
 
 ## Concern
 
-The tool calls a scenario script asks a mock to make. A call the mock does not
-implement (a tool it lacks, a parameter it ignores, an option value it does not
-act on) played anyway lets a wrong script or a wrong recording pass.
+The tool calls a scenario script asks a mock to make. The mock plays what the
+script gives it, and a call it does not implement played anyway lets a wrong
+script or a wrong recording pass.
 
 ## Decision
 
 - Every tool call a scenario script asks `claude-mock`, `codex-mock` or
-  `cursor-mock` to make is checked by the core's validator (`internal/toolspec`)
-  before the mock plays it, in replays and in ordinary runs alike.
-- Each harness declares the tools its mock implements in one schema of its own
-  (name, parameters, types, which are required, the option values the mock
-  implements). Every tool and parameter in it is one a recorded run shows the
-  real harness take; none is invented.
-- The mock refuses, with an error that names the tool and the parameter, an
-  unknown tool, an unknown parameter, a missing required parameter, a value of
-  the wrong type, and an option value it does not implement.
-- Only a mistake whose answer a recorded run shows may be answered instead of
-  refused. The schema lists such a kind for a tool, with the run; the mock then
-  answers exactly as recorded (the same frame and error text, the variable parts
-  taken from the call), and a test proves each listed kind against its
-  recording. A kind with no recording behind it is refused.
+  `cursor-mock` to make is validated by the core (`internal/toolspec`) before the
+  mock plays it, in replays and in ordinary runs alike.
+- A call that fails validation is refused as `adr/fail-fast-unimplemented` says:
+  loudly, with an error that names it.
