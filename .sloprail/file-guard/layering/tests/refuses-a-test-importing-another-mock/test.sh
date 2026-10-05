@@ -32,7 +32,7 @@ BASE=$(git rev-parse HEAD)
 
 verdict() {   # the layering outcome over BASE..HEAD
   : > "$SR_EVENTS_FILE"
-  sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 || true
+  sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 }
 
 # a test of b-mock imports a-mock: refused, naming the import
