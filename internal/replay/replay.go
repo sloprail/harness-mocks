@@ -21,6 +21,10 @@ const (
 	ToolShell = "shell"
 	// ToolSpawn starts a sub-agent: Input "message" (string), and Call.Sub is the sub-agent's turns.
 	ToolSpawn = "spawn_agent"
+	// ToolWait waits for sub-agents to finish: Input "targets" ([]int: the sub-agents waited
+	// for, each the position of its ToolSpawn call among those the agent made that were
+	// answered with a sub-agent), and "timeout_ms" (int).
+	ToolWait = "wait_agent"
 )
 
 // Call is one tool call the model made.

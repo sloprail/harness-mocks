@@ -80,7 +80,7 @@ func TestScriptCallsInMethodArguments(t *testing.T) {
 }
 
 func TestUnifyTakesOneArgument(t *testing.T) {
-	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}})
+	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}}, nil, nil)
 	assert.ErrorContains(t, err, "2 arguments")
 }
 

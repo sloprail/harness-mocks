@@ -9,6 +9,7 @@ import (
 // jsCall is a call of one of the harness's tools (`tools.<name>(args)`) that a
 // model script made, with its arguments evaluated.
 type jsCall struct {
+	Num  int // its number among the rollout's calls: a ref to its answer names it
 	Name string
 	Args []any
 }

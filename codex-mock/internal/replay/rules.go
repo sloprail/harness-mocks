@@ -1,6 +1,7 @@
 package replay
 
 import (
+	"encoding/json"
 	"regexp"
 
 	rp "github.com/sloprail/harness-mocks/internal/replay"
@@ -24,7 +25,7 @@ func Rules(repo, root string) rp.Rules {
 		Rewrite: map[string]func(string) string{
 			// a `ps` listing is the host's: only the job's own processes are the behaviour
 			"aggregated_output": scratchText,
-			"tool_response":     scratchText,
+			"tool_response":     func(s string) string { return withoutNickname(scratchText(s)) },
 			// where the harness's own npm package is installed is the machine's
 			"CODEX_MANAGED_PACKAGE_ROOT": func(string) string { return "<PKG_ROOT>" },
 			// how the shell was invoked is the machine's: the command is what the model asked for
@@ -36,4 +37,16 @@ func Rules(repo, root string) rp.Rules {
 		},
 		IDs: []*regexp.Regexp{re(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)}, // thread and session ids
 	}
+}
+
+// withoutNickname is a spawn_agent receipt ({"agent_id", "nickname"}) with the
+// nickname, which Codex picks at random, as <NICKNAME>; any other text is returned as it is.
+func withoutNickname(text string) string {
+	var r map[string]any
+	if json.Unmarshal([]byte(text), &r) != nil || r["agent_id"] == nil || r["nickname"] == nil {
+		return text
+	}
+	r["nickname"] = "<NICKNAME>"
+	b, _ := json.Marshal(r)
+	return string(b)
 }

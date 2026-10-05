@@ -30,7 +30,7 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 		args[i] = v
 	}
 	if tool, ok := toolName(c.Callee); ok {
-		r.calls = append(r.calls, jsCall{Name: tool, Args: args})
+		r.calls = append(r.calls, jsCall{Num: r.n, Name: tool, Args: args})
 		r.n++
 		return ref{call: r.n - 1}, nil
 	}
