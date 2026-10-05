@@ -61,8 +61,10 @@ providers:
           file exists) transcript_path: the sub-agent's, not the main agent's,
           as in a Shell call's preToolUse and postToolUse payloads. No field
           carries the sub-agent's type or its parent on the events of its own
-          calls (recorded: runs/subagent-lifecycle-hooks). The mock does the
-          same.
+          calls. The main agent's events carry a session_id and conversation_id
+          too, so the events of a sub-agent are told from them only by those
+          ids differing: no event says it was raised inside a sub-agent
+          (recorded: runs/subagent-lifecycle-hooks). The mock does the same.
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
