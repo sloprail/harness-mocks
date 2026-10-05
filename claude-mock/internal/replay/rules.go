@@ -30,9 +30,9 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		DropKeys: []string{
 			"uuid", "request_id", "timestamp", // ids and times that differ in every run
 			"usage", "modelUsage", "total_cost_usd", "duration_ms", "duration_api_ms", // the model's cost: the mock has no model
-			"signature",                                                              // the model's thinking, signed
-			"script",                                                                 // the mock's own Agent input (the sub-agent's script): the real tool has no such key
-			"first_content_frame_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
+			"signature",                                                                                                                 // the model's thinking, signed
+			"script",                                                                                                                    // the mock's own Agent input (the sub-agent's script): the real tool has no such key
+			"first_content_frame_ms", "ttft_ms", "ttft_stream_ms", "time_to_request_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
 		},
 		// the order the capture sanitised in: the repository first, as it holds the temp root
 		Scrub: []rp.Scrub{

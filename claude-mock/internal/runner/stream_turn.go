@@ -37,9 +37,16 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{}, waitErr
 	}
 	pending := sc.pending
+	if cfg.AgentID == "" && (pending.ToolName != "" || sc.lastText != "") {
+		bg.modelTurns.Add(1) // the main agent's model took a turn: it called a tool or answered
+	}
 	if pending.ToolName == "" {
 		if sc.done || sc.compactSig == "" {
-			return turnResult{done: true, lastText: sc.lastText, resultLine: withSubagentStats(sc.resultLine, bg)}, nil
+			result := withSubagentStats(sc.resultLine, bg)
+			if cfg.AgentID == "" {
+				result = withResultFields(result, bg.modelTurns.Load(), cfg.SessionID)
+			}
+			return turnResult{done: true, lastText: sc.lastText, resultLine: result}, nil
 		}
 		// The invocation compacted the context and stopped: the turn goes on
 		// after a compaction, so the script runs again.
