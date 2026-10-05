@@ -18,35 +18,67 @@ import (
 // "local test <ci-local@sloprail.invalid>" this way). A test identity is given as environment
 // (GIT_AUTHOR_* / GIT_COMMITTER_*, see claude-mock/Makefile) or `git -c`, never as global config.
 
+// globalGitConfigWrites reports the commands in body that write the global or system git config,
+// with the line each starts on. Reads (--get*, --list, -l, --show-origin) are fine. A command
+// spread over lines (a shell backslash continuation, a Go call split after "," or "(") is judged
+// as one; comment lines are prose and never join anything.
+func globalGitConfigWrites(body string) []string {
+	var out []string
+	check := func(cmd string, line int) {
+		if !strings.Contains(cmd, "config") || readOnlyConfig.MatchString(cmd) || !writesMachineConfig(cmd) {
+			return
+		}
+		if shellGitConfig.MatchString(cmd) || goGitConfig.MatchString(cmd) {
+			out = append(out, strings.TrimSpace(cmd)+" (line "+strconv.Itoa(line)+")")
+		}
+	}
+	cur, start := "", 0
+	for i, line := range strings.Split(body, "\n") {
+		t := strings.TrimSpace(line)
+		if strings.HasPrefix(t, "//") || strings.HasPrefix(t, "#") {
+			if cur != "" {
+				check(cur, start)
+				cur = ""
+			}
+			continue
+		}
+		if cur == "" {
+			start = i + 1
+		}
+		cur += " " + strings.TrimSuffix(t, `\`)
+		if strings.HasSuffix(t, `\`) || strings.HasSuffix(t, ",") || strings.HasSuffix(t, "(") {
+			continue
+		}
+		check(cur, start)
+		cur = ""
+	}
+	if cur != "" {
+		check(cur, start)
+	}
+	return out
+}
+
+// writesMachineConfig: --global / --system, or --file/-f naming a config under a home directory
+// (the XDG ~/.config/git/config included, a repository's own .git/config not).
+func writesMachineConfig(cmd string) bool {
+	if globalScope.MatchString(cmd) {
+		return true
+	}
+	for _, m := range homeFile.FindAllString(cmd, -1) {
+		if !strings.Contains(m, ".git/config") {
+			return true
+		}
+	}
+	return false
+}
+
 var (
-	globalScope    = regexp.MustCompile(`--(global|system)\b|(--file|-f)[ =]+"?(~|\$HOME|\$\{HOME\}|/Users/|/home/)[^ ]*gitconfig`)
+	globalScope    = regexp.MustCompile(`--(global|system)\b`)
+	homeFile       = regexp.MustCompile(`(--file|-f)[ =]+"?(~|\$HOME|\$\{HOME\}|/Users/|/home/)[^ ]*config\b`)
 	readOnlyConfig = regexp.MustCompile(`--(get|get-all|get-regexp|list|show-origin)\b|\s-l\b`)
 	shellGitConfig = regexp.MustCompile(`\bgit\b[^|;&]*\bconfig\b`)
 	goGitConfig    = regexp.MustCompile(`"config"\s*,`)
 )
-
-// joined folds a backslash continuation and a Go call split after "," or "(" into one line, so a
-// command spread over several lines is matched like one on a single line.
-var joinRe = regexp.MustCompile(`\\\n\s*|[,(]\n\s*`)
-
-func globalGitConfigWrites(body string) []string {
-	var out []string
-	body = joinRe.ReplaceAllStringFunc(body, func(m string) string {
-		return strings.TrimRight(m, " \t\n\\") + " "
-	})
-	for i, line := range strings.Split(body, "\n") {
-		if t := strings.TrimSpace(line); strings.HasPrefix(t, "//") || strings.HasPrefix(t, "#") {
-			continue
-		}
-		if !strings.Contains(line, "config") || !globalScope.MatchString(line) || readOnlyConfig.MatchString(line) {
-			continue
-		}
-		if shellGitConfig.MatchString(line) || goGitConfig.MatchString(line) {
-			out = append(out, strings.TrimSpace(line)+" (line "+strconv.Itoa(i+1)+")")
-		}
-	}
-	return out
-}
 
 func TestNothingWritesTheMachinesGitConfig(t *testing.T) {
 	top, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
@@ -70,6 +102,9 @@ func TestNothingWritesTheMachinesGitConfig(t *testing.T) {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join(root, rel))
+		if os.IsNotExist(err) {
+			continue
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -89,6 +124,8 @@ func TestDetector(t *testing.T) {
 		"git config \\\n  --global user.name x",
 		"exec.Command(\"git\", \"config\",\n\t\"--global\", \"user.email\")",
 		"git config --file ~/.gitconfig user.email x",
+		"git config --file $HOME/.config/git/config user.email x",
+		"// setup (\nexec.Command(\"git\",\"config\",\"--global\",\"a\")",
 		"git -C /x config --system core.autocrlf false",
 		`exec.Command("git", "config", "--global", "user.email", "x")`,
 	} {
