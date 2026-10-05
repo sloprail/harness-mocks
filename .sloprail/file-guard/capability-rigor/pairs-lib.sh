@@ -14,7 +14,7 @@
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
 rigor_pairs() {
-  load_spec capabilities; load_touched; load_touched_markers
+  load_spec capabilities; load_touched; load_touched_markers || return 1
   # one jq over the payload, the specs and the touched table: no process per capability or pair
   printf '%s' "$payload" | jq -r --slurpfile caps0 <(printf '%s' "$SPEC") --rawfile tt <(printf '%s' "$TOUCHED_TSV") --rawfile tm <(printf '%s' "$TOUCHED_MARKERS_TSV") --arg want "$(subject_id)" '
     $caps0[0] as $caps

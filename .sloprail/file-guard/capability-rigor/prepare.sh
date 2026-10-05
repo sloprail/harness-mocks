@@ -11,7 +11,8 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
 load_markers proves; proves="$MARKERS"
 # loaded here, in this shell: a $(...) loses what a loader sets, and a refusal inside one exits only it
-load_spec capabilities; load_touched; load_touched_markers
+load_spec capabilities; load_touched
+load_touched_markers || refuse "the capability markers this change touches could not be worked out, so nothing could be prepared for the judge"
 subjects="[]"
 # Every lookup below that fails refuses: a prepare that cannot work out what to put before the judge
 # must not hand it less (or nothing, which skips the model) and let the verdict pass on that.
