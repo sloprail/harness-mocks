@@ -59,7 +59,12 @@ func rejectedFrame(session, id string, c toolexec.Call, reason string, contexts 
 		return toolFrame(session, id, "completed", c, map[string]any{
 			"error": map[string]any{"path": "", "error": reason, "modelVisibleError": reason}}, contexts)
 	case "readToolCall":
-		return errorFrame(session, id, c, reason, contexts)
+		// a blocked read's completed frame carries no args, only the error
+		// (recorded: runs/before-read-refusal, runs/before-read-timeout)
+		return jsonLine(map[string]any{
+			"type": "tool_call", "subtype": "completed", "call_id": id, "session_id": session,
+			"tool_call": envelope(map[string]any{c.Kind: map[string]any{"result": map[string]any{"error": map[string]any{"errorMessage": reason}}}}, id, contexts),
+		})
 	}
 	rejected := map[string]any{"reason": reason, "isReadonly": false}
 	if c.Kind == "shellToolCall" {
