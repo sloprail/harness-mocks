@@ -10,8 +10,8 @@ package e2e
 var notReplaying = map[string]string{
 	"bg-bash-reaped-at-exit":                     "adapter: an exec_command whose cmd is not a string literal",
 	"compaction-transcript-continuity":           "adapter: the setup has args, which the adapter does not install",
-	"file-tools":                                 "adapter: the model called tools.apply_patch: the adapter maps exec_command and spawn_agent",
-	"file-tools-failure":                         "adapter: the model called tools.apply_patch: the adapter maps exec_command and spawn_agent",
+	"file-tools":                                 "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
+	"file-tools-failure":                         "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
 	"hook-command-subdir":                        "adapter: the setup has args, which the adapter does not install",
 	"hooks-all-matching-run-same-hook-two-files": "adapter: the setup has project-hooks.json, which the adapter does not install",
 	"manual-compaction-auto":                     "adapter: the setup has args, which the adapter does not install",
@@ -32,5 +32,5 @@ var notReplaying = map[string]string{
 	"session-start-compact-continue-false":       "adapter: the setup has args, which the adapter does not install",
 	"subagent-stop-block-loop-cap":               "adapter: the model called wait: the adapter maps only exec",
 	"subagent-transcripts-v2":                    "adapter: the setup has args, which the adapter does not install",
-	"task-stream-frames":                         "adapter: the model called tools.write_stdin: the adapter maps exec_command and spawn_agent",
+	"task-stream-frames":                         "adapter: the model called tools.write_stdin: the adapter maps exec_command, spawn_agent and wait_agent",
 }

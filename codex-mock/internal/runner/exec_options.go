@@ -23,10 +23,12 @@ type execOptions struct {
 // out, refused instead of ignored (adr/fail-fast-unimplemented): a working
 // directory other than the run's, a shell other than zsh (the one the
 // recordings name), zsh when it is not installed, and a login without a shell.
-// A command runs by the shell the call names (shellArgv). A tty is carried out as far as the recordings
-// show it: the terminal's line ending (ttyOutput). max_output_tokens only caps what the model
-// is shown: the mock has no model, so it matters only once a command's output
-// would exceed it (tooLong).
+//
+// shellArgv is what runs the shell: the command by the shell the call names,
+// zsh -c, or zsh -lc for a login shell. A tty is carried out as far as the
+// recordings show it: the terminal's line ending (ttyOutput).
+// max_output_tokens only caps what the model is shown: the mock has no model, so
+// it matters only once a command's output would exceed it (tooLong).
 func (h toolHost) unimplemented(c toolcall.Call) string {
 	var o execOptions
 	_ = json.Unmarshal(c.Input, &o)

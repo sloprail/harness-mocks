@@ -48,3 +48,17 @@ printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"
 	assert.Equal(t, "V=zsh\nNOLOGIN\n", outs[0])
 	assert.Equal(t, "LOGIN\n", outs[1])
 }
+
+// A wait_agent call with a field the real tool has not, or one of the wrong type, fails
+// with the reason; it is not read leniently.
+func TestWaitAgentRefusesBadInput(t *testing.T) {
+	r := execMock(t, scenario{BypassTrust: true, Prompt: "go", Script: `#!/bin/sh
+n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
+if [ "$n" = 0 ]; then
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c0","name":"wait_agent","input":{"targets":["x"],"timeout_ms":"soon","extra":1}}]}}'
+  exit 0
+fi
+printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' '{"type":"result","subtype":"success","result":"done"}'
+`})
+	assert.Contains(t, r.rollout(t), "wait_agent: invalid input")
+}
