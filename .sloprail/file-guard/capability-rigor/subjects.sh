@@ -20,8 +20,10 @@ slim_payload '^spec/capabilities/'
 load_markers proves
 # loaded here, in this shell: a $(...) loses what a loader sets
 load_spec capabilities; load_touched; load_touched_markers
-pairs="$(rigor_pairs)"   # one "<id>/<h>\t<cell>\t<capability>" per pair touched
-arr="$(printf '%s' "$payload" | jq -c --arg pairs "$pairs" --arg proves "$MARKERS" --arg tm "$TOUCHED_MARKERS_TSV" '
+# a failed lookup is a refusal, never an empty list (which would be the `unclaimed` subject, judging nothing)
+pairs="$(rigor_pairs)" || refuse "the touched capability pairs could not be worked out, so nothing could be judged"   # one "<id>/<h>\t<cell>\t<capability>" per pair touched
+# the pairs (each carries its cell and the whole capability) and the tables go through files, not the command line
+arr="$(printf '%s' "$payload" | jq -c --rawfile pairs <(printf '%s' "$pairs") --rawfile proves <(printf '%s' "$MARKERS") --rawfile tm <(printf '%s' "$TOUCHED_MARKERS_TSV") '
   .changeset.files as $files
   | [$files[].path] as $changed
   | [$tm | split("\n")[] | select(length > 0) | split("\t") | {path: .[0], fqn: .[2]}] as $tmr
@@ -38,5 +40,6 @@ arr="$(printf '%s' "$payload" | jq -c --arg pairs "$pairs" --arg proves "$MARKER
          deps: (["spec/capabilities/\($id).yaml"]
                 + [$mine[] | (.cell.runs // [])[]]
                 + [$mine[].pair as $pr | $pv[] | select(.q == $pr) | .p]),
-         extra: ("pairs:" + ([$mine[].pair] | join(" ")))})')"
+         extra: ("pairs:" + ([$mine[].pair] | join(" ")))})')" ||
+  refuse "the capabilities this change touches could not be worked out, so nothing could be judged"
 sub_finish unclaimed "$arr"
