@@ -50,7 +50,8 @@ func TestASubAgentIsAnnouncedBySpawnAndItsEndIsToldByTheWait(t *testing.T) {
 n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
 case $n in
 0) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c0","name":"spawn_agent","input":{"message":"Reply with the single word PONG.","script":"sub.sh"}}]}}';;
-1) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c1","name":"Bash","input":{"command":"sh -c '"'"'echo BGDONE'"'"'"}}]}}';;
+1) printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"cw","name":"wait_agent","input":{"targets":["%s"],"timeout_ms":60000}}]}}\n' "$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | head -1)";;
+2) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c1","name":"Bash","input":{"command":"sh -c '"'"'echo BGDONE'"'"'"}}]}}';;
 *) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}' '{"type":"result","subtype":"success","result":"DONE"}';;
 esac
 `
