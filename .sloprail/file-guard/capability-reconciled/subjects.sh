@@ -15,15 +15,15 @@ slim_payload '^spec/capabilities/'
 load_markers provides; provides="$MARKERS"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
 load_spec capabilities
-pairs="$(reconcile_pairs)"
-arr="$(printf '%s' "$payload" | jq -c --arg pairs "$pairs" --arg head "$provides" --argjson caps "$SPEC" '
+pairs="$(reconcile_pairs)" || refuse "the touched capability pairs could not be worked out, so nothing could be reconciled"
+arr="$(printf '%s' "$payload" | jq -c --arg pairs "$pairs" --arg head "$provides" --slurpfile caps0 <(printf '%s' "$SPEC") '
   [.changeset.files[].path] as $changed
   | [$pairs | split("\n")[] | select(length > 0) | split("\t") | {id: .[0], h: .[1]}] as $pp
   | [$head | split("\n")[] | select(length > 0) | split("\t") | {p: .[0], f: .[1]}] as $hm
   | [$pp[].id] | unique | map(. as $id
       | [$pp[] | select(.id == $id) | .h] as $hs
       | ([$hs[] | "\($id)/\(.)"]) as $fq
-      | ([$caps[] | select(.id == $id) | (.doc.providers // {}) | (if type == "object" then . else {} end) | to_entries[]
+      | ([$caps0[0][] | select(.id == $id) | (.doc.providers // {}) | (if type == "object" then . else {} end) | to_entries[]
           | select(.key as $k | $hs | index($k)) | (.value | if type == "object" then (.runs // []) else [] end)[]]) as $runs
       | {id: $id,
          files: ((if $changed | index("spec/capabilities/\($id).yaml") then ["spec/capabilities/\($id).yaml"] else [] end)

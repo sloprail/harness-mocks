@@ -13,7 +13,7 @@
 reconcile_pairs() {
   load_touched
   load_spec capabilities
-  printf '%s' "$payload" | jq -r --argjson caps "$SPEC" --arg tt "$TOUCHED_TSV" --arg head "$provides" --arg hs "$(harnesses)" --arg want "$(subject_id)" '
+  printf '%s' "$payload" | jq -r --slurpfile caps0 <(printf '%s' "$SPEC") --arg tt "$TOUCHED_TSV" --arg head "$provides" --arg hs "$(harnesses)" --arg want "$(subject_id)" '
     ($hs | split("\n") | map(select(length > 0))) as $H
     | def idof: split("/")[0];
       def hof: (split("/") | if length > 1 then .[1:] | join("/") else "" end);
@@ -28,7 +28,7 @@ reconcile_pairs() {
         | (.[0] | ltrimstr("spec/capabilities/") | rtrimstr(".yaml")) as $id | .[1] as $h
         | if $h == "*" then ($H + [$marked[] | select(idof == $id) | hof] | unique[]) | "\($id)/\(.)" else "\($id)/\($h)" end]) as $byCell
     | [.changeset.files[].path] as $changed
-    | ([$caps[] | .id as $id | (.doc.providers // {} | if type == "object" then . else {} end) | to_entries[]
+    | ([$caps0[0][] | .id as $id | (.doc.providers // {} | if type == "object" then . else {} end) | to_entries[]
         | select(.value | type == "object" and .supported == null) | .key as $h
         | select(any((.value.runs // [])[]; . as $r | any($changed[]; startswith($r + "/")))) | "\($id)/\($h)"]) as $byRun
     | ($byMarker + $byCell + $byRun) | unique[]

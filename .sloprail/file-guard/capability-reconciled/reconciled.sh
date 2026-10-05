@@ -17,6 +17,7 @@ load_markers provides; provides="$MARKERS"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
 load_spec capabilities; caps="$SPEC"
 
+pairs="$(reconcile_pairs)" || refuse "the touched capability pairs could not be worked out, so nothing could be reconciled"
 problems=""
 add() { problems="${problems}- $1"$'\n'; }
 # `// "missing"` would read a false cell as missing: jq's // treats false as absent.
@@ -61,7 +62,7 @@ while IFS=$'\t' read -r id h; do
       add "$p: sr:provides $fq, but the cell '$id' × '$h' is $(state "$v"): code carrying sr:provides is the adapter of a supported cell, so make the cell supported ({docs, runs}) or remove the marker"
     done
   fi
-done < <(reconcile_pairs)
+done <<<"$pairs"
 
 [ -z "$problems" ] && exit 0
 refuse "Cells and adapters do not match, so one side must follow the other (adr/capability-once):
