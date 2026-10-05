@@ -106,16 +106,17 @@ func TestPendingIsAllowedButNotCoverage(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "cap/other") {
 		t.Fatalf("pending is allowed and listed, got %d: %s", code, out)
 	}
-	// a provides marker on a pending cell is not coverage: refused
-	code, out = check(t, "  other: pending\n", "// sr:provides cap/other")
+	// a proves marker on a pending cell is not coverage: refused (the sr:provides side is
+	// file-guard/capability-reconciled's)
+	code, out = check(t, "  other: pending\n", "// sr:proves cap/other")
 	if code == 0 || !strings.Contains(out, "not coverage") {
 		t.Fatalf("a marker on a pending cell must be refused, got %d: %s", code, out)
 	}
 }
 
-func TestSupportedCellStillNeedsMarkers(t *testing.T) {
+func TestSupportedCellStillNeedsAProvingTest(t *testing.T) {
 	code, out := check(t, "  other:\n    docs:\n      - https://example.com/hooks#events\n    runs:\n      - other-mock/snapshots/runs/r\n")
-	if code == 0 || !strings.Contains(out, "sr:provides") {
-		t.Fatalf("a supported cell without markers must be refused, got %d: %s", code, out)
+	if code == 0 || !strings.Contains(out, "sr:proves") {
+		t.Fatalf("a supported cell without a proving test must be refused, got %d: %s", code, out)
 	}
 }
