@@ -1,0 +1,5 @@
+statement: >-
+  A replay never leaves out of its comparison what a capability cell is about:
+  an adapter drops no field a cell names (the working directory, the
+  transcript paths), and sorts no hook payloads across different events, whose
+  recorded order is kept.
