@@ -77,6 +77,7 @@ func (m *MockFailure) Error() string { return "the mock failed: " + m.Detail }
 // Run replays the recording in runDir through a and returns what differs;
 // empty is a green replay.
 func Run(a Adapter, mock, runDir string) (string, error) {
+	defer hold()()
 	rec, err := a.Load(runDir)
 	if err != nil {
 		return "", err
