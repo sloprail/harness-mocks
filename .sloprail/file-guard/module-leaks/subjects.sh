@@ -9,6 +9,9 @@
 #                module's boundary and concern (module.yaml), its candidates.sh and the ADRs'
 #                exceptions.
 # Adding code that matches module A's search leaves module B's subject as it was.
+# A lookup that fails refuses (leaks-lib.sh): a failed one is never "no candidates", which would
+# judge nothing. What grows (the candidates, the changed paths, the exceptions) goes to jq by file,
+# never as one command-line argument (Linux caps one at 128 KB).
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -17,17 +20,25 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 . "${SR_GUARDRAIL_DIR:-.}/leaks-lib.sh"
 load_modules; load_adrs; leak_setup; leak_prefetch
+printf '%s' "$CHANGED" >"$LEAK_WORK/changed"
+printf '%s' "$EXC" >"$LEAK_WORK/exc-text"
+mlist="$(jq -c '.[]' <<<"$MODULES")" || refuse "could not list the modules, so their leaks cannot be found"
 out=""
 while IFS= read -r m; do
   [ -n "$m" ] || continue
-  dir="$(jq -r '.dir' <<<"$m")"
+  dir="$(jq -r '.dir' <<<"$m")" || refuse "could not read a module's directory, so its leaks cannot be found"
   leak_left "$m" || continue
-  [ "$(jq 'length' <<<"$LEFT")" -gt 0 ] || continue
-  out="$out$(jq -nc --arg d "$dir" --argjson left "$LEFT" --arg changed "$CHANGED" --arg exc "$EXC" \
-    '($changed | split("\n")) as $c
+  nleft="$(jq 'length' <<<"$LEFT")" || refuse "could not count the candidates of $dir"
+  [ "$nleft" -gt 0 ] || continue
+  printf '%s' "$LEFT" >"$LEAK_WORK/left"
+  entry="$(jq -nc --arg d "$dir" --slurpfile left "$LEAK_WORK/left" --rawfile changed "$LEAK_WORK/changed" --rawfile exc "$LEAK_WORK/exc-text" \
+    '$left[0] as $left | ($changed | split("\n")) as $c
      | {id: $d,
         files: ([$left[].path, "\($d)/module.yaml", "\($d)/candidates.sh"] | map(select(. as $p | $c | index($p)))),
         deps: ["\($d)/module.yaml", "\($d)/candidates.sh"],
-        extra: ("exceptions:" + $exc + "\nleft:" + ($left | map("\(.path):\(.line):\(.text)") | join("\n")))}')"$'\n'
-done < <(jq -c '.[]' <<<"$MODULES")
-sub_finish no-leak-candidates "$(printf '%s' "$out" | jq -sc .)"
+        extra: ("exceptions:" + $exc + "\nleft:" + ($left | map("\(.path):\(.line):\(.text)") | join("\n")))}')" ||
+    refuse "could not build the subject of module $dir"
+  out="$out$entry"$'\n'
+done <<<"$mlist"
+subs="$(printf '%s' "$out" | jq -sc .)" || refuse "the subjects could not be collected into one list"
+sub_finish no-leak-candidates "$subs"
