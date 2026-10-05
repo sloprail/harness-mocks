@@ -17,6 +17,9 @@ import (
 // subprocess-session-env). The handlers have already run; the frames keep the
 // recorded order.
 func writeSessionStartFrames(cfg Config, in hooks.Input, runs []hooks.HandlerRun) {
+	if cfg.ResumeLookup && in.Source == startSource(corehooks.StartResumed) {
+		cfg.SessionID = newRecordUUID() // a session found by name, path or --continue: its hooks' frames carry the id of the lookup's own session (recorded: runs/resume-name)
+	}
 	name := hookRunName(in)
 	ids := make([]string, len(runs))
 	for i := range runs {

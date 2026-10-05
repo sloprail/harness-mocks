@@ -40,6 +40,8 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagResume, "", "Session ID to resume (--resume, as used by claude CLI)")
 	// --continue resumes the most recent session of the directory (headless#continue-conversations).
 	cmd.Flags().Bool(flagContinue, false, "Resume the most recent session of the project directory (--continue, as used by claude CLI)")
+	cmd.Flags().Bool(flagResumeLookup, false, "Internal: --resume named its session by lookup")
+	_ = cmd.Flags().MarkHidden(flagResumeLookup)
 	cmd.Flags().Bool(flagNoPersistence, false, "Leave no session to resume (--no-session-persistence, as used by claude CLI)")
 	// --fork-session: when resuming, continue under a NEW session id in a new
 	// transcript instead of appending to the original. The new id is
