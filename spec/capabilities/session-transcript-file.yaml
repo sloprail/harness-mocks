@@ -36,6 +36,16 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
+          Doc and recording conflict: the hooks doc (#common-schema) says
+          transcript_path is "Path to the main conversation transcript file
+          (null if transcripts disabled)", and the recordings show it null with
+          transcripts on, at sessionStart and the first preToolUse in every
+          capture (recorded: runs/tool-failure, runs/symlinked-cwd,
+          runs/shell-exit-status, runs/hook-json-nonzero). The recordings
+          decide.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
           Cursor does not settle when the payload first names the transcript.
           Its transcript_path is null at sessionStart and on the first
           preToolUse in every capture, and names the file from the first
