@@ -26,6 +26,7 @@ providers:
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/file-tools
       - cursor-mock/snapshots/runs/subagent-lifecycle-hooks
+      - cursor-mock/snapshots/runs/multiroot-workspace
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
