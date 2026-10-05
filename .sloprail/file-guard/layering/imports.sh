@@ -6,9 +6,9 @@ set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 root="$(tree)"
-mod="$(cd "$root" && go list -m 2>/dev/null)" || refuse "go list -m failed in the committed tree, so imports cannot be checked"
+mod="$(cd "$root" && go list -m 2>/dev/null)" || refuse_error "go list -m failed in the committed tree, so imports cannot be checked"
 out="$(cd "$root" && go list -f '{{.ImportPath}}{{range .Imports}} {{.}}{{end}}{{range .TestImports}} {{.}}{{end}}{{range .XTestImports}} {{.}}{{end}}' ./... 2>&1)" ||
-  refuse "go list failed in the committed tree, so imports cannot be checked: $out"
+  refuse_error "go list failed in the committed tree, so imports cannot be checked: $out"
 problems="$(printf '%s\n' "$out" | awk -v mod="$mod/" '
   function area(p,  r) { if (index(p, mod) != 1) return ""; r = substr(p, length(mod) + 1)
                          if (r ~ /^internal(\/|$)/) return "core"
