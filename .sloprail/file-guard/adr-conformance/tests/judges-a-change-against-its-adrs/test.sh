@@ -33,15 +33,15 @@ run_rule() {
   sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 }
 expect_passed() {   # LABEL
-  jq -es --arg r "$RULE" '[.[] | select(.kind=="FileGuardChecked" and .rule==$r)] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
+  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="adr-conformance")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE did not pass (sr-checks exit $ran)" >&2; exit 1; }
 }
 expect_refused() {   # LABEL SUBSTRING
-  jq -es --arg r "$RULE" --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule==$r and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="adr-conformance" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE did not refuse with a reason saying '$2' (sr-checks exit $ran)" >&2; exit 1; }
 }
 expect_not_judged() {   # LABEL
-  jq -es --arg r "$RULE" '[.[] | select(.kind=="FileGuardChecked" and .rule==$r)] | length == 0' "$SR_EVENTS_FILE" >/dev/null ||
+  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="adr-conformance")] | length == 0' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE was asked about a change outside its match" >&2; exit 1; }
 }
 
