@@ -36,7 +36,7 @@ providers:
       - codex-mock/snapshots/runs/subagent-transcripts-v2
     deviations:
       - adr: capability-grounding
-        kind: mock-not-modeled
+        kind: harness-lacks
         statement: >-
           Codex keeps no sidecar file: the sub-agent's rollout is a file beside
           the session's (same day directory, named by the sub-agent's own thread
