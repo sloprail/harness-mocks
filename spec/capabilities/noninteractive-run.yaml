@@ -94,10 +94,11 @@ providers:
           The recorded streams (runs/pretool-refusal, runs/noninteractive-no-force)
           carry thinking frames: "delta" frames with a piece of the model's
           reasoning text, closed by a "completed" frame, each with a session id
-          and timestamp, and assistant text frames between tool calls. They are
-          the model's own words; the mock calls no model, so it emits none of
-          them. Its stream is the system init, the prompt, the tool-call frames
-          and the result, the same as the recorded sequence without those frames.
+          and timestamp. They are the model's own words; the mock calls no model
+          and no script can produce them, so it emits none. It prints an assistant
+          frame only for text a script gives it, and the replay scripts give
+          none. Its stream is the system init, the prompt, the tool-call frames
+          and the result, the same as the recorded sequence without thinking frames.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
