@@ -79,3 +79,39 @@ func TestTranscriptIsADayAndSessionIDFileThatExistsAtStart(t *testing.T) {
 	day := time.Now().Format("2006/01/02")
 	assert.Contains(t, onDisk[0], "/sessions/"+day+"/", "kept under the day it started")
 }
+
+// Every event of a session names the same transcript file in its payload, tool
+// hooks and SessionEnd included, and the file exists whenever the hook runs
+// (runs/session-transcript-file-hooks).
+// sr:proves session-transcript-file/codex
+func TestEveryEventNamesTheSameExistingTranscript(t *testing.T) {
+	rec := loadRecording(t, "session-transcript-file-hooks")
+	want := jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))
+	got := replay(t, rec)
+	require.Equal(t, 0, got.Code, got.Stderr)
+
+	shape := func(log []map[string]any) (events []string, probes []any, paths map[string]bool) {
+		paths = map[string]bool{}
+		for _, l := range log {
+			if p, ok := l["probe"]; ok {
+				probes = append(probes, p, l["transcript_exists"])
+				continue
+			}
+			events = append(events, l["hook_event_name"].(string))
+			path, _ := l["transcript_path"].(string)
+			paths[path] = true
+		}
+		return
+	}
+	wantEvents, wantProbes, wantPaths := shape(want)
+	gotEvents, gotProbes, gotPaths := shape(got.hookLog())
+	assert.Equal(t, []string{"SessionStart", "PreToolUse", "PostToolUse", "Stop", "SessionEnd"}, wantEvents)
+	assert.Equal(t, wantEvents, gotEvents)
+	assert.Equal(t, wantProbes, gotProbes, "the file exists whenever a hook runs, as recorded")
+	assert.Len(t, wantPaths, 1, "recorded: one file for every event")
+	assert.Len(t, gotPaths, 1, "the mock names one file for every event")
+	for p := range gotPaths {
+		assert.NotEmpty(t, p)
+		assert.Equal(t, got.rollout(t), readFile(t, p), "and it is the session's transcript")
+	}
+}
