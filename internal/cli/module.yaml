@@ -1,5 +1,0 @@
-# A module is an area of code with a boundary; its decisions live here, not in an ADR.
-# No core: the command-line entry points live in each mock's own files below.
-concern: "the command line of a mock: its flags, their refusal when not implemented, and starting a run"
-home: ["internal/cli/**", "claude-mock/main.go", "claude-mock/run.go", "claude-mock/run_flags.go", "codex-mock/main.go", "codex-mock/exec.go", "codex-mock/unimplemented.go", "cursor-mock/main.go", "cursor-mock/root.go", "cursor-mock/run.go"]   # everything about the concern lives here
-api: []       # the only packages others may import
