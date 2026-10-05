@@ -22,7 +22,7 @@ import (
 // task_notification frame of the same id, a status and the command's
 // description as title. Nothing else on the stream is a frame of a task: no
 // task_started or task_updated (runs/task-stream-frames).
-// sr:proves task-notifications/cursor
+// sr:proves task-stream-frames/cursor
 func TestABackgroundCommandIsAnnouncedByItsCallAndEndsWithANotificationFrame(t *testing.T) {
 	// what the real run showed
 	var wantNote, wantShell map[string]any
