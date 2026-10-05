@@ -16,6 +16,15 @@ func (r *jsRun) maybe(e ast.Expression) (any, error) {
 	return r.eval(e)
 }
 
+// readable refuses reading a property of null or undefined: JS throws there and the
+// script ends, so what follows never ran. Code that may not run (cond) is not refused.
+func (r *jsRun) readable(v any, name string) error {
+	if v == nil && r.cond == 0 {
+		return fmt.Errorf("the model's script reads %s of null or undefined, which throws", name)
+	}
+	return nil
+}
+
 // propertyOf is v.name: a property of an object the script wrote, of a call's answer, or of something opaque.
 func propertyOf(v any, name string) (any, error) {
 	switch o := v.(type) {
@@ -32,7 +41,7 @@ func propertyOf(v any, name string) (any, error) {
 
 // objectProto are the properties every JS object has without the script writing them.
 var objectProto = map[string]bool{"toString": true, "constructor": true, "hasOwnProperty": true, "valueOf": true, "__proto__": true,
-	"isPrototypeOf": true, "propertyIsEnumerable": true, "toLocaleString": true}
+	"isPrototypeOf": true, "__defineGetter__": true, "__defineSetter__": true, "__lookupGetter__": true, "__lookupSetter__": true, "propertyIsEnumerable": true, "toLocaleString": true}
 
 func (r *jsRun) template(t *ast.TemplateLiteral) (any, error) {
 	if t.Tag != nil {

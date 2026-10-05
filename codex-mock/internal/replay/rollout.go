@@ -66,7 +66,10 @@ func unify(m jsCall) (core.Call, error) {
 	if len(m.Args) != 1 {
 		return core.Call{}, fmt.Errorf("the model called tools.%s with %d arguments: the adapter maps one", m.Name, len(m.Args))
 	}
-	arg, _ = m.Args[0].(map[string]any)
+	arg, isObject := m.Args[0].(map[string]any)
+	if !isObject {
+		return core.Call{}, fmt.Errorf("the model called tools.%s with something other than an object: the adapter maps only an object", m.Name)
+	}
 	switch m.Name {
 	case "exec_command":
 		if err := knownKeys(arg, "cmd", "yield_time_ms", execCarried); err != nil {

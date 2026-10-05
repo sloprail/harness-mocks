@@ -48,6 +48,8 @@ func TestScriptRefusesWhatItCannotFollow(t *testing.T) {
 		"an optional chain's call":        "const o = null; o?.f(await tools.exec_command({cmd:\"a\"}));",
 		"a read before its declaration":   "const x = \"a\"; { const y = x; const x = \"b\"; await tools.exec_command({cmd:y}); }",
 		"a lone surrogate":                "await tools.exec_command({cmd:\"a\\ud800\"});",
+		"a read of null":                  "const o = {}; o.x.y; await tools.exec_command({cmd:\"a\"});",
+		"a method of undefined":           "const o = {}; o.x.f(); await tools.exec_command({cmd:\"a\"});",
 		"a redeclaration":                 "const x = 1; const x = 2;",
 		"a store that may not run":        "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) { store(\"k\", 1); }",
 	} {
@@ -106,4 +108,16 @@ func TestUnifyASpawnWithNoArgumentsIsTheRefusedCall(t *testing.T) {
 	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}})
 	require.NoError(t, err)
 	assert.Empty(t, c.Input)
+}
+
+func TestUnifyMapsOnlyAnObjectArgument(t *testing.T) {
+	for _, a := range []any{nil, "hi", number{2}, []any{}, opaque{}} {
+		_, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{a}})
+		assert.Error(t, err, "%v", a)
+	}
+}
+
+func TestAReadOfNullInCodeThatMayNotRunIsAllowed(t *testing.T) {
+	_, err := newJSRun().script("const o = {}; const f = () => o.x.y; const v = o?.x; await tools.exec_command({cmd:\"a\"});")
+	assert.NoError(t, err)
 }

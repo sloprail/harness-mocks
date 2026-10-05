@@ -66,6 +66,9 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := r.readable(left, x.Identifier.Name.String()); err != nil {
+			return nil, err
+		}
 		return propertyOf(left, x.Identifier.Name.String())
 	case *ast.BracketExpression:
 		left, err := r.eval(x.Left) // the object before the key, as JS does
@@ -74,6 +77,9 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 		}
 		key, err := r.eval(x.Member)
 		if err != nil {
+			return nil, err
+		}
+		if err := r.readable(left, "[]"); err != nil {
 			return nil, err
 		}
 		if k, ok := key.(string); ok {

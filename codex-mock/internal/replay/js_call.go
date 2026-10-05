@@ -57,6 +57,11 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 		}
 		return nil, fmt.Errorf("the model's script calls %s, which the adapter does not know", id.Name)
 	}
+	if isDot {
+		if err := r.readable(recv, d.Identifier.Name.String()); err != nil {
+			return nil, err
+		}
+	}
 	if isDot { // a method of something opaque (ALL_TOOLS.filter, JSON.stringify)
 		switch recv.(type) {
 		case []any, map[string]any: // a method may change what the script wrote (reverse, push), which is not followed
