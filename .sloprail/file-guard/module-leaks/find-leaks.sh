@@ -13,18 +13,25 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/leaks-lib.sh"
 load_modules; load_adrs; leak_setup
 
+# a lookup that fails refuses (leaks-lib.sh): never "nothing left to judge", which would let every
+# leak through; the groups (they grow with the modules) go to jq by file, never on its command line
+mlist="$(jq -c '.[]' <<<"$MODULES")" || refuse "could not list the modules, so their leaks cannot be found"
 groups="[]"
 out="$(mktemp -d "${TMPDIR:-/tmp}/sr-judge-module-leaks.XXXXXX")" || refuse "cannot make a directory for the judge's matches"
 while IFS= read -r m; do
   [ -n "$m" ] || continue
-  dir="$(jq -r '.dir' <<<"$m")"
+  dir="$(jq -r '.dir' <<<"$m")" || refuse "could not read a module's directory, so its leaks cannot be found"
   want_subject "$dir" || continue
   leak_left "$m" || continue
-  [ "$(jq 'length' <<<"$LEFT")" -gt 0 ] || continue
+  nleft="$(jq 'length' <<<"$LEFT")" || refuse "could not count the candidates of $dir"
+  [ "$nleft" -gt 0 ] || continue
   mfile="$out/$(printf '%s' "$dir" | tr '/' '_').matches"
-  jq -r '.[] | "\(.path):\(.line):\(.text)"' <<<"$LEFT" >"$mfile"
-  groups="$(jq -c --arg d "$dir" --argjson m "$m" --arg f "$mfile" --argjson n "$(jq 'length' <<<"$LEFT")" \
-    '. + [{module: $d, concern: $m.concern, home: $m.home, api: $m.api, matches: $f, count: $n}]' <<<"$groups")"
-done < <(jq -c '.[]' <<<"$MODULES")
-[ "$(jq 'length' <<<"$groups")" -gt 0 ] || { jq -n '{skip: true}'; exit 0; }
-jq -n -c --argjson g "$groups" '{additionalContext: {modules: $g}}'
+  jq -r '.[] | "\(.path):\(.line):\(.text)"' <<<"$LEFT" >"$mfile" || refuse "could not write the candidates of $dir for the judge"
+  groups="$(jq -c --arg d "$dir" --argjson m "$m" --arg f "$mfile" --argjson n "$nleft" \
+    '. + [{module: $d, concern: $m.concern, home: $m.home, api: $m.api, matches: $f, count: $n}]' <<<"$groups")" ||
+    refuse "could not record the candidates of $dir for the judge"
+done <<<"$mlist"
+ngroups="$(jq 'length' <<<"$groups")" || refuse "could not count the modules with candidates left"
+[ "$ngroups" -gt 0 ] || { jq -n '{skip: true}'; exit 0; }
+printf '%s' "$groups" >"$LEAK_WORK/groups"
+jq -n -c --slurpfile g "$LEAK_WORK/groups" '{additionalContext: {modules: $g[0]}}' || refuse "could not build the judge's context"
