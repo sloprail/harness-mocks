@@ -1,0 +1,4 @@
+# Enforces adr/replay-exceptions-only-shrink: the notReplaying map may lose keys, never gain one.
+match: path == "codex-mock/e2e/001_hooks/replay_allowlist_test.go"
+checks:
+  - script: ./only-shrinks.sh

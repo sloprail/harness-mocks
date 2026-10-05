@@ -107,16 +107,3 @@ jobs:
       # the same sr-checks the verify job pins: the tests ask it what each rule's subjects are
       - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@2ce91382fdedf42c010056b7807ccc5f15e89948
       - run: SR_CHECKS="$HOME/.local/bin/sr-checks" .sloprail/tests/subjects.sh
-
-  allowlist-shrinks:
-    name: replay allowlist only shrinks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: ALLOWLIST_BASE=origin/main go test ./codex-mock/e2e/001_hooks -run TestAllowlistOnlyShrinks -count=1 -v
