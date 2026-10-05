@@ -2,5 +2,6 @@
 # one, and no entry's reason may move to a weaker category; every mock's generated replay test runs a
 # flaky: entry several times and fails when none is green.
 match: path matches "(^|/)(replay_allowlist_test|generated_replay_test)\\.go$"
+deletions: include
 checks:
   - script: ./only-shrinks.sh
