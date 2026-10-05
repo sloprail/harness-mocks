@@ -86,8 +86,8 @@ func TestAdjacentUsesOfADroppedKeyAreEachSeen(t *testing.T) {
 func TestAnExcuseExcusesOneOccurrenceOnly(t *testing.T) {
 	root := cells(t, "It does not model the model.", "Nothing.")
 	errs := run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model the model", Why: "x"})
-	if len(errs) == 0 {
-		t.Fatal("an excuse naming the key twice must be refused")
+	if len(errs) != 3 || !strings.Contains(errs[0], "names the key 2 times") || strings.Count(strings.Join(errs, "\n"), "excuse c/model") != 1 {
+		t.Fatalf("an excuse naming the key twice is refused once, and both uses stay reported, got %v", errs)
 	}
 	// the excuse for one occurrence leaves the other reported
 	errs = run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model the", Why: "x"})
@@ -99,8 +99,9 @@ func TestAnExcuseExcusesOneOccurrenceOnly(t *testing.T) {
 // sr:proves replay-fidelity
 func TestAnExcuseThatIsAmbiguousOrAbsentFails(t *testing.T) {
 	root := cells(t, "It does not model a. It does not model b.", "Nothing.")
-	if errs := run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model", Why: "x"}); len(errs) == 0 {
-		t.Fatal("an excuse text occurring twice must be refused")
+	errs0 := run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model", Why: "x"})
+	if len(errs0) != 3 || !strings.Contains(errs0[0], "occurs 2 times") || strings.Count(strings.Join(errs0, "\n"), "excuse c/model") != 1 {
+		t.Fatalf("an ambiguous excuse is refused once, and both uses stay reported, got %v", errs0)
 	}
 	errs := run(t, root, Excuse{Cell: "c", Key: "model", Text: "does not model a", Why: "x"}, Excuse{Cell: "c", Key: "model", Text: "does not model b", Why: "x"}, Excuse{Cell: "c", Key: "model", Text: "words that are not there model", Why: "x"})
 	if len(errs) != 1 || !strings.Contains(errs[0], "occurs 0 times") {
@@ -121,5 +122,37 @@ func TestExcusesMatchWithoutRegardToCaseAndTheRunsPathsAreNotText(t *testing.T) 
 	}
 	if errs := run(t, root); len(errs) != 0 {
 		t.Fatalf("a run's path is not what the cell says: %v", errs)
+	}
+}
+
+func TestADuplicateExcuseIsRefused(t *testing.T) {
+	ex := Excuse{Cell: "c", Key: "model", Text: "does not model it", Why: "x"}
+	errs := run(t, cells(t, "It does not model it.", "Nothing."), ex, ex)
+	if len(errs) != 1 || !strings.Contains(errs[0], "redundant") {
+		t.Fatalf("got %v", errs)
+	}
+}
+
+// sr:proves replay-fidelity
+func TestWhatTheHarnessSectionSaysIsAllScanned(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "spec", "capabilities")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, doc string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// a key in a map, in a deviation's statement, and under another harness / docs / runs
+	write("keyed.yaml", "statement: x\nproviders:\n  h:\n    extra:\n      cwd: fine\n")
+	write("dev.yaml", "statement: x\nproviders:\n  h:\n    deviations:\n      - adr: a\n        kind: k\n        statement: the cwd is kept\n")
+	write("other.yaml", "statement: x\nproviders:\n  other:\n    reason: cwd\n  h:\n    docs:\n      - cwd\n    runs:\n      nested:\n        cwd: y\n")
+	write("nosection.yaml", "statement: x\nproviders:\n  other:\n    reason: the cwd\n")
+	errs := run(t, root)
+	got := strings.Join(errs, "\n")
+	if len(errs) != 2 || !strings.Contains(got, "the cell keyed names") || !strings.Contains(got, "the cell dev names") {
+		t.Fatalf("want the map key and the deviation's statement reported, nothing else, got %v", errs)
 	}
 }

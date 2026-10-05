@@ -40,6 +40,12 @@ func NoCellNames(t TB, repoRoot, harness string, keys []string, excuses []Excuse
 		t.Fatalf("no capability cells found: %v", err)
 	}
 	sorted := append([]string(nil), keys...)
+	for _, k := range sorted {
+		if k == "" {
+			t.Fatalf("an empty key names nothing")
+			return
+		}
+	}
 	sort.Strings(sorted)
 	used := make([]bool, len(excuses))
 	bad := make([]bool, len(excuses)) // the excuses already refused, once each
@@ -65,7 +71,7 @@ func NoCellNames(t TB, repoRoot, harness string, keys []string, excuses []Excuse
 		for _, k := range sorted {
 			for _, m := range occurrences(text, strings.ToLower(k)) {
 				start, end := m[0], m[1]
-				excused := false
+				covering := 0
 				for i, e := range excuses {
 					if e.Cell != name || strings.ToLower(e.Key) != strings.ToLower(k) {
 						continue
@@ -89,12 +95,16 @@ func NoCellNames(t TB, repoRoot, harness string, keys []string, excuses []Excuse
 					}
 					at := strings.Index(text, et)
 					if at <= start && end <= at+len(et) {
-						excused, used[i] = true, true
+						covering++
+						used[i] = true
+						if covering > 1 {
+							t.Errorf("excuse %s/%s %q covers an occurrence another excuse already covers: remove the redundant one", e.Cell, e.Key, e.Text)
+						}
 					}
 				}
-				if !excused {
+				if covering == 0 {
 					lo, hi := max(0, start-40), min(len(text), end+40)
-					t.Errorf("the cell %s names %q (\"...%s...\"), which the %s replay drops from the comparison: keep the key behind a placeholder, or excuse this occurrence as prose", name, k, text[lo:hi], harness)
+					t.Errorf("the cell %s names %q (folded text \"...%s...\"), which the %s replay drops from the comparison: keep the key behind a placeholder, or excuse this occurrence as prose", name, k, text[lo:hi], harness)
 				}
 			}
 		}

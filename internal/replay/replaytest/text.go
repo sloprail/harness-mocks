@@ -33,7 +33,7 @@ func occurrences(text, key string) [][2]int {
 // fold lowercases and folds all whitespace to single spaces.
 func fold(s string) string { return strings.Join(strings.Fields(strings.ToLower(s)), " ") }
 
-// collect appends every string under v, bar the values of "docs" and "runs".
+// collect appends every string under v, the map keys too, bar "docs" and "runs" and what is under them.
 func collect(v any, out *[]string) {
 	switch x := v.(type) {
 	case string:
@@ -51,6 +51,7 @@ func collect(v any, out *[]string) {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
+			*out = append(*out, k)
 			collect(x[k], out)
 		}
 	}
