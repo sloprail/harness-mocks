@@ -13,23 +13,23 @@ load_spec invariants; inv="$SPEC"
 load_markers proves; proves="$MARKERS"
 # each lookup refuses when it fails: an empty list of touched invariants would skip the judge
 by_file="$(cs '.changeset.files[].path | select(test("^spec/invariants/[a-z0-9-]+\\.yaml$")) | ltrimstr("spec/invariants/") | rtrimstr(".yaml")')" ||
-  refuse "the changed invariant files could not be listed, so no invariant could be judged"
+  refuse_error "the changed invariant files could not be listed, so no invariant could be judged"
 by_marker="$(cs '.changeset.files[] | ((.newMarkers // []) + (.oldMarkers // []))[] | select(.kind == "invariant" or .kind == "proves") | .fqn | select(test("/") | not)')" ||
-  refuse "the changed sr:invariant / sr:proves markers could not be listed, so no invariant could be judged"
+  refuse_error "the changed sr:invariant / sr:proves markers could not be listed, so no invariant could be judged"
 ids="$(printf '%s\n%s\n' "$by_file" "$by_marker" | sort -u)"
 subjects="[]"
 while IFS= read -r id; do
   [ -n "$id" ] || continue
   want_subject "$id" || continue
   st="$(jq -r --arg id "$id" '[.[] | select(.id == $id)][0].doc.statement // empty' <<<"$inv")" ||
-    refuse "invariant '$id': its statement could not be read, so it could not be judged"
+    refuse_error "invariant '$id': its statement could not be read, so it could not be judged"
   [ -n "$st" ] || continue                     # removed, or malformed: invariant-covered's finding
   tests="$(printf '%s\n' "$proves" | awk -F'\t' -v id="$id" '$2 == id {print $1}' | sort -u | jq -R . | jq -sc 'map(select(. != ""))')" ||
-    refuse "invariant '$id': its proving tests could not be listed, so it could not be judged"
+    refuse_error "invariant '$id': its proving tests could not be listed, so it could not be judged"
   subjects="$(jq -c --arg id "$id" --arg st "$st" --argjson t "$tests" --arg p "spec/invariants/$id.yaml" \
     '. + [{id: $id, path: $p, statement: $st, tests: $t}]' <<<"$subjects")" ||
-    refuse "invariant '$id': it could not be listed for the judge"
+    refuse_error "invariant '$id': it could not be listed for the judge"
 done <<<"$ids"
-n="$(jq 'length' <<<"$subjects")" || refuse "the invariants to judge could not be counted"
+n="$(jq 'length' <<<"$subjects")" || refuse_error "the invariants to judge could not be counted"
 if [ "$n" -eq 0 ]; then echo '{"skip": true}'; exit 0; fi
-jq -c '{additionalContext: {subjects: .}}' <<<"$subjects" || refuse "the judge's input could not be built"
+jq -c '{additionalContext: {subjects: .}}' <<<"$subjects" || refuse_error "the judge's input could not be built"

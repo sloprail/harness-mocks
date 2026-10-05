@@ -16,33 +16,33 @@ confine() {
   load_adrs "$(rule_qname)"
   # every lookup below refuses when it fails: a failed one read as empty would find no site and pass
   exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")" ||
-    refuse "the linked ADRs' exceptions could not be read, so no site could be judged"
+    refuse_error "the linked ADRs' exceptions could not be read, so no site could be judged"
   files="$(cs_json '.changeset.files[] | select(.status != "D" and (.path | endswith(".go")))')" ||
-    refuse "the changed Go files could not be listed, so no site could be judged"
+    refuse_error "the changed Go files could not be listed, so no site could be judged"
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    path="$(jq -r '.path' <<<"$f")" || refuse "a changed file's path could not be read, so no site could be judged"
+    path="$(jq -r '.path' <<<"$f")" || refuse_error "a changed file's path could not be read, so no site could be judged"
     case "$path" in *_test.go) continue ;; esac
     printf '%s' "$path" | grep -Eq -- "$allowed" && continue
     printf '%s\n' "$exc" | grep -Fxq -- "$path" && continue
-    body="$(jq -r '.newContent // ""' <<<"$f")" || refuse "$path: its content could not be read, so its sites could not be counted"
+    body="$(jq -r '.newContent // ""' <<<"$f")" || refuse_error "$path: its content could not be read, so its sites could not be counted"
     n="$(grep -cE "$re" <<<"$body" || true)"
     [ "$n" -eq 0 ] || problems="${problems}- $path $label"$'\n'
   done <<<"$files"
 
   # The ratchet: total sites across the whole tree outside the allowed paths,
   # base vs head. A pure move keeps it equal whatever the files are called.
-  base="$(cs '.changeset.base')" || refuse "the range's base could not be read, so the site count could not be compared"
-  head="$(cs '.changeset.head')" || refuse "the range's head could not be read, so the site count could not be compared"
+  base="$(cs '.changeset.base')" || refuse_error "the range's base could not be read, so the site count could not be compared"
+  head="$(cs '.changeset.head')" || refuse_error "the range's head could not be read, so the site count could not be compared"
   total() {   # REV — sets TOTAL (no refuse here: this may run in a subshell)
     local out rc
     # the rules' own scope: the shared internal/ and every harness mock. git grep exits 1 on no match
     # (fine: zero sites) and >1 on an error (refuse)
     out="$(git -C "$SR_TREE" grep -c -E "$re" "$1" -- ':(glob)internal/**/*.go' ':(glob)*-mock/**/*.go' ':!*_test.go' 2>&1)"
     rc=$?
-    [ "$rc" -le 1 ] || refuse "could not count the sites at $1: $out"
+    [ "$rc" -le 1 ] || refuse_error "could not count the sites at $1: $out"
     TOTAL="$(printf '%s\n' "$out" | sed "s#^$1:##" | awk -F: -v re="$allowed" 'NF && $1 !~ re {s += $NF} END {print s + 0}')" ||
-      refuse "could not total the sites at $1"
+      refuse_error "could not total the sites at $1"
   }
   if [ -n "$base" ] && [ -n "$head" ]; then
     local tb th

@@ -20,12 +20,12 @@ load_spec capabilities; load_touched; load_touched_markers
 problems=""
 add() { problems="${problems}- $1"$'\n'; }
 # a failed lookup is a refusal, never an empty list that has nothing to check
-pairs="$(rigor_pairs)" || refuse "the touched capability pairs could not be worked out, so the judge's inputs could not be checked"
+pairs="$(rigor_pairs)" || refuse_error "the touched capability pairs could not be worked out, so the judge's inputs could not be checked"
 while IFS=$'\t' read -r pair cell _; do
   [ -n "$pair" ] || continue
   h="${pair#*/}"
-  docs="$(jq -r '(.docs // [])[]' <<<"$cell")" || refuse "$pair: its cited docs could not be listed, so they could not be checked"
-  runs="$(jq -r '(.runs // [])[]' <<<"$cell")" || refuse "$pair: its cited runs could not be listed, so they could not be checked"
+  docs="$(jq -r '(.docs // [])[]' <<<"$cell")" || refuse_error "$pair: its cited docs could not be listed, so they could not be checked"
+  runs="$(jq -r '(.runs // [])[]' <<<"$cell")" || refuse_error "$pair: its cited runs could not be listed, so they could not be checked"
   for ref in $docs; do
     doc_sha "$h" "$ref" >/dev/null || add "$pair: $h-mock/snapshots/MANIFEST.yaml does not freeze ${ref%%#*} (file-guard/snapshots-current owns this)"
   done

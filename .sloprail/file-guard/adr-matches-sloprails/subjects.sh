@@ -24,5 +24,5 @@ arr="$(printf '%s' "$payload" | jq -c --slurpfile adrs0 <(printf '%s' "$ADRS") '
         deps: (["adr/\($a.id)/ADR.md", ".sloprail/_lib", ".sloprail/schemas"] + [$links[] | ".sloprail/\(.)"]
                + [$links[] | . as $l | $adrs[] | select(.id != $a.id and ((.frontmatter.sloprails // []) | index($l))) | .path])}
      | select(.files | length > 0)]')" ||
-  refuse "the touched ADRs could not be worked out, so no subject could be made"
+  refuse_error "the touched ADRs could not be worked out, so no subject could be made"
 sub_finish unclaimed "$arr"

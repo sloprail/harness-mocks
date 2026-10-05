@@ -22,5 +22,5 @@ arr="$(printf '%s' "$payload" | jq -c --rawfile proves <(printf '%s' "$MARKERS")
         files: [$files[] | select(.path == "spec/invariants/\($id).yaml"
                  or any(((.newMarkers // []) + (.oldMarkers // []))[]; (.kind == "invariant" or .kind == "proves") and .fqn == $id)) | .path],
         deps: (["spec/invariants/\($id).yaml"] + [$pv[] | select(.q == $id) | .p])})')" ||
-  refuse "the touched invariants could not be worked out, so no subject could be made"
+  refuse_error "the touched invariants could not be worked out, so no subject could be made"
 sub_finish unclaimed "$arr"

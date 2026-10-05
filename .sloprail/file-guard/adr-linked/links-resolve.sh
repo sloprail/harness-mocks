@@ -25,14 +25,14 @@ for d in "$SR_TREE"/adr/*/; do
 done
 load_adrs
 # a failed jq is a refusal, not an empty list of ADRs (which would pass)
-list="$(jq -c '.[]' <<<"$ADRS")" || refuse "the ADRs could not be listed, so none could be checked"
+list="$(jq -c '.[]' <<<"$ADRS")" || refuse_error "the ADRs could not be listed, so none could be checked"
 while IFS= read -r a; do
   [ -n "$a" ] || continue
-  id="$(jq -r '.id' <<<"$a")" || refuse "an ADR's id could not be read, so it could not be checked"
-  fm="$(jq -c '.frontmatter' <<<"$a")" || refuse "adr/$id: its frontmatter could not be read, so it could not be checked"
-  text="$(jq -r '.text' <<<"$a")" || refuse "adr/$id: its text could not be read, so it could not be checked"
+  id="$(jq -r '.id' <<<"$a")" || refuse_error "an ADR's id could not be read, so it could not be checked"
+  fm="$(jq -c '.frontmatter' <<<"$a")" || refuse_error "adr/$id: its frontmatter could not be read, so it could not be checked"
+  text="$(jq -r '.text' <<<"$a")" || refuse_error "adr/$id: its text could not be read, so it could not be checked"
   links="$(jq -r 'if (.sloprails | type) == "array" then .sloprails[] else empty end' <<<"$fm")" ||
-    refuse "adr/$id: its linked rules could not be read, so it could not be checked"
+    refuse_error "adr/$id: its linked rules could not be read, so it could not be checked"
   [ -n "$links" ] || add "adr/$id links no sloprail: list the rules that enforce it under 'sloprails:' (an ADR nothing enforces is prose)"
   while IFS= read -r l; do
     [ -n "$l" ] || continue
