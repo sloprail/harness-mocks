@@ -96,7 +96,11 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 	// JSON whose permission is not one of Cursor's is worded differently
 	// (recorded: runs/before-read-refusal, {"permission":"maybe"})
 	if !validPermission(p.Permission) {
-		return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned an invalid response for this hook step. The command was blocked for safety.", h.Command)}
+		if e == BeforeReadFile {
+			return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned an invalid response for this hook step. The command was blocked for safety.", h.Command)}
+		}
+		// no recording shows how the other permission events word it
+		return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned invalid JSON. The command was blocked for safety.", h.Command)}
 	}
 	return Decision{Permission: p.Permission, Message: p.UserMessage}
 }
