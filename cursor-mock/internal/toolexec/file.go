@@ -17,6 +17,12 @@ func lines(s string) int {
 	return n
 }
 
+// Edit is one change a write made to a file.
+type Edit struct {
+	OldString string `json:"old_string"`
+	NewString string `json:"new_string"`
+}
+
 // timed runs a file tool's call and times it: postToolUse reports its duration
 // in milliseconds, a small positive fraction (recorded: runs/file-tools).
 func timed(c Call, dir string) Result {
