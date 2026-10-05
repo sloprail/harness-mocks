@@ -1,28 +1,23 @@
 package replay
 
-import (
-	"fmt"
-	"sort"
-)
+import "sort"
 
-// sortConcurrent sorts the lines of each run of hook payloads that one firing
-// of one event produced: the handlers of an event run at the same time, so the
-// order they log in is not the behaviour. The order of the runs is, and is kept.
-// Lines are in the order of objs, the objects they were made of. A firing is the
-// consecutive payloads with the same event, tool call, agent and stop state; a
-// log line with no event of its own (a handler that logs only its own name) is
-// part of the firing of the lines around it that have none.
+// sortConcurrent sorts each run of consecutive log lines that are no event's
+// payload: the handlers of one event run at the same time, and what each logs of
+// its own (its name, its result) comes in no fixed order, while the payloads
+// they were all given are the same text, so their order says nothing and the
+// firings' order (the payload lines, in place) is the behaviour. lines are in
+// the order of objs, the objects they were made of.
 func sortConcurrent(lines []string, objs []map[string]any) {
-	start := 0
-	for i := 1; i <= len(objs); i++ {
-		if i == len(objs) || firing(objs[i]) != firing(objs[start]) {
-			sort.Strings(lines[start:i])
+	start := -1
+	for i := 0; i <= len(objs); i++ {
+		own := i < len(objs) && objs[i]["hook_event_name"] == nil
+		switch {
+		case own && start < 0:
 			start = i
+		case !own && start >= 0:
+			sort.Strings(lines[start:i])
+			start = -1
 		}
 	}
-}
-
-// firing identifies the firing a hook payload belongs to.
-func firing(o map[string]any) string {
-	return fmt.Sprint(o["hook_event_name"], "|", o["tool_use_id"], "|", o["agent_id"], "|", o["stop_hook_active"])
 }
