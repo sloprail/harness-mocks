@@ -30,9 +30,9 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock fires no PermissionRequest event and has no MCP tools, and
-          its hook matchers read no compaction trigger or sub-agent type, so the
-          matcher variants of those (MCP tool names such as
+          The mock fires no PermissionRequest, PreCompact, PostCompact,
+          SubagentStart or SubagentStop event and has no MCP tools or
+          sub-agents, so the matcher variants of those (MCP tool names such as
           mcp__filesystem__.*, the manual|auto compaction triggers, the
           sub-agent types, and spawn_agent also matching Agent) are not
           modeled. The mock's tool-name aliases are only apply_patch matching
