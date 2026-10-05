@@ -20,7 +20,7 @@ slim_payload '^spec/capabilities/'
 load_markers proves
 # loaded here, in this shell: a $(...) loses what a loader sets
 load_spec capabilities; load_touched
-load_touched_markers || refuse "the capability markers this change touches could not be worked out, so nothing could be judged"
+load_touched_markers || refuse_error "the capability markers this change touches could not be worked out, so nothing could be judged"
 # a failed lookup is a refusal, never an empty list (which would be the `unclaimed` subject, judging nothing)
 pairs="$(rigor_pairs)" || refuse_error "the touched capability pairs could not be worked out, so nothing could be judged"   # one "<id>/<h>\t<cell>\t<capability>" per pair touched
 # the pairs (each carries its cell and the whole capability) and the tables go through files, not the command line

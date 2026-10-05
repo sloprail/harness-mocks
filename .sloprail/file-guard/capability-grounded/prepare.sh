@@ -22,7 +22,7 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
 load_spec capabilities; caps="$SPEC"; load_touched
 changed="$(cs '.changeset.files[].path')" ||
-  refuse "the changed files could not be listed, so nothing could be prepared for the judge"
+  refuse_error "the changed files could not be listed, so nothing could be prepared for the judge"
 subjects="[]"
 # Every lookup below that fails refuses: a prepare that cannot work out what to put before the judge
 # must not hand it less (or nothing) and let the verdict pass on that.
@@ -34,7 +34,7 @@ while IFS= read -r c; do
   hs=""   # the harnesses in question, one per line ("*": all)
   # a match by case, not `printf | grep -q`: grep -q quits at the first hit and printf dies of SIGPIPE on a long list, which pipefail reads as no match
   case $'\n'"$changed"$'\n' in
-    *$'\n'"spec/capabilities/$id.yaml"$'\n'*) hs="$(touched_harnesses "spec/capabilities/$id.yaml")" || refuse "$id: the harnesses its cells touch could not be worked out, so it could not be prepared for the judge" ;;
+    *$'\n'"spec/capabilities/$id.yaml"$'\n'*) hs="$(touched_harnesses "spec/capabilities/$id.yaml")" || refuse_error "$id: the harnesses its cells touch could not be worked out, so it could not be prepared for the judge" ;;
   esac
   refs="$(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h
     | (if .value.supported == false then "absent" else "supports" end) as $k | (.value.docs // [])[] | [$h, $k, .] | @tsv' <<<"$c")" ||
@@ -53,9 +53,9 @@ while IFS= read -r c; do
   if [ -z "$all" ]; then
     refs="$(printf '%s\n' "$refs" | awk -F'\t' -v keep="$(printf '%s ' $hs)" 'BEGIN{n=split(keep,k," "); for(i=1;i<=n;i++) want[k[i]]=1} want[$1]')"
     # the list is built in a checked step: a failed jq inside a process substitution is invisible (an empty file reads as null, which keeps no harness at all)
-    hsjson="$(printf '%s\n' "$hs" | jq -R . | jq -sc .)" || refuse "$id: its harnesses in question could not be narrowed, so it could not be prepared for the judge"
+    hsjson="$(printf '%s\n' "$hs" | jq -R . | jq -sc .)" || refuse_error "$id: its harnesses in question could not be narrowed, so it could not be prepared for the judge"
     c="$(jq -c --slurpfile hs <(printf '%s' "$hsjson") '.doc.providers = ((.doc.providers // {}) | with_entries(select(.key as $k | $hs[0] | index($k))))' <<<"$c")" ||
-      refuse "$id: its harnesses in question could not be narrowed, so it could not be prepared for the judge"
+      refuse_error "$id: its harnesses in question could not be narrowed, so it could not be prepared for the judge"
   fi
   docs="[]"
   while IFS=$'\t' read -r h kind ref; do

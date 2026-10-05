@@ -13,7 +13,7 @@ load_spec capabilities
 load_markers proves; proves="$MARKERS"
 # loaded here, in this shell: a $(...) loses what a loader sets, and a refusal inside one exits only it
 load_spec capabilities; load_touched
-load_touched_markers || refuse "the capability markers this change touches could not be worked out, so nothing could be prepared for the judge"
+load_touched_markers || refuse_error "the capability markers this change touches could not be worked out, so nothing could be prepared for the judge"
 subjects="[]"
 # Every lookup below that fails refuses: a prepare that cannot work out what to put before the judge
 # must not hand it less (or nothing, which skips the model) and let the verdict pass on that.
@@ -30,7 +30,7 @@ while IFS=$'\t' read -r pair cell c; do
   cited_docs="$(jq -r '(.docs // [])[]' <<<"$cell")" || refuse_error "$pair: its cited docs could not be listed, so it could not be prepared for the judge"
   runs="[]"; for r in $cited_runs; do
     samples="$(cd "$SR_TREE" && for s in "$r"/samples/*/events.jsonl; do if [ -f "$s" ]; then printf '%s\n' "$s"; fi; done | jq -R . | jq -sc .)" ||
-      refuse "$pair: the samples of $r could not be listed, so it could not be prepared for the judge"
+      refuse_error "$pair: the samples of $r could not be listed, so it could not be prepared for the judge"
     runs="$(jq -c --arg r "$r" --slurpfile sm <(printf '%s' "$samples") \
       '. + [{name: ($r | split("/") | last), dir: $r, setup: ($r + "/setup"), samples: $sm[0]}]' <<<"$runs")" ||
       refuse_error "$pair: the run $r could not be listed, so it could not be prepared for the judge"; done

@@ -30,7 +30,7 @@ for d in "$SR_TREE"/*-mock/; do
   d="${d%/}"; d="${d##*/}"
   hs="${hs}${d%-mock}"$'\n'
 done
-[ -n "$hs" ] || refuse "there is no <harness>-mock/ in the tree, so it could not be worked out what to check"
+[ -n "$hs" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness cell could be checked (an incomplete tree?)"
 
 problems=""
 pending=""
@@ -45,9 +45,9 @@ while IFS= read -r c; do
   id="$(jq -r '.id' <<<"$c")" || refuse_error "a capability's id could not be read, so it could not be checked"
   kebab "$id" || add "spec/capabilities/$id.yaml: the file name must be kebab-case"
   jq -e '(.doc.providers | type) == "object"' <<<"$c" >/dev/null; rc=$?
-  [ "$rc" -le 1 ] || refuse "capability '$id': its cells could not be read, so it could not be checked"
+  [ "$rc" -le 1 ] || refuse_error "capability '$id': its cells could not be read, so it could not be checked"
   [ "$rc" -eq 0 ] || continue   # not an object: a bad shape is shapes' finding
-  keys="$(jq -r '.doc.providers | keys[]' <<<"$c")" || refuse "capability '$id': its cells could not be listed, so it could not be checked"
+  keys="$(jq -r '.doc.providers | keys[]' <<<"$c")" || refuse_error "capability '$id': its cells could not be listed, so it could not be checked"
   for h in $keys; do
     case $'\n'"$hs" in *$'\n'"$h"$'\n'*) ;; *) add "capability '$id' has a cell for '$h', but there is no $h-mock/" ;; esac
   done
