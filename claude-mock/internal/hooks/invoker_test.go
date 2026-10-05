@@ -311,7 +311,7 @@ func TestInvokeCommand_HookRunsInItsOwnProcessGroup(t *testing.T) {
 // sr:proves hook-command-handler/claude
 func TestInvokeCommand_HookHasNoControllingTerminal(t *testing.T) {
 	_, err := exec.LookPath("python3") // it reports the hook's session id
-	require.NoError(t, err, "python3 is not installed: the test needs it (adr/tests-fail-on-missing-tool)")
+	require.NoError(t, err, "python3 is not installed: the test needs it")
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.txt")
 	hook := "cat >/dev/null; python3 -c 'import os; print(os.getsid(0)==os.getppid())' > " + out +
