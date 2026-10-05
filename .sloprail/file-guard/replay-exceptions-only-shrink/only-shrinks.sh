@@ -56,6 +56,10 @@ while [ "$i" -lt "$count" ]; do
     refuse "could not read $path from the changeset, so it could not be checked"
   printf '%s\n' "$new" | grep -qx 'var notReplaying = map\[string\]string{' ||
     refuse "$path: the notReplaying map could not be found; keep it as 'var notReplaying = map[string]string{' with one \"run\": \"reason\" per line"
+  # exactly one declaration: a second one (inside a block comment or a raw string, with the real map
+  # written some other way) would show this rule a map that Go never reads
+  [ "$(printf '%s\n' "$new" | grep -c '^[[:space:]]*var[[:space:]][[:space:]]*notReplaying\b')" = 1 ] ||
+    refuse "$path: notReplaying must be declared exactly once, as 'var notReplaying = map[string]string{' on a line of its own"
   bad="$(malformed "$new")"
   [ -z "$bad" ] || refuse "$path: a notReplaying line is not one \"run\": \"reason\", entry, so the list could not be compared (a line this rule cannot read would hide an entry): $(printf '%s' "$bad" | head -n 1)"
   added="$(comm -13 <(keys "$old") <(keys "$new"))"
