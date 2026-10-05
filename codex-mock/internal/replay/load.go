@@ -66,7 +66,7 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		}
 	}
 	var mainRollout []map[string]any
-	var subs [][]map[string]any
+	subs := map[string][]map[string]any{} // the sub-agents' rollouts, by thread id
 	for _, p := range paths {
 		rollout, err := readJSONL(p)
 		if err != nil {
@@ -75,30 +75,34 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		if threadOf(p) == main {
 			mainRollout = rollout
 		} else {
-			subs = append(subs, rollout)
+			subs[threadOf(p)] = rollout
 		}
 	}
 	if len(mainRollout) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout of the main thread"))
 	}
-	agent, err := modelTurns(mainRollout)
+	agent, err := modelTurns(mainRollout, spawnReceipts(stream, main))
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
 	}
-	n := 0
 	for i := range agent.Calls {
-		if agent.Calls[i].Tool != core.ToolSpawn || agent.Calls[i].Input["message"] == nil { // a spawn with no message is refused: no sub-agent
+		c := &agent.Calls[i]
+		if c.Tool != core.ToolSpawn || c.Ref == "" { // a spawn with no receipt was refused: no sub-agent
 			continue
 		}
-		if n >= len(subs) {
-			return core.Recording{}, unbuildable(fmt.Errorf("a spawn_agent call with no recorded sub-agent rollout"))
+		rollout, ok := subs[c.Ref]
+		if !ok {
+			return core.Recording{}, unbuildable(fmt.Errorf("a spawn_agent whose receipt names %s, which has no recorded rollout", c.Ref))
 		}
-		sub, err := modelTurns(subs[n])
+		delete(subs, c.Ref)
+		sub, err := modelTurns(rollout, nil)
 		if err != nil {
 			return core.Recording{}, unbuildable(fmt.Errorf("sub-agent: %w", err))
 		}
-		agent.Calls[i].Sub = &sub
-		n++
+		c.Sub = &sub
+	}
+	for thread := range subs {
+		return core.Recording{}, unbuildable(fmt.Errorf("the rollout of thread %s is no spawn_agent's of the main thread (a sub-agent's own sub-agents are not replayed yet)", thread))
 	}
 	return core.Recording{
 		Dir:    runDir,
