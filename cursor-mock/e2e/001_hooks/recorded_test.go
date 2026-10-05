@@ -35,7 +35,8 @@ func newestSample(t *testing.T, run string) string {
 // one capture to the next, so only what the two always agree on is pinned. The
 // project folder is keyed by the resolved path at every event, the start hook's
 // included, and never by the symlink the process was started from. The mock
-// names the path once the first preToolUse has run.
+// leaves the first preToolUse's payload null and names the path from the first
+// beforeShellExecution on.
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFromASymlinkedDirectoryIsKeyedByTheRealPathAndAbsentAtStart(t *testing.T) {
 	dir := newestSample(t, "symlinked-cwd")
