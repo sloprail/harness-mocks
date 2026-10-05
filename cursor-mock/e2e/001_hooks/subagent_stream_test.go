@@ -51,6 +51,9 @@ func TestASubAgentIsAnnouncedByItsTaskCallFramesAndHasNoFrameOfItsOwn(t *testing
 	// the recording: the sub-agent's two Task frames, and no frame of a task of the sub-agent
 	var started, completed map[string]any
 	for _, f := range recordedStream(t, "task-stream-frames") {
+		if f["type"] == "system" && f["subtype"] != "init" && f["subtype"] != "task_notification" {
+			t.Errorf("a frame of its own for a sub-agent in the recording: %v", f)
+		}
 		if f["type"] == "system" && f["subtype"] == "task_notification" {
 			assert.NotEqual(t, taskCall(completed)["result"].(map[string]any)["success"].(map[string]any)["agentId"], f["task_id"], "the notification is the background command's")
 		}
