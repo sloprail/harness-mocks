@@ -3,6 +3,7 @@ package toolexec
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
@@ -14,6 +15,20 @@ func lines(s string) int {
 		n++
 	}
 	return n
+}
+
+// timed runs a file tool's call and times it: postToolUse reports its duration
+// in milliseconds, a small positive fraction (recorded: runs/file-tools).
+func timed(c Call, dir string) Result {
+	start := time.Now()
+	var r Result
+	if c.Kind == "readToolCall" {
+		r = read(c, dir)
+	} else {
+		r = write(c, dir)
+	}
+	r.Took = max(time.Since(start), time.Microsecond)
+	return r
 }
 
 func failed(message, frameMessage string) Result {
