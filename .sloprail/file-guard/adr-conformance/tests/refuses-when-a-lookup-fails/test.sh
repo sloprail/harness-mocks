@@ -72,3 +72,11 @@ expect_refused "the ADRs cannot be listed for the judge" "the linked ADRs could 
 shim has 'reduce inputs'
 run_script ../../_lib/linked-adrs.sh shimmed
 expect_refused "the loader cannot read the ADR texts" "the ADR texts could not be read, so no ADR could be checked"
+
+# through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
+# own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
+shim is \[.\[\]\ \|\ \{id,\ path\}\]
+: >"$SR_EVENTS_FILE"
+PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es --arg s the\ linked\ ADRs\ could\ not\ be\ listed\ for\ the\ judge 'any(.[]; .kind=="FileGuardChecked" and .rule=="adr-conformance" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: adr-conformance did not refuse with a reason saying 'the linked ADRs could not be listed for the judge' (sr-checks exit $ran)" >&2; exit 1; }
