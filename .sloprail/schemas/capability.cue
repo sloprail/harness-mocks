@@ -20,9 +20,9 @@
 			adr!:       string & =~"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
 			// whose gap it is: `mock-not-modeled` (the mock leaves out what the harness does; the
 			// user's call, so adding one needs their words) or `harness-lacks` (the harness itself
-			// differs from the statement, shown by a cited doc or recording). A deviation without
-			// a kind is not waived by capability-grounded/added-or-removed.sh.
-			kind?:      "mock-not-modeled" | "harness-lacks"
+			// differs from the statement, shown by a cited doc or recording). Required;
+			// a harness-lacks cell cites a doc or a run (capability-grounded/harness-lacks-cited.sh).
+			kind!:      "mock-not-modeled" | "harness-lacks"
 			statement!: string & =~"\\S"
 		}]
 		if supported != _|_ {

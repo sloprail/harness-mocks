@@ -51,8 +51,9 @@ quirks.
 - Every `deviations` entry has a `kind`: `mock-not-modeled` (the mock leaves
   out something the real harness does) or `harness-lacks` (the harness itself
   differs from the statement, shown by a cited doc or recording, including the
-  "Doc and recording conflict:" entry). An entry without a `kind` is not
-  waived.
+  "Doc and recording conflict:" entry). The schema requires it. A
+  `harness-lacks` deviation cites at least one doc or recorded run in its cell
+  (`capability-grounded/harness-lacks-cited.sh`).
 - Adding or changing a `mock-not-modeled` deviation carries the user's words
   on its commit (`Sloprail-Cites-User`) like a statement: what a mock does not
   model is the user's call. So does a cell turning `supported: false` without a
