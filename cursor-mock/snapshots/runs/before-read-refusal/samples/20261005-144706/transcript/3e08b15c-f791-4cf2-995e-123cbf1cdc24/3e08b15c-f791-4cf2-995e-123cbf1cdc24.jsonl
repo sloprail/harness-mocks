@@ -1,0 +1,9 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate tool calls, one per call, in order, whatever happens: 1) read the file a.txt with your Read tool 2) read the file b.txt with your Read tool 3) read the file c.txt with your Read tool 4) read the file d.txt with your Read tool 5) read the file e.txt with your Read tool 6) read the file f.txt with your Read tool. If a call is refused, do not retry it or look for a workaround; go on to the next. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll read the files one at a time in order, starting with `a.txt`."},{"type":"tool_use","name":"Read","input":{"path":"<RUN>/a.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"<RUN>/b.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"<RUN>/c.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"<RUN>/d.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"<RUN>/e.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"<RUN>/f.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}
