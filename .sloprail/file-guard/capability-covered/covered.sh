@@ -23,6 +23,7 @@ load_spec capabilities; caps="$SPEC"
 load_markers capability; impl="$MARKERS"
 load_markers proves; proves="$(printf '%s\n' "$MARKERS" | awk -F'\t' 'NF && $2 ~ /\//')"
 hs="$(harnesses)"
+[ -n "$hs" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness cell could be checked (an incomplete tree?)"
 
 problems=""
 pending=""
