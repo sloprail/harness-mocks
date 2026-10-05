@@ -15,7 +15,8 @@ provide the same capability with different wire formats.
 
 - `spec/capabilities/<id>.yaml` holds each capability the mocks model: a
   harness-neutral statement, and for every harness mock one of: the doc
-  sections and recorded runs of that harness that show it (supported);
+  sections and recorded runs of that harness that show it (supported, with a
+  `deviations` list where the mock deliberately differs);
   `{supported: false, reason, docs?, runs?}`, the evidence being recorded runs
   that attempt the behaviour and show it absent and/or the doc sections that
   show the feature absent or cover the area without it, at least one (a bare
