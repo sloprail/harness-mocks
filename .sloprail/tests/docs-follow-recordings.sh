@@ -68,7 +68,23 @@ EOF2
   [ "$(yq -r '.docs["https://d.example/kept"].fetched' "$manifest")" != "2000-01-01" ] && ok || bad "capture ($h): a re-frozen page gets a new fetch date"
   grep -q 'capture.sh doc\|^  doc)' "$ROOT/$h-mock/snapshots/capture.sh" && bad "capture ($h): no standalone doc re-freeze remains" || ok
   grep -q 'refreeze_cited ;;' "$ROOT/$h-mock/snapshots/capture.sh" && ok || bad "capture ($h): run re-freezes after recording"
+  sed -n '/^  all)/,/^    ;;/p' "$ROOT/$h-mock/snapshots/capture.sh" | grep -q '^    refreeze_cited$' && ok || bad "capture ($h): all re-freezes after re-recording"
+  # a page cited with a trailing slash is frozen under its URL without one, and found again by the rules
+  PAGE="$PAGE_V1"; export PAGE
+  refreeze_cited >/dev/null; capture_doc "https://d.example/slashed/" >/dev/null
+  eq "capture ($h): a trailing-slash URL is frozen without the slash" "$(yq -r '.docs["https://d.example/slashed"].sha256' "$manifest")" "$(sha "$PAGE_V1")"
 done
+
+# --- doc_sha and doc_copy find a page cited with a trailing slash; a drifted page is fetched once -------------
+. "$ROOT/.sloprail/_lib/snapshots.sh"
+S="$T/slash"; mkdir -p "$S/claude-mock/snapshots"; git -C "$S" init -q -b main
+SR_TREE="$S"; export SR_TREE
+w "$S/claude-mock/snapshots/MANIFEST.yaml" <<<$'pin: "1"\ndocs:\n  https://d.example/s:\n    sha256: '"$(sha $'# s\nfrozen text\n')"$'\n    fetched: "2026-10-01"'
+eq "doc_sha: a URL with a trailing slash finds the page" "$(doc_sha claude "https://d.example/s/#a")" "$(sha $'# s\nfrozen text\n')"
+PAGE=$'# s\nmoved on\n'; export PAGE; : >"$CURL_LOG"
+f1="$(doc_copy claude https://d.example/s/)"; f2="$(doc_copy claude https://d.example/s)"
+eq "doc_copy: a drifted page is read, from one cached live copy" "$f1" "$f2"
+eq "doc_copy: ... fetched once for two reads" "$(wc -l <"$CURL_LOG" | tr -d ' ')" "1"
 
 # --- 2 + 3. snapshots-current and the judges' prepare.sh over a drifted page ---------------------
 R="$T/repo"; mkdir -p "$R"; cd "$R"
