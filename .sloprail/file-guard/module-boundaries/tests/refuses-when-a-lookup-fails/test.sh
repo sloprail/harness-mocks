@@ -67,6 +67,9 @@ run_rule; expect_passed "control"
 git checkout -q -b violation "$BASE"; change_for v
 printf 'example.test/m/internal/b example.test/m/internal/a/inner\nexample.test/m/internal/a\n' >go.list; c violation
 run_rule; expect_refused "violation" "internal/b imports internal/a/inner, inside module internal/a but not its api"
+# the recovery the refusal names: b imports the api package instead; the same range then passes
+printf 'example.test/m/internal/b example.test/m/internal/a\nexample.test/m/internal/a\n' >go.list; c "b imports a's api"
+run_rule; expect_passed "the violation fixed (b imports a's api)"
 git checkout -q -f "$BASE"
 # the violation stays in the tree for every failure below: a lookup that fails must refuse, not pass over it
 printf 'example.test/m/internal/b example.test/m/internal/a/inner\nexample.test/m/internal/a\n' >go.list; c "b reaches into a"; BASE=$(git rev-parse HEAD)

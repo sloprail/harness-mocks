@@ -55,6 +55,12 @@ run_rule; expect_passed "control"
 # what the exceptions rule exists for is seen when nothing fails: new code under an exception is refused
 git checkout -q -b added-under-exception "$BASE"; change_for v; printf 'package legacy\n' >internal/legacy/new.go; c "new code under an exception"
 run_rule; expect_refused "new code under an exception" "internal/legacy/new.go is added under an exception"
+# the recovery the refusal names: the new code goes in a module's home; the same range then passes
+git rm -q internal/legacy/new.go; printf 'package a\n' >internal/a/new.go; c "the new file goes in a's home"
+run_rule; expect_passed "the new file moved into a module's home"
+# the nearest neighbour: editing a file that is already excepted adds nothing, and passes
+git checkout -q -b edit-exception "$BASE"; printf 'package legacy\n// edit\n' >internal/legacy/old.go; c "edit an excepted file"
+run_rule; expect_passed "an existing excepted file edited"
 
 # each failed lookup refuses, naming it. The changes below add a file under an exception (and put it in
 # the tree), the one thing only the failed lookup could let through
