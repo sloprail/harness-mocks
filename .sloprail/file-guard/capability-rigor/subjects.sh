@@ -20,7 +20,7 @@ slim_payload '^spec/capabilities/'
 load_markers proves
 # loaded here, in this shell: a $(...) loses what a loader sets
 load_spec capabilities; load_touched; load_touched_markers
-pairs="$(rigor_pairs)"   # one "<id>/<h>\t<cell>\t<capability>" per pair touched
+pairs="$(rigor_pairs)" || refuse_error "the touched capability pairs could not be worked out (a tooling failure), so the rule could not be checked"   # one "<id>/<h>\t<cell>\t<capability>" per pair touched
 arr="$(printf '%s' "$payload" | jq -c --arg pairs "$pairs" --arg proves "$MARKERS" --arg tm "$TOUCHED_MARKERS_TSV" '
   .changeset.files as $files
   | [$files[].path] as $changed

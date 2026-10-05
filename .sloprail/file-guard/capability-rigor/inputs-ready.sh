@@ -14,6 +14,7 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
 load_spec capabilities
 load_markers proves; proves="$MARKERS"
+pairs="$(rigor_pairs)" || refuse_error "the touched capability pairs could not be worked out (a tooling failure), so the rule could not be checked"
 
 problems=""
 add() { problems="${problems}- $1"$'\n'; }
@@ -29,7 +30,7 @@ while IFS=$'\t' read -r pair cell _; do
   done
   printf '%s\n' "$proves" | awk -F'\t' -v q="$pair" '$2 == q && $1 ~ /_test\.go$/' | grep -q . ||
     add "$pair: no test carries // sr:proves $pair (file-guard/capability-covered owns this)"
-done < <(rigor_pairs)
+done < <([ -n "$pairs" ] && printf '%s\n' "$pairs")
 
 [ -z "$problems" ] && exit 0
 refuse "Not judged yet: the judge's inputs are not ready. Fix these first, under the rule each names:

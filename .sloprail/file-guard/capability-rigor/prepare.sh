@@ -11,6 +11,7 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
 load_spec capabilities
 load_markers proves; proves="$MARKERS"
+pairs="$(rigor_pairs)" || refuse_error "the touched capability pairs could not be worked out (a tooling failure), so the rule could not be checked"
 subjects="[]"
 while IFS=$'\t' read -r pair cell c; do
   [ -n "$pair" ] || continue
@@ -35,7 +36,7 @@ while IFS=$'\t' read -r pair cell c; do
     --argjson docs "$docs" --argjson runs "$runs" --argjson tests "$tests" --arg path "spec/capabilities/$id.yaml" \
     --argjson dev "$(jq -c '.deviations // []' <<<"$cell")" \
     '. + [{id: $id, files: ([$path] + $tests), context: {harness: $h, statement: $st, docs: $docs, runs: $runs, deviations: $dev, tests: $tests}}]' <<<"$subjects")"
-done < <(rigor_pairs)
+done < <([ -n "$pairs" ] && printf '%s\n' "$pairs")
 # nothing touched: skip the model
 if [ "$(jq 'length' <<<"$subjects")" -eq 0 ]; then echo '{"skip": true}'; exit 0; fi
 jq -n -c --argjson s "$subjects" '{additionalContext: {subjects: $s}}'
