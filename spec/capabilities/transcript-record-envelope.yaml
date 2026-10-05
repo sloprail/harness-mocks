@@ -21,9 +21,11 @@ providers:
     reason: >-
       Cursor's transcript records carry only a role and a message, and its
       turn_ended record only a status: no session, working directory, branch,
-      version or launch mode on any of them, and no time value (the user
-      record holds an empty <timestamp/> element, nothing else), for a -p run's
-      prompt included.
+      version or launch mode on any of them, and no time value: the user
+      record's text opens with an empty <timestamp/> element, then the prompt
+      in a <user_query> element, for a -p run's prompt included (recorded:
+      runs/tool-failure, runs/symlinked-cwd). The mock writes the same user
+      record.
     runs:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/symlinked-cwd
