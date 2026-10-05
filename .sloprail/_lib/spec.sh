@@ -22,7 +22,7 @@ load_spec() {
   # one yq over every file: it names each document by its file
   out="$(yq -o=json -I=0 '{"id": (filename | split("/") | .[-1] | sub("\\.yaml$"; "")), "path": ("spec/'"$kind"'/" + (filename | split("/") | .[-1])), "doc": .}' \
     "$SR_TREE/spec/$kind"/*.yaml 2>&1)" || refuse "a file under spec/$kind is not valid YAML: $out"
-  SPEC="$(jq -sc . <<<"$out")"
+  SPEC="$(jq -sc . <<<"$out")" || refuse "the specs under spec/$kind could not be read, so none could be checked"
 }
 
 # harnesses — the harness mocks in the committed tree, one name per line.
