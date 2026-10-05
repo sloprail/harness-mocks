@@ -1,14 +1,16 @@
 package toolexec
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // An MCP tool is called by the name a scenario script gives it, mcp__<server>__<tool>
@@ -33,15 +35,16 @@ type mcpServer struct {
 	Args    []string `json:"args"`
 }
 
-// mcpClient is a started server and the requests made of it.
-type mcpClient struct {
-	cmd *exec.Cmd
-	in  *json.Encoder
-	out *bufio.Scanner
-	id  int
+// mcpRequest is one request of an exchange with a server.
+type mcpRequest struct {
+	method string
+	params any
 }
 
-func startMCP(ctx context.Context, dir, server string) (*mcpClient, error) {
+// mcpExchange starts the project's server, sends it the handshake and the
+// requests, closes its input, and returns the result of each request in order.
+// A stdio server ends when its input does, so one run of it answers them all.
+func mcpExchange(ctx context.Context, dir, server string, env []string, reqs ...mcpRequest) ([]json.RawMessage, error) {
 	b, err := os.ReadFile(filepath.Join(dir, ".cursor", "mcp.json"))
 	if err != nil {
 		return nil, fmt.Errorf("cursor-mock: no MCP servers are configured (.cursor/mcp.json): %w", err)
@@ -56,38 +59,20 @@ func startMCP(ctx context.Context, dir, server string) (*mcpClient, error) {
 	if !ok {
 		return nil, fmt.Errorf("cursor-mock: no MCP server %q is configured", server)
 	}
-	cmd := exec.CommandContext(ctx, s.Command, s.Args...)
-	cmd.Dir = dir
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, err
+	var in bytes.Buffer
+	enc := json.NewEncoder(&in)
+	_ = enc.Encode(map[string]any{"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": map[string]any{
+		"protocolVersion": "2024-11-05", "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "cursor-mock", "version": "1"}}})
+	_ = enc.Encode(map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
+	for i, r := range reqs {
+		_ = enc.Encode(map[string]any{"jsonrpc": "2.0", "id": i + 1, "method": r.method, "params": r.params})
 	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
+	res, err := procexec.Run(ctx, procexec.Spec{Argv: append([]string{s.Command}, s.Args...), Dir: dir, Stdin: in.Bytes(), Env: env, Timeout: 20 * time.Second})
+	if err != nil || !res.Started {
+		return nil, fmt.Errorf("cursor-mock: MCP server %q could not be run: %v", server, err)
 	}
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("cursor-mock: MCP server %q: %w", server, err)
-	}
-	c := &mcpClient{cmd: cmd, in: json.NewEncoder(stdin), out: bufio.NewScanner(stdout)}
-	c.out.Buffer(make([]byte, 1<<20), 1<<20)
-	if _, err := c.call("initialize", map[string]any{"protocolVersion": "2024-11-05", "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "cursor-mock", "version": "1"}}); err != nil {
-		c.close()
-		return nil, err
-	}
-	_ = c.in.Encode(map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
-	return c, nil
-}
-
-func (c *mcpClient) close() { _ = c.cmd.Process.Kill(); _ = c.cmd.Wait() }
-
-// call makes one request and returns its result.
-func (c *mcpClient) call(method string, params any) (json.RawMessage, error) {
-	c.id++
-	if err := c.in.Encode(map[string]any{"jsonrpc": "2.0", "id": c.id, "method": method, "params": params}); err != nil {
-		return nil, err
-	}
-	for c.out.Scan() {
+	answers := map[int]json.RawMessage{}
+	for _, line := range strings.Split(string(res.Stdout), "\n") {
 		var r struct {
 			ID     *int            `json:"id"`
 			Result json.RawMessage `json:"result"`
@@ -95,13 +80,21 @@ func (c *mcpClient) call(method string, params any) (json.RawMessage, error) {
 				Message string `json:"message"`
 			} `json:"error"`
 		}
-		if json.Unmarshal(c.out.Bytes(), &r) != nil || r.ID == nil || *r.ID != c.id {
+		if json.Unmarshal([]byte(line), &r) != nil || r.ID == nil {
 			continue
 		}
 		if r.Error != nil {
-			return nil, fmt.Errorf("%s: %s", method, r.Error.Message)
+			return nil, fmt.Errorf("MCP server %q: %s", server, r.Error.Message)
 		}
-		return r.Result, nil
+		answers[*r.ID] = r.Result
 	}
-	return nil, fmt.Errorf("cursor-mock: the MCP server ended before answering %s", method)
+	out := make([]json.RawMessage, len(reqs))
+	for i, r := range reqs {
+		a, ok := answers[i+1]
+		if !ok {
+			return nil, fmt.Errorf("cursor-mock: the MCP server %q did not answer %s", server, r.method)
+		}
+		out[i] = a
+	}
+	return out, nil
 }

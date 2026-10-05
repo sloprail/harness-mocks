@@ -8,16 +8,12 @@ import (
 
 // MCPDescribe is what the agent reads of an MCP tool before it calls it: the
 // tool's name, description and input schema, as indented JSON.
-func MCPDescribe(ctx context.Context, dir, server, tool string) (string, error) {
-	c, err := startMCP(ctx, dir, server)
+func MCPDescribe(ctx context.Context, dir, server, tool string, env []string) (string, error) {
+	answers, err := mcpExchange(ctx, dir, server, env, mcpRequest{"tools/list", map[string]any{}})
 	if err != nil {
 		return "", err
 	}
-	defer c.close()
-	res, err := c.call("tools/list", map[string]any{})
-	if err != nil {
-		return "", err
-	}
+	res := answers[0]
 	var list struct {
 		Tools []struct {
 			Name        string          `json:"name"`
@@ -46,17 +42,13 @@ func MCPDescribe(ctx context.Context, dir, server, tool string) (string, error) 
 // fails rather than guess.
 //
 // sr:provides hook-matcher-filter/cursor
-func mcp(ctx context.Context, c Call, dir string) Result {
+func mcp(ctx context.Context, c Call, dir string, env []string) Result {
 	server, tool := c.str("providerIdentifier"), c.str("toolName")
-	cl, err := startMCP(ctx, dir, server)
+	answers, err := mcpExchange(ctx, dir, server, env, mcpRequest{"tools/call", map[string]any{"name": tool, "arguments": c.Args["args"]}})
 	if err != nil {
 		return failed(err.Error(), err.Error())
 	}
-	defer cl.close()
-	res, err := cl.call("tools/call", map[string]any{"name": tool, "arguments": c.Args["args"]})
-	if err != nil {
-		return failed(err.Error(), err.Error())
-	}
+	res := answers[0]
 	var out struct {
 		Content []struct {
 			Type string `json:"type"`
