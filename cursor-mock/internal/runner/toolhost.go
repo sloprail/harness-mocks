@@ -22,6 +22,7 @@ type toolHost struct {
 	refused         bool
 	failure, result string
 	res             toolexec.Result
+	read            bool // res is the read Before made
 }
 
 func (h *toolHost) emit(line []byte) {
@@ -33,7 +34,8 @@ func (h *toolHost) emit(line []byte) {
 // Tool is the parameters a call to the named tool must carry.
 func (h *toolHost) Tool(name string) ([]string, bool) { return toolexec.Required(name) }
 
-// Before fires preToolUse and, for a shell command, beforeShellExecution; the
+// Before fires preToolUse and, for a shell command, beforeShellExecution and,
+// for a read, beforeReadFile; the
 // first stage whose hooks refuse ends it. A refusal is worded as Cursor words
 // it for the stage (recorded: runs/pretool-refusal).
 //
@@ -56,6 +58,22 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 			return true, h.result
 		}
 	}
+	if h.call.Kind == "readToolCall" {
+		// The file is read first, for the hook to be told what it holds; a read of
+		// a file that is not there reaches no beforeReadFile hook (recorded:
+		// runs/file-tools, runs/tool-failure). Any hook refusing it ends the call
+		// (recorded: runs/before-read-refusal: exit 2, a JSON deny and invalid
+		// JSON refuse it, exit 1 does not).
+		h.res, h.read = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, nil), true
+		if r := h.res.Read; r != nil {
+			own := map[string]any{"file_path": r.Path, "content": r.Content, "attachments": []any{}}
+			if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.BeforeReadFile, "Read", own)); refused {
+				h.failure, h.result = hooks.ReadRefusal(msg)
+				h.refused = true
+				return true, h.result
+			}
+		}
+	}
 	return false, ""
 }
 
@@ -65,7 +83,7 @@ func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result
 	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id), childenv.Defaults())
 	if h.call.Kind == "shellToolCall" && !h.s.cfg.Force {
 		h.res = toolexec.Unapproved(h.call, h.s.cfg.Dir)
-	} else {
+	} else if !h.read {
 		h.res = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, env)
 	}
 	h.emit(completedFrame(h.s.id, h.tool.UseID, h.call, h.res.Frame))
@@ -96,8 +114,6 @@ func (h *toolHost) After(ctx context.Context, _ toolcall.Call, _ toolcall.Result
 			"command": h.call.Command(), "output": h.res.Output, "duration": ms(h.res.Took), "sandbox": false})
 	case h.call.Kind == "editToolCall" && !h.res.Failed:
 		h.s.hooks.Fire(ctx, hooks.AfterFileEdit, "Write", map[string]any{"file_path": h.call.Path(h.s.cfg.Dir), "edits": h.res.Edits})
-	case h.call.Kind == "readToolCall" && h.res.Read != nil:
-		h.s.hooks.Fire(ctx, hooks.BeforeReadFile, "Read", map[string]any{"file_path": h.res.Read.Path, "content": h.res.Read.Content, "attachments": []any{}})
 	}
 	switch kind {
 	case corehooks.AfterSuccess:

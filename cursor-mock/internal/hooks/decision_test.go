@@ -31,7 +31,7 @@ func TestInterpretByExitStatusAndOutput(t *testing.T) {
 		{"json deny", PreToolUse, out(0, `{"permission":"deny","user_message":"why"}`, ""), Decision{Permission: "deny", Message: "why"}},
 		{"json allow", PreToolUse, out(0, `{"permission":"allow"}`, ""), Decision{Permission: "allow"}},
 		{"text blocks", BeforeShellExecution, out(0, "not json", ""), Decision{Permission: "deny", Message: invalid}},
-		{"unknown permission blocks", PreToolUse, out(0, `{"permission":"maybe"}`, ""), Decision{Permission: "deny", Message: invalid}},
+		{"unknown permission blocks", PreToolUse, out(0, `{"permission":"maybe"}`, ""), Decision{Permission: "deny", Message: `Hook "h.sh" returned an invalid response for this hook step. The command was blocked for safety.`}},
 		{"a hook on another event is not read", PostToolUse, out(0, "not json", ""), Decision{}},
 		{"a command that did not start fails open", PreToolUse, corehooks.Outcome{Exit: -1}, Decision{}},
 	} {

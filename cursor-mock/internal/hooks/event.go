@@ -36,5 +36,5 @@ func (e Event) addsContext() bool {
 //
 // sr:docs https://cursor.com/docs/hooks#command-based-hooks
 func (e Event) permission() bool {
-	return e == PreToolUse || e == BeforeShellExecution
+	return e == PreToolUse || e == BeforeShellExecution || e == BeforeReadFile
 }
