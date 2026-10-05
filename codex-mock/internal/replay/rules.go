@@ -7,7 +7,8 @@ import (
 )
 
 // Rules are what a recording and a replay of it may differ in, and why:
-// no capability cell is about any of it.
+// what is dropped is no capability cell's; what differs per run but is there in every run
+// keeps its key and loses its value (MaskKeys), so a payload without it still differs.
 func Rules(repo, root string) rp.Rules {
 	re := regexp.MustCompile
 	return rp.Rules{
