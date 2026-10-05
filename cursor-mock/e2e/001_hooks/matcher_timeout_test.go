@@ -96,7 +96,6 @@ func TestATimedOutHookThatFailsClosedBlocksTheCommand(t *testing.T) {
 // hook is matched against the tool, Read (https://cursor.com/docs/hooks#matcher-configuration);
 // no recording configures a matcher on it, so this drives the mock: the hook
 // whose matcher is Read runs for a Read, the one whose matcher is Shell does not.
-// sr:proves hook-matcher-filter/cursor
 func TestABeforeReadFileHookIsMatchedOnTheToolName(t *testing.T) {
 	log := `#!/bin/sh
 cat >/dev/null
