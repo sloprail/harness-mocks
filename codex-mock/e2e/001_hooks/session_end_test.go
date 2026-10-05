@@ -9,7 +9,7 @@ import (
 
 // Without --json, stdout carries only the final agent message (noninteractive,
 // "make output machine-readable"): no events, no tool output, nothing a hook
-// printed. (-o/--output-last-message is accepted but not modeled.)
+// printed. (-o/--output-last-message is not modeled: the mock refuses it.)
 // sr:proves noninteractive-run/codex
 func TestExecWithoutJSONPrintsOnlyTheFinalMessage(t *testing.T) {
 	r := execMock(t, scenario{

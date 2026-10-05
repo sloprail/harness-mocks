@@ -14,9 +14,9 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
 )
 
-// newExec is `exec`, the non-interactive run. It accepts the flags a real
-// `codex exec` accepts and has no use for, so a caller's command line works
-// unchanged.
+// newExec is `exec`, the non-interactive run. It knows the flags a real
+// `codex exec` takes, and refuses the ones it implements nothing of
+// (unimplemented.go) instead of ignoring them.
 func newExec() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "exec [flags] [prompt]",
@@ -28,19 +28,20 @@ func newExec() *cobra.Command {
 	f.Bool("json", false, "Print events to stdout as JSONL")
 	f.StringP("cd", "C", "", "Working directory of the session (default: the current one)")
 	f.StringP("model", "m", "", "Model name reported in hook payloads")
-	// Accepted for compatibility with `codex exec`; no effect.
-	f.StringArrayP("config", "c", nil, "Config override key=value; only agents.max_depth has an effect")
-	f.StringArray("enable", nil, "Accepted; no effect")
-	f.StringArray("disable", nil, "Accepted; no effect")
-	f.StringP("sandbox", "s", "", "Accepted; no effect")
-	f.StringP("profile", "p", "", "Accepted; no effect")
-	f.String("color", "", "Accepted; no effect")
-	f.StringP("output-last-message", "o", "", "Accepted; no effect")
-	f.String("output-schema", "", "Accepted; the final message is the script's, not shaped by the schema")
-	f.String("thread-source", "", "Accepted; no effect")
-	for _, name := range []string{"skip-git-repo-check", "ephemeral", "ignore-user-config", "ignore-rules",
-		"strict-config", "dangerously-bypass-approvals-and-sandbox", "dangerously-bypass-hook-trust", "approve-for-me"} {
-		f.Bool(name, false, "Accepted; no effect")
+	f.StringArrayP("config", "c", nil, "Config override key=value; only agents.max_depth is implemented")
+	f.StringArray("enable", nil, "Not implemented: refused")
+	f.StringArray("disable", nil, "Not implemented: refused")
+	f.StringP("sandbox", "s", "", "Not implemented: refused")
+	f.StringP("profile", "p", "", "Not implemented: refused")
+	f.String("color", "", "Not implemented: refused")
+	f.StringP("output-last-message", "o", "", "Not implemented: refused")
+	f.String("output-schema", "", "Not implemented: refused")
+	f.String("thread-source", "", "Not implemented: refused")
+	for _, name := range []string{"ephemeral", "ignore-user-config", "ignore-rules", "strict-config", "approve-for-me"} {
+		f.Bool(name, false, "Not implemented: refused")
+	}
+	for _, name := range []string{"skip-git-repo-check", "dangerously-bypass-approvals-and-sandbox", "dangerously-bypass-hook-trust"} {
+		f.Bool(name, false, "Implemented")
 	}
 	return cmd
 }
@@ -56,6 +57,9 @@ func runExec(cmd *cobra.Command, args []string) error {
 		resume, args = args[1], args[2:]
 	}
 	f := cmd.Flags()
+	if err := refuseUnimplemented(f); err != nil {
+		return err
+	}
 	script, _ := f.GetString("script")
 	if script == "" {
 		script = os.Getenv("A10N_MOCK_SCRIPT")
