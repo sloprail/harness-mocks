@@ -13,12 +13,16 @@ slim_payload
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/adr.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 load_adrs
-arr="$(printf '%s' "$payload" | jq -c --argjson adrs "$ADRS" '
-  [.changeset.files[].path] as $changed
+# the ADRs go to jq through a file, not argv (Linux caps one argument at 128 KB); a failed jq
+# refuses, never an empty list of subjects
+arr="$(printf '%s' "$payload" | jq -c --slurpfile adrs0 <(printf '%s' "$ADRS") '
+  $adrs0[0] as $adrs
+  | [.changeset.files[].path] as $changed
   | [$adrs[] | . as $a | ($a.frontmatter.sloprails // []) as $links
      | {id: $a.id,
         files: ([$changed[] | select(startswith("adr/\($a.id)/"))] + [$links[] | . as $l | $changed[] | select(startswith(".sloprail/\($l)/"))]),
         deps: (["adr/\($a.id)/ADR.md", ".sloprail/_lib", ".sloprail/schemas"] + [$links[] | ".sloprail/\(.)"]
                + [$links[] | . as $l | $adrs[] | select(.id != $a.id and ((.frontmatter.sloprails // []) | index($l))) | .path])}
-     | select(.files | length > 0)]')"
+     | select(.files | length > 0)]')" ||
+  refuse "the touched ADRs could not be worked out, so no subject could be made"
 sub_finish unclaimed "$arr"

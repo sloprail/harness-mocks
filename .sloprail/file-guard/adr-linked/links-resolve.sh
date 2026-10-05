@@ -24,11 +24,15 @@ for d in "$SR_TREE"/adr/*/; do
   [ -f "$d/ADR.md" ] || add "adr/$name has no ADR.md"
 done
 load_adrs
+# a failed jq is a refusal, not an empty list of ADRs (which would pass)
+list="$(jq -c '.[]' <<<"$ADRS")" || refuse "the ADRs could not be listed, so none could be checked"
 while IFS= read -r a; do
   [ -n "$a" ] || continue
-  id="$(jq -r '.id' <<<"$a")"
-  fm="$(jq -c '.frontmatter' <<<"$a")"
-  links="$(jq -r 'if (.sloprails | type) == "array" then .sloprails[] else empty end' <<<"$fm")"
+  id="$(jq -r '.id' <<<"$a")" || refuse "an ADR's id could not be read, so it could not be checked"
+  fm="$(jq -c '.frontmatter' <<<"$a")" || refuse "adr/$id: its frontmatter could not be read, so it could not be checked"
+  text="$(jq -r '.text' <<<"$a")" || refuse "adr/$id: its text could not be read, so it could not be checked"
+  links="$(jq -r 'if (.sloprails | type) == "array" then .sloprails[] else empty end' <<<"$fm")" ||
+    refuse "adr/$id: its linked rules could not be read, so it could not be checked"
   [ -n "$links" ] || add "adr/$id links no sloprail: list the rules that enforce it under 'sloprails:' (an ADR nothing enforces is prose)"
   while IFS= read -r l; do
     [ -n "$l" ] || continue
@@ -37,9 +41,9 @@ while IFS= read -r a; do
     [ -f "$SR_TREE/.sloprail/$nature/$rule/$nature.yaml" ] || add "adr/$id links '$l', but .sloprail/$nature/$rule/$nature.yaml does not exist"
   done <<<"$links"
   for sec in Concern Decision; do
-    jq -r '.text' <<<"$a" | grep -Eq "^## $sec[[:space:]]*$" || add "adr/$id has no '## $sec' section"
+    printf '%s\n' "$text" | grep -Eq "^## $sec[[:space:]]*$" || add "adr/$id has no '## $sec' section"
   done
-done < <(jq -c '.[]' <<<"$ADRS")
+done <<<"$list"
 
 [ -z "$problems" ] && exit 0
 refuse "ADRs that are not linked to their enforcement, or not in the ADR format:
