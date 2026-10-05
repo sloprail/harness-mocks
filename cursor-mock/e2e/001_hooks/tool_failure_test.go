@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -108,4 +110,31 @@ func fileToolEvents(o observed, tool string, nth int) (names []string) {
 		}
 	}
 	return names
+}
+
+// TestAFailedCommandsDurationIsTheTimeItTook: recorded, postToolUseFailure's
+// duration is, in milliseconds, how long a command that ran took (59.815 for a
+// command that wrote to stderr and exited 3). No recording has a slow command
+// beside a fast one, so this drives the mock: a command that sleeps 300 ms
+// before failing reports at least that, and more than one that fails at once.
+// sr:proves tool-failure-hook/cursor
+func TestAFailedCommandsDurationIsTheTimeItTook(t *testing.T) {
+	hook := `#!/bin/sh
+cat >>"$HOOK_LOG"
+echo >>"$HOOK_LOG"
+`
+	r := runTools(t, `{"version":1,"hooks":{"postToolUseFailure":[{"command":".cursor/hooks/log.sh"}]}}`,
+		map[string]string{"log.sh": hook}, nil,
+		map[string]any{"name": "Bash", "input": map[string]any{"command": "exit 1"}},
+		map[string]any{"name": "Bash", "input": map[string]any{"command": "sleep 0.3; exit 1"}})
+	var durations []float64
+	for _, l := range strings.Split(r.logged(t), "\n") {
+		var h map[string]any
+		if json.Unmarshal([]byte(l), &h) == nil && h["hook_event_name"] == "postToolUseFailure" {
+			durations = append(durations, h["duration"].(float64))
+		}
+	}
+	require.Len(t, durations, 2)
+	require.GreaterOrEqual(t, durations[1], 300.0, "the command that slept 300 ms")
+	require.Greater(t, durations[1], durations[0], "more than the one that failed at once")
 }
