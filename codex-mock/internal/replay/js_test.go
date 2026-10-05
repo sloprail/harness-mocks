@@ -119,7 +119,7 @@ func TestUnifyASpawnWithNoArgumentsIsTheRefusedCall(t *testing.T) {
 
 func TestUnifyMapsOnlyAnObjectArgument(t *testing.T) {
 	for _, a := range []any{nil, "hi", number{2}, []any{}, opaque{}} {
-		_, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{a}})
+		_, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{a}}, nil, nil)
 		assert.Error(t, err, "%v", a)
 	}
 }
