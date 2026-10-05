@@ -33,7 +33,8 @@ OPTIN='\tif os.Getenv("A10N_REAL_CLAUDE_SUBAGENT_TEST") != "1" {\n\t\tt.Skip("se
 
 git checkout -q -b skips "$BASE"
 test_with "$SKIP" "skip on a missing tool"
-refuses "a skip on a missing tool" "- pkg/tool_test.go:"
+refuses "a skip on a missing tool" "a test whose required tool is missing fails, it never skips"
+refuses "a skip on a missing tool, naming its file" "- pkg/tool_test.go:"
 
 # the one-line form is refused too
 git checkout -q -b oneline "$BASE"
