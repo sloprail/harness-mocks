@@ -22,15 +22,6 @@ func unbuildable(err error) error { return &core.Unbuildable{Reason: err.Error()
 // override, an output schema) is not replayed by this adapter.
 const standardCommand = "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna"
 
-// sampleDir is the latest sample of the run in dir; empty when it has none.
-func sampleDir(dir string) string {
-	samples, _ := filepath.Glob(filepath.Join(dir, "samples", "*"))
-	if len(samples) == 0 {
-		return ""
-	}
-	return samples[len(samples)-1]
-}
-
 // Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the
 // unified form: the main agent's calls with the sub-agents it spawned attached,
 // in the order they were spawned. An *Unbuildable says what the adapter cannot
