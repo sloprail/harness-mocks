@@ -51,3 +51,4 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/file-tools
       - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/before-read-refusal
