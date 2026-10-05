@@ -24,12 +24,17 @@ import (
 // as one; comment lines are prose and never join anything.
 func globalGitConfigWrites(body string) []string {
 	var out []string
+	seen := map[string]bool{}
 	check := func(cmd string, line int) {
 		if !strings.Contains(cmd, "config") || readOnlyConfig.MatchString(cmd) || !writesMachineConfig(cmd) {
 			return
 		}
 		if shellGitConfig.MatchString(cmd) || goGitConfig.MatchString(cmd) {
-			out = append(out, strings.TrimSpace(cmd)+" (line "+strconv.Itoa(line)+")")
+			hit := strings.TrimSpace(cmd) + " (line " + strconv.Itoa(line) + ")"
+			if !seen[hit] {
+				seen[hit] = true
+				out = append(out, hit)
+			}
 		}
 	}
 	cur, start := "", 0
@@ -45,8 +50,14 @@ func globalGitConfigWrites(body string) []string {
 		if cur == "" {
 			start = i + 1
 		}
+		// each physical line on its own too: a read-only command elsewhere in a joined chunk
+		// (a table of commands) must not exempt a write on this one.
+		check(t, i+1)
 		cur += " " + strings.TrimSuffix(t, `\`)
-		if strings.HasSuffix(t, `\`) || strings.HasSuffix(t, ",") || strings.HasSuffix(t, "(") {
+		// a shell continuation always joins; a Go call split after "," or "(" joins only while
+		// a call is open, so a table or slice literal is not one command.
+		if strings.HasSuffix(t, `\`) ||
+			(strings.Count(cur, "(") > strings.Count(cur, ")") && (strings.HasSuffix(t, ",") || strings.HasSuffix(t, "("))) {
 			continue
 		}
 		check(cur, start)
@@ -124,6 +135,8 @@ func TestDetector(t *testing.T) {
 		"git config \\\n  --global user.name x",
 		"exec.Command(\"git\", \"config\",\n\t\"--global\", \"user.email\")",
 		"git config --file ~/.gitconfig user.email x",
+		"x(\n\"git config --global --get a\",\n\"git config --global user.name x\")",
+		"[]string{\n\"git config --list\",\n\"git config --global user.name x\",\n}",
 		"git config --file $HOME/.config/git/config user.email x",
 		"// setup (\nexec.Command(\"git\",\"config\",\"--global\",\"a\")",
 		"git -C /x config --system core.autocrlf false",
@@ -136,6 +149,8 @@ func TestDetector(t *testing.T) {
 	for _, line := range []string{
 		"git config user.email t@t", "git config --global --list", "git config --global --get user.email",
 		"# git config --global is never run",
+		"[]string{\n\"--global\",\n\"git\",\n\"config\",\n}",
+		"[]string{\n\"--global\",\n\"git\",\n\"config\",\n}",
 	} {
 		if hits := globalGitConfigWrites(line); len(hits) != 0 {
 			t.Errorf("false positive on %q: %v", line, hits)
