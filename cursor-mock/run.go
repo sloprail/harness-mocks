@@ -29,6 +29,8 @@ func run(cmd *cobra.Command, f flags, args []string) error {
 		return fmt.Errorf("cursor-mock: output format %q is not modeled: pass --output-format stream-json", f.outputFormat)
 	case f.cont:
 		return errors.New("cursor-mock: --continue is not modeled: pass --resume <session-id>")
+	case len(f.addDirs) > 0 && !(f.force || f.yolo):
+		return errors.New("cursor-mock: --add-dir is modeled only with --force (the mode its recordings cover): pass --force")
 	}
 	script := f.script
 	if script == "" {
