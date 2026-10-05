@@ -21,8 +21,7 @@ const (
 	ToolShell = "shell"
 	// ToolSpawn starts a sub-agent: Input "message"; Call.Sub is its turns.
 	ToolSpawn = "spawn_agent"
-	// ToolWait waits for sub-agents: Input "targets" ([]int, each the position of its
-	// ToolSpawn among the agent's spawns) and "timeout_ms" (int).
+	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".
 	ToolWait = "wait_agent"
 )
 
