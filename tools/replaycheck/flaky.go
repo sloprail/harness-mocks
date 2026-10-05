@@ -9,12 +9,18 @@ import (
 const (
 	flakyRunsName = "flakyRuns"
 	untilGreen    = "replayUntilGreen"
-	caseWanted    = `flaky && (err != nil || diff != "")`
 )
 
-// checkFlaky is (c): flakyRuns is the one package-level const 3, replayUntilGreen is defined once, and
-// the generated test runs a flaky: entry through replayUntilGreen(run, flakyRuns) with that very const,
-// keeps the result, and fails an entry that is never green.
+// callSite is a call of replayUntilGreen in the generated test, with what encloses it.
+type callSite struct {
+	call  *ast.CallExpr
+	as    *ast.AssignStmt // the statement keeping its result
+	stack []ast.Node      // the call and everything above it
+}
+
+// checkFlaky is (c): flakyRuns is the one package-level const 3, replayUntilGreen is defined once and
+// really repeats, and the generated test runs a flaky: entry through replayUntilGreen(run, flakyRuns)
+// with that very const, keeps the result, and fails an entry that is never green (checkNeverGreen).
 func (c *pkgCheck) checkFlaky() {
 	flakyObj, _ := c.pkg.Scope().Lookup(flakyRunsName).(*types.Const)
 	if flakyObj == nil {
@@ -28,6 +34,8 @@ func (c *pkgCheck) checkFlaky() {
 	untilObj, _ := c.pkg.Scope().Lookup(untilGreen).(*types.Func)
 	if n := topLevelDecls(c.files, untilGreen); n != 1 || untilObj == nil {
 		c.add(c.gen.Pos(), "%s must be defined exactly once at package level, found %d declarations", untilGreen, n)
+	} else {
+		c.checkUntilShape(untilObj)
 	}
 	for _, f := range c.files {
 		ast.Inspect(f, func(n ast.Node) bool {
@@ -39,68 +47,52 @@ func (c *pkgCheck) checkFlaky() {
 			return true
 		})
 	}
-	calls := 0
+	var sites []callSite
 	walk(c.gen, func(n ast.Node, stack []ast.Node) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
 		}
-		fun, ok := call.Fun.(*ast.Ident)
-		if !ok || fun.Name != untilGreen {
-			return
+		if fun, ok := call.Fun.(*ast.Ident); ok && fun.Name == untilGreen {
+			if as := c.checkCall(call, fun, parent(stack), flakyObj, untilObj); as != nil {
+				sites = append(sites, callSite{call, as, append([]ast.Node(nil), stack...)})
+			}
 		}
-		calls++
-		c.checkCall(call, fun, parent(stack), flakyObj, untilObj)
 	})
-	if calls == 0 {
-		c.add(c.gen.Pos(), "%s must run a flaky: entry through %s(run, %s)", genFile, untilGreen, flakyRunsName)
+	if len(sites) == 0 {
+		c.add(c.gen.Pos(), "%s must run a flaky: entry through %s(run, %s), keeping its result", genFile, untilGreen, flakyRunsName)
 	}
-	c.checkFailure()
+	for _, s := range sites {
+		c.checkNeverGreen(s)
+	}
 }
 
-func (c *pkgCheck) checkCall(call *ast.CallExpr, fun *ast.Ident, up ast.Node, flakyObj *types.Const, untilObj *types.Func) {
+// checkCall judges one call by name; it returns the statement keeping the result when the call is a
+// well-formed one, nil otherwise (a violation was added).
+func (c *pkgCheck) checkCall(call *ast.CallExpr, fun *ast.Ident, up ast.Node, flakyObj *types.Const, untilObj *types.Func) *ast.AssignStmt {
+	ok := true
 	if untilObj == nil || c.info.Uses[fun] != types.Object(untilObj) {
 		c.add(fun.Pos(), "%s here is not the package's function", untilGreen)
+		ok = false
 	}
 	if len(call.Args) != 2 {
 		c.add(call.Pos(), "%s takes the replay and flakyRuns", untilGreen)
-		return
+		return nil
 	}
-	arg, ok := call.Args[1].(*ast.Ident)
-	if !ok || flakyObj == nil || c.info.Uses[arg] != types.Object(flakyObj) {
+	arg, isIdent := call.Args[1].(*ast.Ident)
+	if !isIdent || flakyObj == nil || c.info.Uses[arg] != types.Object(flakyObj) {
 		c.add(call.Args[1].Pos(), "the second argument of %s must be the package-level const %s (not a shadowing name or another value)", untilGreen, flakyRunsName)
+		ok = false
 	}
-	if as, ok := up.(*ast.AssignStmt); !ok || len(as.Lhs) != 2 || len(as.Rhs) != 1 || isBlank(as.Lhs[0]) && isBlank(as.Lhs[1]) {
-		c.add(call.Pos(), "the result of %s must be kept (diff, err = ...) to be judged", untilGreen)
+	as, isAssign := up.(*ast.AssignStmt)
+	if !isAssign || len(as.Lhs) != 2 || len(as.Rhs) != 1 || isBlank(as.Lhs[0]) || isBlank(as.Lhs[1]) {
+		c.add(call.Pos(), "the result of %s must be kept in two variables (diff, err = ...) to be judged", untilGreen)
+		return nil
 	}
-}
-
-// checkFailure: a flaky: entry is told by its prefix, and the case that errors on a never-green one is there.
-func (c *pkgCheck) checkFailure() {
-	prefix, failCase := false, false
-	ast.Inspect(c.gen, func(n ast.Node) bool {
-		switch x := n.(type) {
-		case *ast.CallExpr:
-			if sel, ok := x.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "HasPrefix" && len(x.Args) == 2 {
-				if s, ok := stringLit(x.Args[1]); ok && s == "flaky:" {
-					prefix = true
-				}
-			}
-		case *ast.CaseClause:
-			for _, e := range x.List {
-				if types.ExprString(e) == caseWanted {
-					failCase = true
-				}
-			}
-		}
-		return true
-	})
-	if !prefix {
-		c.add(c.gen.Pos(), "%s must tell a flaky: entry by strings.HasPrefix(reason, \"flaky:\")", genFile)
+	if !ok {
+		return nil
 	}
-	if !failCase {
-		c.add(c.gen.Pos(), "%s must fail a flaky: entry that is never green: a case `%s` that errors", genFile, caseWanted)
-	}
+	return as
 }
 
 // topLevelDecls counts the package-level declarations of name (const, var, type, func) over files.

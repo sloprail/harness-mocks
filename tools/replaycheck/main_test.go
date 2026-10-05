@@ -25,7 +25,13 @@ import (
 
 const flakyRuns = 3
 
-func replayUntilGreen(run func() (string, error), attempts int) (string, error) { return run() }
+func replayUntilGreen(run func() (string, error), attempts int) (string, error) {
+	diff, err := run()
+	for i := 1; i < attempts && (err != nil || diff != ""); i++ {
+		diff, err = run()
+	}
+	return diff, err
+}
 
 func TestGeneratedReplay(t *testing.T) {
 	for name := range notReplaying {
@@ -113,9 +119,21 @@ func TestBypassesAreRefused(t *testing.T) {
 		{"an increment through an index", goodGen + "\nfunc g() { notReplaying[\"z\"] += \"y\" }\n", "", "", "may only read notReplaying"},
 		{"a shadowing local named like the list", goodGen + "\nfunc g() { notReplaying := map[string]string{}; notReplaying[\"z\"] = \"y\" }\n", "", "", "not the package's list"},
 		{"another file names the list", goodGen, "init_test.go", "package e2e\n\nfunc init() { notReplaying[\"z\"] = \"flaky: z\" }\n", "is named outside"},
-		{"the prefix test is gone", strings.Replace(goodGen, `strings.HasPrefix(reason, "flaky:")`, `strings.HasPrefix(reason, "adapter:")`, 1), "", "", `strings.HasPrefix(reason, "flaky:")`},
-		{"the failing case is gone", strings.Replace(goodGen, `case flaky && (err != nil || diff != ""):`, `case false:`, 1), "", "", "a case `flaky &&"},
+		{"the prefix test is gone", strings.Replace(goodGen, `strings.HasPrefix(reason, "flaky:")`, `strings.HasPrefix(reason, "adapter:")`, 1), "", "", "no `flaky :="},
+		{"the failing case is gone", strings.Replace(goodGen, `case flaky && (err != nil || diff != ""):`, `case false:`, 1), "", "", "fail a flaky: entry that is never green"},
 		{"no replayUntilGreen call", strings.Replace(goodGen, "diff, err = replayUntilGreen(run, flakyRuns)", "diff, err = run()", 1), "", "", "must run a flaky: entry through"},
+		{"parenthesised index assigned", goodGen + "\nfunc g() { (notReplaying[\"z\"]) = \"flaky:y\" }\n", "", "", "may only read notReplaying"},
+		{"parenthesised map indexed and assigned", goodGen + "\nfunc g() { (notReplaying)[\"z\"] = \"y\" }\n", "", "", "may only read notReplaying"},
+		{"parenthesised index appended to", goodGen + "\nfunc g() { (notReplaying[\"z\"]) += \"y\" }\n", "", "", "may only read notReplaying"},
+		{"parenthesised index as a range target", goodGen + "\nfunc g() { for (notReplaying[\"z\"]) = range []string{\"y\"} {} }\n", "", "", "may only read notReplaying"},
+		{"an index used as a statement target of ++", goodGen + "\nfunc g() { (notReplaying[\"z\"])++ }\n", "", "", "may only read notReplaying"},
+		{"replayUntilGreen is a stub", strings.Replace(goodGen, "diff, err := run()\n\tfor i := 1; i < attempts && (err != nil || diff != \"\"); i++ {\n\t\tdiff, err = run()\n\t}\n\treturn diff, err", "return run()", 1), "", "", "must loop up to its attempts parameter"},
+		{"replayUntilGreen never stops on green", strings.Replace(goodGen, "i < attempts && (err != nil || diff != \"\")", "i < attempts", 1), "", "", "must stop looping once a run is green"},
+		{"the case reads other variables", closeBlock(strings.Replace(goodGen, "\tswitch {", "\t{\n\tdiff, err := \"\", error(nil)\n\t_, _ = diff, err\n\tswitch {", 1)), "", "", "fail a flaky: entry that is never green"},
+		{"the case is under a constant false", closeBlock(strings.Replace(goodGen, "\tswitch {", "\tif false {\n\tswitch {", 1)), "", "", "fail a flaky: entry that is never green"},
+		{"an earlier case is always true", strings.Replace(goodGen, "\tswitch {\n", "\tswitch {\n\tcase true:\n", 1), "", "", "fail a flaky: entry that is never green"},
+		{"the case body does not fail the test", strings.Replace(goodGen, `t.Errorf("never green in %d runs, see notReplaying", flakyRuns)`, `println("never green")`, 1), "", "", "fail a flaky: entry that is never green"},
+		{"the call is under a constant false", strings.Replace(goodGen, "if flaky {", "if flaky && false {", 1), "", "", "must run under `if flaky`"},
 	}
 	for _, c := range cases {
 		extra := map[string]string{}
@@ -176,4 +194,10 @@ func TestEntriesDecodeWhatGoDecodes(t *testing.T) {
 			t.Errorf("%s: want %q, got %q (violations %v)", c.name, c.want, got, viol)
 		}
 	}
+}
+
+// closeBlock adds the brace a block opened before the last switch needs.
+func closeBlock(src string) string {
+	i := strings.LastIndex(src, "\t}\n}\n")
+	return src[:i] + "\t}\n\t}\n}\n"
 }

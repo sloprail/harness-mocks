@@ -103,7 +103,7 @@ func (c *pkgCheck) run(pkgName string) error {
 	if c.gen == nil {
 		return nil
 	}
-	c.info = &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}}
+	c.info = &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}, Types: map[ast.Expr]types.TypeAndValue{}}
 	conf := types.Config{Importer: fakeImporter{}, Error: func(error) {}, FakeImportC: true}
 	c.pkg, _ = conf.Check(pkgName, c.fset, c.files, c.info)
 	if c.pkg == nil {

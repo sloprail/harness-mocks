@@ -1,6 +1,9 @@
 package main
 
-import "go/ast"
+import (
+	"go/ast"
+	"go/token"
+)
 
 // checkReads is (b): the generated test only reads the list. It reports false when the list cannot
 // be found at package level, so the rest of the judgement has nothing to stand on.
@@ -47,31 +50,96 @@ func parent(stack []ast.Node) ast.Node {
 	return stack[len(stack)-2]
 }
 
-// isRead: id (the last of stack) is the operand of a range, or of an index expression that is read
-// (not assigned, incremented, address-taken, or the target of a range).
+// skipParens climbs from stack[i] through the parentheses around it: the index of the outermost
+// ParenExpr (or i itself when it has none).
+func skipParens(stack []ast.Node, i int) int {
+	for i > 0 {
+		if _, ok := stack[i-1].(*ast.ParenExpr); !ok {
+			break
+		}
+		i--
+	}
+	return i
+}
+
+// isRead is a whitelist. id (the last of stack) may be the operand of a range, or the operand of an
+// index expression that stands where a value is only read; every other use (an assignment target, an
+// increment, an address, a range target, a delete or any call with the map itself, an alias) is not a read.
+// Parentheses around the identifier or around the index expression do not change what it is.
 func isRead(id *ast.Ident, stack []ast.Node) bool {
-	switch p := parent(stack).(type) {
+	e := skipParens(stack, len(stack)-1)
+	if e == 0 {
+		return false
+	}
+	switch p := stack[e-1].(type) {
 	case *ast.RangeStmt:
-		return p.X == ast.Expr(id)
+		return p.X == stack[e].(ast.Expr)
 	case *ast.IndexExpr:
-		if p.X != ast.Expr(id) {
+		if p.X != stack[e].(ast.Expr) {
 			return false
 		}
-		switch g := stack[len(stack)-3].(type) {
-		case *ast.AssignStmt:
-			for _, l := range g.Lhs {
-				if l == ast.Expr(p) {
-					return false
-				}
+		ie := skipParens(stack, e-1)
+		if ie == 0 {
+			return false
+		}
+		return rvalue(stack[ie-1], stack[ie].(ast.Expr))
+	}
+	return false
+}
+
+// rvalue: in parent, expr is where a value is read, not assigned to or addressed.
+func rvalue(parent ast.Node, expr ast.Expr) bool {
+	switch p := parent.(type) {
+	case *ast.AssignStmt:
+		for _, r := range p.Rhs {
+			if r == expr {
+				return true
 			}
-		case *ast.IncDecStmt:
-			return false
-		case *ast.UnaryExpr:
-			return false
-		case *ast.RangeStmt:
-			return g.Key != ast.Expr(p) && g.Value != ast.Expr(p)
 		}
+	case *ast.ValueSpec:
+		for _, v := range p.Values {
+			if v == expr {
+				return true
+			}
+		}
+	case *ast.CallExpr:
+		for _, a := range p.Args {
+			if a == expr {
+				return true
+			}
+		}
+	case *ast.ReturnStmt:
+		for _, r := range p.Results {
+			if r == expr {
+				return true
+			}
+		}
+	case *ast.CompositeLit:
+		for _, el := range p.Elts {
+			if el == expr {
+				return true
+			}
+		}
+	case *ast.KeyValueExpr:
+		return p.Value == expr
+	case *ast.IfStmt:
+		return p.Cond == expr
+	case *ast.ForStmt:
+		return p.Cond == expr
+	case *ast.SwitchStmt:
+		return p.Tag == expr
+	case *ast.CaseClause:
+		for _, v := range p.List {
+			if v == expr {
+				return true
+			}
+		}
+	case *ast.BinaryExpr:
 		return true
+	case *ast.UnaryExpr:
+		return p.Op != token.AND
+	case *ast.IndexExpr:
+		return p.Index == expr
 	}
 	return false
 }
