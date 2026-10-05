@@ -56,7 +56,7 @@ providers:
     supported: false
     reason: >-
       Cursor's headless agent has no compaction request (/compress is plain prompt
-      text and no hook fires: runs/manual-compaction-slash), and the hooks around a
+      text and no compaction hook fires: runs/manual-compaction-slash), and the hooks around a
       compaction are not the statement's: it compacts by itself at its context limit
       with a preCompact hook (trigger "auto", recorded twice in
       runs/compaction-transcript-continuity; the hooks doc names "manual" too, which
