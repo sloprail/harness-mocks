@@ -28,13 +28,13 @@ run_rule() {   # ENV=VALUE...
   : > "$SR_EVENTS_FILE"
   env "$@" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 }
-reason() { jq -es 'map(select(.kind=="FileGuardChecked" and .rule=="capability-covered" and .outcome=="refused") | .reason) | join("\n")' "$SR_EVENTS_FILE"; }
+expect_refused() {   # LABEL SUBSTRING
+  jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="capability-covered" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: capability-covered did not refuse with a reason saying '$2' (sr-checks exit $ran)" >&2; exit 1; }
+}
 
 run_rule SHIM_JQ_FAIL_EXACT=
-reason | grep -Fq "no test carries // sr:proves x/claude" ||
-  { jq -c . "$SR_EVENTS_FILE" >&2; echo "control: the uninjected run did not refuse the missing proof" >&2; exit 1; }
+expect_refused "control: the uninjected run" "no test carries // sr:proves x/claude"
 
 run_rule "PATH=$TMPDIR/shim:$PATH" SHIM_JQ_FAIL_EXACT='.[]'
-r="$(reason)"
-printf '%s' "$r" | grep -Fq "the capability files could not be listed, so nothing could be checked" ||
-  { jq -c . "$SR_EVENTS_FILE" >&2; echo "a failed listing was not refused with its reason (sr-checks exit $ran): $r" >&2; exit 1; }
+expect_refused "a failed listing" "the capability files could not be listed, so nothing could be checked"
