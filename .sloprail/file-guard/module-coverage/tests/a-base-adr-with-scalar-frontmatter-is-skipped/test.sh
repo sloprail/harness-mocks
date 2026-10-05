@@ -19,10 +19,10 @@ c base; BASE=$(git rev-parse HEAD)
 printf -- '---\nconcern: coverage\nsloprails: [file-guard/module-coverage]\nspace: ["internal/**"]\nexceptions: ["internal/legacy/**"]\n---\n# Every piece of code belongs to a module\n' >adr/modules-cover-code/ADR.md
 c "the ADR is linked to the rule"
 : > "$SR_EVENTS_FILE"
-sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 || true
+sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?   # (the range is refused: only the reason is asserted)
 # it is judged on its merits (the exception is new and covers a file the base did not except), not refused as a failed lookup
 jq -es 'any(.[]; .kind=="FileGuardChecked" and .rule=="module-coverage" and .outcome=="refused" and (.reason|contains("exceptions grew: '"'"'internal/legacy/**'"'"' is new")))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; echo "module-coverage did not judge a range whose base ADR has scalar frontmatter" >&2; exit 1; }
-jq -es 'any(.[]; .rule=="module-coverage" and .outcome=="refused" and (.reason|contains("could not be read for its links")))' "$SR_EVENTS_FILE" >/dev/null &&
-  { jq -c . "$SR_EVENTS_FILE" >&2; echo "a scalar-frontmatter base ADR was refused as a failed lookup" >&2; exit 1; }
-exit 0
+if jq -es 'any(.[]; .rule=="module-coverage" and .outcome=="refused" and (.reason|contains("could not be read for its links")))' "$SR_EVENTS_FILE" >/dev/null; then
+  jq -c . "$SR_EVENTS_FILE" >&2; echo "a scalar-frontmatter base ADR was refused as a failed lookup" >&2; exit 1
+fi
