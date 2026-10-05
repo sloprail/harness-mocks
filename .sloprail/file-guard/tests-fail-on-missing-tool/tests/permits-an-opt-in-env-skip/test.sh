@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only
-# this rule's outcome is asserted. Proves the permit of an explicit opt-in skip (an environment gate), also beside a LookPath that fails the test.
+# this rule's outcome is asserted. Proves the permit of an explicit opt-in skip (an environment gate before the lookup).
 git init -q .
 mkdir -p pkg
 f=pkg/tool_test.go
@@ -12,7 +12,7 @@ BASE=$(git rev-parse HEAD)
 
 # test_with BODY — the test file at the head carries BODY in TestTool
 test_with() {
-  printf 'package pkg\n\nimport (\n\t"os"\n\t"os/exec"\n\t"testing"\n)\n\nvar _ = os.Getenv\nvar _ = exec.LookPath\n\nfunc TestTool(t *testing.T) {\n%b}\n' "$1" > "$f"
+  printf 'package pkg\n\nimport (\n\t"os"\n\t"os/exec"\n\t"testing"\n)\n\nvar _ = os.Getenv\nvar _ = exec.Command\n\nfunc TestTool(t *testing.T) {\n%b}\n' "$1" > "$f"
   git add -A && git -c user.name=t -c user.email=t@t commit -q -m "$2"
 }
 passes() {

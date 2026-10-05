@@ -12,7 +12,7 @@ BASE=$(git rev-parse HEAD)
 
 # test_with BODY — the test file at the head carries BODY in TestTool
 test_with() {
-  printf 'package pkg\n\nimport (\n\t"os"\n\t"os/exec"\n\t"testing"\n)\n\nvar _ = os.Getenv\nvar _ = exec.LookPath\n\nfunc TestTool(t *testing.T) {\n%b}\n' "$1" > "$f"
+  printf 'package pkg\n\nimport (\n\t"os"\n\t"os/exec"\n\t"testing"\n)\n\nvar _ = os.Getenv\nvar _ = exec.Command\n\nfunc TestTool(t *testing.T) {\n%b}\n' "$1" > "$f"
   git add -A && git -c user.name=t -c user.email=t@t commit -q -m "$2"
 }
 passes() {

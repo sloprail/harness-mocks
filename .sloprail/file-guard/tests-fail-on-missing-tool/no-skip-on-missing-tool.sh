@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # A Go test that finds its tool missing (an exec.LookPath that failed) fails; it never calls
-# t.Skip, t.Skipf or t.SkipNow. The Skip is judged by what encloses it: inside an `if` that reads an
-# environment variable or testing.Short() it is an explicit opt-in (A10N_REAL_CLAUDE_SUBAGENT_TEST=1,
-# -short) and is allowed; otherwise a Skip within six lines after an exec.LookPath is a skip on a
-# missing tool and is refused. Deterministic, over the changed *_test.go files at the head.
+# t.Skip, t.Skipf or t.SkipNow. A Skip within six lines after an exec.LookPath is a skip on a missing
+# tool and is refused. A skip behind an explicit opt-in (an environment gate such as
+# A10N_REAL_CLAUDE_SUBAGENT_TEST) sits before any lookup and so is not one. Deterministic, over the
+# changed *_test.go files at the head.
 set -uo pipefail
 
 payload="$(cat)"
@@ -37,8 +37,6 @@ skips() {
         e = 0
         if (line[i] ~ /^[ \t]*if .*\{.*\.(Skip|Skipf|SkipNow)\(/) e = i
         else for (j = i - 1; j >= 1; j--) { if (line[j] ~ /^[ \t]*$/) continue; if (ind[j] < ind[i]) { e = j; break } }
-        ctx = (e ? line[e] : "")
-        if (ctx ~ /os\.(Getenv|LookupEnv)|testing\.Short\(\)/) continue
         start = (e ? e : i) - 6; if (start < 1) start = 1
         for (k = start; k <= i; k++) if (line[k] ~ /exec\.LookPath/) { print i ": " line[i]; break }
       }
@@ -61,4 +59,4 @@ while [ "$i" -lt "$count" ]; do
 done
 [ -z "$bad" ] && exit 0
 refuse "adr/tests-fail-on-missing-tool (a test whose required tool is missing fails, it never skips):
-${bad}Call t.Fatalf with what to install instead. An explicit opt-in (an environment variable or -short) may skip."
+${bad}Call t.Fatalf with what to install instead."
