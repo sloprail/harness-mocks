@@ -9,6 +9,7 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/snapshots.sh"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
+load_spec capabilities
 load_markers proves; proves="$MARKERS"
 # loaded here, in this shell: a $(...) loses what a loader sets, and a refusal inside one exits only it
 load_spec capabilities; load_touched; load_touched_markers
