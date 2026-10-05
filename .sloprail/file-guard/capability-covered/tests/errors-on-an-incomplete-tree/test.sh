@@ -55,6 +55,10 @@ git checkout -q -b empty "$BASE"
 git rm -q spec/capabilities/x.yaml; mkdir -p spec/capabilities; touch spec/capabilities/.gitkeep; c "spec/capabilities without specs"
 expect_error "$BASE" "no spec file" "lists no *.yaml"
 
+git checkout -q -b nomock "$BASE"
+git rm -q -r claude-mock; c "no harness mock in the tree"
+expect_error "$BASE" "no mock dir" "no *-mock/ directory in the committed tree"
+
 git checkout -q -b real "$BASE"
 git rm -q claude-mock/e2e/x_test.go; c "the proof is gone"
 expect_fail "$BASE" "a real finding" "no test carries // sr:proves x/claude"

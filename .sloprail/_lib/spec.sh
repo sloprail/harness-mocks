@@ -26,7 +26,7 @@ load_spec() {
     refuse_error "spec/$kind is not in the committed tree at $SR_TREE (an incomplete tree?), so the specs could not be read"
   listed="$(ls "$SR_TREE/spec/$kind" 2>&1)" ||
     refuse_error "could not list spec/$kind: $listed"
-  printf '%s\n' "$listed" | grep -q '\.yaml$' ||
+  [[ "$listed" == *.yaml* ]] ||
     refuse_error "spec/$kind lists no *.yaml in the committed tree, so the specs could not be read (a failed or partial checkout?)"
   # one yq over every file: it names each document by its file
   out="$(yq -o=json -I=0 '{"id": (filename | split("/") | .[-1] | sub("\\.yaml$"; "")), "path": ("spec/'"$kind"'/" + (filename | split("/") | .[-1])), "doc": .}' \
