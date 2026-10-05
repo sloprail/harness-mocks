@@ -51,6 +51,7 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/session-start-block
       - cursor-mock/snapshots/runs/session-start-continue-false
+      - cursor-mock/snapshots/runs/session-resume
       - cursor-mock/snapshots/runs/symlinked-cwd
     deviations:
       - adr: modeled-surface

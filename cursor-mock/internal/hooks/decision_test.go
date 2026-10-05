@@ -65,7 +65,6 @@ func TestAFailClosedHookBlocksOnAnyFailure(t *testing.T) {
 // Recorded (runs/pretool-refusal-combined): hooks that refuse one call, by exit
 // status or by output, all have their messages told, in the order the hooks are
 // configured in, separated by a blank line, a rule and a blank line.
-// sr:proves pretooluse-refusal/cursor
 func TestRefusalAnyRefusingHookRefusesAndEveryMessageIsTold(t *testing.T) {
 	deny := Decision{Permission: "deny", Message: "json says no"}
 	block := Decision{Permission: "deny", Blocked: true, Message: "exit says no"}
@@ -119,7 +118,6 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	}
 }
 
-// sr:proves hook-timeout/cursor
 func TestAHookThatTimedOutIsIgnoredUnlessItFailsClosed(t *testing.T) {
 	timedOut := corehooks.Outcome{Started: true, Exit: -1, TimedOut: true, Timeout: time.Second, Stdout: `{"permission":"deny"}`}
 	if got := Interpret(BeforeShellExecution, Entry{Command: "h.sh", Timeout: time.Second}, timedOut); got != (Decision{}) {
