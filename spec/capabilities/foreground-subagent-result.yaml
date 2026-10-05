@@ -1,7 +1,5 @@
 statement: >-
-  A foreground sub-agent blocks its parent until it finishes, then hands its
-  final report back as the tool's result with a trailer naming the sub-agent
-  and its usage.
+  The dispatching agent receives the foreground sub-agent's final result.
 providers:
   claude:
     docs:
