@@ -35,9 +35,3 @@ func TestAgentIDsAreTheReceiptsTheScriptPrinted(t *testing.T) {
 	assert.Equal(t, []string{"x1"}, agentIDs(out))
 	assert.Empty(t, agentIDs("not a list"))
 }
-
-func TestUnifyWaitRefusesATenthSpawn(t *testing.T) {
-	spawns := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	_, err := unifyWait(map[string]any{"targets": []any{ref{call: 9, path: ".agent_id"}}, "timeout_ms": number{1}}, spawns, nil)
-	assert.Error(t, err)
-}

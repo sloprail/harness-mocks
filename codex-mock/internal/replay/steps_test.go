@@ -1,6 +1,7 @@
 package replay
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,4 +110,31 @@ func TestSpawnReceiptsAreTheMainThreadsCompletedSpawns(t *testing.T) {
 	}
 	got := spawnReceipts([]map[string]any{item("item.started", "m"), item("item.completed", "m", "a"), item("item.completed", "x", "n"), item("item.completed", "m"), item("item.completed", "m", "b")}, "m")
 	assert.Equal(t, []string{"a", "b"}, got)
+}
+
+// A wait's targets are the receipts of the agent's spawns, put in by position;
+// no text of the script is rewritten (a literal AGENT1 or IDPLACE stays), and
+// there is no limit of nine spawns.
+func TestWaitTargetsAreFilledInStructurally(t *testing.T) {
+	said := "AGENT1 IDPLACE"
+	rec := core.Recording{Agent: core.Agent{Calls: []core.Call{
+		{Tool: core.ToolWait, Said: &said, Input: map[string]any{"targets": []int{0, 10}, "timeout_ms": 5}},
+	}}}
+	script := Denormalize(rec).Script
+	dir := t.TempDir()
+	session := filepath.Join(dir, "session.jsonl")
+	var lines []string
+	for i := 0; i < 11; i++ {
+		lines = append(lines, fmt.Sprintf(`{"payload":{"type":"function_call_output","output":"{\"agent_id\":\"id-%d\"}"}}`, i))
+	}
+	// the wait is the first step whatever the session holds: the step number is pinned to 0
+	require.NoError(t, os.WriteFile(session, []byte(strings.Join(lines, "\n")+"\n"), 0o644))
+	path := filepath.Join(dir, "s.sh")
+	require.NoError(t, os.WriteFile(path, []byte(strings.Replace(script, `n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")`, `n=0`, 1)), 0o755))
+	cmd := exec.Command("sh", path)
+	cmd.Env = append(os.Environ(), "A10N_MOCK_SESSION_FILE="+session)
+	out, err := cmd.Output()
+	require.NoError(t, err)
+	assert.Contains(t, string(out), `"targets":["id-0","id-10"]`)
+	assert.Contains(t, string(out), "AGENT1 IDPLACE")
 }

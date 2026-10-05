@@ -88,10 +88,10 @@ func mockCall(c core.Call) modelCall {
 		}
 		in[k] = v
 	}
-	if c.Tool == core.ToolWait { // the targets are the receipts of the agent's spawns, which the script reads off its session
-		var ids []string
+	if c.Tool == core.ToolWait { // the targets are the receipts of the agent's spawns: the script puts each one in, by its position
+		var ids []any
 		for _, k := range c.Input["targets"].([]int) {
-			ids = append(ids, fmt.Sprintf("AGENT%d", k+1))
+			ids = append(ids, map[string]any{"spawned": k})
 		}
 		in["targets"] = ids
 	}
@@ -119,7 +119,7 @@ func scriptFor(tag string, steps []modelCall, final string) string {
 		if c.Text != nil {
 			content = append(content, map[string]any{"type": "text", "text": *c.Text})
 		}
-		content = append(content, map[string]any{"type": "tool_use", "id": "IDPLACE", "name": c.Name, "input": c.Input})
+		content = append(content, map[string]any{"type": "tool_use", "id": "", "name": c.Name, "input": c.Input})
 		b, _ := json.Marshal(map[string]any{"type": "assistant", "message": map[string]any{"content": content}})
 		lines = append(lines, string(b))
 	}
@@ -138,10 +138,8 @@ case "$step" in
   printf '%%s\n' "$(jq -nc --argjson t "$text" '{type:"assistant",message:{content:[{type:"text",text:$t}]}}')" "$(jq -nc --argjson t "$text" '{type:"result",subtype:"success",result:$t}')"
   ;;
 *)
-  for i in 1 2 3 4 5 6 7 8 9; do
-    case "$step" in *AGENT$i*) step=$(printf '%%s' "$step" | sed "s/AGENT$i/$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | sed -n "${i}p")/g") ;; esac
-  done
-  printf '%%s\n' "$step" | sed "s/IDPLACE/call_%s_$n/"
+  ids=$(jq -cs '[.[]|select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)]' "$A10N_MOCK_SESSION_FILE")
+  printf '%%s\n' "$step" | jq -c --argjson ids "$ids" --arg id "call_%s_$n" '.message.content |= map(if .type=="tool_use" then .id = $id | (if .input.targets then .input.targets |= map(if type=="object" then $ids[.spawned] else . end) else . end) else . end)'
   ;;
 esac
 `, strings.Join(lines, "\n"), tag)
