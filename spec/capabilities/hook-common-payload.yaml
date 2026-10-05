@@ -60,9 +60,18 @@ providers:
           event's own session_id, conversation_id and (once its transcript
           file exists) transcript_path: the sub-agent's, not the main agent's,
           as in a Shell call's preToolUse and postToolUse payloads. No field
-          carries the sub-agent's type or its parent, and in print mode neither
-          subagentStart nor subagentStop fires for the Task call (recorded:
-          runs/subagent-lifecycle-hooks). The mock does the same.
+          carries the sub-agent's type or its parent on the events of its own
+          calls (recorded: runs/subagent-lifecycle-hooks). The mock does the
+          same.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (its event list, #subagentstart,
+          #subagentstop) lists "subagentStart / subagentStop - Subagent (Task
+          tool) lifecycle" events whose payloads carry subagent_type and
+          parent_conversation_id, and the recording shows neither firing for the
+          Task call in print mode, though the run's hooks.json registers both
+          (runs/subagent-lifecycle-hooks). The recording decides.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
