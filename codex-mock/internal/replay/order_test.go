@@ -41,7 +41,7 @@ func replayDiff(t *testing.T, recorded []string, mockOrder []string) string {
 		}
 	}
 	rec := core.Recording{Dir: dir, Prompt: "p", Setup: map[string]string{}, Agent: core.Agent{Final: "done"}}
-	want, got, err := Adapter{Environ: os.Environ()}.Replay(stubMock(t, stream, mockOrder...), rec)
+	want, got, err := Adapter{Environ: []string{"PATH=" + os.Getenv("PATH")}}.Replay(stubMock(t, stream, mockOrder...), rec)
 	if err != nil {
 		t.Fatal(err)
 	}

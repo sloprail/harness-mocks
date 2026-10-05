@@ -34,7 +34,6 @@ var notAbout = map[string]string{
 	"manual-compaction/script":              "prose: the scenario script the mock plays, not a script key",
 	"session-fork/script":                   "prose: the scenario script the mock plays, not a script key",
 	"task-stream-frames/script":             "prose: the scenario script the mock plays, not a script key",
-	"foreground-subagent-result/usage":      "the sub-agent's token counts, which the mock does not spend (a trailer's text is still compared)",
 }
 
 // The codex replay drops a key from both sides only if no capability cell is

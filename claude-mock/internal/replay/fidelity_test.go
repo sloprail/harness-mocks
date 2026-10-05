@@ -19,7 +19,6 @@ var claudeNotAbout = map[string]string{
 	"background-agent/script":          "prose: the scenario script the mock plays, not a script key",
 	"session-fork/script":              "prose: the scenario script the mock plays, not a script key",
 	"session-resume/script":            "prose: the scenario script the mock plays, not a script key",
-	"foreground-subagent-result/usage": "the sub-agent's token counts, which the mock does not spend (a trailer's text is still compared)",
 }
 
 // The claude replay drops a key from both sides only if no capability cell is
