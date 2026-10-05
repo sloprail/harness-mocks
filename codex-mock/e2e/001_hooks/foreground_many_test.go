@@ -25,11 +25,12 @@ case "$n" in
 1) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"s1","name":"spawn_agent","input":{"message":"slow","script":"slow.sh","more":true}}]}}';;
 2) printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"w","name":"wait_agent","input":{"targets":["%s","%s"],"timeout_ms":60000}}]}}\n' "$a" "$b";;
 *) if [ "$k" -le 1 ]; then t=FIRST; else t=SECOND; fi
-   printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"'$t'"}]}}' '{"type":"result","subtype":"success","result":"'$t'"}';;
+   printf '%s\n' '{"gate":{"ended":[0,1]},"type":"assistant","message":{"content":[{"type":"text","text":"'$t'"}]}}' '{"type":"result","subtype":"success","result":"'$t'"}';;
 esac
 `
 	fastSub = "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"PINEAPPLE-7\"}]}}'\n"
-	slowSub = "#!/bin/sh\nsleep 0.3\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"MANGO-3\"}]}}'\n"
+	// the second sub-agent ends only after the agent's wait call has finished: the script says so, no delay does
+	slowSub = "#!/bin/sh\nprintf '%s\\n' '{\"gate\":{\"parent_done\":3},\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"MANGO-3\"}]}}'\n"
 )
 
 // sr:proves foreground-subagent-result/codex

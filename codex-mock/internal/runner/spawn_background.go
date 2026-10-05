@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
@@ -30,6 +29,7 @@ func (h toolHost) spawnAgent(c toolcall.Call) toolcall.Result {
 		return toolcall.Result{Output: "spawn_agent: the mock's 'background' parameter is gone (spawn_agent always answers at once); it is refused rather than ignored", Failed: true}
 	}
 	id := coresession.NewID()
+	h.spawned.add(id)
 	spawn := h.events.CollabStarted(agentTool, h.id, nil, in.Message)
 	h.events.CollabCompleted(spawn, agentTool, h.id, []string{id}, in.Message,
 		map[string]events.AgentState{id: {Status: "pending_init"}})
@@ -54,11 +54,6 @@ func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	t := tasks.NewTask(tasks.Agent, r.AgentID)
 	t.Owner = h.id // the agent that started it is the one told when it ends
 	h.bg.StartAgent(t, func(ctx context.Context) {
-		select { // its first step is a model call, which takes a while
-		case <-time.After(modelCall):
-		case <-ctx.Done():
-			return
-		}
 		rollout, err := h.createSub(r.AgentID)
 		if err != nil {
 			t.Failure = fmt.Sprintf("failed to start the sub-agent: %v", err) // a wait refuses it, not an empty completion

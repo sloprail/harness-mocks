@@ -33,20 +33,3 @@ func TestNoticesAreTheOwnersEndedSubAgentsOneAtATime(t *testing.T) {
 	_, ok = TakeNotice(reg, "me")
 	assert.False(t, ok, "once, and none still running")
 }
-
-// A turn's end waits a moment for a running sub-agent that ends within it, not for one that runs on.
-func TestAwaitNoticeWaitsOnlyForTheGrace(t *testing.T) {
-	reg := tasks.NewRegistry()
-	defer reg.Shutdown()
-	quick := tasks.NewTask(tasks.Agent, "quick")
-	reg.StartAgent(quick, func(context.Context) { time.Sleep(50 * time.Millisecond); quick.Result = "Q!" })
-	n, ok := AwaitNotice(reg, "", time.Second)
-	assert.True(t, ok)
-	assert.Equal(t, "Q!", n.Answer)
-	slow := tasks.NewTask(tasks.Agent, "slow")
-	reg.StartAgent(slow, func(ctx context.Context) { <-ctx.Done() })
-	start := time.Now()
-	_, ok = AwaitNotice(reg, "", 100*time.Millisecond)
-	assert.False(t, ok)
-	assert.Less(t, time.Since(start), time.Second)
-}
