@@ -29,7 +29,7 @@ func (h toolHost) spawnAgent(c toolcall.Call) toolcall.Result {
 		return toolcall.Result{Output: "spawn_agent: the mock's 'background' parameter is gone (spawn_agent always answers at once); it is refused rather than ignored", Failed: true}
 	}
 	id := coresession.NewID()
-	h.spawned.add(id)
+	h.spawned.Add(id)
 	spawn := h.events.CollabStarted(agentTool, h.id, nil, in.Message)
 	h.events.CollabCompleted(spawn, agentTool, h.id, []string{id}, in.Message,
 		map[string]events.AgentState{id: {Status: "pending_init"}})

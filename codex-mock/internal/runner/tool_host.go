@@ -49,7 +49,7 @@ func (h toolHost) payload(c toolcall.Call) map[string]any {
 
 // Before fires PreToolUse and asks for the refusal of what the hooks decided.
 func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
-	defer h.prog.move(1, 0) // started, hooks fired: what another agent's gate may wait for
+	defer h.prog.Move(1, 0) // started, hooks fired: what another agent's gate may wait for
 	var ds []hooks.Decision
 	for _, o := range h.hooks.Fire(ctx, hooks.PreToolUse, fileOrHookName(c), h.payload(c)) {
 		ds = append(ds, hooks.Interpret(hooks.PreToolUse, o))
@@ -142,7 +142,7 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 		}
 	}
 	h.rollout.ToolOutput(c.ID, text)
-	h.prog.move(0, 1) // finished: what another agent's gate may wait for
+	h.prog.Move(0, 1) // finished: what another agent's gate may wait for
 	if c.Name == agentTool && a.Kind == toolcall.Done && !a.Replaced && !a.Result.Failed {
 		h.startBackground(c, a.Result.Output) // a dispatch not waited for runs once it is answered
 	}

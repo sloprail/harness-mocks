@@ -45,7 +45,7 @@ func (h toolHost) runSpawned(ctx context.Context, subID string, subRollout *sess
 	invoker := *h.hooks
 	invoker.Common.TranscriptPath, invoker.Common.AgentID, invoker.Common.AgentType = subRollout.Path, subID, agentType
 	sub.hooks = &invoker
-	sub.prog, sub.parent, sub.spawned = newProgress(), h.prog, &spawnLog{} // its own progress, read against the parent's
+	sub.prog, sub.parent, sub.spawned = subagents.NewProgress(), h.prog, &subagents.SpawnLog{} // its own progress, read against the parent's
 
 	return subagents.Execute(subagents.Hooks{
 		Start: func() {
