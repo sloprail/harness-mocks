@@ -25,7 +25,8 @@ const standardCommand = "claude -p --model haiku --dangerously-skip-permissions 
 // recording the adapter cannot reproduce yet
 var installed = map[string]bool{"hook.sh": true, "prompt.txt": true, "settings.json": true}
 
-// sampleDir is the latest sample of the run in dir; empty when it has none.
+// sampleDir is the latest sample of the run in dir, the one the model's turns
+// and the stream's session are read from; empty when it has none.
 func sampleDir(dir string) string {
 	samples, _ := filepath.Glob(filepath.Join(dir, "samples", "*"))
 	if len(samples) == 0 {
@@ -48,11 +49,17 @@ type run struct {
 // records) is not compared: a replay compares the stream and the hook payloads,
 // whose files are only checked to be readable here. An *Unbuildable says what
 // the adapter cannot reproduce.
-func (Adapter) Load(runDir string) (core.Recording, error) {
+func (a Adapter) Load(runDir string) (core.Recording, error) {
+	return a.LoadSample(runDir, sampleDir(runDir))
+}
+
+// LoadSample is Load for one sample of the run: the model's turns are those of
+// that sample's transcripts.
+func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 	if fi, err := os.Stat(runDir); err != nil || !fi.IsDir() {
 		return core.Recording{}, fmt.Errorf("%s is not a recorded run", runDir)
 	}
-	setup, sample := filepath.Join(runDir, "setup"), sampleDir(runDir)
+	setup := filepath.Join(runDir, "setup")
 	r, err := readRun(filepath.Join(runDir, "run.yaml"))
 	if err != nil {
 		return core.Recording{}, unbuildable(err)

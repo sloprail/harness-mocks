@@ -3,6 +3,8 @@ package runner
 import (
 	"encoding/json"
 	"sync"
+
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // runState is what the run has done since its last result frame, from which the
@@ -84,4 +86,17 @@ func withResultFields(line []byte, st *runState, sessionID string) []byte {
 		return line
 	}
 	return out
+}
+
+// finisher is what writes the run's held result frame to the stream, ending the
+// run: the run's own result frames carry the run's state, a sub-agent's (internal) do not.
+func finisher(cfg Config, bg *backgroundTasks, final *scenario.Result) func() {
+	return func() {
+		final.Finish(func(line []byte) {
+			if cfg.AgentID == "" {
+				line = withResultFields(line, &bg.run, cfg.SessionID)
+			}
+			writeStreamLine(cfg, line)
+		})
+	}
 }
