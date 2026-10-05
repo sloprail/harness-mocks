@@ -56,6 +56,16 @@ providers:
           hooks the mock fires are preToolUse, beforeShellExecution and
           beforeReadFile; beforeMCPExecution and subagentStart, which refuse
           too, are not modeled.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#pretooluse, the output
+          fields) says agent_message is "Message fed back to the agent when the
+          action is denied", and the recordings show a deny's agent_message
+          (AGENT-DENY-MSG, SHELL-AGENT-DENY-MSG) nowhere in the run's stream,
+          hook payloads or transcript: the rejected call's reason carries only
+          the user_message (runs/pretool-refusal, runs/pretool-refusal-file-tools).
+          The recording decides.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
