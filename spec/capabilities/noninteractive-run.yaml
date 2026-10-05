@@ -11,6 +11,8 @@ providers:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bashfail
       - claude-mock/snapshots/runs/run-failure
+      - claude-mock/snapshots/runs/max-turns
+      - claude-mock/snapshots/runs/include-hook-events
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled

@@ -143,24 +143,3 @@ func toolNameInTranscript(tr *transcript, toolUseID string) string {
 	}
 	return ""
 }
-
-// withoutIsError is the message with its tool_result's is_error left out, a copy.
-func withoutIsError(msg map[string]any) map[string]any {
-	blocks, _ := msg["content"].([]map[string]any)
-	out := make([]map[string]any, len(blocks))
-	for i, b := range blocks {
-		c := map[string]any{}
-		for k, v := range b {
-			if k != "is_error" {
-				c[k] = v
-			}
-		}
-		out[i] = c
-	}
-	m := map[string]any{}
-	for k, v := range msg {
-		m[k] = v
-	}
-	m["content"] = out
-	return m
-}
