@@ -53,3 +53,5 @@ providers:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/before-read-refusal
       - cursor-mock/snapshots/runs/before-read-timeout
+      - cursor-mock/snapshots/runs/add-dir-access
+      - cursor-mock/snapshots/runs/no-add-dir-access

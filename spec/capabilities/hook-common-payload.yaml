@@ -30,6 +30,8 @@ providers:
       - cursor-mock/snapshots/runs/file-tools
       - cursor-mock/snapshots/runs/subagent-lifecycle-hooks
       - cursor-mock/snapshots/runs/multiroot-workspace
+      - cursor-mock/snapshots/runs/add-dir-access
+      - cursor-mock/snapshots/runs/no-add-dir-access
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
