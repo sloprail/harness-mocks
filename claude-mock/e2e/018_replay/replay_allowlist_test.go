@@ -54,6 +54,7 @@ var notReplaying = map[string]string{
 	"resume-name":                 "adapter: the setup has args, which the adapter does not install",
 	"resume-path":                 "adapter: the setup has args, which the adapter does not install",
 	"resume-unknown":              "adapter: the setup has args, which the adapter does not install",
+	"run-failure":                 "adapter: the setup has args, which the adapter does not install",
 	"schedule-wakeup-limits":      "adapter: the model called ScheduleWakeup: the adapter maps Bash and Agent",
 	"stops":                       "adapter: the model said two things before one call: the adapter keeps one",
 	"subprocess-session-env":      "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; result frames lack api_error_status, is_error, num_turns, permission_denials, queued_turn_count, result_index, session_id, stop_reason, terminal_reason, time_to_request_ms, ttft_ms, ttft_stream_ms; user frames lack parent_tool_use_id, session_id, tool_use_result; hook payloads lack prompt_id/permission_mode or differ in key order",
