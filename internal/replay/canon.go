@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
+	"strings"
 )
 
 // Rules say what may differ between a recording and a replay of it. The
@@ -25,6 +27,10 @@ type Rules struct {
 	// first appearance, so a line that names the same id as an earlier one must
 	// still do so.
 	IDs []*regexp.Regexp
+	// IDKeys are object keys whose string value is an id of the same kind
+	// (a task id that has no pattern of its own): it is renamed like an ID
+	// match, and renamed again wherever it occurs inside a string that follows.
+	IDKeys []string
 }
 
 // Scrub is one rewrite of the text of a string value.
@@ -40,7 +46,9 @@ type Scrub struct {
 type Canon struct{ c canon }
 
 // New makes a Canon for one run's outputs.
-func New(r Rules) *Canon { return &Canon{canon{r: r, ids: map[string]string{}}} }
+func New(r Rules) *Canon {
+	return &Canon{canon{r: r, ids: map[string]string{}, keyed: map[string]string{}}}
+}
 
 // Lines canonicalises JSON objects: one string per object, keys sorted, rules applied.
 func (n *Canon) Lines(objs []map[string]any) []string {
@@ -55,17 +63,32 @@ func (n *Canon) Lines(objs []map[string]any) []string {
 type canon struct {
 	r   Rules
 	ids map[string]string
+	// keyed are the ids that an IDKeys value named, by value: the ones to find inside strings
+	keyed map[string]string
 }
 
 func (c *canon) walk(v any) any {
 	switch x := v.(type) {
 	case map[string]any:
 		out := make(map[string]any, len(x))
-	keys:
-		for k, e := range x {
+		// in key order, so that ids are numbered in an order that is the same in every run
+		keys := make([]string, 0, len(x))
+		for k := range x {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+	next:
+		for _, k := range keys {
+			e := x[k]
 			for _, d := range c.r.DropKeys {
 				if k == d {
-					continue keys
+					continue next
+				}
+			}
+			for _, d := range c.r.IDKeys {
+				if str, ok := e.(string); ok && k == d && str != "" {
+					e = c.name(str)
+					c.keyed[str] = e.(string)
 				}
 			}
 			if fn := c.r.Rewrite[k]; fn != nil {
@@ -94,14 +117,20 @@ func (c *canon) str(x string) string {
 		x = s.Re.ReplaceAllString(x, s.With)
 	}
 	for _, re := range c.r.IDs {
-		x = re.ReplaceAllStringFunc(x, func(m string) string {
-			if n, ok := c.ids[m]; ok {
-				return n
-			}
-			n := fmt.Sprintf("<ID%d>", len(c.ids)+1)
-			c.ids[m] = n
-			return n
-		})
+		x = re.ReplaceAllStringFunc(x, c.name)
+	}
+	for id, n := range c.keyed {
+		x = strings.ReplaceAll(x, id, n)
 	}
 	return x
+}
+
+// name is the id's stable name: <ID1>, <ID2>... in order of first appearance.
+func (c *canon) name(id string) string {
+	if n, ok := c.ids[id]; ok {
+		return n
+	}
+	n := fmt.Sprintf("<ID%d>", len(c.ids)+1)
+	c.ids[id] = n
+	return n
 }

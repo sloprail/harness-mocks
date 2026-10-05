@@ -99,6 +99,8 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// claude -p is the primary entrypoint; support it at the root.
+		// the prompt is the positional arguments; `replay` is the one subcommand
+		Args:     cobra.ArbitraryArgs,
 		PreRunE:  resolveSessionFlags,
 		RunE:     rootRunE,
 		PostRunE: forgetUnpersisted,
@@ -106,6 +108,7 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 
 	root.SetVersionTemplate("{{.Version}}\n")
 	addRunFlags(root)
+	root.AddCommand(newReplay())
 
 	return root
 }
