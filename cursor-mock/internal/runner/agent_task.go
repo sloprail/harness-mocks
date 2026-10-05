@@ -61,8 +61,9 @@ func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in tas
 
 // finishSubagent is the second half of a foreground Task call (the first is
 // startSubagent: the parent's preToolUse hooks and the call on the stream): the
-// sub-agent running to its final response in a conversation of its own (its own session id and transcript, its tool calls
-// fired to the hooks under that id and not shown on the stream), and the call
+// sub-agent running to its final response in a conversation of its own (its
+// own session id and transcript, its tool calls fired to the hooks under that
+// id and not shown on the stream), and the call
 // completed with what it said. A command the sub-agent started in the
 // background is terminated when it gives its final response (recorded:
 // runs/foreground-subagent-bash-ends-with-response); no hook of the Task call
