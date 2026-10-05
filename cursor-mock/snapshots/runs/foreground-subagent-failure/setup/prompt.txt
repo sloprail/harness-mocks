@@ -1,0 +1,1 @@
+Use the Task tool to launch one sub-agent (foreground, not background) with its model parameter set to the invalid model name no-such-model-xyz, asking it to reply with exactly the word PINEAPPLE-7. Wait for it to finish, then reply with exactly what the Task tool returned to you, verbatim, even if it is an error.

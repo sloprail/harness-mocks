@@ -52,7 +52,7 @@ func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) { s.Start(ctx, 
 // refused at the depth limit is done at its start; a background Task is
 // launched when it is completed.
 func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
-	if s.refusesTaskAtTheLimit(ctx, tu) {
+	if s.refusesTaskAtTheLimit(ctx, tu) || s.refusesTaskModel(ctx, tu) {
 		return func() {}
 	}
 	if in, ok := startsBackgroundSubagent(tu); ok {
