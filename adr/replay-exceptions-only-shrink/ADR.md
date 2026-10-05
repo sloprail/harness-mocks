@@ -25,14 +25,6 @@ every difference between a recording and its mock into an accepted one.
   `untriaged:` to a stronger category, is allowed.
 - A `flaky:` entry is never skipped: the generated replay test runs it three
   times and fails when none of them is green.
-- Deleting a list file outright is not judged here: removing the whole list
-  only shrinks it ("why fucking not? do" asked for the list to be guarded, and
-  "The replay exception list may only shrink; adding an entry fails CI" is
-  satisfied by a deletion).
-- The file-guard compares the map's text, so it accepts only forms it can
-  compare (one `"run": "reason",` per line, no escape inside a reason's
-  category, the map named only in its own file); these restrictions exist so
-  that the entry comparison can be trusted.
 
 ## Source
 

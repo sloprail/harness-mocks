@@ -4,6 +4,12 @@
 # not move an existing entry's reason to a weaker category (flaky: is weaker than untriaged:,
 # which is weaker than any triaged reason such as adapter: or mock gap:). A file created by the
 # change has no base, so it may carry no entries: every entry would be an addition.
+#
+# The rule compares the map's text, so it accepts only forms it can compare (one "run": "reason", per
+# line, no escape inside a reason's category, the map named only in its own files, flakyRuns = 3 and the
+# wiring on code lines): these restrictions exist so that the entry comparison can be trusted. Deleting
+# a list file outright is not judged: removing the whole list only shrinks it, provided nothing that
+# still reads notReplaying is left without its list file.
 # Follows the skill's check-template.sh: anything but a readable Changeset is a refusal.
 set -uo pipefail
 
