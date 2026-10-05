@@ -99,7 +99,7 @@ const noOutput = "(Subagent completed but returned no output.)"
 // frame, the report indented two spaces per line ("(Subagent completed but
 // returned no output.)" when it said nothing), then the trailer
 //
-//	agentId: <id> (use SendMessage with to: '<id>', summary: '<5-10 word recap>' to continue this agent)[\nworktreePath: <p>]
+//	agentId: <id> (use SendMessage with to: '<id>', summary: '<5-10 word recap>' to continue this agent)[\nworktreePath: <p>\nworktreeBranch: <b>]
 //	<usage>subagent_tokens: N\ntool_uses: N\nduration_ms: N</usage>
 //
 // Its toolUseResult (also PostToolUse's tool_response) carries status
@@ -123,6 +123,9 @@ func buildAgentResult(sub *subagentRun, in agentToolInput, model string, out sub
 	wt := ""
 	if worktreePath != "" {
 		wt = "\nworktreePath: " + worktreePath
+		if sub.branch != "" {
+			wt += "\nworktreeBranch: " + sub.branch // recorded: snapshots/runs/isolated-worktree
+		}
 	}
 	text += "\nagentId: " + sub.agentID + " (use SendMessage with to: '" + sub.agentID + "', summary: '<5-10 word recap>' to continue this agent)" + wt +
 		fmt.Sprintf("\n<usage>subagent_tokens: 0\ntool_uses: %d\nduration_ms: %d</usage>", out.toolUses, durationMs)
