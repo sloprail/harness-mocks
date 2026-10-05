@@ -16,7 +16,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      # a test whose tool is missing fails (adr/tests-fail-on-missing-tool): the hook-session test needs python3
+      # a test whose tool is missing fails: the hook-session test needs python3
       - name: python3
         run: sudo apt-get install -y python3
       # -count=3: three runs of every test in one process, so a timing-flaky one surfaces here
@@ -31,7 +31,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      # a test whose tool is missing fails (adr/tests-fail-on-missing-tool): the capability checks run jq, yq, git and bash
+      # a test whose tool is missing fails: the capability checks run jq, yq, git and bash
       - name: jq and yq
         run: |
           sudo apt-get install -y jq

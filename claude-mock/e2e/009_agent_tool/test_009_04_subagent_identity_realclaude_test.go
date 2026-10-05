@@ -32,7 +32,7 @@ func TestT009_04_SubagentIdentity_RealClaude(t *testing.T) {
 		t.Skip("set A10N_REAL_CLAUDE_SUBAGENT_TEST=1 to run the real-claude subagent-identity proof")
 	}
 	claudeBin, err := exec.LookPath("claude")
-	require.NoError(t, err, "no `claude` binary on PATH: the real-claude proof was asked for (adr/tests-fail-on-missing-tool)")
+	require.NoError(t, err, "no `claude` binary on PATH: the real-claude proof was asked for")
 
 	t.Run("worktree_isolation", func(t *testing.T) {
 		p := runRealSubagent(t, claudeBin, true)
