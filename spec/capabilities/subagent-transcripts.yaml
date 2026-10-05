@@ -36,6 +36,7 @@ providers:
       - codex-mock/snapshots/runs/subagent-transcripts-v2
     deviations:
       - adr: capability-grounding
+        kind: mock-not-modeled
         statement: >-
           Codex keeps no sidecar file: the sub-agent's rollout is a file beside
           the session's (same day directory, named by the sub-agent's own thread
@@ -46,6 +47,7 @@ providers:
           (recorded: runs/subagent-transcripts-v2). The mock does the same, but
           leaves the agent path null.
       - adr: capability-grounding
+        kind: mock-not-modeled
         statement: >-
           Codex records the sub-agent's final answer in the session's rollout,
           as a message from the sub-agent (recorded: runs/subagent-transcripts-v2);
@@ -66,6 +68,7 @@ providers:
           frame on the stream, which gives that id as the result's agentId
           (recorded: runs/subagent-transcripts). The mock does the same.
       - adr: modeled-surface
+        kind: harness-lacks
         statement: >-
           The subagentStart and subagentStop hooks are not fired for the
           sub-agent.
