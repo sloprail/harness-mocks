@@ -22,7 +22,7 @@ func TestPluginHooksRunAlongsideTheProjectsOwn(t *testing.T) {
 		for _, r := range o.results {
 			ran = append(ran, strings.Split(r, ":")[1])
 		}
-		// results are sorted by the helper, so this pins which hooks ran, not their order
+		// hooks run at the same time (runs/hooks-together): which ran is what the recording establishes, not an order
 		require.ElementsMatch(t, []string{"p1", "project"}, ran, name+": p1's hook and the project's, not p2's")
 	}
 }

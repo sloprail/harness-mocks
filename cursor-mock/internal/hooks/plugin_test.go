@@ -27,9 +27,8 @@ func commands(c Config) (out []string) {
 	return out
 }
 
-// A plugin loaded from a directory contributes its hooks alongside the project's (their relative order is not
-// pinned: the one recording has the plugin's first, the mock lists the project's
-// first):
+// A plugin loaded from a directory contributes its hooks alongside the project's (hooks run at the same time, recorded in
+// runs/hooks-together, so there is no order between them to pin):
 // from hooks/hooks.json when its manifest names no hooks file (the doc's
 // default location), from the file the manifest names when it does, and
 // nothing when the directory is not loaded.
