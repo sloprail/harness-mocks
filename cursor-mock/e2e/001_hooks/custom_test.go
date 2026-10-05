@@ -203,3 +203,30 @@ func TestADenyFromOneHookRefusesTheCallWhateverAnotherHookAsks(t *testing.T) {
 		require.NotContains(t, c.logged(t), "REFUSED-OR-NOT", name+": the command must not have run")
 	}
 }
+
+// TestTheUserRecordOpensWithAnEmptyTimestampElementThenTheQuery: recorded
+// (runs/tool-failure, runs/symlinked-cwd), the transcript's first record is the
+// user's, a text block that starts with an empty <timestamp/> element on its
+// own line and then holds the prompt in a <user_query> element; the mock
+// writes the same.
+func TestTheUserRecordOpensWithAnEmptyTimestampElementThenTheQuery(t *testing.T) {
+	first := func(recs []map[string]any) string {
+		require.NotEmpty(t, recs)
+		require.Equal(t, "user", recs[0]["role"])
+		blocks := recs[0]["message"].(map[string]any)["content"].([]any)
+		require.Len(t, blocks, 1)
+		return blocks[0].(map[string]any)["text"].(string)
+	}
+	for _, run := range []string{"tool-failure", "symlinked-cwd"} {
+		m, err := filepath.Glob(filepath.Join(newestSample(t, run), "transcript", "*", "*.jsonl"))
+		require.NoError(t, err)
+		require.Len(t, m, 1, run)
+		require.True(t, strings.HasPrefix(first(readJSONL(t, m[0])), "<timestamp/>\n<user_query>\n"), run)
+	}
+
+	c := runCustom(t, `{"version":1,"hooks":{}}`, nil, "echo hi")
+	path, _ := c.transcript(t)
+	got := first(readJSONL(t, path))
+	require.True(t, strings.HasPrefix(got, "<timestamp/>\n<user_query>\n"), got)
+	require.True(t, strings.HasSuffix(got, "\n</user_query>"), got)
+}

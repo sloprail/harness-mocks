@@ -10,8 +10,9 @@ import (
 
 // transcript is the conversation's record file, in the layout Cursor keeps
 // (recorded: runs/*/samples/*/transcript): one JSON line per message, a user
-// message first, assistant messages with their text and tool calls, and a
-// closing turn_ended line. It is what the scenario script reads as
+// message first (opening with the empty <timestamp/> element, then the
+// <user_query> element, as recorded), assistant messages with their text and
+// tool calls, and a closing turn_ended line. It is what the scenario script reads as
 // A10N_MOCK_SESSION_FILE.
 type transcript struct{ path string }
 
@@ -46,7 +47,7 @@ func (t *transcript) message(role string, blocks ...map[string]any) {
 }
 
 func (t *transcript) user(prompt string) {
-	t.message("user", map[string]any{"type": "text", "text": "<user_query>\n" + prompt + "\n</user_query>"})
+	t.message("user", map[string]any{"type": "text", "text": "<timestamp/>\n<user_query>\n" + prompt + "\n</user_query>"})
 }
 
 func (t *transcript) text(s string) {
