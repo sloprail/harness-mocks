@@ -44,6 +44,9 @@ func forgetUnpersisted(cmd *cobra.Command, _ []string) error {
 //
 // sr:provides session-resume/claude
 func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
+	if err := refuseUnimplemented(cmd); err != nil {
+		return err
+	}
 	resume, _ := cmd.Flags().GetString(flagResume)
 	projectDir, _ := cmd.Flags().GetString(flagProjectDir)
 	if projectDir == "" {
@@ -111,4 +114,28 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 	root.AddCommand(newReplay())
 
 	return root
+}
+
+// permissionMode is the mode the run's hooks are told it is in:
+// bypassPermissions for --dangerously-skip-permissions, else the
+// --permission-mode given, else default.
+// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+func permissionMode(cmd *cobra.Command) string {
+	if skip, _ := cmd.Flags().GetBool("dangerously-skip-permissions"); skip {
+		return "bypassPermissions"
+	}
+	if m, _ := cmd.Flags().GetString("permission-mode"); m != "" {
+		return m
+	}
+	return "default"
+}
+
+// refuseUnimplemented is the error for an output format the mock does not
+// produce (adr/fail-fast-unimplemented): only stream-json is, and a run asked
+// for text or json output would otherwise print stream frames as if it were one.
+func refuseUnimplemented(cmd *cobra.Command) error {
+	if f, _ := cmd.Flags().GetString(flagOutputFormat); f != "stream-json" {
+		return fmt.Errorf("claude-mock: --output-format %s is not implemented by the mock (only stream-json): it is refused rather than ignored", f)
+	}
+	return nil
 }
