@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// addPlugin adds, after the hooks configured so far, the hooks of the plugin
+// addPlugin adds to the hooks configured so far the hooks of the plugin
 // loaded from pluginDir (relative to the workspace when not absolute): those
 // of the hooks file its .cursor-plugin/plugin.json names, or hooks/hooks.json
 // when it names none. They run like any other hook, alongside the project's
