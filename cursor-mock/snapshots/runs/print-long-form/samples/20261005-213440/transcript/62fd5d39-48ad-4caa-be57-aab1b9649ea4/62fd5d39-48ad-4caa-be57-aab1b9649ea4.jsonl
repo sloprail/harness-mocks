@@ -1,4 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun the shell command echo LONGFORM with your shell tool, then reply only DONE.\n</user_query>"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"Running the command now."},{"type":"tool_use","name":"Shell","input":{"command":"echo LONGFORM","description":"Echo LONGFORM to stdout"}}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
-{"type":"turn_ended","status":"success"}
