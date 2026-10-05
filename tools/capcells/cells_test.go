@@ -27,7 +27,7 @@ func check(t *testing.T, cell string, markers ...string) (int, string) {
 	t.Helper()
 	for _, bin := range []string{"jq", "yq", "git", "bash"} {
 		if _, err := exec.LookPath(bin); err != nil {
-			t.Skipf("%s not installed", bin)
+			t.Fatalf("%s is not installed: the tests need it (adr/tests-fail-on-missing-tool)", bin)
 		}
 	}
 	root := t.TempDir()
