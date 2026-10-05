@@ -141,7 +141,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	rules := Rules(repo, work, RunIDs(recStream, mockStream, recHooks, mockHooks))
 	wantC, gotC := core.New(rules), core.New(rules)
 	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
-	want.Hooks, got.Hooks = wantC.Lines(recHooks), gotC.Lines(mockHooks)
+	want.Hooks, got.Hooks = wantC.Lines(HookPayloads(recHooks)), gotC.Lines(HookPayloads(mockHooks))
 	// hooks of one event run at the same time, so the order they log in is not the behaviour
 	sort.Strings(want.Hooks)
 	sort.Strings(got.Hooks)
