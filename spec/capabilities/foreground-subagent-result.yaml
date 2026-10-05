@@ -61,6 +61,7 @@ providers:
       - https://cursor.com/docs/subagents#foreground-vs-background
     runs:
       - cursor-mock/snapshots/runs/foreground-subagent-result
+      - cursor-mock/snapshots/runs/foreground-subagent-failure
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
