@@ -49,9 +49,7 @@ func Timeout(ms *int, def, lo, hi int) time.Duration {
 	return time.Duration(min(max(*ms, lo), hi)) * time.Millisecond
 }
 
-// sr:capability foreground-subagent-result
-//
-// Wait waits until one of the named sub-agents has finished, or timeout is up,
+// Wait (the foreground-subagent-result capability's other half, beside HandBack) waits until one of the named sub-agents has finished, or timeout is up,
 // and tells where each stands. Names no sub-agent of the run: it returns at once.
 func (w *Waits) Wait(ctx context.Context, ids []string, timeout time.Duration) (WaitResult, error) {
 	var known []Handle
