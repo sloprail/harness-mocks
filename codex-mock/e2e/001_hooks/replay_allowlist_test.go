@@ -32,6 +32,8 @@ var notReplaying = map[string]string{
 	"noninteractive-run-text-output":              "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
 	"plugin-hooks":                                "adapter: the setup has prepare.sh, which the adapter does not install",
 	"print-waits-for-background-agents":           "untriaged: the replay differs from the recording (event stream: recording 9 lines, mock 11, first difference at line 8)",
+	"session-end-hook-failure":                    "flaky: hooks run under wall-clock limits (SessionEnd: one second by default, recorded) and this recording's hook sleeps half of it behind a shell and git rev-parse, so a machine loaded by many replays at once kills it before it logs (green alone, red with sixteen replays at once); to be fixed by limiting how many replays run at once",
+	"session-end-hook-output":                     "flaky: hooks run under wall-clock limits (SessionEnd: one second by default, recorded) and this recording's hook sleeps half of it behind a shell and git rev-parse, so a machine loaded by many replays at once kills it before it logs (green alone, red with sixteen replays at once); to be fixed by limiting how many replays run at once",
 	"session-fork":                                "adapter: the setup has then-01-args, which the adapter does not install",
 	"session-resume":                              "adapter: the setup has then-01-args, which the adapter does not install",
 	"session-resume-unknown":                      "adapter: the setup has args, which the adapter does not install",
