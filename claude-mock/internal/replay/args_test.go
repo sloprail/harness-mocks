@@ -19,7 +19,7 @@ func TestParseArgs(t *testing.T) {
 	if !errors.As(err, &u) || !strings.HasPrefix(u.Reason, RefusedPrefix) {
 		t.Fatalf("refused: %v", err)
 	}
-	if _, err = parseArgs("--model\nopus\n"); !errors.As(err, &u) || strings.HasPrefix(u.Reason, RefusedPrefix) {
+	if _, err = parseArgs("--system-prompt\nx\n"); !errors.As(err, &u) || strings.HasPrefix(u.Reason, RefusedPrefix) {
 		t.Fatalf("unmodelled: %v", err)
 	}
 	if _, err = parseArgs("--max-turns\n"); err == nil {
