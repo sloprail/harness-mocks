@@ -34,7 +34,7 @@ while IFS= read -r m; do
     for imp in $imports; do
       to="$(rel "$imp")" || continue
       in_globs "$to" "${home[@]}" || continue
-      printf '%s\n' "${api[@]}" | grep -Fxq -- "$to" && continue
+      grep -Fxq -- "$to" <<<"$alist" && continue   # (a here-string, not a pipe: grep -q exits early and would fail a printf under pipefail)
       problems="${problems}- $from imports $to, inside module $id but not its api ($(IFS=,; echo "${api[*]}"))"$'\n'
     done
   done <<<"$out"

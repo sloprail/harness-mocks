@@ -67,7 +67,7 @@ leak_left() {
   [ -f "$cand.rc" ] || leak_search "$dir" "$cand"
   [ "$(cat "$cand.rc")" = 0 ] ||
     refuse "$dir/candidates.sh failed, so leaks of that module cannot be found: $(head -c 300 "$cand.err")"
-  whole=0; printf '%s\n' "$CHANGED" | grep -Fxq -e "$dir/module.yaml" -e "$dir/candidates.sh" && whole=1
+  whole=0; grep -Fxq -e "$dir/module.yaml" -e "$dir/candidates.sh" <<<"$CHANGED" && whole=1
   kept="$(awk -v whole="$whole" -v addedf="$LEAK_WORK/added" -v excf="$LEAK_WORK/exc" '
     BEGIN { while ((getline x < addedf) > 0) add[x] = 1; while ((getline x < excf) > 0) exc[x] = 1 }
     /^[[:space:]]*$/ { next }
@@ -77,7 +77,7 @@ leak_left() {
       if (!whole && !((p ":" l) in add)) next
       if (p ~ /_test\.go$/ || (p in exc)) next
       print p "\t" l "\t" t }' "$cand")" || refuse "the candidates of $dir could not be filtered, so its leaks cannot be found"
-  ! printf '%s\n' "$kept" | grep -q '^BAD' || refuse "$dir/candidates.sh printed '$(printf '%s\n' "$kept" | sed -n 's/^BAD\t//p' | head -1)', not path:line:snippet"
+  ! grep -q '^BAD' <<<"$kept" || refuse "$dir/candidates.sh printed '$(printf '%s\n' "$kept" | sed -n 's/^BAD\t//p' | head -1)', not path:line:snippet"
   local rows=""
   while IFS=$'\t' read -r p l t; do
     [ -n "$p" ] || continue
