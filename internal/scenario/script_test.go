@@ -77,3 +77,37 @@ func TestRunTurnScriptWithNeitherToolNorResultEnds(t *testing.T) {
 		t.Fatalf("turn = %+v, %v", turn, err)
 	}
 }
+
+// A turn's calls are the tool_use blocks of its first line and the assistant
+// lines of tool_use blocks alone that follow it; any other line ends the turn
+// unread.
+func TestRunTurnReadsAllTheCallsOfOneTurn(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' \
+'{"type":"assistant","message":{"content":[{"type":"text","text":"go"},{"type":"tool_use","id":"a","name":"Bash","input":{"n":1}},{"type":"tool_use","id":"b","name":"Task","input":{"n":2}}]}}' \
+'{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c","name":"Read","input":{"n":3}}]}}' \
+'{"type":"assistant","message":{"content":[{"type":"text","text":"never"}]}}' \
+'{"type":"result","result":"never"}'`)
+	turn, err := RunTurn(context.Background(), s, dir, environ, Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, c := range turn.Tools {
+		ids = append(ids, c.ID)
+	}
+	if strings.Join(ids, ",") != "a,b,c" || turn.Tool == nil || turn.Tool.ID != "a" || len(turn.Texts) != 1 || turn.Result != nil {
+		t.Fatalf("turn = %+v", turn)
+	}
+}
+
+// A line after the calls that is not a call ends the turn even if it is not
+// valid: it is never read.
+func TestRunTurnStopsAtAnUnreadableLineAfterTheCalls(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' \
+'{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a","name":"Bash","input":{}}]}}' \
+'not json'`)
+	turn, err := RunTurn(context.Background(), s, dir, environ, Input{})
+	if err != nil || len(turn.Tools) != 1 {
+		t.Fatalf("turn = %+v, %v", turn, err)
+	}
+}

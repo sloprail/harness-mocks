@@ -40,30 +40,37 @@ func (s *session) CapOverridden(int) {}
 // SessionFile is the conversation's transcript so far.
 func (s *session) SessionFile() string { return s.tr.path }
 
-// Tool carries out a call the script made: it is printed as started, run
-// through the shared order of a tool call, and recorded. A write first reads
-// the file it is about to change: a call of its own to the hooks (recorded:
-// runs/tool-failure, runs/file-tools), which is not shown on the stream.
-func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) {
+// Tool carries out a call the script made: it is started and completed at once.
+func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) { s.Start(ctx, tu)() }
+
+// Start is the first half of a call and returns the second (turnloop.Interleaver:
+// Cursor was recorded starting all the calls of a turn before completing any,
+// runs/task-stream-frames). The call is printed as started, then run through the
+// shared order and recorded when it is completed. A write first reads the file
+// it is about to change: a call of its own to the hooks (recorded:
+// runs/tool-failure, runs/file-tools), which is not shown on the stream. A call
+// refused at the depth limit is done at its start; a background Task is
+// launched when it is completed.
+func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 	if s.refusesTaskAtTheLimit(ctx, tu) {
-		return
+		return func() {}
 	}
 	if in, ok := startsBackgroundSubagent(tu); ok {
-		s.launchSubagent(ctx, tu, in)
-		return
+		return func() { s.launchSubagent(ctx, tu, in) }
 	}
 	if in, ok := dispatchesSubagent(tu); ok {
-		s.runSubagent(ctx, tu, in)
-		return
+		return s.startSubagent(ctx, tu, in)
 	}
 	c := toolexec.FromScript(tu.Name, tu.Input)
 	s.forward(startedFrame(s.id, tu.ID, c))
 	s.tr.toolUse(tu.Name, c.Args)
-	if c.Kind == "editToolCall" {
-		path := map[string]any{"file_path": c.Args["path"]}
-		s.runTool(ctx, scenario.ToolUse{ID: tu.ID + "-read", Name: "Read", Input: jsonLine(path)}, true)
+	return func() {
+		if c.Kind == "editToolCall" {
+			path := map[string]any{"file_path": c.Args["path"]}
+			s.runTool(ctx, scenario.ToolUse{ID: tu.ID + "-read", Name: "Read", Input: jsonLine(path)}, true)
+		}
+		s.runTool(ctx, tu, false)
 	}
-	s.runTool(ctx, tu, false)
 }
 
 // runTool runs one call through the shared order; quiet leaves it off the

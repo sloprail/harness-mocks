@@ -20,10 +20,16 @@ type line struct {
 }
 
 // read takes one script line into the turn and reports whether it ends the
-// turn: an assistant line's text blocks are messages and its first tool_use
-// block is the call; a result line is the run's end; a compact line asks for a
-// compaction of the session, which ends the turn like a call does.
+// turn: an assistant line's text blocks are messages and its tool_use blocks
+// are the turn's calls (the first also being Tool); a result line is the run's
+// end; a compact line asks for a compaction of the session, which ends the turn
+// like a call does. Once a call is read, the turn goes on only through further
+// assistant lines of tool_use blocks alone, the other calls of the same turn;
+// any other line ends it unread.
 func (t *Turn) read(raw []byte) (done bool, err error) {
+	if t.Tool != nil {
+		return !t.addCalls(raw), nil
+	}
 	var l line
 	if err := json.Unmarshal(raw, &l); err != nil {
 		return false, err
@@ -39,12 +45,36 @@ func (t *Turn) read(raw []byte) (done bool, err error) {
 		for _, b := range l.Message.Content {
 			switch b.Type {
 			case "text":
-				t.Texts = append(t.Texts, b.Text)
+				if len(t.Tools) == 0 {
+					t.Texts = append(t.Texts, b.Text)
+				}
 			case "tool_use":
-				t.Tool = &ToolUse{ID: b.ID, Name: b.Name, Input: b.Input}
-				return true, nil
+				t.Tools = append(t.Tools, ToolUse{ID: b.ID, Name: b.Name, Input: b.Input})
 			}
+		}
+		if len(t.Tools) > 0 {
+			t.Tool = &t.Tools[0]
+			return false, nil
 		}
 	}
 	return false, nil
+}
+
+// addCalls takes the calls of a line that follows the turn's first and
+// reports whether it was one: an assistant line of tool_use blocks alone.
+func (t *Turn) addCalls(raw []byte) bool {
+	var l line
+	if json.Unmarshal(raw, &l) != nil || l.Type != "assistant" || len(l.Message.Content) == 0 {
+		return false
+	}
+	for _, b := range l.Message.Content {
+		if b.Type != "tool_use" {
+			return false
+		}
+	}
+	for _, b := range l.Message.Content {
+		t.Tools = append(t.Tools, ToolUse{ID: b.ID, Name: b.Name, Input: b.Input})
+	}
+	t.Tool = &t.Tools[0]
+	return true
 }
