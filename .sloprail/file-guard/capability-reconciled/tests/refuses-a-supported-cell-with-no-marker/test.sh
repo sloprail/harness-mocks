@@ -61,7 +61,12 @@ expect_refused "$BASE" "a new supported cell with no adapter" "spec/capabilities
 marker claude-mock/internal/z.go z/claude; c "z adapter"
 expect_passed "$BASE" "the adapter arrived"
 
-# a supported cell that cites no recording, and one that cites a missing one
+# a supported cell that cites a missing recording
 git checkout -q -b norun "$BASE"
 printf 'statement: x works\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: [claude-mock/snapshots/runs/gone]\n' > spec/capabilities/x.yaml; c "x cites a missing run"
 expect_refused "$BASE" "a cell citing a missing recording" "'x' × 'claude'" "claude-mock/snapshots/runs/gone"
+
+# a supported cell that cites no recording at all (an empty runs list)
+git checkout -q -b emptyruns "$BASE"
+printf 'statement: x works\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: []\n' > spec/capabilities/x.yaml; c "x cites no run"
+expect_refused "$BASE" "a cell citing no recording" "'x' × 'claude'" "cites no recorded run"
