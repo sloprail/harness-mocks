@@ -16,32 +16,25 @@ import (
 // notAbout are the places a capability cell's codex text uses a word the replay
 // drops from the comparison, and why that is not the cell's behaviour being left
 // out ("cell/key": reason). An entry the cells no longer need fails the test, so
-// the list only shrinks. A reason that says "pending" names the audit item whose
-// fix is still to land (harness-mocks #207): the cell IS about the key, the
-// replay still drops it, and the entry goes when the fix does.
+// the list only shrinks. Every entry is prose or a banner, never a key the cell is about.
 var notAbout = map[string]string{
-	"agent-input-validation/model":                   "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"background-bash-reaped-at-exit/model":           "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"background-bash/model":                          "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"file-tools/model":                               "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"manual-compaction/model":                        "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"plugin-hooks/model":                             "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"session-start-hook/model":                       "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"subagent-lifecycle-hooks/model":                 "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"task-stream-frames/model":                       "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"noninteractive-run/model":                       "the text-mode banner printed on stderr, not the event stream's model key",
-	"background-agent/script":                        "prose: the scenario script the mock plays, not a script key",
-	"background-bash-reaped-at-exit/script":          "prose: the scenario script the mock plays, not a script key",
-	"foreground-subagent-result/script":              "prose: the scenario script the mock plays, not a script key",
-	"manual-compaction/script":                       "prose: the scenario script the mock plays, not a script key",
-	"session-fork/script":                            "prose: the scenario script the mock plays, not a script key",
-	"task-stream-frames/script":                      "prose: the scenario script the mock plays, not a script key",
-	"foreground-subagent-result/usage":               "the sub-agent's token counts, which the mock does not spend (a trailer's text is still compared)",
-	"stop-hook-payload/cwd":                          "pending #207 item 4: the cell is about it; scrub it to a placeholder, do not drop",
-	"stop-hook-payload/model":                        "pending #207 item 4: the cell is about it; scrub it to a placeholder, do not drop",
-	"session-transcript-file/transcript_path":        "pending #207 item 4: the cell is about it; scrub it to a placeholder, do not drop",
-	"subagent-lifecycle-hooks/agent_transcript_path": "pending #207 item 4: the cell is about it; scrub it to a placeholder, do not drop",
-	"background-bash/wall_time_seconds":              "pending #207 item 4: the cell is about it; scrub it to a placeholder, do not drop",
+	"agent-input-validation/model":          "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"background-bash-reaped-at-exit/model":  "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"background-bash/model":                 "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"file-tools/model":                      "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"manual-compaction/model":               "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"plugin-hooks/model":                    "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"session-start-hook/model":              "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"subagent-lifecycle-hooks/model":        "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"task-stream-frames/model":              "prose: the model is the LLM the mock stands in for, not the payload's model key",
+	"noninteractive-run/model":              "the text-mode banner printed on stderr, not the event stream's model key",
+	"background-agent/script":               "prose: the scenario script the mock plays, not a script key",
+	"background-bash-reaped-at-exit/script": "prose: the scenario script the mock plays, not a script key",
+	"foreground-subagent-result/script":     "prose: the scenario script the mock plays, not a script key",
+	"manual-compaction/script":              "prose: the scenario script the mock plays, not a script key",
+	"session-fork/script":                   "prose: the scenario script the mock plays, not a script key",
+	"task-stream-frames/script":             "prose: the scenario script the mock plays, not a script key",
+	"foreground-subagent-result/usage":      "the sub-agent's token counts, which the mock does not spend (a trailer's text is still compared)",
 }
 
 // The codex replay drops a key from both sides only if no capability cell is
@@ -100,13 +93,6 @@ func TestNoCellNamesWhatTheCodexReplayDrops(t *testing.T) {
 	}
 }
 
-// pendingPlaceholders is true while the codex rules still drop the path and
-// duration keys cells are about instead of scrubbing them (harness-mocks #207
-// item 4). While it is true the test below expects the keys to be missing; once
-// they stay it fails until the flag is removed, and from then on asserts that
-// each stays, with a placeholder where its value differs per run.
-const pendingPlaceholders = true
-
 // A value that differs per run and is about a cell's presence (a working
 // directory, a transcript path, a duration) is replaced by a placeholder, the
 // key stays: a payload that lacks it is a difference.
@@ -126,12 +112,6 @@ func TestPerRunValuesKeepTheirKey(t *testing.T) {
 		if !strings.Contains(line, `"`+k+`":`) {
 			missing = append(missing, k)
 		}
-	}
-	if pendingPlaceholders {
-		if len(missing) == 0 {
-			t.Fatal("the rules now keep the keys: remove pendingPlaceholders")
-		}
-		t.Skipf("pending #207 item 4: still dropped: %v", missing)
 	}
 	if len(missing) > 0 {
 		t.Fatalf("dropped from the payload instead of scrubbed: %v (line %s)", missing, line)

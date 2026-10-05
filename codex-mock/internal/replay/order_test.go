@@ -9,13 +9,6 @@ import (
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
-// pendingCrossEventOrder is true while the codex adapter still sorts the hook
-// payloads across the whole run (harness-mocks #207 item 3), which erases the
-// order of different events. While it is true the test below expects that
-// failure; once the adapter keeps cross-event order the test fails until the
-// flag is removed, and from then on asserts the order for good.
-const pendingCrossEventOrder = true
-
 // stubMock is a "mock" that prints the recorded event stream and logs the hook
 // payloads it is given, in the order given.
 func stubMock(t *testing.T, stream string, payloads ...string) string {
@@ -66,12 +59,6 @@ func TestHookPayloadSortKeepsOrderAcrossEvents(t *testing.T) {
 		t.Fatalf("the same events in the same order differ: %s", d)
 	}
 	swapped := replayDiff(t, []string{pre, post}, []string{post, pre})
-	if pendingCrossEventOrder {
-		if swapped != "" {
-			t.Fatal("the adapter now keeps the order of different events: remove pendingCrossEventOrder")
-		}
-		t.Skip("pending #207 item 3: hook payloads are still sorted across events")
-	}
 	if swapped == "" {
 		t.Fatal("a mock that fires PostToolUse before PreToolUse replays green against a recording that fires them the other way round")
 	}
