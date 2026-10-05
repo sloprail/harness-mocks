@@ -63,13 +63,18 @@ func say(phase, text string) map[string]any {
 }
 
 func exec1(cmd string) map[string]any {
-	return map[string]any{"type": "custom_tool_call", "name": "exec", "input": `await tools.exec_command({cmd:"` + cmd + `"});`}
+	return map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "id-" + cmd, "input": `await tools.exec_command({cmd:"` + cmd + `"});`}
+}
+
+// answered is the recorded output of exec1's script.
+func answered(cmd string) map[string]any {
+	return map[string]any{"type": "custom_tool_call_output", "call_id": "id-" + cmd, "output": "Script completed"}
 }
 
 // The last answer of a rollout is the agent's final one; the others are steps
 // among its calls, and what the model said before one is not carried past it.
 func TestModelTurnsKeepsAnswersAmongTheCalls(t *testing.T) {
-	agent, err := modelTurns(rolloutOf(say("final_answer", "A1"), say("commentary", "going"), exec1("echo a"), say("final_answer", "A2"), say("final_answer", "A3")))
+	agent, err := modelTurns(rolloutOf(say("final_answer", "A1"), say("commentary", "going"), exec1("echo a"), answered("echo a"), say("final_answer", "A2"), say("final_answer", "A3")), nil)
 	require.NoError(t, err)
 	assert.Equal(t, "A3", agent.Final)
 	require.Len(t, agent.Calls, 3)
@@ -78,8 +83,30 @@ func TestModelTurnsKeepsAnswersAmongTheCalls(t *testing.T) {
 	assert.Equal(t, "going", *agent.Calls[1].Said)
 	assert.Equal(t, "A2", agent.Calls[2].Input["text"])
 
-	agent, err = modelTurns(rolloutOf(exec1("echo a")))
+	agent, err = modelTurns(rolloutOf(exec1("echo a"), answered("echo a")), nil)
 	require.NoError(t, err)
 	assert.Equal(t, "", agent.Final)
 	assert.Len(t, agent.Calls, 1)
+}
+
+// What a script's recorded output says is held against the calls read out of it.
+func TestModelTurnsHoldsOutputsAgainstTheDerivedCalls(t *testing.T) {
+	two := map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "two", "input": `await tools.exec_command({cmd:"a"}); await tools.exec_command({cmd:"b"});`}
+	failed := map[string]any{"type": "custom_tool_call_output", "call_id": "two", "output": []any{map[string]any{"text": "Script failed\nOutput:"}}}
+	_, err := modelTurns(rolloutOf(two, failed), nil)
+	require.Error(t, err, "which of two calls ran is not recorded")
+	_, err = modelTurns(rolloutOf(exec1("echo a")), nil)
+	require.Error(t, err, "a script with no output")
+	_, err = modelTurns(rolloutOf(answered("echo a")), nil)
+	require.Error(t, err, "an output of no script")
+	_, err = modelTurns(rolloutOf(say("commentary", "one"), say("commentary", "two"), exec1("echo a"), answered("echo a")), nil)
+	require.Error(t, err, "the first commentary would be lost")
+}
+
+func TestSpawnReceiptsAreTheMainThreadsCompletedSpawns(t *testing.T) {
+	item := func(typ, sender string, receivers ...any) map[string]any {
+		return map[string]any{"type": typ, "item": map[string]any{"type": "collab_tool_call", "tool": "spawn_agent", "sender_thread_id": sender, "receiver_thread_ids": receivers}}
+	}
+	got := spawnReceipts([]map[string]any{item("item.started", "m"), item("item.completed", "m", "a"), item("item.completed", "x", "n"), item("item.completed", "m"), item("item.completed", "m", "b")}, "m")
+	assert.Equal(t, []string{"a", "b"}, got)
 }

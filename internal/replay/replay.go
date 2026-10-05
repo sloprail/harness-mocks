@@ -29,6 +29,7 @@ type Call struct {
 	Tool  string
 	Input map[string]any
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
+	Ref   string // the harness's id of that agent (what its receipt named), when known
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in

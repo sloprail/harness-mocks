@@ -13,12 +13,13 @@ import (
 // calls are read out of that JS by parsing and evaluating it (js_run.go); codex's own
 // tool names are mapped to the unified ones here. A call that only looks around
 // (ALL_TOOLS) makes none. What the adapter cannot map is an error, never a guess.
-func modelTurns(records []map[string]any) (agent core.Agent, err error) {
+func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, err error) {
 	var calls []core.Call
 	var said *string
 	js := newJSRun()
-	var told []string // the ids of the sub-agents the model was told of (spawn answers), in order
-	var spawns []int  // the numbers of the spawn calls among the rollout's calls, in order
+	var told []string        // the ids of the sub-agents the model was told of (spawn answers), in order
+	var spawns []int         // the numbers of the spawn calls among the rollout's calls, in order
+	derived := map[any]int{} // how many tool calls each script (by call id) was read to make, until its output is seen
 	for _, rec := range records {
 		p, _ := rec["payload"].(map[string]any)
 		if rec["type"] != "response_item" || p == nil {
@@ -35,17 +36,24 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 			if p["phase"] == "final_answer" {
 				calls = append(calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": text}})
 				said = nil
+			} else if said != nil {
+				return core.Agent{}, fmt.Errorf("two commentary messages before one call: the first would be lost")
 			} else {
 				said = &text
 			}
 		case p["type"] == "custom_tool_call_output":
 			told = append(told, agentIDs(p["output"])...)
+			if err := checkOutput(p, derived); err != nil {
+				return core.Agent{}, err
+			}
+			delete(derived, p["call_id"])
 		case p["type"] == "custom_tool_call":
 			src, _ := p["input"].(string)
 			made, err := js.script(src)
 			if err != nil {
 				return core.Agent{}, err
 			}
+			derived[p["call_id"]] = len(made)
 			for _, m := range made {
 				c, err := unify(m, spawns, told)
 				if err != nil {
@@ -58,6 +66,12 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 				calls = append(calls, c)
 			}
 		}
+	}
+	if len(derived) > 0 {
+		return core.Agent{}, fmt.Errorf("a script of the model has no recorded output: its calls may not have run")
+	}
+	if err := attachReceipts(calls, receipts); err != nil {
+		return core.Agent{}, err
 	}
 	final := ""
 	if n := len(calls); n > 0 && calls[n-1].Tool == core.ToolAnswer { // the last answer is the final one
