@@ -14,14 +14,6 @@ providers:
     runs:
       - codex-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
   cursor:
-    notes:
-      - >-
-        Cursor's receipt for the background command does not say it is terminated at
-        the sub-agent's final response: it is only the shell and its process
-        ({"shell_id", "pid"}). That the command ended is reported afterwards, as a
-        task_notification frame on the stream whose status is "aborted" (recorded:
-        runs/foreground-subagent-bash-ends-with-response), and the mock does the
-        same.
     docs:
       - https://cursor.com/docs/hooks#subagentstop
     runs:

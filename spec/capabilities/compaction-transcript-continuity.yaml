@@ -10,16 +10,6 @@ providers:
       - claude-mock/snapshots/runs/compact
       - claude-mock/snapshots/runs/compact-nohooks
   codex:
-    notes:
-      - >-
-        Codex leaves a compaction as one `compacted` record in the rollout, not a
-        boundary followed by a summary and a tail of earlier records: the record
-        holds the new window and the one it closes, and a replacement history of the
-        kept user message (named by its retained source) and then the summary, an
-        opaque encrypted item. A reader follows the chain across the compaction by
-        the windows (window_id, previous_window_id, window_number), not by the
-        parent links between records (recorded:
-        runs/compaction-transcript-continuity).
     docs:
       - https://developers.openai.com/codex/hooks#precompact
     runs:
