@@ -15,7 +15,6 @@ import (
 // (ALL_TOOLS) makes none. What the adapter cannot map is an error, never a guess.
 func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 	var calls []core.Call
-	var final string
 	var said *string
 	js := newJSRun()
 	var told []string // the ids of the sub-agents the model was told of (spawn answers), in order
@@ -34,7 +33,8 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 				text += c.(map[string]any)["text"].(string)
 			}
 			if p["phase"] == "final_answer" {
-				final = text
+				calls = append(calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": text}})
+				said = nil
 			} else {
 				said = &text
 			}
@@ -58,6 +58,11 @@ func modelTurns(records []map[string]any) (agent core.Agent, err error) {
 				calls = append(calls, c)
 			}
 		}
+	}
+	final := ""
+	if n := len(calls); n > 0 && calls[n-1].Tool == core.ToolAnswer { // the last answer is the final one
+		final, _ = calls[n-1].Input["text"].(string)
+		calls = calls[:n-1]
 	}
 	return core.Agent{Calls: calls, Final: final}, nil
 }
@@ -127,21 +132,4 @@ func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 		return unifyWait(arg, spawns, told)
 	}
 	return core.Call{}, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, spawn_agent and wait_agent", m.Name)
-}
-
-// scalar is the JSON value of a JS string, number or boolean the script wrote.
-func scalar(v any) (any, bool) {
-	switch x := v.(type) {
-	case string, bool:
-		return x, true
-	case number:
-		if math.IsInf(x.f, 0) || math.IsNaN(x.f) {
-			return nil, false
-		}
-		if x.f == math.Trunc(x.f) && math.Abs(x.f) <= 1<<31 {
-			return int(x.f), true
-		}
-		return x.f, true
-	}
-	return nil, false
 }
