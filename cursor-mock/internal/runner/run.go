@@ -10,6 +10,7 @@ import (
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -37,16 +38,11 @@ type session struct {
 	parent *session
 	// owed: stream frames reporting what ended at a sub-agent's final response,
 	// printed after the next tool call of this session, or at the end of its run.
-	owed [][]byte
+	owed tasks.Deferred
 }
 
 // flushOwed prints the frames owed.
-func (s *session) flushOwed() {
-	for _, f := range s.owed {
-		s.forward(f)
-	}
-	s.owed = nil
-}
+func (s *session) flushOwed() { s.owed.Release(func(f []byte) { s.forward(f) }) }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
 // when several hooks gave some.
