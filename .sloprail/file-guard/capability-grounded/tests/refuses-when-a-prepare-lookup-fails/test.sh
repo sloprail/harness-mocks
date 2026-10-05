@@ -118,6 +118,16 @@ out="$(prepare "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=removed: true')" &&
   { echo "the deleted capability assembly fails: prepare.sh exited 0: $out" >&2; exit 1; }
 expect_prepare_refused "the deleted capability assembly fails" "spec/capabilities/d.yaml: the deleted capability could not be listed, so it could not be prepared for the judge"
 
+# a long changed-files list (over 64 KB, the pipe buffer) must not lose a capability: the match on the list
+# is no `printf | grep -q`, which dies of SIGPIPE (a failed match under pipefail) once grep quits early
+scenario
+sr-checks changeset --rule capability-grounded --base "$BASE" --head HEAD | jq -c '.subjects[0].payload' >cell.payload
+jq -c '.changeset.files += [range(0; 2500) | {path: ("pad/" + ("x" * 40) + (. | tostring)), status: "A"}]' cell.payload >big.payload
+[ "$(jq -r '[.changeset.files[].path] | join("\n") | length' big.payload)" -gt 65536 ] || { echo "the padded changed-files list is not over 64 KB" >&2; exit 1; }
+out="$(cd .sloprail/file-guard/capability-grounded && SR_TREE="$OLDPWD" SR_GUARDRAIL_DIR="$PWD" bash ./prepare.sh <"$OLDPWD/big.payload")" || true
+printf '%s' "$out" | jq -e '.additionalContext.subjects[0].id == "c"' >/dev/null ||
+  { echo "a changed-files list over 64 KB: prepare.sh dropped the changed capability: $out" >&2; exit 1; }
+
 # the count of the subjects, and the output
 scenario; inject_exact 'length'
 expect_refused "the subject count fails" "the prepared subjects could not be counted, so nothing could be handed to the judge"

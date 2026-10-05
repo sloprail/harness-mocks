@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# A regression case for inputs-ready.sh's existing refusals and their recovery (an unproven pair, an
+# unsealed run, an unfrozen doc, each refused and then passing once restored). It is not a fail-on-old
+# case: it may pass on the script as it was before the lookups were made to refuse (#204); those failures
+# are refuses-when-a-lookup-fails' and refuses-when-a-prepare-lookup-fails'.
+
 # capability-rigor asks no model until the judge's inputs exist (inputs-ready.sh): every doc a touched pair
 # cites is frozen in the MANIFEST, every cited run has a sealed sample, and a test carries
 # // sr:proves <id>/<h>. Each missing input is refused, with a reason naming it and its owner; once it is

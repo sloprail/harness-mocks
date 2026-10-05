@@ -5,7 +5,8 @@ set -euo pipefail
 # never reads a failed lookup as "nothing to check" and passes. The lookups: the capability listing, a
 # capability's id, its cell listing and the shape test on its providers (exit 5 is a failure, 1 is a bad
 # shape, shapes' finding), each cell read (in the cell loop and in the sr:proves check), a deviation's ADR
-# read, and the harness mocks of the tree. The failures are injected with a jq shim, first on PATH for the
+# read, and the harness mocks of the tree (none is one refusal; a stray file named like a mock is no mock and
+# no failure). The failures are injected with a jq shim, first on PATH for the
 # sr-checks run only, that exits non-zero when an argument contains SHIM_JQ_FAIL or is exactly
 # SHIM_JQ_FAIL_EXACT, in capability-covered's own scripts only (many rules run in one sr-checks run), after
 # letting the first SHIM_JQ_SKIP such calls through. The harness mocks' listing is injected by taking the
@@ -95,4 +96,11 @@ expect_not_refused "a providers that is not an object" "its cells could not be r
 git checkout -q -b no-mocks "$BASE"
 git rm -q -r claude-mock; c "the only mock is gone"
 run_rule SHIM_JQ_FAIL=
-expect_refused "no harness mock" "the harness mocks could not be listed, so it could not be worked out what to check"
+expect_refused "no harness mock" "there is no <harness>-mock/ in the tree, so it could not be worked out what to check"
+
+# a stray file named like a mock, sorted after the real one, is no mock and no failure: the real mock is still listed
+git checkout -q -b stray-file "$BASE"
+printf 'not a directory\n' > z-mock; c "a stray z-mock file"
+run_rule SHIM_JQ_FAIL=
+expect_not_refused "a stray z-mock file" "<harness>-mock/"
+expect_not_refused "a stray z-mock file" "could not be"
