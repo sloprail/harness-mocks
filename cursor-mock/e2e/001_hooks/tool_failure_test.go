@@ -80,14 +80,14 @@ func TestAFileToolsErrorFiresTheFailureHook(t *testing.T) {
 
 // TestACallThatSucceedsFiresTheSuccessHook: recorded, a command exiting 0, a
 // write and a read of an existing file fire postToolUse, not the failure hook,
-// and a write also fires afterFileEdit before it.
+// a write also fires afterFileEdit before it, and a read beforeReadFile.
 // sr:proves tool-failure-hook/cursor
 func TestACallThatSucceedsFiresTheSuccessHook(t *testing.T) {
 	got, want := replay(t, "file-tools")
 	conforms(t, got, want)
 
 	require.Equal(t, "preToolUse afterFileEdit postToolUse", joined(fileToolEvents(got, "Write", 0)))
-	require.Equal(t, "preToolUse postToolUse", joined(fileToolEvents(got, "Read", 1)), "the second read: the file is there now")
+	require.Equal(t, "preToolUse beforeReadFile postToolUse", joined(fileToolEvents(got, "Read", 1)), "the second read: the file is there now, so beforeReadFile fires too")
 	require.Equal(t, "tool_call/completed/readToolCall/success", got.frames[3])
 }
 
