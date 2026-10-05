@@ -30,6 +30,7 @@ type Call struct {
 	Input map[string]any
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
 	Ref   string // the harness's id of that agent (what its receipt named), when known
+	More  bool   // another call of the same script follows: the model is not sampled between them
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in
@@ -39,6 +40,9 @@ type Call struct {
 type Agent struct {
 	Calls []Call
 	Final string
+	// Unfinished is an agent whose recording holds no final answer: it was still at work when
+	// the run ended (a sub-agent the run did not wait for), and must not end in a replay either.
+	Unfinished bool
 }
 
 // Recording is a recorded run in unified form.

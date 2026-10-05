@@ -55,12 +55,16 @@ func (h turnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
 // for the turn to continue; the first one's reason is the new prompt.
 // sr:provides stop-block-continuation/codex
 // sr:provides stop-hook-payload/codex
-func (h turnHost) EndOfTurn(ctx context.Context, last string, continuing bool) (string, bool) {
+func (h turnHost) EndOfTurn(ctx context.Context, last string, _ bool) (string, bool) {
 	var message any = last
 	if last == "" { // recorded (runs/stop-no-message): an empty reply is a null message
 		message = nil
 	}
-	own := map[string]any{"turn_id": h.turnID, "stop_hook_active": continuing, "last_assistant_message": message}
+	if text, ok := (toolHost{h.state}).nextNotice(true); ok { // a sub-agent ended: the turn goes on with that, and does not end yet
+		h.notice = text
+		return "a sub-agent ended", true
+	}
+	own := map[string]any{"turn_id": h.turnID, "stop_hook_active": h.stopBlocked, "last_assistant_message": message}
 	var verdicts []turnloop.Verdict
 	for _, o := range h.hooks.Fire(ctx, hooks.Stop, "", own) {
 		d := hooks.Interpret(hooks.Stop, o)
@@ -72,6 +76,7 @@ func (h turnHost) EndOfTurn(ctx context.Context, last string, continuing bool) (
 			v.Block, v.Reason = true, d.DenyReason
 		}
 		verdicts = append(verdicts, v)
+		h.stopBlocked = h.stopBlocked || v.Block
 	}
 	return turnloop.Resolve(verdicts)
 }
@@ -79,6 +84,11 @@ func (h turnHost) EndOfTurn(ctx context.Context, last string, continuing bool) (
 // Continue records the reason that continues the turn, as the user message
 // Codex makes of it.
 func (h turnHost) Continue(reason string) {
+	if h.notice != "" { // the end of a sub-agent, not a Stop hook's reason
+		h.rollout.User(h.notice)
+		h.notice = ""
+		return
+	}
 	h.rollout.User(fmt.Sprintf(`<hook_prompt hook_run_id="stop">%s</hook_prompt>`, reason))
 }
 

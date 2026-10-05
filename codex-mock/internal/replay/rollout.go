@@ -16,6 +16,7 @@ import (
 func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, err error) {
 	var calls []core.Call
 	var said *string
+	sawFinal := false
 	js := newJSRun()
 	var told []string        // the ids of the sub-agents the model was told of (spawn answers), in order
 	var spawns []int         // the numbers of the spawn calls among the rollout's calls, in order
@@ -34,6 +35,7 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 				text += c.(map[string]any)["text"].(string)
 			}
 			if p["phase"] == "final_answer" {
+				sawFinal = true
 				calls = append(calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": text}})
 				said = nil
 			} else if said != nil {
@@ -54,7 +56,7 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 				return core.Agent{}, err
 			}
 			derived[p["call_id"]] = len(made)
-			for _, m := range made {
+			for i, m := range made {
 				c, err := unify(m, spawns, told)
 				if err != nil {
 					return core.Agent{}, err
@@ -63,6 +65,7 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 					spawns = append(spawns, m.Num)
 				}
 				c.Said, said = said, nil
+				c.More = i+1 < len(made)
 				calls = append(calls, c)
 			}
 		}
@@ -73,12 +76,13 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 	if err := attachReceipts(calls, receipts); err != nil {
 		return core.Agent{}, err
 	}
+	unfinished := !sawFinal
 	final := ""
 	if n := len(calls); n > 0 && calls[n-1].Tool == core.ToolAnswer { // the last answer is the final one
 		final, _ = calls[n-1].Input["text"].(string)
 		calls = calls[:n-1]
 	}
-	return core.Agent{Calls: calls, Final: final}, nil
+	return core.Agent{Calls: calls, Final: final, Unfinished: unfinished}, nil
 }
 
 // unify is the unified call of one of codex's tool calls.

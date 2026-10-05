@@ -55,6 +55,10 @@ type state struct {
 	toolEnv []string
 	// bg holds the commands a call left running (see background.go).
 	bg *tasks.Registry
+	// notice is a sub-agent's end the turn is continued with instead of ending (turn_host.go),
+	// and stopBlocked is whether a Stop hook has already continued the turn.
+	notice      string
+	stopBlocked bool
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
