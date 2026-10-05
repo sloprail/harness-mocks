@@ -114,6 +114,9 @@ func TestASubAgentsEventsCarryItsOwnSessionIdAndNoFieldNamingIt(t *testing.T) {
 				continue
 			}
 			assert.NotContains(t, []any{"subagentStart", "subagentStop"}, p["hook_event_name"], "%s: neither fires for the Task call in print mode", name)
+			if p["tool_name"] != "Shell" {
+				assert.NotContains(t, p, "cwd", "%s: %v of %v carries no cwd, as the Task call's preToolUse does not", name, p["hook_event_name"], p["tool_name"])
+			}
 			assert.Equal(t, p["session_id"], p["conversation_id"], "%s: %v", name, p["hook_event_name"])
 			for k := range p {
 				assert.NotContains(t, strings.ToLower(k), "subagent", "%s: %s", name, k)
@@ -123,7 +126,7 @@ func TestASubAgentsEventsCarryItsOwnSessionIdAndNoFieldNamingIt(t *testing.T) {
 				inside++
 				assert.Equal(t, mainRoots, p["workspace_roots"], "%s: the sub-agent's event names the same project roots", name)
 				if p["tool_name"] == "Shell" {
-					assert.Contains(t, p, "cwd", "%s: a Shell call of the sub-agent carries cwd", name)
+					assert.Equal(t, "", p["cwd"], "%s: a Shell call of the sub-agent carries cwd, recorded empty", name)
 				}
 				if tp, ok := p["transcript_path"].(string); ok {
 					own++
