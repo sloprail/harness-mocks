@@ -7,6 +7,8 @@
 // in what order output is comparable) is an Adapter's.
 package replay
 
+import "time"
+
 // The unified tool vocabulary of a recorded turn. An adapter maps its
 // harness's tools onto these, and a tool it cannot map makes the recording
 // unbuildable.
@@ -31,6 +33,9 @@ type Call struct {
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
 	Ref   string // the harness's id of that agent (what its receipt named), when known
 	More  bool   // another call of the same script follows: the model is not sampled between them
+	// At is when the harness made the call (an answer: gave it), and Done when the call's output
+	// was given back, as recorded: how one agent's steps are ordered against another's.
+	At, Done time.Time
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in
@@ -43,6 +48,8 @@ type Agent struct {
 	// Unfinished is an agent whose recording holds no final answer: it was still at work when
 	// the run ended (a sub-agent the run did not wait for), and must not end in a replay either.
 	Unfinished bool
+	// FinalAt is when the final answer was given, as recorded.
+	FinalAt time.Time
 }
 
 // Recording is a recorded run in unified form.
