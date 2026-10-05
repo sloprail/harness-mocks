@@ -8,8 +8,8 @@ import (
 
 // tellFinishedSubAgents puts into the session's rollout, as a message of the
 // user's, what the harness tells an agent once a sub-agent it started has ended:
-// <subagent_notification> around the sub-agent's id and how it ended, the final
-// answer or why it failed. It comes after the tool output the agent was just
+// <subagent_notification> around the sub-agent's id and its final
+// answer. It comes after the tool output the agent was just
 // given, once, whether or not the agent had waited for the sub-agent (recorded:
 // runs/subagent-transcripts-v2: after the wait's output, before the next answer).
 func (h toolHost) tellFinishedSubAgents() {
@@ -17,14 +17,13 @@ func (h toolHost) tellFinishedSubAgents() {
 		if t.Kind != tasks.Agent {
 			continue
 		}
-		how := map[string]string{"completed": t.Result}
-		if t.Failure != "" {
-			how = map[string]string{"errored": t.Failure}
+		if t.Failure != "" { // what the harness tells of a sub-agent that failed is not recorded: the wait refuses it
+			continue
 		}
 		b, _ := json.Marshal(struct {
 			AgentPath string            `json:"agent_path"`
 			Status    map[string]string `json:"status"`
-		}{t.ID, how})
+		}{t.ID, map[string]string{"completed": t.Result}})
 		h.rollout.User("<subagent_notification>\n" + string(b) + "\n</subagent_notification>")
 	}
 }

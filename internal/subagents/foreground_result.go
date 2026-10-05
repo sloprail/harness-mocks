@@ -34,7 +34,6 @@ func HandBack(frame, empty, report string) string {
 // Wait states of a sub-agent a wait tells of.
 const (
 	WaitCompleted = "completed"
-	WaitErrored   = "errored" // it ended without an answer: Report says why
 	WaitRunning   = "running"
 	WaitNotFound  = "not_found"
 )
@@ -42,7 +41,7 @@ const (
 // WaitState is where one sub-agent a wait named stands.
 type WaitState struct {
 	ID     string
-	Status string // WaitCompleted, WaitErrored, WaitRunning or WaitNotFound
+	Status string // WaitCompleted, WaitRunning or WaitNotFound
 	Report string // a completed one's final report
 }
 
@@ -91,7 +90,7 @@ func Wait(ctx context.Context, reg *tasks.Registry, ids []string, timeout time.D
 		case t == nil:
 			states = append(states, WaitState{ID: id, Status: WaitNotFound})
 		case t.Finished() && t.Failure != "":
-			states = append(states, WaitState{ID: id, Status: WaitErrored, Report: t.Failure})
+			return WaitResult{}, &AgentFailed{ID: id, Why: t.Failure}
 		case t.Finished():
 			states = append(states, WaitState{ID: id, Status: WaitCompleted, Report: t.Result})
 		default:
@@ -109,3 +108,10 @@ func agentTask(reg *tasks.Registry, id string) *tasks.Task {
 	}
 	return nil
 }
+
+// AgentFailed is a wait that names a sub-agent which ended without an answer: no
+// recording shows what a harness tells then, so a wait refuses it instead of
+// telling anything the harness was not seen to tell.
+type AgentFailed struct{ ID, Why string }
+
+func (e *AgentFailed) Error() string { return "sub-agent " + e.ID + " failed: " + e.Why }

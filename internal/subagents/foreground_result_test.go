@@ -79,14 +79,15 @@ func TestABackgroundCommandIsNotASubAgent(t *testing.T) {
 	assert.Equal(t, []WaitState{{"12345", WaitNotFound, ""}}, res.States)
 }
 
-// A sub-agent that ended without an answer is errored, with why, not an empty completed.
-func TestASubAgentThatFailedIsErrored(t *testing.T) {
+// A sub-agent that ended without an answer is refused by the wait: no recording shows what is told then.
+func TestAWaitOnAFailedSubAgentIsRefused(t *testing.T) {
 	reg := tasks.NewRegistry()
 	defer reg.Shutdown()
 	task := tasks.NewTask(tasks.Agent, "a")
 	reg.StartAgent(task, func(context.Context) { task.Failure = "could not start" })
 	time.Sleep(50 * time.Millisecond)
-	res, err := Wait(context.Background(), reg, []string{"a"}, time.Second)
-	require.NoError(t, err)
-	assert.Equal(t, []WaitState{{"a", WaitErrored, "could not start"}}, res.States)
+	_, err := Wait(context.Background(), reg, []string{"a"}, time.Second)
+	var failed *AgentFailed
+	require.ErrorAs(t, err, &failed)
+	assert.Equal(t, "could not start", failed.Why)
 }

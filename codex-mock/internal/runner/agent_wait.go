@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -32,7 +33,8 @@ func (in waitInput) timeout() time.Duration {
 // "not_found" (the last two are the tool description's statuses, which no
 // recording shows; recorded is only {completed} with timed_out false; the
 // description's pending_init, interrupted, shutdown and errored are not
-// modelled), and timed_out. The stream shows a wait started, then
+// modelled: a wait that names a sub-agent which failed is refused, no status
+// is made up for it), and timed_out. The stream shows a wait started, then
 // completed with each sub-agent's state and the report of a finished one as
 // its message; there is no frame of a task of its own (recorded:
 // runs/foreground-subagent-result, runs/foreground-subagent-bash-ends-with-response).
@@ -53,6 +55,10 @@ func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Resul
 	}
 	item := h.events.CollabStarted("wait", h.id, in.Targets, nil)
 	res, err := subagents.Wait(ctx, h.bg, in.Targets, in.timeout())
+	var failed *subagents.AgentFailed
+	if errors.As(err, &failed) { // fail fast: what a wait tells of a sub-agent that failed is not recorded
+		return toolcall.Result{Failed: true, Output: fmt.Sprintf("codex-mock: wait_agent: %v: what Codex tells of a failed sub-agent is not recorded, so the mock refuses it rather than inventing it", failed)}
+	}
 	if err != nil {
 		return toolcall.Result{Output: "wait interrupted", Failed: true}
 	}
@@ -60,9 +66,9 @@ func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Resul
 	var status []string
 	for _, st := range res.States {
 		switch st.Status {
-		case subagents.WaitCompleted, subagents.WaitErrored:
-			states[st.ID] = events.AgentState{Status: st.Status, Message: st.Report}
-			status = append(status, fmt.Sprintf("%q:{%q:%q}", st.ID, st.Status, st.Report))
+		case subagents.WaitCompleted:
+			states[st.ID] = events.AgentState{Status: "completed", Message: st.Report}
+			status = append(status, fmt.Sprintf("%q:{\"completed\":%q}", st.ID, st.Report))
 		default:
 			status = append(status, fmt.Sprintf("%q:%q", st.ID, st.Status))
 		}
