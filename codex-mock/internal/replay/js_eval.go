@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja/ast"
+	"github.com/dop251/goja/token"
 )
 
 // opaque is a value the adapter does not follow: what a script does with a
@@ -87,17 +88,24 @@ func (r *jsRun) eval(e ast.Expression) (any, error) {
 		}
 		return opaque{}, nil
 	case *ast.OptionalChain:
-		return r.maybe(x.Expression)
+		saved := r.cond // what follows a ?. may not run; that holds to the chain's end
+		defer func() { r.cond = saved }()
+		return r.eval(x.Expression)
 	case *ast.Optional:
-		return r.maybe(x.Expression)
+		v, err := r.eval(x.Expression) // the part before the ?. always runs
+		r.cond++
+		return v, err
 	case *ast.AwaitExpression:
 		return r.eval(x.Argument)
 	case *ast.BinaryExpression:
 		if _, err := r.eval(x.Left); err != nil {
 			return nil, err
 		}
-		r.cond++ // the right side of ||, ?? and && may not run
-		defer func() { r.cond-- }()
+		switch x.Operator {
+		case token.LOGICAL_OR, token.LOGICAL_AND, token.COALESCE:
+			r.cond++ // the right side of ||, ?? and && may not run
+			defer func() { r.cond-- }()
+		}
 		_, err := r.eval(x.Right)
 		return opaque{}, err
 	case *ast.CallExpression:

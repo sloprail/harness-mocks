@@ -50,6 +50,8 @@ func TestScriptRefusesWhatItCannotFollow(t *testing.T) {
 		"a lone surrogate":                "await tools.exec_command({cmd:\"a\\ud800\"});",
 		"a read of null":                  "const o = {}; o.x.y; await tools.exec_command({cmd:\"a\"});",
 		"a method of undefined":           "const o = {}; o.x.f(); await tools.exec_command({cmd:\"a\"});",
+		"a read of null in an operand":    "const o = {}; const z = 1 + o.x.y; await tools.exec_command({cmd:\"a\"});",
+		"a read of null before a ?.":      "const o = {}; o.p.q?.r; await tools.exec_command({cmd:\"a\"});",
 		"a redeclaration":                 "const x = 1; const x = 2;",
 		"a store that may not run":        "const r = await tools.exec_command({cmd:\"a\"}); if (r.output) { store(\"k\", 1); }",
 	} {

@@ -9,15 +9,10 @@ import (
 	"github.com/dop251/goja/ast"
 )
 
-// maybe evaluates a part of an optional chain, which may not run: a tool call in it is refused.
-func (r *jsRun) maybe(e ast.Expression) (any, error) {
-	r.cond++
-	defer func() { r.cond-- }()
-	return r.eval(e)
-}
-
 // readable refuses reading a property of null or undefined: JS throws there and the
 // script ends, so what follows never ran. Code that may not run (cond) is not refused.
+// Only a read of a null the adapter holds is known: a read of a value it does not
+// follow (a script-written array's element, say) is not refused even where JS would throw.
 func (r *jsRun) readable(v any, name string) error {
 	if v == nil && r.cond == 0 {
 		return fmt.Errorf("the model's script reads %s of null or undefined, which throws", name)
