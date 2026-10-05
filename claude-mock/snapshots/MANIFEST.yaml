@@ -4,10 +4,10 @@ docs:
     sha256: 016816acaeab3981c1bebd7e3ac884a4fc2ebd9d9bbb65fd12748d4e0bfbab2d
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/hooks:
-    sha256: 69c05a2c5eb2ec43f024375a11ffa2dc22fee2364236603fc9bd2e9368b73f24
+    sha256: 7f01636360dfc85f626a1127b4de362f64f76079cc2306764ea8f03c61b2305e
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/tools-reference:
-    sha256: e0da8a3914ef811c6543ef8f7b31b3f8b2d548b4774f118981a9f13a21163909
+    sha256: ccdce0f1a21c6c3caca2831c36293fdef5a64ec93e4c45740d52a6c5f2d49fc6
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/hooks-guide:
     sha256: addf370e321f65ba567fee6b002c473d6a4e09e83b0849a706ff464fd2b8e22e
@@ -19,7 +19,7 @@ docs:
     sha256: 8ef5a7629ad2c0069ff75255e9a0dec3de29aba30241a9f41af60b17495d5025
     fetched: "2026-10-01"
   https://code.claude.com/docs/en/claude-directory:
-    sha256: ada65719991b700cd65351402efaa7575fd2b00205aae5915afbe41410ccd178
+    sha256: 427cd3a4cc17eb3d0993cc4eb212db7a848c9d2cc44463cd70e0c7c9d4964eba
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/cli-reference:
     sha256: 82f96e4b4b44c634d0c69443c3fcd745c340968879d0758fa4dc1778d5ea1328

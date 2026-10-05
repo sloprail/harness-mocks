@@ -6,6 +6,8 @@ package e2e
 // the claude adapter cannot reproduce yet; "mock gap:" is what the mock does not produce that
 // the recording shows (each gap is a PR of its own).
 var notReplaying = map[string]string{
+	"all-hooks-close-first":       "race: the two blockers finish 75 ms apart (A last) and the real harness acted on A twice and on B once in its three samples, so no deterministic mock replays all three",
+	"all-hooks-close-second":      "adapter: the model called Read: the adapter maps Bash and Agent (in one sample; the recorded acted-on block is B in all three, B finishing last)",
 	"all-hooks":                   "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; result frames lack api_error_status, is_error, num_turns, permission_denials, queued_turn_count, result_index, session_id, stop_reason, terminal_reason, time_to_request_ms, ttft_ms, ttft_stream_ms; user frames lack parent_tool_use_id, session_id, tool_result_meta, tool_use_result",
 	"bgagent":                     "adapter: the model said two things before one call: the adapter keeps one",
 	"bgagent-concurrent-limit":    "adapter: the setup has env, which the adapter does not install",
