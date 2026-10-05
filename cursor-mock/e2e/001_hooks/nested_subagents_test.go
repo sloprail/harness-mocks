@@ -188,4 +188,35 @@ func TestDepthLimitStopsNesting(t *testing.T) {
 	assert.Len(t, taskSessions(readJSONL(t, got.log)), 2, "the third layer's Task call is not a tool call the hooks see")
 	assert.Empty(t, subagentEvents(readJSONL(t, filepath.Join(sample, "payloads.jsonl"))), "no sub-agent hooks in the recording")
 	assert.Empty(t, subagentEvents(readJSONL(t, got.log)), "nor in the mock")
+
+	// recorded: the two Task calls that were offered are the two the hooks saw,
+	// and each of the three agents, the last at the limit, said it had no Task
+	// tool to start the next with
+	assert.Len(t, taskSessions(readJSONL(t, filepath.Join(sample, "payloads.jsonl"))), 2, "recorded: two Task calls, not three")
+	for _, f := range m {
+		var last string
+		for _, rec := range readJSONL(t, f) {
+			if msg, _ := rec["message"].(map[string]any); rec["role"] == "assistant" && msg != nil {
+				for _, c := range msg["content"].([]any) {
+					if txt, ok := c.(map[string]any)["text"].(string); ok && txt != "" {
+						last = txt
+					}
+				}
+			}
+		}
+		assert.Contains(t, last, "no Task tool is available", f)
+	}
+	// the mock: the Task call at the limit is made (it is in the sub-agent's
+	// transcript, the three layers' Task calls in all) and no hook sees it (the two
+	// above), where a mock that dropped the call would leave only two in the
+	// transcripts
+	var made int
+	files, err := filepath.Glob(filepath.Join(got.home, ".cursor", "projects", "*", "agent-transcripts", "*", "*.jsonl"))
+	require.NoError(t, err)
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		require.NoError(t, err)
+		made += strings.Count(string(b), `"name":"Task"`)
+	}
+	assert.Equal(t, 3, made, "the call at the depth limit is made and left in the transcript")
 }
