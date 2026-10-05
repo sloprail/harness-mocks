@@ -41,7 +41,7 @@ while IFS= read -r a; do
     [ -f "$SR_TREE/.sloprail/$nature/$rule/$nature.yaml" ] || add "adr/$id links '$l', but .sloprail/$nature/$rule/$nature.yaml does not exist"
   done <<<"$links"
   for sec in Concern Decision; do
-    printf '%s\n' "$text" | grep -Eq "^## $sec[[:space:]]*$" || add "adr/$id has no '## $sec' section"
+    grep -Eq "^## $sec[[:space:]]*$" <<<"$text" || add "adr/$id has no '## $sec' section"
   done
 done <<<"$list"
 

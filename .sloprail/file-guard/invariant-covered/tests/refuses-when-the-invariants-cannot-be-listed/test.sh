@@ -44,3 +44,16 @@ expect_refused "the id listing fails" "the invariants could not be listed, so no
 shim '.[]'
 run_rule "$TMPDIR/shim"
 expect_refused "the loop's listing fails" "the invariants could not be listed, so none could be checked"
+
+# the recovery the refusal names, and its boundary, with nothing injected: the implementation marker alone leaves
+# the invariant unproven (refused for the test), and the proving test next to it covers it (passed)
+mkdir -p internal
+printf 'package internal\n\n// sr:invariant holds\nfunc holds() {}\n' >internal/holds.go
+c "the implementation is marked"
+run_rule ""
+expect_refused "implemented but unproven" "invariant 'holds' has no test"
+printf 'package internal\n\n// sr:proves holds\nfunc TestHolds() {}\n' >internal/holds_test.go
+c "a test proves it"
+run_rule ""
+jq -es 'any(.[]; .kind=="FileGuardChecked" and .rule=="invariant-covered") and all(.[] | select(.kind=="FileGuardChecked" and .rule=="invariant-covered"); .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "implemented and proven: invariant-covered did not pass (sr-checks exit $ran)" >&2; exit 1; }

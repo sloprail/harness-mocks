@@ -72,3 +72,11 @@ expect_refused "a file's fields cannot be read" "its fields could not be read"
 shim has 'group_by(.id)'
 out="$(PATH="$TMPDIR/shim:$PATH" sr-checks changeset --rule "$RULE" --base "$BASE" --head HEAD 2>&1)" && rc=0 || rc=$?
 expect_refused "subjects.sh's listing fails" "the touched ADRs could not be worked out, so no subject could be made"
+
+# through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
+# own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
+shim has group_by\(.id\)
+: >"$SR_EVENTS_FILE"
+PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es --arg s the\ touched\ ADRs\ could\ not\ be\ worked\ out,\ so\ no\ subject\ could\ be\ made 'any(.[]; .kind=="FileGuardChecked" and .rule=="adr-grounded" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: adr-grounded did not refuse with a reason saying 'the touched ADRs could not be worked out, so no subject could be made' (sr-checks exit $ran)" >&2; exit 1; }
