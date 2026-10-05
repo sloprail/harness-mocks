@@ -3,7 +3,7 @@
 # (one replay_allowlist_test.go per mock): a change may remove entries, never add one, and may
 # not move an existing entry's reason to a weaker category (flaky: is weaker than untriaged:,
 # which is weaker than any triaged reason such as adapter: or mock gap:). A file created by the
-# change (no base) is the list's first version.
+# change has no base, so it may carry no entries: every entry would be an addition.
 # Follows the skill's check-template.sh: anything but a readable Changeset is a refusal.
 set -uo pipefail
 
@@ -66,10 +66,13 @@ while [ "$i" -lt "$count" ]; do
       continue
       ;;
   esac
-  # a deleted file has no list; a created one is the list's first version
-  if [ "$status" = "D" ] || [ "$status" = "A" ]; then continue; fi
-  old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
-    refuse "could not read the base of $path from the changeset, so it could not be checked"
+  # a deleted file has no list; a created one has an empty base, so each of its entries is an addition
+  if [ "$status" = "D" ]; then continue; fi
+  old=""
+  if [ "$status" != "A" ]; then
+    old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
+      refuse "could not read the base of $path from the changeset, so it could not be checked"
+  fi
   new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
     refuse "could not read $path from the changeset, so it could not be checked"
   printf '%s\n' "$new" | grep -qx 'var notReplaying = map\[string\]string{' ||
