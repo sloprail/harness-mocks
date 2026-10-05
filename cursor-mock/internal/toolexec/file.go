@@ -45,6 +45,9 @@ func failed(message, frameMessage string) Result {
 // not exist fails the call: the failure hook's error_message is "File not
 // found: <path>" (recorded: runs/tool-failure).
 //
+// A read that succeeds also reports the file to beforeReadFile (Result.Read);
+// a failed one does not (recorded: runs/file-tools, runs/tool-failure).
+//
 // sr:provides file-tools/cursor
 // sr:docs https://cursor.com/docs/hooks#beforereadfile
 func read(c Call, dir string) Result {
@@ -63,6 +66,7 @@ func read(c Call, dir string) Result {
 			"path": path, "readRange": map[string]any{"startLine": 1, "endLine": total},
 			"relatedCursorRulePaths": []string{}, "relatedCursorRules": []string{},
 		}},
+		Read: &ReadFile{path, content},
 		ToolOutput: jsonString(struct {
 			FilePath      string `json:"file_path"`
 			ContentLength int    `json:"content_length"`
