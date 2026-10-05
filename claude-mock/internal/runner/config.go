@@ -21,6 +21,8 @@ type Config struct {
 	AgentID string
 	// IsResume is true when the caller used --resume (existing session) vs --session-id (new).
 	IsResume bool
+	// ResumeLookup: --resume named its session by a name or path, or --continue chose it.
+	ResumeLookup bool
 	// Prompt is the user prompt forwarded to the script via the A10N_MOCK_PROMPT env var.
 	Prompt string
 	// AdditionalContext is populated from a UserPromptSubmit hook's additionalContext
@@ -53,13 +55,11 @@ type Config struct {
 	// sub-agent's agent_id around it, as real Claude Code does.
 	// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 	SuppressSubagentHooks bool
-
 	// AgentType is the sub-agent's type when this Config drives a nested SUB-AGENT
 	// run. Real Claude Code sends agent_type beside agent_id on every hook event
 	// fired inside a sub-agent.
 	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
 	AgentType string
-
 	// SidechainPath is the sub-agent's own transcript
 	// (<session>/subagents/agent-<id>.jsonl) for a nested SUB-AGENT run. Real
 	// Claude Code writes a sub-agent's records there, never into the parent's

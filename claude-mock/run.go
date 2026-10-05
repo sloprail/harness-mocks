@@ -43,7 +43,6 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	forkSession, _ := cmd.Flags().GetBool(flagForkSession)
 	isResume := false
 	forkFrom := ""
-
 	// Normalise: --resume takes precedence and sets isResume — except with
 	// --fork-session, where the resumed id is what is continued FROM and the
 	// session runs under --session-id (or a fresh id).
@@ -109,6 +108,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		ScriptPath:              scriptPath,
 		SessionID:               sessionID,
 		IsResume:                isResume,
+		ResumeLookup:            lookedUp(cmd),
 		ForkFrom:                forkFrom,
 		Prompt:                  prompt,
 		Cwd:                     cwd,
