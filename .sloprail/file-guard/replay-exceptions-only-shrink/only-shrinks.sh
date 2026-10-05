@@ -37,6 +37,9 @@ ranks() {
 malformed() {
   printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{$/,/^}$/p' | sed '1d;$d' |
     grep -vE '^[[:space:]]*($|//|"[^"]*":[[:space:]]*"([^"\\]|\\.)*",$)'
+  # the category a reason starts with is read from the source text, so an escape inside it
+  # ("\u0066laky:") would be read by Go as another category
+  printf '%s\n' "$1" | grep -E '^[[:space:]]*"[^"]*":[[:space:]]*"[^"\\]{0,11}\\'
 }
 tab="$(printf '\t')"
 rank_name() { case "$1" in 0) printf 'flaky:' ;; 1) printf 'untriaged:' ;; *) printf 'a triaged reason' ;; esac; }
@@ -48,6 +51,21 @@ while [ "$i" -lt "$count" ]; do
   status="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].status')" ||
     refuse "could not read $path from the changeset, so it could not be checked"
   i=$((i + 1))
+  # the generated replay test runs a flaky: entry flakyRuns (at least 2) times and fails when none is green
+  case "$path" in
+    */generated_replay_test.go)
+      [ "$status" = "D" ] && continue
+      new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
+        refuse "could not read $path from the changeset, so it could not be checked"
+      runs="$(printf '%s\n' "$new" | sed -n 's/^const flakyRuns = \([0-9][0-9]*\)$/\1/p')"
+      case "$runs" in '' | 0 | 1) refuse "$path: a flaky: entry must be replayed more than once: declare 'const flakyRuns = N' with N of at least 2" ;; esac
+      printf '%s\n' "$new" | grep -q 'replayUntilGreen(run, flakyRuns)' &&
+        printf '%s\n' "$new" | grep -q 'strings.HasPrefix(reason, "flaky:")' &&
+        printf '%s\n' "$new" | grep -q 'case flaky && (err != nil || diff != ""):' ||
+        refuse "$path: a flaky: entry must be run through replayUntilGreen(run, flakyRuns) and fail when it is never green, never skipped or passed outright"
+      continue
+      ;;
+  esac
   # a deleted file has no list; a created one is the list's first version
   if [ "$status" = "D" ] || [ "$status" = "A" ]; then continue; fi
   old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||

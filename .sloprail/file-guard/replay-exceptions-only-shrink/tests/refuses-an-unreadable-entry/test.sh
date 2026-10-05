@@ -40,6 +40,13 @@ printf 'package e2e\n\n/*\nvar notReplaying = map[string]string{\n}\n*/\nvar not
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "commented header"
 refuses "a commented header beside a one-line map" "notReplaying must be declared exactly once"
 
+# a reason whose category is written with an escape is read by Go as another one: refused
+printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b replays"
+printf "$head"'\t"run-a": "\\u0066laky: x",\n}\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "escaped flaky"
+refuses "an escaped flaky: reason" "is not one \"run\": \"reason\", entry"
+
 # recovery: one entry per line, and the list only shrank
 printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b replays"
