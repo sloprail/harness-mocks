@@ -51,12 +51,3 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/file-tools
       - cursor-mock/snapshots/runs/tool-failure
-    deviations:
-      - adr: modeled-surface
-        kind: mock-not-modeled
-        statement: >-
-          Cursor fires a beforeReadFile hook on each Read, carrying the file's
-          path and content (recorded in runs/file-tools); the mock does not
-          fire it, as it models neither beforeReadFile nor the refusal a hook
-          of it can make, so only the read's result, afterFileEdit and the
-          failure of a missing file are modeled.

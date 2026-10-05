@@ -169,8 +169,8 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 			if n := frameName(map[string]any{"type": e["type"], "subtype": e["subtype"], "tool_call": toolCall(e)}); n != "" {
 				rec.frames = append(rec.frames, n)
 			}
-		case e["hook"] == "beforeReadFile" || e["hook"] == "afterAgentThought":
-			// events the mock does not fire (adr/modeled-surface)
+		case e["hook"] == "afterAgentThought":
+			// an event the mock does not fire (adr/modeled-surface)
 		case e["hook"] != nil:
 			rec.hooks = append(rec.hooks, unmodeledEnv(p).(map[string]any))
 		case p["hook_env"] != nil:
