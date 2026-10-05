@@ -65,6 +65,9 @@ providers:
       - codex-mock/snapshots/runs/prompt-blocked
       - codex-mock/snapshots/runs/posttool-block
       - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/subagent-stop-block-loop
+      - codex-mock/snapshots/runs/subagent-stop-continue-false
+      - codex-mock/snapshots/runs/subagent-stop-plain-text
     deviations:
       - adr: capability-grounding
         kind: harness-lacks

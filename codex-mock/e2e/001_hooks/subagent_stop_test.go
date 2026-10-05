@@ -57,6 +57,7 @@ func feedbackOf(rollout string) (reasons []string, afterN []int) {
 // session's, and the sub-agent's stop is fired again each time with
 // stop_hook_active (runs/subagent-stop-block-loop).
 // sr:proves subagent-stop-block-loop/codex
+// sr:proves hook-exit-code-semantics/codex
 func TestSubagentStopBlockRunsTheSubagentAgain(t *testing.T) {
 	samples, err := filepath.Glob(filepath.Join(runsDir, subagentRun, "samples", "*"))
 	require.NoError(t, err)
