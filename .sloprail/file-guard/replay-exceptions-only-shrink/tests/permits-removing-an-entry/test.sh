@@ -30,3 +30,11 @@ git add -A && git -c user.name=t -c user.email=t@t commit -q -m "add an entry"
 sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 jq -es 'any(.[]; .kind=="FileGuardChecked" and .rule=="replay-exceptions-only-shrink" and .outcome=="refused" and (.reason|contains("the replay exception list may only shrink, and these entries were added: run-c")))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; echo "the added entry run-c was not refused with its reason (sr-checks exit $ran)" >&2; exit 1; }
+
+# recovery: the run replays (and so does run-b), so the entries are removed, and the same range from the same base passes
+printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-c and run-b replay"
+: > "$SR_EVENTS_FILE"
+sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="replay-exceptions-only-shrink")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "the list back to its base was not passed by replay-exceptions-only-shrink (sr-checks exit $ran)" >&2; exit 1; }
