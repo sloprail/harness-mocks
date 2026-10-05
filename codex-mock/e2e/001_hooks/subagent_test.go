@@ -155,6 +155,7 @@ func TestSubagentStartCannotRefuse(t *testing.T) {
 // A sub-agent hook's matcher is applied to the sub-agent's type, and a start
 // hook's continue:false does not stop the sub-agent (hooks#subagentstart).
 // sr:proves subagent-lifecycle-hooks/codex
+// sr:proves hook-matcher-filter/codex
 func TestSubagentHookMatcherAndContinueFalse(t *testing.T) {
 	group := func(matcher string) string {
 		return `[{"matcher":"` + matcher + `","hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]`
