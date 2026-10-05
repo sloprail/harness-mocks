@@ -43,11 +43,22 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          Cursor names a sub-agent on an event raised inside it only by that
-          event's own session_id and conversation_id (the sub-agent's, not the
-          main agent's, as in a Shell call's preToolUse and postToolUse payloads):
-          no field names the sub-agent, its type or its parent, and in print mode
-          neither subagentStart nor subagentStop fires for the Task call (recorded:
+          Doc and recording conflict: the hooks doc (#common-schema) says
+          transcript_path is the "Path to the main conversation transcript
+          file", and the recording shows the Shell postToolUse of a sub-agent
+          carrying the sub-agent's own transcript path
+          (agent-transcripts/0965d081-.../0965d081-....jsonl, its own session
+          id, not the main agent's) (runs/subagent-lifecycle-hooks). The
+          recording decides.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor names a sub-agent on an event raised inside it by that
+          event's own session_id, conversation_id and (once its transcript
+          file exists) transcript_path: the sub-agent's, not the main agent's,
+          as in a Shell call's preToolUse and postToolUse payloads. No field
+          carries the sub-agent's type or its parent, and in print mode neither
+          subagentStart nor subagentStop fires for the Task call (recorded:
           runs/subagent-lifecycle-hooks). The mock does the same.
       - adr: modeled-surface
         kind: mock-not-modeled
