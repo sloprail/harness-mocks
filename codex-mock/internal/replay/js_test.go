@@ -144,10 +144,10 @@ func TestUnifyRefusesWhatItCannotCarry(t *testing.T) {
 		for k, v := range opts {
 			in[k] = v
 		}
-		_, err := unify(jsCall{Name: "exec_command", Args: []any{in}})
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{in}}, nil, nil)
 		assert.Error(t, err, name)
 	}
-	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{"message": "m", "fork": true, "n": number{1.5}}}})
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{"message": "m", "fork": true, "n": number{1.5}}}}, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"message": "m", "fork": true, "n": 1.5}, c.Input)
 }
