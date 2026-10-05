@@ -7,6 +7,14 @@ providers:
       - https://code.claude.com/docs/en/headless#background-tasks-at-exit
     runs:
       - claude-mock/snapshots/runs/bgbash
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock refuses a piped stdin (adr fail-fast-unimplemented), so the
+          variant in which the grace starts only once stdin has closed is not
+          modeled: its grace starts after the final result. It stays refused
+          until a recording drives it.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#when-to-use-codex-exec
