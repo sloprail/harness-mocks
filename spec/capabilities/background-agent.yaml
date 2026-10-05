@@ -101,11 +101,9 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock's spawn_agent is told by a parameter of its own, background,
-          that the dispatch is not waited for (without it the mock waits for
-          the sub-agent and answers as a following wait would); the sub-agent
-          runs on its own thread and rollout, driven by the scenario script it
-          is given, and is stopped if still running when the run ends. The
+          The mock's sub-agent runs on its own thread and rollout, driven by
+          the scenario script its spawn_agent call names (a parameter of the
+          mock's own), and is stopped if still running when the run ends. The
           sub-agent's states after pending_init, and what the agent is told
           when a hook refuses the spawn, are not modelled.
   cursor:

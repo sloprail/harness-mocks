@@ -25,10 +25,7 @@ providers:
         kind: mock-not-modeled
         statement: >-
           The mock runs no model: a sub-agent's work is the scenario script
-          the spawn_agent call names, and the mock waits for it inside that
-          call, showing the wait item right after the spawn's. A separate
-          wait call, and a sub-agent running while the agent does something
-          else, are not modelled.
+          the spawn_agent call names.
   cursor:
     docs:
       - https://cursor.com/docs/cli/headless#real-time-progress-tracking
