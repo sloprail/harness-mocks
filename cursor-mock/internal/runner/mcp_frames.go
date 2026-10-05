@@ -5,13 +5,14 @@ import (
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/scenario"
+	coresession "github.com/sloprail/harness-mocks/internal/session"
 )
 
 // readsMcpTool prints what precedes an MCP tool's call on the stream: the agent
 // reading the tool's description and schema, a call of its own that starts and
 // completes at once and that no hook sees (recorded: runs/hook-matchers-mcp).
 func (s *session) readsMcpTool(ctx context.Context, tu scenario.ToolUse, c toolexec.Call) {
-	id := tu.ID + "-tools"
+	id := coresession.NewID()
 	g := toolexec.Call{Kind: "getMcpToolsToolCall", Args: map[string]any{"server": c.Args["providerIdentifier"], "toolName": c.Args["toolName"]}}
 	s.forward(startedFrame(s.id, id, g))
 	server, _ := c.Args["providerIdentifier"].(string)
@@ -22,4 +23,5 @@ func (s *session) readsMcpTool(ctx context.Context, tu scenario.ToolUse, c toole
 		return
 	}
 	s.forward(completedFrame(s.id, id, g, map[string]any{"success": map[string]any{"content": content}}, nil))
+	s.named = true // the transcript exists by the time the call itself is made (recorded: runs/hook-matchers-mcp)
 }

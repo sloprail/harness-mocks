@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -25,6 +26,11 @@ type session struct {
 	// hooks of a Task call name it as their generation.
 	requestID string
 	texts     []string // what the agent said, in order: the result frame's text
+	// pending is what the agent said that the stream has not shown yet: Cursor
+	// shows it as one frame when the next call starts, or at the end of the turn
+	// (recorded: runs/foreground-subagent-failure, a call refused before it started
+	// shows nothing and the text goes out with the rest at the end).
+	pending []string
 	// named: hook payloads carry the transcript path. Cursor leaves it null
 	// until the conversation's first tool call is past its preToolUse hooks
 	// (recorded: runs/tool-failure), though the file is there from the first
@@ -118,6 +124,7 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}
 	s.flushOwed()
+	s.flushText()
 	s.forward(resultFrame(s.id, s.requestID, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }
@@ -140,5 +147,21 @@ func (s *session) common() hooks.Common {
 	return c
 }
 
-// forward prints one stream-json line.
-func (s *session) forward(line []byte) { fmt.Fprintf(s.cfg.Stdout, "%s\n", line) }
+// forward prints one stream-json line; a call's started frame first brings out
+// what the agent said before it.
+func (s *session) forward(line []byte) {
+	if bytes.Contains(line, []byte(`"subtype":"started"`)) && bytes.Contains(line, []byte(`"type":"tool_call"`)) {
+		s.flushText()
+	}
+	fmt.Fprintf(s.cfg.Stdout, "%s\n", line)
+}
+
+// flushText shows what the agent said so far as one assistant frame.
+func (s *session) flushText() {
+	if len(s.pending) == 0 {
+		return
+	}
+	text := strings.Join(s.pending, "")
+	s.pending = nil
+	fmt.Fprintf(s.cfg.Stdout, "%s\n", assistantFrame(s.id, text))
+}
