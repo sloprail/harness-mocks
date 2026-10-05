@@ -86,6 +86,12 @@ expect_refused "the id read fails" "a capability's id could not be read, so it c
 scenario; inject 'with_entries(select(.key as $k'
 expect_refused "the harness narrowing fails" "c: its harnesses in question could not be narrowed, so it could not be prepared for the judge"
 
+# and the list it narrows to, built in its own step (`jq -R .` | `jq -sc .`): a failed jq of that pipeline refuses,
+# not an empty list that would keep no cell. (Only the first jq is injected: `jq -sc .` is spec.sh's too, and the
+# shim reaches the whole run; under pipefail either stage failing is the one refusal.)
+scenario; inject_exact '-R'
+expect_refused "the narrowing list's jq fails" "c: its harnesses in question could not be narrowed, so it could not be prepared for the judge"
+
 # the docs assembled
 scenario; inject '{harness: $h, kind: $k, ref: $r, path: $p'
 expect_refused "the docs assembly fails" "c: the cited doc https://d.example/p#s"
