@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -100,9 +101,17 @@ func readJSONL(t *testing.T, path string) []map[string]any {
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 1<<20), 1<<24)
 	for sc.Scan() {
-		var m map[string]any
-		if json.Unmarshal(sc.Bytes(), &m) == nil && m != nil {
-			out = append(out, m)
+		// a line holds one object, or several run together: hooks that run side by
+		// side append to one log, and what they write can interleave
+		dec := json.NewDecoder(bytes.NewReader(sc.Bytes()))
+		for {
+			var m map[string]any
+			if dec.Decode(&m) != nil {
+				break
+			}
+			if m != nil {
+				out = append(out, m)
+			}
 		}
 	}
 	return out
@@ -234,6 +243,10 @@ func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	require.NoError(t, err)
 	scratch := t.TempDir()
 	copyFile(t, filepath.Join(setup, "hooks.json"), filepath.Join(ws, ".cursor", "hooks.json"), 0o644)
+	home := t.TempDir()
+	if _, err := os.Stat(filepath.Join(setup, "user-hooks.json")); err == nil { // the user's own source, in the run's home
+		copyFile(t, filepath.Join(setup, "user-hooks.json"), filepath.Join(home, ".cursor", "hooks.json"), 0o644)
+	}
 	scripts, _ := filepath.Glob(filepath.Join(setup, "*.sh"))
 	for _, s := range scripts {
 		copyFile(t, s, filepath.Join(ws, ".cursor", "hooks", filepath.Base(s)), 0o755)
@@ -256,7 +269,6 @@ func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	script := filepath.Join(scratch, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nn=$(grep -c '\"type\":\"tool_use\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\nn=${n:-0}\nf=\""+scratch+"/$n.json\"\n[ -f \"$f\" ] || f=\""+scratch+"/end.json\"\ncat \"$f\"\n"), 0o755))
 	logPath := filepath.Join(scratch, "payloads.jsonl")
-	home := t.TempDir()
 	env := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + logPath, "TMPDIR=" + scratch, "A10N_MOCK_SCRIPT=" + script}
 	if b, err := os.ReadFile(filepath.Join(setup, "env")); err == nil {
 		for _, l := range strings.Split(string(b), "\n") {
