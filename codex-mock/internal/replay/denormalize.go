@@ -13,11 +13,19 @@ import (
 // that makes the model's calls, in the format the mock takes of any scenario.
 type Scenario struct {
 	HooksJSON string
-	// Files are written into the repository (hook.sh, and a sub-agent's script).
-	Files  map[string]string
-	Script string
-	Prompt string
+	// Files are written into the repository (the hook script).
+	Files map[string]string
+	// Scripts are the sub-agents' scenario scripts. The real run's repository
+	// holds none, so they sit beside it, at scriptsDir, which the run's own
+	// directory replaces.
+	Scripts map[string]string
+	Script  string
+	Prompt  string
 }
+
+// scriptsDir stands, in the scenario's calls, for the directory the sub-agents'
+// scripts are written to.
+const scriptsDir = "@SCRIPTS@"
 
 // modelCall is one tool call the model made, in the mock's script vocabulary.
 type modelCall struct {
@@ -35,6 +43,7 @@ const runPlaceholder = "@RUN@"
 // a script file of their own.
 func Denormalize(rec core.Recording) Scenario {
 	files := map[string]string{"hook.sh": rec.Setup["hook.sh"]}
+	scripts := map[string]string{}
 	calls := make([]modelCall, len(rec.Agent.Calls))
 	n := 0
 	for i, c := range rec.Agent.Calls {
@@ -45,14 +54,15 @@ func Denormalize(rec core.Recording) Scenario {
 			for j, sc := range c.Sub.Calls {
 				subCalls[j] = mockCall(sc)
 			}
-			files[name] = scriptFor(fmt.Sprintf("sub%d", n), subCalls, c.Sub.Final)
-			calls[i].Input["script"] = name
+			scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), subCalls, c.Sub.Final)
+			calls[i].Input["script"] = scriptsDir + "/" + name
 			n++
 		}
 	}
 	return Scenario{
 		HooksJSON: rec.Setup["hooks.json"],
 		Files:     files,
+		Scripts:   scripts,
 		Script:    scriptFor("main", calls, rec.Agent.Final),
 		Prompt:    rec.Prompt,
 	}

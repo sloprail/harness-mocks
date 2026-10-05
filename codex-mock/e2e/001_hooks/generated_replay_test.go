@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -21,7 +22,14 @@ import (
 // themselves: a recording without a replay, or a replay without a recording,
 // cannot exist. A run that does not replay green is listed in notReplaying
 // with its reason (replay_allowlist_test.go).
+//
+// A recording's hooks run under wall-clock limits (SessionEnd's default is one
+// second, and a recorded hook sleeps half of it), so a machine loaded by many
+// replays at once kills a hook the real run finished: session-end-hook-failure
+// and session-end-hook-output went red with sixteen replays at once and green
+// alone. At most replayWidth replays run at a time.
 func TestGeneratedReplay(t *testing.T) {
+	slots := make(chan struct{}, replayWidth())
 	dirs, err := filepath.Glob(filepath.Join(runsDir, "*"))
 	require.NoError(t, err)
 	var names []string
@@ -39,6 +47,8 @@ func TestGeneratedReplay(t *testing.T) {
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			slots <- struct{}{}
+			defer func() { <-slots }()
 			diff, err := codexreplay.Run(mockBinary, filepath.Join(runsDir, name), os.Environ())
 			var unbuildable *codexreplay.Unbuildable
 			reason, listed := notReplaying[name]
@@ -60,3 +70,6 @@ func TestGeneratedReplay(t *testing.T) {
 		})
 	}
 }
+
+// replayWidth is how many replays run at once: half the CPUs, between one and four.
+func replayWidth() int { return min(max(runtime.NumCPU()/2, 1), 4) }

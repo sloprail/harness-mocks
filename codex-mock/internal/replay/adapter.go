@@ -41,10 +41,8 @@ func Script(runDir string) (string, error) { return core.Script(Adapter{}, runDi
 func (Adapter) Script(rec core.Recording) (string, error) {
 	s := Denormalize(rec)
 	out := "# main\n" + s.Script
-	for name, body := range s.Files {
-		if name != "hook.sh" {
-			out += "\n# " + name + "\n" + body
-		}
+	for name, body := range s.Scripts {
+		out += "\n# " + name + "\n" + body
 	}
 	return out, nil
 }
@@ -74,8 +72,11 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		}
 	}
 	ctx := context.Background()
-	if res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"git", "-C", repo, "init", "-q"}, Env: env}); err != nil || res.ExitCode != 0 {
-		return want, got, fmt.Errorf("git init: %v %s", err, res.Stderr)
+	// the scratch repository a recording was made in: one empty commit, "init" (capture.sh)
+	for _, argv := range [][]string{{"init", "-q"}, {"-c", "user.name=replay", "-c", "user.email=replay@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "init"}} {
+		if res, err := procexec.Run(ctx, procexec.Spec{Argv: append([]string{"git", "-C", repo}, argv...), Env: env}); err != nil || res.ExitCode != 0 {
+			return want, got, fmt.Errorf("git %s: %v %s", argv[len(argv)-1], err, res.Stderr)
+		}
 	}
 	if err := os.WriteFile(filepath.Join(home, "hooks.json"), []byte(s.HooksJSON), 0o644); err != nil {
 		return want, got, err
@@ -85,8 +86,17 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 	}
+	scriptsAt := filepath.Join(root, "scripts")
+	if err := os.MkdirAll(scriptsAt, 0o755); err != nil {
+		return want, got, err
+	}
+	for name, body := range s.Scripts {
+		if err := os.WriteFile(filepath.Join(scriptsAt, name), []byte(scriptText(body, scriptsAt, repo)), 0o755); err != nil {
+			return want, got, err
+		}
+	}
 	script := filepath.Join(root, "scenario.sh")
-	if err := os.WriteFile(script, []byte(strings.ReplaceAll(s.Script, runPlaceholder, repo)), 0o755); err != nil {
+	if err := os.WriteFile(script, []byte(scriptText(s.Script, scriptsAt, repo)), 0o755); err != nil {
 		return want, got, err
 	}
 
@@ -99,7 +109,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	hookLog, _ := os.ReadFile(filepath.Join(tmp, "hook.log"))
 
 	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
-	rules := Rules(repo, tmp)
+	rules := Rules(repo, root)
 	wantC, gotC := core.New(rules), core.New(rules)
 	recStream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
 	if err != nil {
@@ -133,4 +143,9 @@ func inRepo(name, body, repo string) string {
 		return body
 	}
 	return strings.ReplaceAll(body, runPlaceholder, repo)
+}
+
+// scriptText is a scenario script with the directories its placeholders stand for.
+func scriptText(body, scriptsAt, repo string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(body, scriptsDir, scriptsAt), runPlaceholder, repo)
 }
