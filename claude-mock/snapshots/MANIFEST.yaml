@@ -1,7 +1,7 @@
 pin: 2.1.285
 docs:
   https://code.claude.com/docs/en/env-vars:
-    sha256: 016816acaeab3981c1bebd7e3ac884a4fc2ebd9d9bbb65fd12748d4e0bfbab2d
+    sha256: d9fd3c2c1ce0d753f63e9b4bcf67db65a9471387827cf8b49468f41f74dc8e58
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/hooks:
     sha256: 7f01636360dfc85f626a1127b4de362f64f76079cc2306764ea8f03c61b2305e
@@ -34,7 +34,7 @@ docs:
     sha256: cb2a422f9dc7f3a1dc21dcaf3a4ace38759334c1535683f8a0f64fedf01593b8
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/agent-sdk/typescript:
-    sha256: d57286dba2d1bb9aefd328fa34145474870efa4817fab8dca69884c1fcb2aa28
+    sha256: 8f6eb83c882ae2a2430bc705cfadd1ca94f3d7e4ee3a1afb7f1be1475e242c10
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/interactive-mode:
     sha256: b9755bd87299d0d9e7d4216cfcfb484700ec0c6e70d9df8a1b69635f1748f81b

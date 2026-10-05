@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/sloprail/harness-mocks/internal/scenario"
@@ -30,6 +31,13 @@ func (r *runState) deny(call pendingToolUse) {
 	_ = json.Unmarshal(call.ToolInput, &input)
 	r.mu.Lock()
 	r.denials = append(r.denials, map[string]any{"tool_name": call.ToolName, "tool_use_id": call.ToolUseID, "tool_input": input})
+	r.mu.Unlock()
+}
+
+// restore puts back what take returned, when no result was written after all.
+func (r *runState) restore(turns int, denials []map[string]any, index int) {
+	r.mu.Lock()
+	r.turns, r.denials, r.results = turns, denials, index
 	r.mu.Unlock()
 }
 
@@ -99,4 +107,33 @@ func finisher(cfg Config, bg *backgroundTasks, final *scenario.Result) func() {
 			writeStreamLine(cfg, line)
 		})
 	}
+}
+
+// maxTurnsReached ends a run that has taken --max-turns model turns and would
+// take another: it streams the error result real claude gives (recorded:
+// snapshots/runs/max-turns: subtype error_max_turns, num_turns one past the
+// limit, stop_reason of the last turn, terminal_reason max_turns, the error
+// text, no result text; no Stop fires, SessionEnd does, exit 1) and reports it.
+func maxTurnsReached(cfg Config, bg *backgroundTasks) bool {
+	if cfg.MaxTurns <= 0 || cfg.AgentID != "" {
+		return false
+	}
+	turns, denials, index := bg.run.take()
+	if turns < cfg.MaxTurns {
+		bg.run.restore(turns, denials, index)
+		return false
+	}
+	list := make([]any, len(denials))
+	for i, d := range denials {
+		list[i] = d
+	}
+	line, err := marshalRecord(map[string]any{
+		"type": "result", "subtype": "error_max_turns", "is_error": true, "num_turns": turns + 1, "stop_reason": "tool_use",
+		"terminal_reason": "max_turns", "errors": []string{fmt.Sprintf("Reached maximum number of turns (%d)", cfg.MaxTurns)},
+		"permission_denials": list, "queued_turn_count": 0, "result_index": index, "session_id": cfg.SessionID,
+	})
+	if err == nil {
+		writeStreamLine(cfg, withSubagentStats(line, bg))
+	}
+	return true
 }

@@ -127,6 +127,8 @@ type Prompting struct {
 	// PermissionMode is the permission_mode the hooks about a turn are told.
 	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
 	PermissionMode string
+	// MaxTurns is --max-turns: the model turns a run may take (0: no limit).
+	MaxTurns int
 	// Turn is the prompt the session is on: the root run makes it, every
 	// sub-agent run inside shares it.
 	Turn *hooks.Turn

@@ -45,3 +45,9 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 	}
 	return nil
 }
+
+// maxTurns is --max-turns (0: none).
+func maxTurns(cmd *cobra.Command) int {
+	n, _ := cmd.Flags().GetInt("max-turns")
+	return n
+}

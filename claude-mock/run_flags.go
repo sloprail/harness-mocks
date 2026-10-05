@@ -43,6 +43,8 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flagContinue, "c", false, "Resume the most recent session of the project directory (--continue, -c, as used by claude CLI)")
 	cmd.Flags().Bool(flagResumeLookup, false, "Internal: --resume named its session by lookup")
 	_ = cmd.Flags().MarkHidden(flagResumeLookup)
+	// --max-turns: the run ends with an error result when the model would take more turns (cli-reference#--max-turns)
+	cmd.Flags().Int("max-turns", 0, "Limit the model turns of the run (0: no limit)")
 	cmd.Flags().Bool(flagNoPersistence, false, "Leave no session to resume (--no-session-persistence, as used by claude CLI)")
 	// --fork-session: when resuming, continue under a NEW session id in a new
 	// transcript instead of appending to the original. The new id is

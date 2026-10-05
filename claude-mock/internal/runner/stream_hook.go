@@ -56,6 +56,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	finish := finisher(cfg, bg, &final)
 	blockCap := stopHookBlockCap()
 	for {
+		if maxTurnsReached(cfg, bg) {
+			return errRunFailed
+		}
 		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
 		if err != nil {
 			return err

@@ -6,6 +6,8 @@ package e2e
 // the claude adapter cannot reproduce yet; "mock gap:" is what the mock does not produce that
 // the recording shows (each gap is a PR of its own).
 var notReplaying = map[string]string{
+	"include-hook-events":         "adapter: the setup has args, which the adapter does not install",
+	"max-turns":                   "adapter: the setup has args, which the adapter does not install",
 	"all-hooks-close-first":       "race: the two blockers finish 75 ms apart (A last) and the real harness acted on A twice and on B once in its three samples, so no deterministic mock replays all three",
 	"all-hooks-close-second":      "adapter: the model called Read: the adapter maps Bash and Agent (in one sample; the recorded acted-on block is B in all three, B finishing last)",
 	"bgagent":                     "adapter: the model said two things before one call: the adapter keeps one",
