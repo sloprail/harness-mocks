@@ -21,6 +21,10 @@ type Rules struct {
 	// Rewrite changes the string value of the named key wherever it occurs (a
 	// command line that differs only in how the shell was invoked).
 	Rewrite map[string]func(string) string
+	// Measured are object keys whose number is a measurement that differs in every
+	// run (how long a call took): it is compared by what it says of the run, not
+	// its value, as "<zero>" or "<positive>".
+	Measured []string
 	// IDs are patterns of values that differ per run but must agree with
 	// themselves: each distinct match is renamed <ID1>, <ID2>... in order of
 	// first appearance, so a line that names the same id as an earlier one must
@@ -83,6 +87,9 @@ func (c *canon) walk(v any) any {
 					e = fn(str)
 				}
 			}
+			if n, ok := e.(float64); ok && c.measured(k) {
+				e = Measure(n)
+			}
 			out[c.str(k)] = c.walk(e)
 		}
 		return out
@@ -96,6 +103,23 @@ func (c *canon) walk(v any) any {
 		return c.str(x)
 	}
 	return v
+}
+
+func (c *canon) measured(key string) bool {
+	for _, m := range c.r.Measured {
+		if m == key {
+			return true
+		}
+	}
+	return false
+}
+
+// Measure is what a measurement says without its value: whether it is zero.
+func Measure(n float64) string {
+	if n == 0 {
+		return "<zero>"
+	}
+	return "<positive>"
 }
 
 // str applies the scrubs and the id renaming to a string (a value, or a key).
