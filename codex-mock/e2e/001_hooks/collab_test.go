@@ -40,7 +40,7 @@ func collabShape(events []map[string]any) (out []string) {
 // "completed" with its answer; nothing else on the stream is a frame of the
 // task, and a shell command is no task of its own, only a command_execution
 // item (runs/task-stream-frames).
-// sr:proves foreground-subagent-result/codex
+// sr:proves task-stream-frames/codex
 func TestASubAgentIsAnnouncedBySpawnAndItsEndIsToldByTheWait(t *testing.T) {
 	rec := loadRecording(t, "task-stream-frames")
 	want := collabShape(jsonLines(readFile(t, filepath.Join(rec.sample, "stream.jsonl"))))

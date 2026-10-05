@@ -85,7 +85,7 @@ func notifications(frames []map[string]any) (out []map[string]any) {
 // own calls fire the hooks under its own session id, are not on the stream, and
 // give the receipt {shell_id, pid} with no afterShellExecution; the receipt
 // does not say the command will be terminated (declared in the cell).
-// sr:proves task-notifications/cursor
+// sr:proves foreground-subagent-bash-ends-with-response/cursor
 func TestACommandAForegroundSubagentStartedInTheBackgroundEndsWithItsResponse(t *testing.T) {
 	sample, setup := recorded(t)
 	ws := t.TempDir()
