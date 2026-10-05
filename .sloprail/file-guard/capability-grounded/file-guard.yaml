@@ -4,10 +4,10 @@
 # support it, and a recording outranks a doc (adr/capability-grounding): where a run
 # and a doc sentence disagree, the run decides. What is
 # mocked is the user's choice: adding or dropping a capability, changing its
-# statement, or adding a deviation that says the mock does not model something the
-# harness does (adr `modeled-surface`) needs their words (Sloprail-Cites-User,
-# added-or-removed.sh); a change to a cell's docs and runs, a deviation or an
-# unsupported cell that a cited recording grounds (the harness lacks it) does not.
+# statement, adding or changing a deviation of `kind: mock-not-modeled` (or one with
+# no kind), or turning a cell `supported: false` without a cited recording needs their
+# words (Sloprail-Cites-User, added-or-removed.sh, deterministic); a change to a cell's docs
+# and runs, a `kind: harness-lacks` deviation or an unsupported cell with a recording does not.
 # The judge also fails an undisclosed doc-vs-recording conflict and a supported cell
 # whose deviation negates its defining clause
 # (adr/capability-grounding). One subject per capability touched (its file, or a doc

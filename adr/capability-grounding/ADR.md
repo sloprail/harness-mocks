@@ -48,10 +48,15 @@ quirks.
 - Adding or removing a capability, or changing its `statement`, carries the
   user's words on its commit (`Sloprail-Cites-User`): the statement is the
   capability the user wants implemented.
-- A new `deviations` entry of adr `modeled-surface`, a claim that the mock
-  leaves out something the real harness does, carries the user's words on its
-  commit (`Sloprail-Cites-User`) like a statement: what a mock does not model
-  is the user's call. A deviation or `supported: false` cell grounded by a
-  cited recording that shows the harness itself lacking the behaviour (adr
-  `capability-grounding`, including the "Doc and recording conflict:" entry)
-  needs no quote: the recording grounds it.
+- Every `deviations` entry has a `kind`: `mock-not-modeled` (the mock leaves
+  out something the real harness does) or `harness-lacks` (the harness itself
+  differs from the statement, shown by a cited doc or recording, including the
+  "Doc and recording conflict:" entry). An entry without a `kind` is not
+  waived.
+- Adding or changing a `mock-not-modeled` deviation carries the user's words
+  on its commit (`Sloprail-Cites-User`) like a statement: what a mock does not
+  model is the user's call. So does a cell turning `supported: false` without a
+  cited recording. A `harness-lacks` deviation, and a `supported: false` cell
+  with a recording that shows the harness not doing it, need no quote: the
+  recording grounds them. This is decided by a script
+  (`capability-grounded/added-or-removed.sh`), not by a judge.
