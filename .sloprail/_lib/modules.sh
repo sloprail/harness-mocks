@@ -17,7 +17,7 @@ load_modules() {
   # one yq over every module.yaml: it names each document by its file
   out="$(cd "$SR_TREE" && printf '%s\n' "$files" | xargs yq -o=json -I=0 '{"dir": (filename | sub("/?module\\.yaml$"; "") | (select(. != "") // ".")), "concern": (.concern // ""), "home": (.home // []), "api": (.api // [])}' 2>&1)" ||
     refuse "a module.yaml is not valid YAML: $out"
-  MODULES="$(jq -sc . <<<"$out")"
+  MODULES="$(jq -sc . <<<"$out")" || refuse "the module.yaml documents could not be collected into one list: $out"
 }
 
 # in_globs PATH GLOB… — PATH matches one of the globs (** and * both cross /).
@@ -26,11 +26,16 @@ in_globs() { local p="$1" g; shift; for g in "$@"; do g="${g//\*\*/*}"; [[ "$p" 
 # module_home_files MODULE_JSON — "glob<TAB>path<TAB>object id" for every tracked file (outside
 # proposals/) that each of the module's `home` globs matches, in one pass over `git ls-files -s`
 # (in_globs' rules: * and ** both cross /, and a glob also matches the directory itself).
+# Returns 1 when the list could not be made (callers refuse: it is called inside $(...) or a
+# redirect, where a refuse would only leave the subshell); a module with no home globs is no
+# failure, and prints nothing.
 module_home_files() {
-  local globs
-  globs="$(jq -r '.home[]' <<<"$1")"
+  local globs tracked
+  globs="$(jq -r '.home[]' <<<"$1")" || return 1
   [ -n "$globs" ] || return 0
-  git -C "$SR_TREE" ls-files -s -- ':!proposals/**' | GLOBS="$globs" awk -F'\t' '
+  tracked="$(git -C "$SR_TREE" ls-files -s -- ':!proposals/**')" || return 1
+  [ -n "$tracked" ] || return 0
+  GLOBS="$globs" awk -F'\t' '
     function re(g,   i, c, out) {
       out = ""
       for (i = 1; i <= length(g); i++) {
@@ -44,5 +49,5 @@ module_home_files() {
     }
     BEGIN { n = split(ENVIRON["GLOBS"], g, "\n"); for (i = 1; i <= n; i++) r[i] = re(g[i]) }
     { split($1, m, " "); p = $2
-      for (i = 1; i <= n; i++) if (p ~ r[i] || (p "/") ~ r[i]) print g[i] "\t" p "\t" m[2] }'
+      for (i = 1; i <= n; i++) if (p ~ r[i] || (p "/") ~ r[i]) print g[i] "\t" p "\t" m[2] }' <<<"$tracked"
 }
