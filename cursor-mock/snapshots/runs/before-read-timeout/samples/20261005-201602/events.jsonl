@@ -1,0 +1,14 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"a.txt","phase":"started"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/a.txt"},"tool_output":"{\"file_path\":\"<RUN>/a.txt\",\"content_length\":10}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"b.txt","phase":"started"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/b.txt"},"error_message":"File read was blocked by a hook: Tool blocked because this hook is configured to fail closed (block when it fails). Hook \".cursor/hooks/slow-read.sh b.txt\" execution failed: Hook script timed out after 1000ms\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/c.txt"},"tool_output":"{\"file_path\":\"<RUN>/c.txt\",\"content_length\":10}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}
