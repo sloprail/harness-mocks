@@ -14,6 +14,9 @@
 	statement!: string & =~"\\S"
 	providers!: [H=string & =~"^[a-z0-9]+$"]: "pending" | {
 		supported?: false
+		// how this harness provides the capability in its own way (a location, a name, a
+		// timing the statement leaves to each harness): facts, not deviations
+		notes?: [...string & =~"\\S"]
 		docs?: [#DocRef, ...#DocRef]
 		runs?: [string & =~"^\(H)-mock/snapshots/runs/[a-z][a-z0-9]*(-[a-z0-9]+)*$", ...string & =~"^\(H)-mock/snapshots/runs/[a-z][a-z0-9]*(-[a-z0-9]+)*$"]
 		deviations?: [...{
