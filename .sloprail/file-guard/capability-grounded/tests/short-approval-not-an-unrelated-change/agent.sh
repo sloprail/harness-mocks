@@ -14,5 +14,10 @@ case $n in
   1) bash_ a1 "git add -A" ;;
   2) bash_ b1 "$GIT commit -q -m 'change the project' -m 'Sloprail-Cites-User: lgtm'" ;;
   3) bash_ c1 "$RUN" ;;
+  4) bash_ r1 "git reset -q --hard HEAD~1" ;;
+  5) bash_ rw "git rm -q -- spec/capabilities/tool-retry.yaml" ;;
+  6) bash_ r2 "git add -A" ;;
+  7) bash_ r3 "$GIT commit -q -m 'the change that was proposed' -m 'Sloprail-Cites-User: lgtm'" ;;
+  8) bash_ c2 "$RUN" ;;
   *) finish ;;
 esac
