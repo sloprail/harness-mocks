@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -37,12 +40,11 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		return core.Recording{}, fmt.Errorf("%s is not a recorded run", runDir)
 	}
 	setup, sample := filepath.Join(runDir, "setup"), sampleDir(runDir)
-	cmd := ""
-	for _, l := range strings.Split(readFile(filepath.Join(runDir, "run.yaml")), "\n") {
-		if v, ok := strings.CutPrefix(l, "command: "); ok {
-			cmd = v
-		}
+	run, err := readRun(filepath.Join(runDir, "run.yaml"))
+	if err != nil {
+		return core.Recording{}, unbuildable(err)
 	}
+	cmd := run.Command
 	if cmd != standardCommand {
 		return core.Recording{}, unbuildable(fmt.Errorf("recorded with another command line: %q", cmd))
 	}
@@ -79,7 +81,7 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		if err != nil {
 			return core.Recording{}, err
 		}
-		if strings.Contains(p, main) {
+		if threadOf(p) == main {
 			mainRollout = rollout
 		} else {
 			subs = append(subs, rollout)
@@ -116,4 +118,33 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		},
 		Agent: agent,
 	}, nil
+}
+
+// run is a recorded run's run.yaml.
+type run struct {
+	Version string `yaml:"version"`
+	Command string `yaml:"command"`
+}
+
+func readRun(path string) (run, error) {
+	var r run
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return r, fmt.Errorf("run.yaml: %w", err)
+	}
+	if err := yaml.Unmarshal(b, &r); err != nil {
+		return r, fmt.Errorf("run.yaml: %w", err)
+	}
+	return r, nil
+}
+
+// the rollout of a thread is rollout-<start time>-<thread id>.jsonl
+var reRollout = regexp.MustCompile(`^rollout-\d{4}-\d{2}-\d{2}T[\d-]+-([0-9a-f-]{36})\.jsonl$`)
+
+// threadOf is the thread id a rollout file's name carries, empty if it is not a rollout's name.
+func threadOf(path string) string {
+	if m := reRollout.FindStringSubmatch(filepath.Base(path)); m != nil {
+		return m[1]
+	}
+	return ""
 }
