@@ -30,9 +30,7 @@ providers:
           --ignore-user-config, --ignore-rules, the deprecated --full-auto and
           the other flags it implements nothing of (adr fail-fast-unimplemented):
           it has no model, so the final message is the scenario's own, not
-          shaped by a schema (the real run's message conforms to it and the
-          stream is otherwise unchanged, as recorded in
-          runs/noninteractive-run-output-schema), and no file is written. The
+          shaped by a schema, and no file is written. The
           refusal of a run outside a git repository (runs/noninteractive-run-git-check-refused,
           lifted by --skip-git-repo-check or by bypassing the sandbox,
           runs/noninteractive-run-no-git-check) is modeled; a directory trusted

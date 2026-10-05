@@ -76,8 +76,10 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, fmt.Errorf("git %s: %v %s", argv[len(argv)-1], err, res.Stderr)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(home, "hooks.json"), []byte(s.HooksJSON), 0o644); err != nil {
-		return want, got, err
+	if s.HooksJSON != "" { // a run with no hooks has none: an empty file is not a hooks file
+		if err := os.WriteFile(filepath.Join(home, "hooks.json"), []byte(s.HooksJSON), 0o644); err != nil {
+			return want, got, err
+		}
 	}
 	for name, body := range s.Files {
 		if err := os.WriteFile(filepath.Join(repo, name), []byte(inRepo(name, body, repo)), 0o755); err != nil {
