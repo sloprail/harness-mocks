@@ -34,8 +34,7 @@ while IFS= read -r c; do
   hs=""   # the harnesses in question, one per line ("*": all)
   # a match by case, not `printf | grep -q`: grep -q quits at the first hit and printf dies of SIGPIPE on a long list, which pipefail reads as no match
   case $'\n'"$changed"$'\n' in
-    *$'\n'"spec/capabilities/$id.yaml"$'\n'*) # no `|| refuse`: load_touched ran above (a failure there refused), so this only reads the table it built, through an awk over printf
-      hs="$(touched_harnesses "spec/capabilities/$id.yaml")" ;;
+    *$'\n'"spec/capabilities/$id.yaml"$'\n'*) hs="$(touched_harnesses "spec/capabilities/$id.yaml")" || refuse "$id: the harnesses its cells touch could not be worked out, so it could not be prepared for the judge" ;;
   esac
   refs="$(jq -r '.doc.providers // {} | to_entries[] | select(.value | type == "object") | .key as $h
     | (if .value.supported == false then "absent" else "supports" end) as $k | (.value.docs // [])[] | [$h, $k, .] | @tsv' <<<"$c")" ||
