@@ -16,7 +16,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -race -count=1 ./claude-mock/internal/...
+      # -count=3: three runs of every test in one process, so a timing-flaky one surfaces here
+      - run: go test -race -count=3 ./claude-mock/internal/...
 
   rules:
     name: capability rule tests
@@ -53,7 +54,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make -C codex-mock test-unit
+      - run: go test -race -count=3 ./internal/... ./codex-mock/internal/...
 
   codex-e2e:
     name: codex-mock e2e tests
@@ -75,7 +76,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make -C cursor-mock test-unit
+      - run: go test -race -count=3 ./cursor-mock/internal/...
 
   cursor-e2e:
     name: cursor-mock e2e tests
@@ -90,6 +91,39 @@ jobs:
       - name: jq
         run: sudo apt-get install -y jq
       - run: make -C cursor-mock test-e2e
+
+  # The e2e suites take minutes, so -count=3 in one job would triple the wall time. Instead the
+  # required e2e jobs above are run 1 of 3 and these two more replicas run next to them, in
+  # parallel on separate runners: three runs of every e2e test under CI load for the same wall time.
+  e2e-repeat:
+    name: e2e repeat (${{ matrix.mock }}, run ${{ matrix.run }} of 3)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mock: [claude, codex, cursor]
+        run: [2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      # the cursor and codex suites replay recorded runs, whose hook scripts use jq
+      - name: jq
+        run: sudo apt-get install -y jq
+      # the same commands as each mock's Makefile test-e2e (race build, same environment), with
+      # -count=1 only: the Makefile pins it, and each replica is one more run of the suite
+      - name: e2e
+        run: |
+          make -C ${{ matrix.mock }}-mock build-race
+          export GIT_AUTHOR_NAME=harness-mocks-test GIT_AUTHOR_EMAIL=harness-mocks-test@sloprail.invalid
+          export GIT_COMMITTER_NAME=harness-mocks-test GIT_COMMITTER_EMAIL=harness-mocks-test@sloprail.invalid
+          case "${{ matrix.mock }}" in
+            claude) export A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock" ;;
+            cursor) export A10N_CURSOR_MOCK_TEST_BINARY="$PWD/bin/a10n-cursor-mock" ;;
+          esac
+          go test -race -count=1 -v ./${{ matrix.mock }}-mock/e2e/...
 
   subject-tests:
     name: rule subject tests
