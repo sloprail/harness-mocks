@@ -36,12 +36,6 @@ type Result struct {
 	Took  time.Duration
 }
 
-// Edit is one change a write made to a file.
-type Edit struct {
-	OldString string `json:"old_string"`
-	NewString string `json:"new_string"`
-}
-
 // toolTable is the tools the mock models, by the name a scenario script gives
 // them (the Claude Code names, with Cursor's Shell too): the kind of Cursor
 // call, its name in hooks, and the parameters its input must carry.
