@@ -6,7 +6,6 @@ import (
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/events"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
-	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
@@ -16,10 +15,6 @@ import (
 // that launched it, its hooks naming it and firing under the session's id
 // (recorded: runs/background-agent, runs/foreground-subagent-result). An agent
 // that wants its report calls wait_agent (agent_wait.go).
-
-// agents is the sub-agents the run has started, by thread id: what wait_agent
-// waits on. One run per process, so one table.
-var agents subagents.Waits
 
 // spawnAgent makes the sub-agent's id and answers with its receipt; the stream
 // shows its thread started and not yet running. It does not run until the
@@ -55,7 +50,6 @@ func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	}
 	_ = json.Unmarshal([]byte(receipt), &r)
 	t := tasks.NewTask(tasks.Agent, r.AgentID)
-	agents.Add(r.AgentID, subagents.Handle{Finished: t.Finished, Report: func() string { return t.Result }})
 	h.bg.StartAgent(t, func(ctx context.Context) {
 		rollout, err := h.createSub(r.AgentID)
 		if err != nil {

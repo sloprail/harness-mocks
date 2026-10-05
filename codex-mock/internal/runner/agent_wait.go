@@ -47,7 +47,7 @@ func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Resul
 	var in waitInput
 	_ = json.Unmarshal(c.Input, &in)
 	item := h.events.CollabStarted("wait", h.id, in.Targets, nil)
-	res, err := agents.Wait(ctx, in.Targets, in.timeout())
+	res, err := subagents.Wait(ctx, h.bg, in.Targets, in.timeout())
 	if err != nil {
 		return toolcall.Result{Output: "wait interrupted", Failed: true}
 	}

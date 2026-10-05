@@ -4,8 +4,9 @@ import (
 	"context"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // lineBreaks are what a hand-back normalises to "\n" before indenting: a
@@ -37,20 +38,6 @@ const (
 	WaitNotFound  = "not_found"
 )
 
-// Handle is a started sub-agent as a wait sees it: whether it has ended, and its
-// final report.
-type Handle struct {
-	Finished func() bool
-	Report   func() string
-}
-
-// Waits is the sub-agents a run has started, by id, and the wait on them.
-// A run has one table: an id of another run is not_found only by being absent.
-type Waits struct{ started sync.Map }
-
-// Add records a started sub-agent.
-func (w *Waits) Add(id string, h Handle) { w.started.Store(id, h) }
-
 // WaitState is where one sub-agent a wait named stands.
 type WaitState struct {
 	ID     string
@@ -73,43 +60,37 @@ func Timeout(ms *int, def, lo, hi int) time.Duration {
 	return time.Duration(min(max(*ms, lo), hi)) * time.Millisecond
 }
 
-// Wait (the foreground-subagent-result capability's other half, beside HandBack) waits until one of the named sub-agents has finished, or timeout is up,
-// and tells where each stands. Names no sub-agent of the run: it returns at once.
-func (w *Waits) Wait(ctx context.Context, ids []string, timeout time.Duration) (WaitResult, error) {
-	var known []Handle
+// Wait is the other half of the foreground sub-agent result, beside HandBack: it
+// waits until one of the named sub-agents of the session's registry has
+// finished, or timeout is up, and tells where each stands. Naming no sub-agent
+// the registry holds, it returns at once.
+func Wait(ctx context.Context, reg *tasks.Registry, ids []string, timeout time.Duration) (WaitResult, error) {
+	ended := make(chan struct{}, len(ids))
+	known := 0
 	for _, id := range ids {
-		if v, ok := w.started.Load(id); ok {
-			known = append(known, v.(Handle))
+		if t := reg.Find(id); t != nil {
+			known++
+			go func() { <-t.Done(); ended <- struct{}{} }()
 		}
 	}
-	timedOut := len(known) > 0
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	for timedOut {
-		for _, h := range known {
-			if h.Finished() {
-				timedOut = false
-			}
-		}
-		if !timedOut {
-			break
-		}
+	if known > 0 {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
 		select {
+		case <-ended:
 		case <-timer.C:
 			return WaitResult{TimedOut: true}, nil
 		case <-ctx.Done():
 			return WaitResult{}, ctx.Err()
-		case <-time.After(20 * time.Millisecond):
 		}
 	}
 	var states []WaitState
 	for _, id := range ids {
-		v, ok := w.started.Load(id)
-		switch h, _ := v.(Handle); {
-		case !ok:
+		switch t := reg.Find(id); {
+		case t == nil:
 			states = append(states, WaitState{ID: id, Status: WaitNotFound})
-		case h.Finished():
-			states = append(states, WaitState{ID: id, Status: WaitCompleted, Report: h.Report()})
+		case t.Finished():
+			states = append(states, WaitState{ID: id, Status: WaitCompleted, Report: t.Result})
 		default:
 			states = append(states, WaitState{ID: id, Status: WaitRunning})
 		}
