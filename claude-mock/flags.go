@@ -35,8 +35,10 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 	if f, _ := cmd.Flags().GetString(flagOutputFormat); f != "stream-json" {
 		return fmt.Errorf("claude-mock: --output-format %s is not implemented by the mock (only stream-json): it is refused rather than ignored", f)
 	}
-	if cmd.Flags().Changed("include-partial-messages") {
-		return fmt.Errorf("claude-mock: --include-partial-messages is not implemented by the mock: it is refused rather than ignored")
+	for _, name := range []string{"include-partial-messages", "input-format", "max-budget-usd"} {
+		if cmd.Flags().Changed(name) {
+			return fmt.Errorf("claude-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
+		}
 	}
 	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0) {
 		return fmt.Errorf("claude-mock: a piped stdin is not implemented by the mock: it is refused rather than ignored")

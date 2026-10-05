@@ -120,7 +120,7 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("append-system-prompt", "", "Accepted for CLI compatibility; has no effect")
 	// --input-format: text|stream-json. Mirror of the existing --output-format.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--input-format
-	cmd.Flags().String("input-format", "", "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().String("input-format", "", "Refused: not implemented by the mock")
 	// --include-partial-messages: streams partial message chunks; real claude
 	// requires --output-format stream-json + --print. Refused (the mock streams no partials).
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--include-partial-messages
@@ -128,7 +128,7 @@ func addRunFlags(cmd *cobra.Command) {
 	// --max-budget-usd: caps API spend. sr-agent's --claude-args carries it in
 	// its own tests ('{"max-budget-usd":5}'), so a judge caller may pass it.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--max-budget-usd
-	cmd.Flags().String("max-budget-usd", "", "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().String("max-budget-usd", "", "Refused: not implemented by the mock")
 	// NOTE on --permission-prompt-tool: it does NOT exist in the real Claude Code
 	// CLI (confirmed absent from `claude --help` and the CLI reference), so it is
 	// deliberately NOT declared here — the mock accepts only flags real claude

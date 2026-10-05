@@ -105,8 +105,6 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 		"--model", "opus",
 		"--allowedTools", "Write,Read",
 		"--disallowedTools", "Bash",
-		"--input-format", "stream-json",
-		"--max-budget-usd", "5",
 		"--output-format", "stream-json",
 		"--session-id", "camel-sess",
 		"--", "go",
