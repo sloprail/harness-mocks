@@ -11,7 +11,7 @@
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
 rigor_pairs() {
-  load_spec capabilities; load_touched; load_touched_markers
+  load_touched; load_touched_markers   # $SPEC is loaded by the caller (load_spec at top level: a refusal inside $(...) would not end the check)
   # one jq over the payload, the specs and the touched table: no process per capability or pair
   printf '%s' "$payload" | jq -r --argjson caps "$SPEC" --arg tt "$TOUCHED_TSV" --arg tm "$TOUCHED_MARKERS_TSV" --arg want "$(subject_id)" '
     [.changeset.files[].path] as $changed

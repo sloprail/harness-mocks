@@ -9,6 +9,7 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/snapshots.sh"
 . "${SR_GUARDRAIL_DIR:-.}/pairs-lib.sh"
+load_spec capabilities
 load_markers proves; proves="$MARKERS"
 subjects="[]"
 while IFS=$'\t' read -r pair cell c; do
