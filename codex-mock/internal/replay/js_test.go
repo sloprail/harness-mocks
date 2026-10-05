@@ -85,12 +85,12 @@ func TestUnifyTakesOneArgument(t *testing.T) {
 }
 
 func TestUnifyPassesTheHarnessOptionsOnAsGiven(t *testing.T) {
-	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>", "max_output_tokens": number{100}, "tty": true}}})
+	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>", "max_output_tokens": number{100}, "tty": true}}}, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"command": "a", "workdir": "<RUN>", "max_output_tokens": 100, "tty": true}, c.Input)
-	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": opaque{}}}})
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": opaque{}}}}, nil, nil)
 	assert.ErrorContains(t, err, "stdin")
-	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}})
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}}, nil, nil)
 	assert.Error(t, err)
 }
 
