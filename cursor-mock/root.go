@@ -45,8 +45,9 @@ the stream through:
 	p.BoolVar(&f.yolo, "yolo", false, "accepted, ignored")
 	p.BoolVar(&f.trust, "trust", false, "accepted, ignored")
 	p.StringVar(&f.workspace, "workspace", "", "workspace directory (default: the current directory)")
-	// recorded (runs/multiroot-workspace): a second root added with --add-dir
-	// does not show in the hooks' workspace_roots, so it is accepted and ignored
+	// recorded (runs/add-dir-access, no-add-dir-access, multiroot-workspace): a
+	// second root added with --add-dir changes neither what a headless run may
+	// read nor the hooks' workspace_roots, so it is accepted and ignored
 	p.StringArray("add-dir", nil, "accepted, ignored: hooks still name the one workspace root")
 	p.StringVar(&f.apiKey, "api-key", "", "accepted, ignored")
 	p.StringVar(&f.sandbox, "sandbox", "", "accepted, ignored")

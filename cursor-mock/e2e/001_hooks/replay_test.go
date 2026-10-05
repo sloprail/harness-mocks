@@ -66,7 +66,7 @@ func normalize(v any, sid, ws string) any {
 		}
 		return out
 	case string:
-		return strings.ReplaceAll(strings.ReplaceAll(x, sid, "<SESSION_ID>"), ws, "<RUN>")
+		return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(x, sid, "<SESSION_ID>"), ws, "<RUN>"), filepath.Dir(ws), "<TMP>")
 	}
 	return v
 }
@@ -246,7 +246,7 @@ func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	}
 	writes := writtenContents(want)
 	for i, c := range calls {
-		line, rest := scriptCall(t, strings.ReplaceAll(c, "<RUN>", ws), writes)
+		line, rest := scriptCall(t, strings.ReplaceAll(strings.ReplaceAll(c, "<RUN>", ws), "<TMP>", filepath.Dir(ws)), writes)
 		writes = rest
 		require.NoError(t, os.WriteFile(filepath.Join(scratch, itoa(i)+".json"), []byte(line+"\n"), 0o644))
 	}
@@ -369,7 +369,7 @@ func hookEnv(v any, ws string) map[string]any {
 			continue // whether the file is named yet when a hook starts is a race in cursor-agent
 		default:
 			if ws != "" {
-				s = strings.ReplaceAll(s, ws, "<RUN>")
+				s = strings.ReplaceAll(strings.ReplaceAll(s, ws, "<RUN>"), filepath.Dir(ws), "<TMP>")
 			}
 		}
 		out[k] = s
