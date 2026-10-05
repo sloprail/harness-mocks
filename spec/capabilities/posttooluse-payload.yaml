@@ -45,4 +45,3 @@ providers:
         statement: >-
           The mock runs the Shell, Read and Write tools only, so what the MCP tools'
           and the other tools' successful calls report to postToolUse is not modeled.
-          It times a command, but reports a duration of 0 for a file tool's call.
