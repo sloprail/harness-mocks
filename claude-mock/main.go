@@ -9,6 +9,10 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
 )
 
+// version is the build version, stamped by the release workflow with
+// -ldflags "-X main.version=<tag without v>"; "dev" for any other build.
+var version = "dev"
+
 const (
 	flagContinue      = "continue"
 	flagNoPersistence = "no-session-persistence"
@@ -88,6 +92,10 @@ Usage as a claude replacement:
   a10n-claude-mock -p --output-format stream-json --session-id <id> --script scenario.sh <prompt>
 
 Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
+		// --version reports this build of the mock, nothing else. The mock never
+		// answered --version before (it is not part of any scenario), so there is
+		// no real-claude --version behaviour to preserve.
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// claude -p is the primary entrypoint; support it at the root.
@@ -96,6 +104,7 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 		PostRunE: forgetUnpersisted,
 	}
 
+	root.SetVersionTemplate("{{.Version}}\n")
 	addRunFlags(root)
 
 	return root

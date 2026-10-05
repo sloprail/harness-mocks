@@ -4,12 +4,14 @@
 # under `sloprails`). Each ADR's deterministic half stays in its own cheap
 # script rule. As ADRs grow past what one prompt reads well, split this into
 # subjects (e.g. one per ADR group); until then one call per changeset.
-# Production code (no ADR governs tests), and the capability cells whose
-# deviations an ADR governs.
+# Production code (no ADR governs tests), the capability cells whose
+# deviations an ADR governs, and the claude-mock release workflow (it stamps
+# the release version, adr/release-version).
 match: >-
   (path endsWith ".go" and not (path endsWith "_test.go")
    and (path startsWith "internal/" or path matches "^[a-z0-9]+-mock/"))
   or path matches "^spec/capabilities/[^/]+\\.yaml$"
+  or path == ".github/workflows/publish-claude-mock.yml"
 checks:
   - prepare: ../../_lib/linked-adrs.sh
     judge: ../../_lib/adr-conforms.md.j2

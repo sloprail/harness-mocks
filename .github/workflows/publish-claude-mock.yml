@@ -3,7 +3,7 @@ name: publish claude-mock
 # Tag-triggered only — a GitHub Release is the artifact, and a release names
 # a version deliberately, not on every push to main the way the old
 # a10n-cli/GCP Artifact Registry setup did (date+shortsha on every push to
-# services/claude-mock/**). Push `vYYYY.MM.DD` (or any vX tag) to publish.
+# services/claude-mock/**). Push a `vX.Y.Z` tag to publish; the tag (minus the v) is embedded as --version.
 on:
   push:
     tags:
@@ -43,14 +43,19 @@ jobs:
       - name: build binaries
         run: |
           set -e
+          TAG="${{ inputs.tag || github.ref_name }}"
           mkdir -p dist
-          for GOARCH in amd64 arm64; do
-            echo "building linux/${GOARCH}..."
-            CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} \
-              go build -ldflags="-s -w" \
-              -o "dist/a10n-claude-mock-linux-${GOARCH}" \
-              ./claude-mock
+          for GOOS in linux darwin; do
+            for GOARCH in amd64 arm64; do
+              echo "building ${GOOS}/${GOARCH}..."
+              CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} \
+                go build -ldflags "-s -w -X main.version=${TAG#v}" \
+                -o "dist/a10n-claude-mock-${GOOS}-${GOARCH}" \
+                ./claude-mock
+            done
           done
+          (cd dist && sha256sum a10n-claude-mock-* > checksums.txt)
+          cat dist/checksums.txt
 
       - name: publish release
         env:
@@ -63,4 +68,7 @@ jobs:
             --title "$TAG" \
             --generate-notes \
             dist/a10n-claude-mock-linux-amd64 \
-            dist/a10n-claude-mock-linux-arm64
+            dist/a10n-claude-mock-linux-arm64 \
+            dist/a10n-claude-mock-darwin-amd64 \
+            dist/a10n-claude-mock-darwin-arm64 \
+            dist/checksums.txt
