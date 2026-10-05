@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -49,9 +48,6 @@ type session struct {
 	// printed after the next tool call of this session, or at the end of its run.
 	owed tasks.Deferred
 }
-
-// flushOwed prints the frames owed.
-func (s *session) flushOwed() { s.owed.Release(func(f []byte) { s.forward(f) }) }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
 // when several hooks gave some.
@@ -145,23 +141,4 @@ func (s *session) common() hooks.Common {
 		c.TranscriptPath = s.tr.path
 	}
 	return c
-}
-
-// forward prints one stream-json line; a call's started frame first brings out
-// what the agent said before it.
-func (s *session) forward(line []byte) {
-	if bytes.Contains(line, []byte(`"subtype":"started"`)) && bytes.Contains(line, []byte(`"type":"tool_call"`)) {
-		s.flushText()
-	}
-	fmt.Fprintf(s.cfg.Stdout, "%s\n", line)
-}
-
-// flushText shows what the agent said so far as one assistant frame.
-func (s *session) flushText() {
-	if len(s.pending) == 0 {
-		return
-	}
-	text := strings.Join(s.pending, "")
-	s.pending = nil
-	fmt.Fprintf(s.cfg.Stdout, "%s\n", assistantFrame(s.id, text))
 }
