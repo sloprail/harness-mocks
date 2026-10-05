@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/sloprail/harness-mocks/internal/procexec"
@@ -129,8 +128,9 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	}
 	want.Events, got.Events = wantC.Lines(recStream), gotC.Lines(mockStream)
 	want.Hooks, got.Hooks = wantC.Lines(recHooks), gotC.Lines(mockHooks)
-	// hooks of one event run at the same time, so the order they log in is not the behaviour
-	sort.Strings(want.Hooks)
-	sort.Strings(got.Hooks)
+	// hooks of one event run at the same time, so the order they log in is not the behaviour:
+	// the order of the groups of hooks that run together is (hookorder.go)
+	want.Hooks = sortWithinGroups(want.Hooks, concurrentGroups(recHooks))
+	got.Hooks = sortWithinGroups(got.Hooks, concurrentGroups(mockHooks))
 	return want, got, nil
 }
