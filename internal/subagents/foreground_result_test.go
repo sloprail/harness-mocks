@@ -69,3 +69,12 @@ func TestTimeoutIsClamped(t *testing.T) {
 	assert.Equal(t, 10*time.Second, Timeout(&five, 30000, 10000, 3600000))
 	assert.Equal(t, time.Hour, Timeout(&huge, 30000, 10000, 3600000))
 }
+
+// A background command of the session is no sub-agent: naming its id is not_found.
+func TestABackgroundCommandIsNotASubAgent(t *testing.T) {
+	reg := tasks.NewRegistry() // nothing runs in it: a registered command that never started needs no shutdown
+	reg.Add(tasks.NewTask(tasks.Command, "12345"))
+	res, err := Wait(context.Background(), reg, []string{"12345"}, time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, []WaitState{{"12345", WaitNotFound, ""}}, res.States)
+}
