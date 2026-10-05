@@ -70,6 +70,7 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 			s.runTool(ctx, scenario.ToolUse{ID: tu.ID + "-read", Name: "Read", Input: jsonLine(path)}, true)
 		}
 		s.runTool(ctx, tu, false)
+		s.flushOwed()
 	}
 }
 

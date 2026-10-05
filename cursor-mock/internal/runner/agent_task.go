@@ -50,8 +50,14 @@ func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in tas
 	s.hooks.Fire(ctx, hooks.PreToolUse, tool.Name, hooks.ToolFields(tool))
 	s.named = true
 
+	// the hook says generalPurpose where the stream says unspecified (recorded:
+	// runs/foreground-subagent-result)
+	streamType := typ
+	if typ == "generalPurpose" {
+		streamType = "unspecified"
+	}
 	args := map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{typ: map[string]any{}},
+		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{streamType: map[string]any{}},
 		"model": "default", "agentId": coresession.NewID(),
 	}
 	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
@@ -83,7 +89,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	sub.id, sub.parent = coresession.NewID(), s
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.added, sub.named = nil, nil, false
+	sub.texts, sub.added, sub.named, sub.owed = nil, nil, false, tasks.Deferred{}
 	var err error
 	if sub.tr, err = newSubagentTranscript(s.tr, sub.id); err != nil {
 		sub.tr = s.tr
@@ -100,16 +106,10 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	}}
 	s.forward(taskFrame(s.id, tu.ID, "completed", args, result))
 	// the sub-agent has given its final response: what it left running ends, before
-	// the parent goes on
-	var ending []*tasks.Task
-	for _, t := range s.registry().Running() {
-		if t.Owner == sub.owner {
-			ending = append(ending, t)
-		}
-	}
-	s.registry().EndOfResponse(sub.owner)
-	for _, t := range ending {
-		s.forward(notificationFrame(s.id, t))
+	// the parent goes on; the stream reports it only after the parent's next tool
+	// call (recorded: runs/foreground-subagent-bash-ends-with-response)
+	for _, t := range s.registry().EndedAtResponse(sub.owner) {
+		s.owed.Hold(notificationFrame(s.id, t))
 	}
 }
 
