@@ -13,7 +13,6 @@ var notReplaying = map[string]string{
 	"file-tools":                                 "adapter: the model called tools.apply_patch: the adapter maps exec_command and spawn_agent",
 	"file-tools-failure":                         "adapter: the model called tools.apply_patch: the adapter maps exec_command and spawn_agent",
 	"hook-command-subdir":                        "adapter: the setup has args, which the adapter does not install",
-	"hook-exit-codes":                            "untriaged: the replay differs from the recording (event stream: recording 11 lines, mock 11, first difference at line 9)",
 	"hooks-all-matching-run-same-hook-two-files": "adapter: the setup has project-hooks.json, which the adapter does not install",
 	"manual-compaction-auto":                     "adapter: the setup has args, which the adapter does not install",
 	"manual-compaction-auto-blocked":             "adapter: the setup has args, which the adapter does not install",

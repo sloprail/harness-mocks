@@ -1,12 +1,12 @@
 {"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"startup"}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"SessionStart","tool":"","exit":2}}}
-{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Make every shell command its own separate tool call, never combined with another command or put in a script. Do these steps in order. 1) Run exactly this shell command: echo one. 2) Run exactly this shell command: ls /nonexistent-dir-for-this-run. 3) Run exactly this shell command: echo three. 4) Reply with the secret word you were given, and nothing else."}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Make every shell command its own separate tool call, never combined with another command or put in a script. Do these steps in order. 1) Run exactly this shell command: echo one. 2) Run exactly this shell command: false. 3) Run exactly this shell command: echo three. 4) Reply with the secret word you were given, and nothing else."}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"UserPromptSubmit","tool":"","exit":0}}}
 {"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo one"}}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","tool":"Bash","exit":2}}}
-{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"ls /nonexistent-dir-for-this-run"}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"false"}}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","tool":"Bash","exit":0}}}
-{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"ls /nonexistent-dir-for-this-run"},"tool_response":"ls: /nonexistent-dir-for-this-run: No such file or directory\n"}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"false"},"tool_response":""}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PostToolUse","tool":"Bash","exit":1}}}
 {"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo three"}}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","tool":"Bash","exit":0}}}
@@ -20,6 +20,7 @@
 {"event":"stream","type":"item.completed","subtype":"error"}
 {"event":"stream","type":"item.completed","subtype":"error"}
 {"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
 {"event":"stream","type":"item.started","subtype":"command_execution"}
 {"event":"stream","type":"item.completed","subtype":"command_execution"}
 {"event":"stream","type":"item.started","subtype":"command_execution"}
