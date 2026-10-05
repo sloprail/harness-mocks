@@ -75,9 +75,12 @@ func unify(m jsCall) (core.Call, error) {
 			return core.Call{}, fmt.Errorf("an exec_command whose cmd is not a string")
 		}
 		in := map[string]any{"command": cmd}
-		for k, v := range arg { // the harness's other options go to the mock as given: what it does with one is its own (refusing what it does not implement)
+		for k, v := range arg { // the harness's other options go to the mock as given; what the mock does with one is the mock's own (today it ignores them, which matters only for a workdir other than the run's directory, refused below)
 			if k == "cmd" || k == "yield_time_ms" {
 				continue
+			}
+			if w, isStr := v.(string); k == "workdir" && isStr && w != "<RUN>" {
+				return core.Call{}, fmt.Errorf("an exec_command run in %s: the mock runs in the run's directory only", w)
 			}
 			sv, ok := scalar(v)
 			if !ok {
@@ -126,6 +129,9 @@ func scalar(v any) (any, bool) {
 	case string, bool:
 		return x, true
 	case number:
+		if math.IsInf(x.f, 0) || math.IsNaN(x.f) {
+			return nil, false
+		}
 		if x.f == math.Trunc(x.f) && math.Abs(x.f) <= 1<<31 {
 			return int(x.f), true
 		}

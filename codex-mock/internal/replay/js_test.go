@@ -1,10 +1,13 @@
 package replay
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
 func TestScriptCalls(t *testing.T) {
@@ -130,4 +133,27 @@ func TestScriptKeepsRecordingAfterAChainAndInBinaryOperands(t *testing.T) {
 	calls, err := newJSRun().script("const o = {}; o?.x; await tools.exec_command({cmd:\"a\"}); 1 + (await tools.exec_command({cmd:\"b\"}));")
 	require.NoError(t, err)
 	assert.Len(t, calls, 2)
+}
+
+func TestUnifyRefusesWhatItCannotCarry(t *testing.T) {
+	for name, opts := range map[string]map[string]any{
+		"a number that is not finite": {"max_output_tokens": number{math.Inf(1)}},
+		"another working directory":   {"workdir": "<RUN>/.codex"},
+	} {
+		in := map[string]any{"cmd": "a"}
+		for k, v := range opts {
+			in[k] = v
+		}
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{in}})
+		assert.Error(t, err, name)
+	}
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{"message": "m", "fork": true, "n": number{1.5}}}})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"message": "m", "fork": true, "n": 1.5}, c.Input)
+}
+
+// <RUN>, the run's directory in a recording, is the repository's in the script.
+func TestRunDirectoryReachesTheScript(t *testing.T) {
+	rec := core.Recording{Agent: core.Agent{Calls: []core.Call{{Tool: core.ToolShell, Input: map[string]any{"command": "cat <RUN>/a", "workdir": "<RUN>"}}}}}
+	assert.Contains(t, Denormalize(rec).Script, `cat `+runPlaceholder+`/a`)
 }
