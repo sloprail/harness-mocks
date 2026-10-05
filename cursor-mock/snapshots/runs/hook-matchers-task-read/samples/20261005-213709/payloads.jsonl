@@ -1,0 +1,5 @@
+{"hook_ran":"start","event":"sessionStart","tool":"","command":""}
+{"hook_ran":"pre-Task","event":"preToolUse","tool":"Task","command":""}
+{"hook_ran":"pre-Read","event":"preToolUse","tool":"Read","command":""}
+{"hook_ran":"readfile-Read","event":"beforeReadFile","tool":"","command":""}
+{"hook_ran":"post-Read","event":"postToolUse","tool":"Read","command":""}

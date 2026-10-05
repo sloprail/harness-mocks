@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/ran.sh start" }],
+    "preToolUse": [
+      { "command": ".cursor/hooks/ran.sh pre-Task", "matcher": "Task" },
+      { "command": ".cursor/hooks/ran.sh pre-Shell", "matcher": "Shell" },
+      { "command": ".cursor/hooks/ran.sh pre-Read", "matcher": "Read" }
+    ],
+    "beforeReadFile": [
+      { "command": ".cursor/hooks/ran.sh readfile-Read", "matcher": "Read" },
+      { "command": ".cursor/hooks/ran.sh readfile-Shell", "matcher": "Shell" }
+    ],
+    "postToolUse": [
+      { "command": ".cursor/hooks/ran.sh post-Task", "matcher": "Task" },
+      { "command": ".cursor/hooks/ran.sh post-Read", "matcher": "Read" }
+    ]
+  }
+}
