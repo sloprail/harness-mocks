@@ -48,7 +48,7 @@ BASE=$(git rev-parse HEAD)
 # the cell is made unsupported, the adapter stays: refused, naming the marker and the cell
 git checkout -q -b unsupported "$BASE"
 cap x unsupported; c "x becomes unsupported"
-expect_refused "$BASE" "a stale marker (cell made unsupported)" "claude-mock/internal/x.go" "sr:provides x/claude" "unsupported"
+expect_refused "$BASE" "a stale marker (cell made unsupported)" "claude-mock/internal/x.go" "sr:provides x/claude, but the cell 'x' × 'claude' is unsupported (supported: false)"
 # recovery: the adapter goes with it, and the same range passes
 rm claude-mock/internal/x.go; c "x adapter removed"
 expect_passed "$BASE" "the cell and the adapter agree again"
@@ -56,9 +56,9 @@ expect_passed "$BASE" "the cell and the adapter agree again"
 # a marker naming a capability that does not exist: refused, naming the marker and the cell
 git checkout -q -b unknown "$BASE"
 marker claude-mock/internal/y.go y/claude; c "marker for y"
-expect_refused "$BASE" "a marker naming no capability" "claude-mock/internal/y.go" "y/claude" "no spec/capabilities/y.yaml"
+expect_refused "$BASE" "a marker naming no capability" "claude-mock/internal/y.go" "sr:provides y/claude names no capability (y has no spec/capabilities/y.yaml)"
 
 # a marker naming a pending cell: refused
 git checkout -q -b pending "$BASE"
 cap x pending; c "x pending"
-expect_refused "$BASE" "a marker on a pending cell" "claude-mock/internal/x.go" "x/claude" "pending"
+expect_refused "$BASE" "a marker on a pending cell" "claude-mock/internal/x.go" "sr:provides x/claude, but the cell 'x' × 'claude' is pending (not mocked yet)"

@@ -56,7 +56,7 @@ expect_passed "$BASE" "the cell followed the deleted adapter"
 # a new supported cell with no adapter: refused
 git checkout -q -b added "$BASE"
 cap z supported; c "z, no adapter"
-expect_refused "$BASE" "a new supported cell with no adapter" "spec/capabilities/z.yaml" "z/claude"
+expect_refused "$BASE" "a new supported cell with no adapter" "spec/capabilities/z.yaml" "is a supported cell but no claude-mock/ code carries // sr:provides z/claude"
 # recovery: the adapter arrives
 marker claude-mock/internal/z.go z/claude; c "z adapter"
 expect_passed "$BASE" "the adapter arrived"
@@ -64,7 +64,7 @@ expect_passed "$BASE" "the adapter arrived"
 # a supported cell that cites a missing recording
 git checkout -q -b norun "$BASE"
 printf 'statement: x works\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: [claude-mock/snapshots/runs/gone]\n' > spec/capabilities/x.yaml; c "x cites a missing run"
-expect_refused "$BASE" "a cell citing a missing recording" "'x' × 'claude'" "claude-mock/snapshots/runs/gone"
+expect_refused "$BASE" "a cell citing a missing recording" "'x' × 'claude'" "cites the run claude-mock/snapshots/runs/gone, which is not a directory in the tree"
 
 # a supported cell that cites no recording at all (an empty runs list)
 git checkout -q -b emptyruns "$BASE"
@@ -74,4 +74,4 @@ expect_refused "$BASE" "a cell citing no recording" "'x' × 'claude'" "cites no 
 # a cited recording deleted while the cell stays: refused, naming the run
 git checkout -q -b rundeleted "$BASE"
 git rm -q -r claude-mock/snapshots/runs/r1; c "r1 deleted"
-expect_refused "$BASE" "a cited recording deleted" "'x' × 'claude'" "claude-mock/snapshots/runs/r1"
+expect_refused "$BASE" "a cited recording deleted" "'x' × 'claude'" "cites the run claude-mock/snapshots/runs/r1, which is not a directory in the tree"
