@@ -81,12 +81,12 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		return want, got, err
 	}
 	for name, body := range s.Files {
-		if err := os.WriteFile(filepath.Join(repo, name), []byte(body), 0o755); err != nil {
+		if err := os.WriteFile(filepath.Join(repo, name), []byte(strings.ReplaceAll(body, runPlaceholder, repo)), 0o755); err != nil {
 			return want, got, err
 		}
 	}
 	script := filepath.Join(root, "scenario.sh")
-	if err := os.WriteFile(script, []byte(s.Script), 0o755); err != nil {
+	if err := os.WriteFile(script, []byte(strings.ReplaceAll(s.Script, runPlaceholder, repo)), 0o755); err != nil {
 		return want, got, err
 	}
 

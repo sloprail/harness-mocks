@@ -16,7 +16,8 @@ import (
 // harness's tools onto these, and a tool it cannot map makes the recording
 // unbuildable.
 const (
-	// ToolShell runs a command: Input "command" (string), optionally "yield_time_ms" (int).
+	// ToolShell runs a command: Input "command" (string), optionally "yield_time_ms" (int); any other
+	// option of the harness's own tool goes on as given (a string, number or boolean).
 	ToolShell = "shell"
 	// ToolSpawn starts a sub-agent: Input "message" (string), and Call.Sub is the sub-agent's turns.
 	ToolSpawn = "spawn_agent"

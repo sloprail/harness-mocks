@@ -3,8 +3,6 @@ package replay
 import (
 	"fmt"
 	"math"
-	"slices"
-	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -72,14 +70,21 @@ func unify(m jsCall) (core.Call, error) {
 	}
 	switch m.Name {
 	case "exec_command":
-		if err := knownKeys(arg, "cmd", "yield_time_ms", execCarried); err != nil {
-			return core.Call{}, err
-		}
 		cmd, ok := arg["cmd"].(string)
 		if !ok {
 			return core.Call{}, fmt.Errorf("an exec_command whose cmd is not a string")
 		}
 		in := map[string]any{"command": cmd}
+		for k, v := range arg { // the harness's other options go to the mock as given: what it does with one is its own (refusing what it does not implement)
+			if k == "cmd" || k == "yield_time_ms" {
+				continue
+			}
+			sv, ok := scalar(v)
+			if !ok {
+				return core.Call{}, fmt.Errorf("an exec_command whose %s is not a string, number or boolean", k)
+			}
+			in[k] = sv
+		}
 		if y, present := arg["yield_time_ms"]; present {
 			n, ok := y.(number)
 			if !ok {
@@ -92,9 +97,6 @@ func unify(m jsCall) (core.Call, error) {
 		}
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
 	case "multi_agent_v1__spawn_agent":
-		if err := knownKeys(arg, "message", "", ""); err != nil {
-			return core.Call{}, err
-		}
 		if len(arg) == 0 { // a call with no arguments, which the harness refuses (recorded: runs/agent-input-validation)
 			return core.Call{Tool: core.ToolSpawn, Input: map[string]any{}}, nil
 		}
@@ -102,24 +104,32 @@ func unify(m jsCall) (core.Call, error) {
 		if !ok {
 			return core.Call{}, fmt.Errorf("a spawn_agent whose message is not a string")
 		}
-		return core.Call{Tool: core.ToolSpawn, Input: map[string]any{"message": msg}}, nil
+		in := map[string]any{"message": msg}
+		for k, v := range arg {
+			if k == "message" {
+				continue
+			}
+			sv, ok := scalar(v)
+			if !ok {
+				return core.Call{}, fmt.Errorf("a spawn_agent whose %s is not a string, number or boolean", k)
+			}
+			in[k] = sv
+		}
+		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
 	}
 	return core.Call{}, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, spawn_agent and (as nothing) wait_agent", m.Name)
 }
 
-// execCarried are the exec_command arguments the replay does not hand to the
-// mock: the mock runs in the run's directory with its own shell, and caps no output.
-// A recording where one of them mattered replays red, since the whole output is compared.
-const execCarried = "workdir max_output_tokens shell login tty"
-
-// knownKeys refuses a call that has an argument the adapter neither maps (a, b) nor
-// names as carried (the space-separated names in carried): a dropped argument would
-// make the replay a different call.
-func knownKeys(arg map[string]any, a, b, carried string) error {
-	for k := range arg {
-		if k != a && k != b && !slices.Contains(strings.Fields(carried), k) {
-			return fmt.Errorf("a call with an argument %q, which the adapter does not map", k)
+// scalar is the JSON value of a JS string, number or boolean the script wrote.
+func scalar(v any) (any, bool) {
+	switch x := v.(type) {
+	case string, bool:
+		return x, true
+	case number:
+		if x.f == math.Trunc(x.f) && math.Abs(x.f) <= 1<<31 {
+			return int(x.f), true
 		}
+		return x.f, true
 	}
-	return nil
+	return nil, false
 }

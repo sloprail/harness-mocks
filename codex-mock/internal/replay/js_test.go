@@ -81,13 +81,14 @@ func TestUnifyTakesOneArgument(t *testing.T) {
 	assert.ErrorContains(t, err, "2 arguments")
 }
 
-func TestUnifyRefusesWhatItDrops(t *testing.T) {
-	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": "x"}}})
+func TestUnifyPassesTheHarnessOptionsOnAsGiven(t *testing.T) {
+	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>", "max_output_tokens": number{100}, "tty": true}}})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"command": "a", "workdir": "<RUN>", "max_output_tokens": 100, "tty": true}, c.Input)
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": opaque{}}}})
 	assert.ErrorContains(t, err, "stdin")
 	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}})
 	assert.Error(t, err)
-	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>"}}})
-	assert.NoError(t, err)
 }
 
 func TestScriptCallsKeepJavaScriptsOrder(t *testing.T) {
