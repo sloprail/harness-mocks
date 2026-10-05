@@ -31,10 +31,15 @@ type Result struct {
 	// Background: the call started a background shell (no afterShellExecution
 	// follows it; its end comes as a task notification).
 	Background bool
+	// Read is what a successful read returned, for beforeReadFile.
+	Read *ReadFile
 	// Edits are the changes a file write made, for afterFileEdit.
 	Edits []Edit
 	Took  time.Duration
 }
+
+// ReadFile is the file a read returned.
+type ReadFile struct{ Path, Content string }
 
 // toolTable is the tools the mock models, by the name a scenario script gives
 // them (the Claude Code names, with Cursor's Shell too): the kind of Cursor
