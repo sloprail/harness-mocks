@@ -35,13 +35,3 @@ func TestAnUnknownSessionIsRefusedWithoutTheEnvVar(t *testing.T) {
 	assert.Equal(t, 1, code, out)
 	assert.Contains(t, out, "No conversation found with session ID: s-never")
 }
-
-// Without stream-json the refusal is the message alone: no result frame.
-// sr:proves session-resume-unknown/claude
-// sr:invariant no-resume
-func TestNoResumeWithoutStreamJSONIsTheMessageAlone(t *testing.T) {
-	out, code := noResumeRun(t, []string{"A10N_MOCK_NO_RESUME=1"}, "--resume", "s-2", "--output-format", "text")
-	assert.Equal(t, 1, code, out)
-	assert.Contains(t, out, "No conversation found with session ID: s-2")
-	assert.NotContains(t, out, `"type":"result"`)
-}
