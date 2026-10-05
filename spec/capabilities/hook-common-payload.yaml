@@ -94,3 +94,12 @@ providers:
           and the transcript path) and has no setting that disables
           transcripts (which makes the transcript path null throughout), so
           those two variants of the common schema are not modeled.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#common-schema) says
+          transcript_path is "Path to the main conversation transcript file
+          (null if transcripts disabled)", and the recordings show it null at
+          sessionStart and on the first preToolUse with transcripts on
+          (recorded: runs/tool-failure, runs/symlinked-cwd,
+          runs/file-tools). The recordings decide.
