@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The recorded run runs/subagent-transcripts-v2 (the default multi-agent mode): the agent spawns one
+// The recorded run runs/subagent-transcripts-v2: its "v2" is historical (it was first
+// recorded with multi_agent_v2, which the mock refuses; it is recorded in the default
+// multi-agent mode now, and runs cannot be renamed). The agent spawns one
 // sub-agent (task "ping", which answers PONG) and waits for it. The model's
 // spawn_agent call is replayed by a script, the sub-agent's answer by another.
 const (

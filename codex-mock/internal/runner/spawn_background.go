@@ -55,7 +55,8 @@ func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	h.bg.StartAgent(t, func(ctx context.Context) {
 		rollout, err := h.createSub(r.AgentID)
 		if err != nil {
-			t.Failure = fmt.Sprintf("failed to start the sub-agent: %v", err) // a wait tells it, not an empty completion
+			t.Failure = fmt.Sprintf("failed to start the sub-agent: %v", err) // a wait refuses it, not an empty completion
+			fmt.Fprintf(h.cfg.Stderr, "ERROR codex_mock: sub-agent %s: %s\n", r.AgentID, t.Failure)
 			return
 		}
 		defer rollout.Close()
