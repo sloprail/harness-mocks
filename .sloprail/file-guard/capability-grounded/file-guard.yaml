@@ -24,5 +24,5 @@ checks:
   - script: ./harness-lacks-cited.sh
   - prepare: ./prepare.sh
     judge: ./docs-support-statement.md.j2
-    # the doc pages live in a cache under the git dir, outside the project
+    # the doc pages live in a cache under the git dir, outside the project, as does the transcript a short reply is read against
     allowed_tools: [Read]

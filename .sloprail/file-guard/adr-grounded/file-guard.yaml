@@ -15,5 +15,5 @@ require:
 checks:
   - prepare: ./prepare.sh
     judge: ./words-ask-for-adr.md.j2
-    # the ADR before and the diffs are files outside the project
+    # the ADR before, the diffs and the transcript a short reply is read against are files outside the project
     allowed_tools: [Read]

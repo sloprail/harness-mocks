@@ -11,5 +11,5 @@ subjects: ./subjects.sh
 checks:
   - prepare: ./prepare.sh
     judge: ./statement-from-words.md.j2
-    # the old content is a file outside the project
+    # the old content and the transcript a short reply is read against are files outside the project
     allowed_tools: [Read]
