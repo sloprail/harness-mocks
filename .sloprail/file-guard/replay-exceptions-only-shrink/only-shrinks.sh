@@ -14,12 +14,19 @@ refuse() {
   exit 1
 }
 
+# refuse_error MESSAGE — the tooling failed, not the change: still refused, but "error": true makes the
+# engine store no verdict, so the next run tries again (see _lib/changeset.sh)
+refuse_error() {
+  jq -n --arg r "$1" '{reason: $r, error: true}'
+  exit 1
+}
+
 [ "$(printf '%s' "$payload" | jq -r '.event.kind // ""')" = "Changeset" ] ||
-  refuse "expected a Changeset event, so the changed files could not be checked"
+  refuse_error "expected a Changeset event, so the changed files could not be checked"
 printf '%s' "$payload" | jq -e '.changeset.files | type == "array"' >/dev/null 2>&1 ||
-  refuse "the changeset's files could not be read, so they could not be checked"
+  refuse_error "the changeset's files could not be read, so they could not be checked"
 count="$(printf '%s' "$payload" | jq -r '.changeset.files | length')" || count=""
-case "$count" in '' | *[!0-9]*) refuse "the changeset's files could not be read, so they could not be checked" ;; esac
+case "$count" in '' | *[!0-9]*) refuse_error "the changeset's files could not be read, so they could not be checked" ;; esac
 
 # keys TEXT: the keys of the notReplaying map literal in a Go source, one per line
 keys() { printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{/,/^}/p' | sed -n 's/^[[:space:]]*"\([^"]*\)":.*/\1/p' | sort -u; }
@@ -44,19 +51,33 @@ malformed() {
 tab="$(printf '\t')"
 rank_name() { case "$1" in 0) printf 'flaky:' ;; 1) printf 'untriaged:' ;; *) printf 'a triaged reason' ;; esac; }
 
+# notReplaying is read and written only in the two files of its package that are checked below: a
+# mention anywhere else (an init() adding an entry, the map moved to another file) hides entries
+# from this rule. And a generated test that reads it needs the list file beside it.
+mentions="$(git -C "$SR_TREE" grep -l -w notReplaying -- '*.go' 2>&1)"
+rc=$?
+[ "$rc" -le 1 ] || refuse_error "could not search the committed tree for notReplaying: $mentions"
+other="$(printf '%s\n' "$mentions" | grep -v '^$' | grep -v '/replay_allowlist_test\.go$' | grep -v '/generated_replay_test\.go$')"
+[ -z "$other" ] || refuse "notReplaying is named outside replay_allowlist_test.go and generated_replay_test.go ($(printf '%s' "$other" | head -n 1)): an entry added there would not be seen, so keep the map and its edits in replay_allowlist_test.go"
+for g in $(printf '%s\n' "$mentions" | grep '/generated_replay_test\.go$'); do
+  [ -f "$SR_TREE/$(dirname "$g")/replay_allowlist_test.go" ] ||
+    refuse "$g reads notReplaying, but replay_allowlist_test.go beside it is gone or renamed: keep the list in replay_allowlist_test.go (emptied if need be)"
+done
+
 i=0
 while [ "$i" -lt "$count" ]; do
   path="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].path')" ||
-    refuse "could not read file $i of the changeset, so it could not be checked"
+    refuse_error "could not read file $i of the changeset, so it could not be checked"
   status="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].status')" ||
-    refuse "could not read $path from the changeset, so it could not be checked"
+    refuse_error "could not read $path from the changeset, so it could not be checked"
   i=$((i + 1))
   # the generated replay test runs a flaky: entry flakyRuns (3) times and fails when none is green
   case "$path" in
+    */replay_allowlist_test.go) ;;
     */generated_replay_test.go)
       [ "$status" = "D" ] && continue
       new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
-        refuse "could not read $path from the changeset, so it could not be checked"
+        refuse_error "could not read $path from the changeset, so it could not be checked"
       # code lines only: a block comment or raw string could hold a copy of what is asked for
       code="$(printf '%s\n' "$new" | grep -v '^[[:space:]]*//')"
       if printf '%s\n' "$code" | grep -q '/\*\|`'; then
@@ -66,22 +87,24 @@ while [ "$i" -lt "$count" ]; do
         refuse "$path: flakyRuns must be assigned exactly once, as 'const flakyRuns = 3'"
       runs="$(printf '%s\n' "$new" | sed -n 's/^const flakyRuns = \([0-9][0-9]*\)$/\1/p')"
       [ "$runs" = 3 ] || refuse "$path: a flaky: entry is replayed three times: declare 'const flakyRuns = 3'"
-      printf '%s\n' "$new" | grep -q 'replayUntilGreen(run, flakyRuns)' &&
-        printf '%s\n' "$new" | grep -q 'strings.HasPrefix(reason, "flaky:")' &&
-        printf '%s\n' "$new" | grep -q 'case flaky && (err != nil || diff != ""):' ||
+      [ "$(printf '%s\n' "$code" | grep -c '^func replayUntilGreen(')" = 1 ] &&
+        printf '%s\n' "$code" | grep -q 'replayUntilGreen(run, flakyRuns)' &&
+        printf '%s\n' "$code" | grep -q 'strings.HasPrefix(reason, "flaky:")' &&
+        printf '%s\n' "$code" | grep -q 'case flaky && (err != nil || diff != ""):' ||
         refuse "$path: a flaky: entry must be run through replayUntilGreen(run, flakyRuns) and fail when it is never green, never skipped or passed outright"
       continue
       ;;
+    *) continue ;; # any other file of the mocks' e2e packages: checked by the tree search above
   esac
   # a deleted file has no list; a created one has an empty base, so each of its entries is an addition
   if [ "$status" = "D" ]; then continue; fi
   old=""
   if [ "$status" != "A" ]; then
     old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
-      refuse "could not read the base of $path from the changeset, so it could not be checked"
+      refuse_error "could not read the base of $path from the changeset, so it could not be checked"
   fi
   new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
-    refuse "could not read $path from the changeset, so it could not be checked"
+    refuse_error "could not read $path from the changeset, so it could not be checked"
   printf '%s\n' "$new" | grep -qx 'var notReplaying = map\[string\]string{' ||
     refuse "$path: the notReplaying map could not be found; keep it as 'var notReplaying = map[string]string{' with one \"run\": \"reason\" per line"
   # exactly one declaration: a second one (inside a block comment or a raw string, with the real map

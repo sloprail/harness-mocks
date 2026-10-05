@@ -25,7 +25,7 @@ refuses() {
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1 was not refused with its reason (sr-checks exit $ran)" >&2; exit 1; }
 }
 
-good='const flakyRuns = 3\n\nfunc f() {\n\tflaky := true\n\tdiff, err = replayUntilGreen(run, flakyRuns)\n\t_ = strings.HasPrefix(reason, "flaky:")\n\tswitch {\n\tcase flaky && (err != nil || diff != ""):\n\t}\n}\n'
+good='const flakyRuns = 3\n\nfunc replayUntilGreen(run func() (string, error), n int) (string, error) { return run() }\n\nfunc f() {\n\tflaky := true\n\tdiff, err = replayUntilGreen(run, flakyRuns)\n\t_ = strings.HasPrefix(reason, "flaky:")\n\tswitch {\n\tcase flaky && (err != nil || diff != ""):\n\t}\n}\n'
 printf 'package e2e\n\n'"$good" > "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "generated test"
 BASE=$(git rev-parse HEAD)
@@ -45,6 +45,11 @@ refuses "a flaky: entry with no retry" "must be run through replayUntilGreen(run
 printf 'package e2e\n\n/*\n'"$good"'*/\nvar flakyRuns = 1\n' > "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "decoy comment"
 refuses "a block comment decoy" "a block comment or raw string could hide what this rule reads"
+
+# the same words only in whole-line comments, beside a plain skip, are refused
+printf 'package e2e\n\nconst flakyRuns = 3\n\n// func replayUntilGreen(\n// replayUntilGreen(run, flakyRuns)\n// strings.HasPrefix(reason, "flaky:")\n// case flaky && (err != nil || diff != ""):\nfunc f() { t.Skip() }\n' > "$gen"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "comment only"
+refuses "the wiring only in comments" "must be run through replayUntilGreen(run, flakyRuns)"
 
 # recovery: three runs and the retry, and the change passes
 printf 'package e2e\n\n'"$good" | sed 's/func f() {/\/\/ ok\nfunc f() {/' > "$gen"
