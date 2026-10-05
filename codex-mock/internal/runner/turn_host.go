@@ -60,7 +60,7 @@ func (h turnHost) EndOfTurn(ctx context.Context, last string, _ bool) (string, b
 	if last == "" { // recorded (runs/stop-no-message): an empty reply is a null message
 		message = nil
 	}
-	if text, ok := (toolHost{h.state}).nextNotice(true); ok { // a sub-agent ended: the turn goes on with that, and does not end yet
+	if text, ok := (toolHost{h.state}).nextNotice(); ok { // a sub-agent ended: the turn goes on with that, and does not end yet
 		h.notice = text
 		return "a sub-agent ended", true
 	}

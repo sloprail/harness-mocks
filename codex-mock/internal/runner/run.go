@@ -59,6 +59,11 @@ type state struct {
 	// and stopBlocked is whether a Stop hook has already continued the turn.
 	notice      string
 	stopBlocked bool
+	// prog is how far this agent is through its tool calls, parent how far the agent that
+	// started it is (nil for the session's own), and spawned the sub-agents this one started
+	// (see progress.go: what a script's gate is read against).
+	prog, parent *progress
+	spawned      *spawnLog
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
@@ -82,7 +87,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	s := &state{cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
+	s := &state{prog: newProgress(), spawned: &spawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
 		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),

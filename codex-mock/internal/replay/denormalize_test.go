@@ -19,8 +19,8 @@ func TestAnswersAreSteps(t *testing.T) {
 		{Tool: core.ToolShell, Input: map[string]any{"command": "echo a"}}, answer("DONE"),
 	}, Final: "DONE2"}}
 	script := Denormalize(rec).Script
-	assert.Contains(t, script, `{"final":"DONE"}`)
-	assert.Contains(t, script, `{"final":"DONE2"}`)
+	assert.Contains(t, script, `{"final":"DONE","gate":{}}`)
+	assert.Contains(t, script, `{"final":"DONE2","gate":{}}`)
 	assert.Contains(t, script, `<hook_prompt`)
 }
 
@@ -28,5 +28,5 @@ func TestAnswersAreSteps(t *testing.T) {
 // last call is not played again.
 func TestScriptEndsWithAnAnswer(t *testing.T) {
 	rec := core.Recording{Agent: core.Agent{Calls: []core.Call{{Tool: core.ToolShell, Input: map[string]any{"command": "echo a"}}}}}
-	assert.Contains(t, Denormalize(rec).Script, `{"final":""}`)
+	assert.Contains(t, Denormalize(rec).Script, `{"final":"","gate":{}}`)
 }
