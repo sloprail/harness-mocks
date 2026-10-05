@@ -39,3 +39,14 @@ for s in capability-rigor/inputs-ready.sh capability-rigor/prepare.sh capability
   printf '%s' "$out" | jq -e '.error == true and (.reason | contains("spec/capabilities is not in the committed tree"))' >/dev/null ||
     { echo "$s: not an error verdict naming the missing spec dir: $out" >&2; exit 1; }
 done
+
+# a spec dir but no *-mock/: no harness cell can be checked, an error, not an empty pass
+mkdir -p tree/spec/capabilities && printf 'statement: x works\nproviders:\n  claude: pending\n' > tree/spec/capabilities/x.yaml && rmdir tree/claude-mock
+for s in capability-reconciled/reconciled.sh capability-reconciled/subjects.sh snapshots-current/current.sh; do
+  dir="$SR_TEST_SLOPRAIL_DIR/file-guard/$(dirname "$s")"
+  rc=0
+  out="$(cd "$dir" && printf '%s' "$payload" | SR_GUARDRAIL_DIR="$dir" SR_BASE=HEAD SR_HEAD=HEAD ./"$(basename "$s")" 2>/dev/null)" || rc=$?
+  [ "$rc" -eq 1 ] || { echo "$s: exit $rc, wanted a refusal (1): $out" >&2; exit 1; }
+  printf '%s' "$out" | jq -e '.error == true and (.reason | contains("no *-mock/ directory"))' >/dev/null ||
+    { echo "$s: not an error verdict naming the missing mock dirs: $out" >&2; exit 1; }
+done
