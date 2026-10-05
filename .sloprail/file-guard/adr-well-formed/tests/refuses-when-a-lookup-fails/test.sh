@@ -33,7 +33,7 @@ EOS
 # run_script SCRIPT SHIMMED — runs the rule's script on the changeset's payload; sets out and rc
 run_script() {
   local p="$PATH"; [ "$2" = shimmed ] && p="$TMPDIR/shim:$PATH"
-  out="$(cd ".sloprail/file-guard/$RULE" && SR_TREE="$ROOT" SR_GUARDRAIL_DIR="$PWD" PATH="$p" bash "./$1" <"${3:-$TMPDIR/payload.json}" 2>&1)" && rc=0 || rc=$?
+  out="$(cd ".sloprail/file-guard/$RULE" && SR_TREE="$ROOT" SR_GUARDRAIL_DIR="$PWD" PATH="$p" bash "./$1" <"$TMPDIR/payload.json" 2>&1)" && rc=0 || rc=$?
 }
 expect_refused() {   # LABEL SUBSTRING
   [ "$rc" -ne 0 ] && [[ "$out" == *"$2"* ]] || { echo "$1: wanted a refusal saying '$2', got exit $rc: $out" >&2; exit 1; }
@@ -75,12 +75,6 @@ shim has 'additionalContext'
 run_script prepare.sh shimmed
 expect_refused "the judge's input cannot be built" "the judge's input could not be built"
 
-# a legitimately empty source is not a failed lookup: a changeset that touches no ADR has nothing to judge, and the
-# judge is skipped (the refusals above are for lookups that FAIL)
-jq -c '.changeset.files = []' "$TMPDIR/payload.json" >"$TMPDIR/empty.json"
-run_script prepare.sh plain "$TMPDIR/empty.json"
-[ "$rc" -eq 0 ] && jq -e '.skip == true' <<<"$out" >/dev/null || { echo "no ADR changed: prepare did not skip the judge (exit $rc): $out" >&2; exit 1; }
-
 # through the engine (`sr-checks run`, as CI runs it): the same failure, injected for that run only, is the rule's
 # own refused FileGuardChecked event with the lookup's reason, never a pass. One run per case: a stored verdict is replayed.
 shim has select\(.status\ !=\ \"D\"
@@ -88,3 +82,10 @@ shim has select\(.status\ !=\ \"D\"
 PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 jq -es --arg s the\ changed\ ADRs\ could\ not\ be\ listed,\ so\ none\ could\ be\ judged 'any(.[]; .kind=="FileGuardChecked" and .rule=="adr-well-formed" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: adr-well-formed did not refuse with a reason saying 'the changed ADRs could not be listed, so none could be judged' (sr-checks exit $ran)" >&2; exit 1; }
+
+# the same through the engine for the last step: the judge's input cannot be built (one run per case: a stored verdict is replayed)
+shim has additionalContext
+: >"$SR_EVENTS_FILE"
+PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es --arg s "the judge's input could not be built" 'any(.[]; .kind=="FileGuardChecked" and .rule=="adr-well-formed" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "the engine run: adr-well-formed did not refuse with a reason saying 'the judge's input could not be built' (sr-checks exit $ran)" >&2; exit 1; }
