@@ -21,8 +21,8 @@ k=$(grep -c '<subagent_notification' "$A10N_MOCK_SESSION_FILE")
 ids=$(jq -rs '[.[]|select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)]|join(",")' "$A10N_MOCK_SESSION_FILE")
 a=${ids%%,*}; b=${ids#*,}
 case "$n" in
-0) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"s0","name":"spawn_agent","input":{"message":"fast","script":"fast.sh","more":true}}]}}';;
-1) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"s1","name":"spawn_agent","input":{"message":"slow","script":"slow.sh","more":true}}]}}';;
+0) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"s0","name":"spawn_agent","input":{"message":"fast","script":"fast.sh"},"more":true}]}}';;
+1) printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"s1","name":"spawn_agent","input":{"message":"slow","script":"slow.sh"},"more":true}]}}';;
 2) printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"w","name":"wait_agent","input":{"targets":["%s","%s"],"timeout_ms":60000}}]}}\n' "$a" "$b";;
 *) if [ "$k" -le 1 ]; then t=FIRST; else t=SECOND; fi
    printf '%s\n' '{"gate":{"ended":[0,1]},"type":"assistant","message":{"content":[{"type":"text","text":"'$t'"}]}}' '{"type":"result","subtype":"success","result":"'$t'"}';;

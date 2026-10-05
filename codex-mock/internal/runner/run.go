@@ -55,10 +55,6 @@ type state struct {
 	toolEnv []string
 	// bg holds the commands a call left running (see background.go).
 	bg *tasks.Registry
-	// notice is a sub-agent's end the turn is continued with instead of ending (turn_host.go),
-	// and stopBlocked is whether a Stop hook has already continued the turn.
-	notice      string
-	stopBlocked bool
 	// prog is how far this agent is through its tool calls, parent how far the agent that
 	// started it is (nil for the session's own), and spawned the sub-agents this one started
 	// (see progress.go: what a script's gate is read against).

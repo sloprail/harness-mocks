@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/sloprail/harness-mocks/internal/subagents"
-	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
 // nextNotice is the <subagent_notification> text the harness tells the agent of
@@ -33,29 +32,5 @@ func (h toolHost) nextNotice() (text string, ok bool) {
 			Status    map[string]string `json:"status"`
 		}{n.ID, map[string]string{"completed": n.Answer}})
 		return "<subagent_notification>\n" + string(b) + "\n</subagent_notification>", true
-	}
-}
-
-// moreFollows is whether the call is one of several made by one script of the model
-// (the mock's own parameter `more`): the model is not asked again until the last,
-// so a sub-agent's end is not told of in between (recorded: runs/foreground-subagent-wait-many).
-func moreFollows(c toolcall.Call) bool {
-	var in struct {
-		More bool `json:"more"`
-	}
-	_ = json.Unmarshal(c.Input, &in)
-	return in.More
-}
-
-// afterOutput is what follows the output a call was given: the call has finished (what another
-// agent's gate may wait for), and when the model is asked again (not between the calls of
-// one script) it is told of a sub-agent that has ended, one at a time.
-func (h toolHost) afterOutput(c toolcall.Call) {
-	h.prog.move(0, 1)
-	if moreFollows(c) {
-		return
-	}
-	if text, ok := h.nextNotice(); ok {
-		h.rollout.User(text)
 	}
 }
