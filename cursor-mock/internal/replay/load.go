@@ -30,7 +30,7 @@ const (
 // the files of a recording's setup the adapter installs, besides the hook
 // scripts (*.sh); any other (extra flags, a preparation script, later steps) is
 // something of the recording the adapter cannot reproduce yet
-var installed = map[string]bool{"hooks.json": true, "user-hooks.json": true, "prompt.txt": true, "no-force": true, "env": true, "symlink": true}
+var installed = map[string]bool{"hooks.json": true, "user-hooks.json": true, "prompt.txt": true, "no-force": true, "env": true, "symlink": true, "prepare.sh": true, "args": true}
 
 // sampleDir is the latest sample of the run in dir; empty when it has none.
 func sampleDir(dir string) string {
@@ -64,11 +64,14 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 		switch {
 		case installed[name]:
 			rec.Setup[name] = readFile(filepath.Join(setup, name))
-		case strings.HasSuffix(name, ".sh") && name != "prepare.sh":
+		case strings.HasSuffix(name, ".sh"):
 			rec.Setup[name] = readFile(filepath.Join(setup, name))
 		default:
 			return core.Recording{}, unbuildable("the setup has %s, which the adapter does not install", name)
 		}
+	}
+	if _, err := flagWords(rec.Setup["args"]); err != nil {
+		return core.Recording{}, err
 	}
 	if _, noForce := rec.Setup["no-force"]; noForce != (command == unforcedCommand) || command != forcedCommand && command != unforcedCommand {
 		return core.Recording{}, unbuildable("recorded with another command line: %q", command)

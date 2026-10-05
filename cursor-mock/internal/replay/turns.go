@@ -22,7 +22,8 @@ import (
 func modelTurns(records []map[string]any) (core.Agent, error) {
 	var agent core.Agent
 	var said *string
-	flush := func() { // an answer: the text no call followed
+	var lookup map[string]any // a GetDynamicTools of one named tool, which the call that follows needs
+	flush := func() {         // an answer: the text no call followed
 		if said != nil {
 			agent.Calls = append(agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}})
 			said = nil
@@ -47,10 +48,18 @@ func modelTurns(records []map[string]any) (core.Agent, error) {
 					t, _ := block["text"].(string)
 					text = &t
 				case "tool_use":
+					if lookupOf(block) != nil {
+						lookup = lookupOf(block)
+						continue
+					}
 					c, err := unify(block)
 					if err != nil {
 						return core.Agent{}, err
 					}
+					if c.Tool == core.ToolMCP && !sameTool(lookup, c.Input) {
+						return core.Agent{}, fmt.Errorf("the model called CallDynamicTool without looking the tool up first: the mock looks it up itself, once")
+					}
+					lookup = nil
 					c.SameTurn = len(calls) > 0
 					calls = append(calls, c)
 				default:
@@ -91,6 +100,13 @@ func unify(block map[string]any) (core.Call, error) {
 		in[k] = v
 	}
 	switch name {
+	case "Grep":
+		return core.Call{Tool: core.ToolSearchFiles, Input: in}, nil
+	case "Delete":
+		return core.Call{Tool: core.ToolDeleteFile, Input: in}, nil
+	case "CallDynamicTool":
+		args, _ := input["arguments"].(map[string]any)
+		return core.Call{Tool: core.ToolMCP, Input: map[string]any{"server": input["namespace"], "tool": input["toolName"], "arguments": args}}, nil
 	case "Shell":
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
 	case "Task":
@@ -105,4 +121,24 @@ func unify(block map[string]any) (core.Call, error) {
 		return core.Call{Tool: core.ToolWriteFile, Input: in}, nil
 	}
 	return core.Call{}, fmt.Errorf("the model called %s: the mock has no such tool", name)
+}
+
+// lookupOf is what a GetDynamicTools block asks for when it names one tool of
+// one server (namespace and toolName), which the mock does on its own before it
+// calls an MCP tool; nil for any other block, GetDynamicTools searching by a
+// pattern included, which the mock has no such tool for.
+func lookupOf(block map[string]any) map[string]any {
+	if name, _ := block["name"].(string); name != "GetDynamicTools" {
+		return nil
+	}
+	input, _ := block["input"].(map[string]any)
+	if input["namespace"] == nil || input["toolName"] == nil {
+		return nil
+	}
+	return input
+}
+
+// sameTool reports whether the lookup named the tool the call is of.
+func sameTool(lookup, call map[string]any) bool {
+	return lookup != nil && lookup["namespace"] == call["server"] && lookup["toolName"] == call["tool"]
 }
