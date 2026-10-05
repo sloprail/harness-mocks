@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,4 +56,42 @@ func TestT017_82_PostCompactFailureDoesNotAffectTheCompaction(t *testing.T) {
 		assert.True(t, compacted, post)
 		assert.True(t, fired, post)
 	}
+}
+
+// hookFrameNames are the hook_name of every hook_started frame of a stream.
+func hookFrameNames(t *testing.T, stream string) []string {
+	t.Helper()
+	var names []string
+	for _, l := range strings.Split(stream, "\n") {
+		var f map[string]any
+		if json.Unmarshal([]byte(l), &f) == nil && f["type"] == "system" && f["subtype"] == "hook_started" {
+			names = append(names, f["hook_name"].(string))
+		}
+	}
+	return names
+}
+
+// A compaction's PreCompact and PostCompact hooks stream no hook frames: the
+// hooks that stream around a compaction are the compacted session's own
+// SessionStart:compact, whose frames come after the "compacting" status, as
+// recorded in runs/compact (which configures all of them).
+// sr:proves manual-compaction/claude
+func TestT017_82_CompactionStreamsOnlyTheCompactedSessionStartFrames(t *testing.T) {
+	raw, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/compact/samples/*/stream.jsonl"))
+	require.NoError(t, err)
+	want := hookFrameNames(t, string(raw))
+	for _, n := range want {
+		assert.True(t, strings.HasPrefix(n, "SessionStart:"), "recorded: only SessionStart frames, got %s", n)
+	}
+	assert.Contains(t, want, "SessionStart:compact")
+
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	h := payloadLogger(t, dir, "log.sh", filepath.Join(dir, "p.log"), "")
+	compactSettings(t, dir, map[string][2]string{"SessionStart": {"*", h}, "PreCompact": {"*", h}, "PostCompact": {"*", h}})
+	sc := script(t, dir, "s", `{"type":"compact","summary":"x @MARK@","trigger":"manual"}`)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "cmp-frames", "--project-dir", dir, "--config-dir", cfg,
+		"--output-format", "stream-json", "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, []string{"SessionStart:startup", "SessionStart:compact"}, hookFrameNames(t, out))
 }
