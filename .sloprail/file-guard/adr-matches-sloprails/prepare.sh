@@ -19,9 +19,12 @@ while IFS= read -r a; do
   adr_path="$(jq -r '.path' <<<"$a")" || refuse "adr/$id: its path could not be read, so it could not be judged"
   links="$(jq -r '.frontmatter.sloprails // [] | .[]' <<<"$a")" || refuse "adr/$id: its linked rules could not be read, so it could not be judged"
   hit=0
-  printf '%s\n' "$changed" | grep -q "^adr/$id/" && hit=1
+  # bash pattern matches, not `printf | grep -q`: grep quitting at its first hit can SIGPIPE the printf, and under
+  # pipefail that reads as no match, which would skip the ADR
+  case $'\n'"$changed" in *$'\n'"adr/$id/"*) hit=1 ;; esac
   while IFS= read -r l; do
-    [ -n "$l" ] && printf '%s\n' "$changed" | grep -Fq ".sloprail/$l/" && hit=1
+    [ -n "$l" ] || continue
+    case "$changed" in *".sloprail/$l/"*) hit=1 ;; esac
   done <<<"$links"
   [ "$hit" = 1 ] || continue
   rules="[]"

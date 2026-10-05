@@ -12,7 +12,7 @@
 #   be listed: the ADR's exception list is where legacy code is named.)
 # Prints nothing and returns when fine; refuses otherwise.
 confine() {
-  local re="$1" allowed="$2" label="$3" exc problems="" f path base head n files body
+  local re="$1" allowed="$2" label="$3" exc problems="" f path base head n files body rc
   load_adrs "$(rule_qname)"
   # every lookup below refuses when it fails: a failed one read as empty would find no site and pass
   exc="$(jq -r '[.[] | .frontmatter.exceptions // [] | .[]] | .[]' <<<"$ADRS")" ||
@@ -23,8 +23,12 @@ confine() {
     [ -n "$f" ] || continue
     path="$(jq -r '.path' <<<"$f")" || refuse "a changed file's path could not be read, so no site could be judged"
     case "$path" in *_test.go) continue ;; esac
-    printf '%s' "$path" | grep -Eq -- "$allowed" && continue
-    printf '%s\n' "$exc" | grep -Fxq -- "$path" && continue
+    # here-strings, not `printf | grep -q` (grep quitting early can SIGPIPE the printf); grep exits 1 on no match
+    # (fine) and >1 on an error (refuse)
+    grep -Eq -- "$allowed" <<<"$path"; rc=$?
+    [ "$rc" -le 1 ] || refuse "$path: the allowed paths could not be matched, so its sites could not be counted"
+    [ "$rc" -eq 0 ] && continue
+    case $'\n'"$exc"$'\n' in *$'\n'"$path"$'\n'*) continue ;; esac
     body="$(jq -r '.newContent // ""' <<<"$f")" || refuse "$path: its content could not be read, so its sites could not be counted"
     n="$(grep -cE "$re" <<<"$body" || true)"
     [ "$n" -eq 0 ] || problems="${problems}- $path $label"$'\n'
