@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Fail closed, part two: each lookup of capability-grounded's prepare.sh (what the judge is handed) refuses,
 # with a reason naming what could not be read, when it fails: the changed-files listing, a capability's id,
-# the harness narrowing, the doc assembly, the cited runs, the unsupported cells, the deleted-files listing,
+# the harnesses a changed file touches, the harness narrowing, the doc assembly, the cited runs, the unsupported cells, the deleted-files listing,
 # the subject count and the final output (and, through cells.sh, the changed capability files). The other
 # lookups are refuses-when-a-lookup-fails'. The CI path, no agent turn: `sr-checks run` judges committed
 # ranges; the judge is a mock that always passes, so a refusal here is the rule's own machinery, never a
@@ -21,6 +21,9 @@ chmod +x bin/curl
 mkdir -p shim
 printf '#!/bin/bash\nhit=""\nfor a in "$@"; do\n  case "$a" in *"${SHIM_JQ_FAIL:-@@none@@}"*) hit=1 ;; esac\n  case "$a" in *"${SHIM_JQ_FAIL2:-@@none@@}"*) hit=1 ;; esac\n  [ -n "${SHIM_JQ_FAIL_EXACT:-}" ] && [ "$a" = "$SHIM_JQ_FAIL_EXACT" ] && hit=1\ndone\n[ -n "$hit" ] && exit 5\nexec "%s" "$@"\n' "$(command -v jq)" >shim/jq
 chmod +x shim/jq
+# an awk shim, the same way: fails when an argument equals SHIM_AWK_FAIL_EXACT, else runs the real awk
+printf '#!/bin/bash\nfor a in "$@"; do [ -n "${SHIM_AWK_FAIL_EXACT:-}" ] && [ "$a" = "$SHIM_AWK_FAIL_EXACT" ] && exit 5; done\nexec "%s" "$@"\n' "$(command -v awk)" >shim/awk
+chmod +x shim/awk
 export PATH="$PWD/bin:$PATH"
 SHA="$(printf '# s\nfrozen text\n' | shasum -a 256 | cut -d' ' -f1)"
 git init -q .
@@ -81,6 +84,10 @@ expect_refused "the capability files listing fails" "the changed capability file
 # a capability's id (the exact program `.id`)
 scenario; inject_exact '.id'
 expect_refused "the id read fails" "a capability's id could not be read, so it could not be prepared for the judge"
+
+# the harnesses a changed file touches, read from the table (cells.sh touched_harnesses: an awk over it)
+scenario; run_rule "PATH=$PWD/shim:$PATH" 'SHIM_AWK_FAIL_EXACT=$1 == p {print $2}'
+expect_refused "the touched harnesses read fails" "c: the harnesses its cells touch could not be worked out, so it could not be prepared for the judge"
 
 # the harnesses in question narrowed (c's codex cell is unchanged, so only claude is in question)
 scenario; inject 'with_entries(select(.key as $k'
