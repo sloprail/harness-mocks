@@ -7,7 +7,7 @@ set -euo pipefail
 #   1. healthy tree: passed
 #   2. spec/capabilities gone from the tree (an incomplete tree): refused with an error (no verdict)
 #   3. spec/capabilities holds no *.yaml (a failed listing): refused with an error (no verdict)
-#   4. a real finding (a cell with no proving test): a plain refusal: a verdict, not an error
+#   4. a real finding (a cell with no proving test): a plain refusal: a verdict, not an error; restoring the proof passes
 # the rules read the specs with yq, which the case's PATH (jq, git, bash, the sloprail binaries) does not carry
 YQ="$(PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin" command -v yq)" || { echo "needs yq on the machine running the case" >&2; exit 1; }
 mkdir -p "$TMPDIR/tools" && ln -sf "$YQ" "$TMPDIR/tools/yq" && export PATH="$PATH:$TMPDIR/tools"
@@ -58,3 +58,7 @@ expect_error "$BASE" "no spec file" "lists no *.yaml"
 git checkout -q -b real "$BASE"
 git rm -q claude-mock/e2e/x_test.go; c "the proof is gone"
 expect_fail "$BASE" "a real finding" "no test carries // sr:proves x/claude"
+
+# recovery: the proof is back, and the same range passes
+mkdir -p claude-mock/e2e && printf 'package e2e\n\n// sr:proves x/claude\nfunc TestX() {}\n// restored\n' > claude-mock/e2e/x_test.go; c "the proof is restored"
+expect_passed "$BASE" "the proof was restored"
