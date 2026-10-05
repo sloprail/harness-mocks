@@ -14,6 +14,7 @@ providers:
       - claude-mock/snapshots/runs/hook-timeout
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock defines and fires none of the PreModelSwitch,
           PostModelSwitch and MessageDisplay events, so the shorter default
@@ -22,6 +23,7 @@ providers:
           mcp_tool hook handler is not implemented either, so a timed-out
           mcp_tool hook's cancellation and discarded output are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A timed-out PreToolUse hook lets the call fall through to the normal
           permission flow. The mock models a non-interactive run with no
@@ -34,6 +36,7 @@ providers:
       - codex-mock/snapshots/runs/hook-timeout
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Codex also gives the Interrupt event a default of 1 second, capped at 3, but the mock fires no Interrupt event (a non-interactive run has nothing to interrupt), so that default is not modeled.
   cursor:
@@ -44,6 +47,7 @@ providers:
       - cursor-mock/snapshots/runs/hook-timeout-early-output
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           A hook configured with failClosed does not let the event carry on
           when it times out: Cursor blocks the action instead (recorded: a

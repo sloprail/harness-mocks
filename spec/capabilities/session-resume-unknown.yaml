@@ -16,6 +16,7 @@ providers:
       - codex-mock/snapshots/runs/session-resume-unknown
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex fails the resume before it starts any session, so no hook
           fires at all: the end-of-session hook the statement has does not

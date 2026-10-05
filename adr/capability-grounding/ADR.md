@@ -37,10 +37,27 @@ quirks.
   disagree, what the real harness was recorded doing is what it does. A cell
   is supported when its recordings show the behaviour, whatever a doc says
   elsewhere, and unsupported when its recordings show the behaviour not
-  happening, even where a doc describes it.
+  happening, even where a doc describes it. The disagreement is not left
+  silent: the cell discloses it as a `deviations` entry that starts "Doc and
+  recording conflict:", names the doc section, quotes its sentence and says
+  what the recording shows.
+- A supported cell's deviations never negate the statement's defining clause,
+  the part without which the harness would not be said to provide the
+  capability. A cell whose deviations say the harness does not do that part
+  is `supported: false`, grounded by the evidence of the absence.
 - Adding or removing a capability, or changing its `statement`, carries the
   user's words on its commit (`Sloprail-Cites-User`): the statement is the
   capability the user wants implemented.
-- A cell's `deviations` need no user words: they are found empirically or
-  follow from other ADRs (e.g. a mock does not wait out a 5-minute background
-  limit, so e2e stays fast).
+- Every `deviations` entry has a `kind`: `mock-not-modeled` (the mock leaves
+  out something the real harness does) or `harness-lacks` (the harness itself
+  differs from the statement, shown by a cited doc or recording, including the
+  "Doc and recording conflict:" entry). The schema requires it. A
+  `harness-lacks` deviation cites at least one doc or recorded run in its cell
+  (`capability-grounded/harness-lacks-cited.sh`).
+- Adding or changing a `mock-not-modeled` deviation carries the user's words
+  on its commit (`Sloprail-Cites-User`) like a statement: what a mock does not
+  model is the user's call. So does a cell turning `supported: false` without a
+  cited recording. A `harness-lacks` deviation, and a `supported: false` cell
+  with a recording that shows the harness not doing it, need no quote: the
+  recording grounds them. This is decided by a script
+  (`capability-grounded/added-or-removed.sh`), not by a judge.

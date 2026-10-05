@@ -14,6 +14,7 @@ providers:
       - claude-mock/snapshots/runs/nested-fork-limit
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A fork (the fork sub-agent type, on by default in interactive
           sessions and opt-in with CLAUDE_CODE_FORK_SUBAGENT in print mode)
@@ -32,6 +33,7 @@ providers:
       - codex-mock/snapshots/runs/nested-subagents-nowait
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           The statement's three layers and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
           are Claude Code's. Codex's depth limit is the config key
@@ -47,6 +49,7 @@ providers:
           sidecar, and all the session's rollouts, sub-agents' included, sit in
           the one day directory under sessions/.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no separate wait tool: its spawn_agent runs the
           sub-agent to its end and answers with what a wait would, unless the
@@ -66,6 +69,7 @@ providers:
       - cursor-mock/snapshots/runs/nested-subagents-background
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor records neither a sub-agent's depth nor its parent: its
           transcript is a file like the main agent's, agent-transcripts/<id>/<id>.jsonl
@@ -74,6 +78,7 @@ providers:
           report its own conversation id as their session (recorded:
           runs/nested-subagents). The mock does the same.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           The statement's three layers and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
           are Claude Code's. Cursor's limit is two layers of sub-agents and has
@@ -82,6 +87,7 @@ providers:
           rather than a dispatch ending in an error. The mock answers a Task
           call there as an unknown tool and nests two layers.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The Await tool, which the recorded main agent used to collect the
           background sub-agent a sub-agent launched, is not implemented: the

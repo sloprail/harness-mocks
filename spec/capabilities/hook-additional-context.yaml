@@ -31,6 +31,7 @@ providers:
       - cursor-mock/snapshots/runs/additional-context
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models a tool failing by an error or by a refusal, not by
           a timeout, so the postToolUseFailure hook's failure_type "timeout"

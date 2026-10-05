@@ -14,12 +14,14 @@ providers:
       - claude-mock/snapshots/runs/transcript-retention
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The sub-agents doc describes resuming a finished sub-agent by
           messaging it (SendMessage), which continues the same transcript file.
           The mock does not model SendMessage or sub-agent resume: a sub-agent
           runs once, writes its one file and sidecar, and is not continued.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           The docs say sub-agent transcripts are deleted with their session once
           it is older than cleanupPeriodDays. In the recorded print-mode run, a
@@ -34,6 +36,7 @@ providers:
       - codex-mock/snapshots/runs/subagent-transcripts-v2
     deviations:
       - adr: capability-grounding
+        kind: mock-not-modeled
         statement: >-
           Codex keeps no sidecar file: the sub-agent's rollout is a file beside
           the session's (same day directory, named by the sub-agent's own thread
@@ -44,6 +47,7 @@ providers:
           (recorded: runs/subagent-transcripts-v2). The mock does the same, but
           leaves the agent path null.
       - adr: capability-grounding
+        kind: mock-not-modeled
         statement: >-
           Codex records the sub-agent's final answer in the session's rollout,
           as a message from the sub-agent (recorded: runs/subagent-transcripts-v2);
@@ -55,6 +59,7 @@ providers:
       - cursor-mock/snapshots/runs/subagent-transcripts
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor keeps no sidecar: nothing names the sub-agent's type, the call
           that spawned it or its depth. Its transcript is a conversation of its
@@ -63,6 +68,7 @@ providers:
           frame on the stream, which gives that id as the result's agentId
           (recorded: runs/subagent-transcripts). The mock does the same.
       - adr: modeled-surface
+        kind: harness-lacks
         statement: >-
           The subagentStart and subagentStop hooks are not fired for the
           sub-agent.

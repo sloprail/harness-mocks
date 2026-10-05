@@ -28,6 +28,7 @@ providers:
       - codex-mock/snapshots/runs/hook-matchers
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not hand a background-task notification to the agent, so
           its UserPromptSubmit hook does not fire for one: recorded, the hook

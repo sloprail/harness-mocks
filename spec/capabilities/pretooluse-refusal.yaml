@@ -14,6 +14,7 @@ providers:
       - claude-mock/snapshots/runs/stops
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models a non-interactive run that no SDK host resumes, so a hook's "ask" (a permission prompt) and "defer" (pausing
           the call to resume later) decide nothing in the mock; they only rank
@@ -28,6 +29,7 @@ providers:
       - codex-mock/snapshots/runs/pretool-decisions
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock's tool executor handles only the shell tool (hooks name it
           Bash), so a refusal of apply_patch, of MCP tools and of Codex's other
@@ -44,6 +46,7 @@ providers:
       - cursor-mock/snapshots/runs/pretool-refusal-combined
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models a non-interactive run with no one to ask, so a hook's
           "ask" (a permission prompt) decides nothing in the mock; it only ranks
@@ -52,6 +55,7 @@ providers:
           beforeMCPExecution, beforeReadFile and subagentStart, which refuse
           too, are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A deny's agent_message, which the docs say is fed back to the agent as
           the refusal, is not read: the mock has no model to receive it, and the

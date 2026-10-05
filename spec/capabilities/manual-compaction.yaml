@@ -11,11 +11,13 @@ providers:
       - claude-mock/snapshots/runs/compact-nohooks
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           /compact is a slash command, and no mock parses one: a scenario's compact
           control record requests the compaction, so PreCompact's custom_instructions
           is always null and the text a user passes after /compact is not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no API and no context window, so it never compacts by
           itself and never meets a context-limit error: an automatic compaction is
@@ -34,6 +36,7 @@ providers:
       - codex-mock/snapshots/runs/manual-compaction-slash
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           A non-interactive run cannot request a compaction: the real codex exec
           sends /compact to the model as ordinary prompt text, and no hook fires
@@ -43,6 +46,7 @@ providers:
           (runs/manual-compaction-auto); the docs name the trigger "manual" for
           the /compact command of an interactive session, which no run shows.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           /compact is a slash command, and no mock parses one: a scenario script
           requests the compaction with a compact control record naming the

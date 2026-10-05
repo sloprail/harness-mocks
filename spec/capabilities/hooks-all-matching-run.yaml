@@ -23,6 +23,7 @@ providers:
       - codex-mock/snapshots/runs/hooks-all-matching-run-same-hook-two-files
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           When several hooks block one call, Codex acts on neither the one that
           finishes last nor a merge: it acts on the first in configuration
@@ -31,6 +32,7 @@ providers:
           either order, and the reason told is the first configured's), and the
           mock does the same.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not run a hook configured in several settings files once:
           the same command in the user layer's and the project layer's
@@ -38,6 +40,7 @@ providers:
           runs/hooks-all-matching-run-same-hook-two-files), and the mock does
           the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock reads hooks only from the user's and the project's
           hooks.json: the inline [hooks] tables of config.toml (user and
@@ -52,6 +55,7 @@ providers:
       - cursor-mock/snapshots/runs/hooks-all-matching-run-same-hook-two-sources
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor does not run a hook configured in several sources once: the
           same command in the user's ~/.cursor/hooks.json and the project's
@@ -60,6 +64,7 @@ providers:
           all matching hooks from every source run. The mock reads only the
           project source (below), so it runs such a hook once.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock reads only the project's .cursor/hooks.json: the user, team
           and enterprise sources, and so a hook configured in more than one, are

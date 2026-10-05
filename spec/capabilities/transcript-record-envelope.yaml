@@ -1,8 +1,8 @@
 statement: >-
-  Every conversation record in a transcript (user, assistant, attachment and
-  system records) carries the bookkeeping a reader relies on: session, working
-  directory, branch, timestamp, version and how the run
-  was launched; a prompt given to a non-interactive run is marked as such.
+  A transcript carries the bookkeeping a reader relies on: session, working
+  directory, branch, timestamp, version and how the run was launched, so that
+  a prompt given to a non-interactive run is told from a typed one; the
+  harness stamps it on every record or once, on the transcript's first.
 providers:
   claude:
     docs:
@@ -12,31 +12,27 @@ providers:
       - claude-mock/snapshots/runs/midturn
       - claude-mock/snapshots/runs/bgagent
   codex:
+    notes:
+      - >-
+        Codex does not stamp the bookkeeping on every record: only the rollout's
+        first record (session_meta) carries the session id, start time, working
+        directory, git branch, version and how the run was launched (originator and
+        source "exec"); every record carries just its timestamp (recorded:
+        runs/session-transcript-file). The mock does the same.
+      - >-
+        Codex repeats the working directory on each turn's turn_context record, a
+        record of its own beside the conversation's (recorded:
+        runs/session-transcript-file); beyond that the first record is the only one
+        that names it.
+      - >-
+        Codex does not mark the prompt record of a non-interactive run: the user
+        message is the same as a typed one, and the run's mode is only the
+        session_meta's source "exec" (recorded: runs/session-transcript-file). The
+        mock does the same.
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields
     runs:
       - codex-mock/snapshots/runs/session-transcript-file
-    deviations:
-      - adr: capability-grounding
-        statement: >-
-          Codex does not stamp the bookkeeping on every record: only the
-          rollout's first record (session_meta) carries the session id, start
-          time, working directory, git branch, version and how the run was
-          launched (originator and source "exec"); every record carries just
-          its timestamp (recorded: runs/session-transcript-file). The mock does
-          the same.
-      - adr: capability-grounding
-        statement: >-
-          Codex repeats the working directory on each turn's turn_context
-          record, a record of its own beside the conversation's
-          (recorded: runs/session-transcript-file); beyond that the first
-          record is the only one that names it.
-      - adr: capability-grounding
-        statement: >-
-          Codex does not mark the prompt record of a non-interactive run: the
-          user message is the same as a typed one, and the run's mode is only
-          the session_meta's source "exec" (recorded: runs/session-transcript-file).
-          The mock does the same.
   cursor:
     supported: false
     reason: >-

@@ -1,7 +1,7 @@
 statement: >-
   A background command started inside a foreground sub-agent is terminated
-  when that sub-agent gives its final response, and the command's receipt says
-  so.
+  when that sub-agent gives its final response, and the harness says so: in
+  the command's receipt, or by reporting its end afterwards.
 providers:
   claude:
     docs:
@@ -14,21 +14,21 @@ providers:
     runs:
       - codex-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
   cursor:
+    notes:
+      - >-
+        Cursor's receipt for the background command does not say it is terminated at
+        the sub-agent's final response: it is only the shell and its process
+        ({"shell_id", "pid"}). That the command ended is reported afterwards, as a
+        task_notification frame on the stream whose status is "aborted" (recorded:
+        runs/foreground-subagent-bash-ends-with-response), and the mock does the
+        same.
     docs:
       - https://cursor.com/docs/hooks#subagentstop
     runs:
       - cursor-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
     deviations:
-      - adr: capability-grounding
-        statement: >-
-          Cursor's receipt for the background command does not say it is
-          terminated at the sub-agent's final response: it is only the shell
-          and its process ({"shell_id", "pid"}). That the command ended is
-          reported afterwards, as a task_notification frame on the stream
-          whose status is "aborted" (recorded:
-          runs/foreground-subagent-bash-ends-with-response), and the mock does
-          the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock dispatches a sub-agent only from a Task call that carries a
           mock-only script playing it, and always in the foreground (a Task that

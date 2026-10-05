@@ -14,6 +14,7 @@ providers:
       - codex-mock/snapshots/runs/bg-bash-reaped-at-exit
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The recorded model started its command through Codex's script tool
           (exec calling exec_command), and the rollout notes the terminated

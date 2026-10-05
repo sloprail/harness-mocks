@@ -28,6 +28,7 @@ providers:
       - codex-mock/snapshots/runs/pretool-decisions
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex records less than the statement says: a hook that fails
           without blocking (exit 1, a failure at SessionStart) and a hook

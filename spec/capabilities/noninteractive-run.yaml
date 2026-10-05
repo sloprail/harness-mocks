@@ -24,6 +24,7 @@ providers:
       - codex-mock/snapshots/runs/noninteractive-run-output-schema
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock refuses -o/--output-last-message, --output-schema,
           --ignore-user-config, --ignore-rules, the deprecated --full-auto and
@@ -42,6 +43,7 @@ providers:
           only: reasoning, file changes, MCP tool calls, web searches and plan
           updates are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Without --json the mock prints Codex's progress on stderr (banner with
           release, directory, model and session; the prompt; the notices; each
@@ -52,6 +54,7 @@ providers:
           configuration the mock does not have, the stdin notice, or a line per
           hook run.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock refuses --ephemeral (it always writes the session's rollout
           file), and reads no piped stdin: a
@@ -68,7 +71,15 @@ providers:
       - cursor-mock/snapshots/runs/noninteractive-no-force
       - cursor-mock/snapshots/runs/noninteractive-force-write
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the headless doc (#how-it-works) says
+          "Without --force, changes are only proposed, not applied", and the
+          recording shows a file write applied without --force
+          (runs/noninteractive-no-force). The recording decides.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Without --force or --yolo the mock rejects every shell command, run
           unprompted, and applies every file write, the two outcomes recorded
@@ -78,6 +89,7 @@ providers:
           read-only commands) is not modeled, nor a background command's
           rejection, which is the same as any other command's.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The recorded streams (runs/pretool-refusal, runs/noninteractive-no-force)
           carry thinking frames: "delta" frames with a piece of the model's
@@ -87,6 +99,7 @@ providers:
           them. Its stream is the system init, the prompt, the tool-call frames
           and the result, the same as the recorded sequence without those frames.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models only the stream-json output format. The docs' default
           text format (the final answer only), the json format and

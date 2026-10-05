@@ -24,6 +24,7 @@ providers:
       - codex-mock/snapshots/runs/file-tools-failure
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex has no tool to read a file and none to write one whole: the
           agent reads through the shell (sed, cat), which returns the file's
@@ -37,6 +38,7 @@ providers:
           that updates a missing file is an error told to the agent, and writes
           nothing, and fires PreToolUse but no PostToolUse.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock applies the three file sections of a patch (Add File, Update
           File with its hunks, Delete File) and no more: it does not model
@@ -51,6 +53,7 @@ providers:
       - cursor-mock/snapshots/runs/tool-failure
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Cursor fires a beforeReadFile hook on each Read, carrying the file's
           path and content (recorded in runs/file-tools); the mock does not

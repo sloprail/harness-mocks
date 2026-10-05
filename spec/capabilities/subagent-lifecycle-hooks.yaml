@@ -23,12 +23,14 @@ providers:
       - codex-mock/snapshots/runs/subagent-start-refused
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's stop hook payload does not list the session's background tasks: it carries
           the sub-agent's agent_transcript_path and last_assistant_message, and
           no field naming the session's tasks (recorded:
           runs/subagent-lifecycle-hooks), so the mock lists none either.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock reads nothing a SubagentStop hook answers: Codex's docs let
           it block (decision block, or exit 2) to continue the sub-agent, with

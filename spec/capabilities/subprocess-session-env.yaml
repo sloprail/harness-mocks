@@ -15,6 +15,7 @@ providers:
       - claude-mock/snapshots/runs/nested-session-env
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no interactive session (no /clear, status line command
           or tmux sessions), no PowerShell tool and no Monitor tool, so the
@@ -28,6 +29,7 @@ providers:
       - codex-mock/snapshots/runs/nested-session-env
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no interactive session (no /clear, which changes the
           session id in Codex) and its tool executor runs every command with

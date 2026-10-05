@@ -52,7 +52,6 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 // final response the last), its agent id, that it did not run in the background
 // and how long it took (recorded: runs/foreground-subagent-result).
 //
-// sr:provides foreground-subagent-bash-ends-with-response/cursor
 // sr:provides foreground-subagent-result/cursor
 // sr:docs https://cursor.com/docs/hooks#subagentstop
 func (s *session) runSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) {

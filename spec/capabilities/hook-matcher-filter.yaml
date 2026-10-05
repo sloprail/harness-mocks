@@ -11,6 +11,7 @@ providers:
       - claude-mock/snapshots/runs/matcher
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock defines only the events named in
           claude-mock/internal/hooks/event.go (SessionStart, SessionEnd, Stop,
@@ -27,6 +28,7 @@ providers:
       - codex-mock/snapshots/runs/hook-matcher-omitted
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock fires no PermissionRequest, PreCompact, PostCompact,
           SubagentStart or SubagentStop event and has no MCP tools or
@@ -44,6 +46,7 @@ providers:
       - cursor-mock/snapshots/runs/hook-matchers-after-events
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock fires only the events it fires (sessionStart, sessionEnd,
           preToolUse, postToolUse, postToolUseFailure, beforeShellExecution,
