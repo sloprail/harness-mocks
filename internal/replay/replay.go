@@ -21,6 +21,12 @@ const (
 	ToolShell = "shell"
 	// ToolSpawn starts a sub-agent: Input "message" (string), and Call.Sub is the sub-agent's turns.
 	ToolSpawn = "spawn_agent"
+	// ToolAnswer is the end of a turn, the model's answer with no call: Input "text" (string).
+	ToolAnswer = "answer"
+	// ToolReadFile reads a file: Input "path" (string); other options of the harness's tool as given.
+	ToolReadFile = "read_file"
+	// ToolWriteFile writes a file whole: Input "path" and "content" (strings).
+	ToolWriteFile = "write_file"
 )
 
 // Call is one tool call the model made.
@@ -29,10 +35,13 @@ type Call struct {
 	Tool  string
 	Input map[string]any
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
+	// SameTurn: the model made this call in the same response as the previous one.
+	SameTurn bool
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in
-// order, then its final answer.
+// order, then its final answer; an answer a continued turn gave sits among the
+// calls (ToolAnswer).
 type Agent struct {
 	Calls []Call
 	Final string
@@ -63,16 +72,6 @@ type Adapter interface {
 	// mock's, each normalised the same way. A mock that fails is a *MockFailure.
 	Replay(mock string, rec Recording) (want, got Observed, err error)
 }
-
-// Unbuildable says what of a recording an adapter cannot reproduce yet.
-type Unbuildable struct{ Reason string }
-
-func (u *Unbuildable) Error() string { return u.Reason }
-
-// MockFailure is a mock that did not run to the end.
-type MockFailure struct{ Detail string }
-
-func (m *MockFailure) Error() string { return "the mock failed: " + m.Detail }
 
 // Run replays the recording in runDir through a and returns what differs;
 // empty is a green replay.
