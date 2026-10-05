@@ -90,8 +90,13 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		UserMessage string `json:"user_message"`
 	}
 	// What counts as JSON output is the core's; the fields read from it are Cursor's.
-	if !corehooks.IsJSONOutput(out, isOutputField) || json.Unmarshal([]byte(out), &p) != nil || !validPermission(p.Permission) {
+	if !corehooks.IsJSONOutput(out, isOutputField) || json.Unmarshal([]byte(out), &p) != nil {
 		return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned invalid JSON. The command was blocked for safety.", h.Command)}
+	}
+	// JSON whose permission is not one of Cursor's is worded differently
+	// (recorded: runs/before-read-refusal, {"permission":"maybe"})
+	if !validPermission(p.Permission) {
+		return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned an invalid response for this hook step. The command was blocked for safety.", h.Command)}
 	}
 	return Decision{Permission: p.Permission, Message: p.UserMessage}
 }
