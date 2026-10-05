@@ -1,95 +1,43 @@
 package replay
 
 import (
-	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
-
-	"go.yaml.in/yaml/v3"
+	"github.com/sloprail/harness-mocks/internal/replay/replaytest"
 )
 
-// notAbout are the places a capability cell's codex text uses a word the replay
-// drops from the comparison, and why that is not the cell's behaviour being left
-// out ("cell/key": reason). An entry the cells no longer need fails the test, so
-// the list only shrinks. Every entry is prose or a banner, never a key the cell is about.
-var notAbout = map[string]string{
-	"agent-input-validation/model":          "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"background-bash-reaped-at-exit/model":  "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"background-bash/model":                 "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"file-tools/model":                      "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"manual-compaction/model":               "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"plugin-hooks/model":                    "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"session-start-hook/model":              "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"subagent-lifecycle-hooks/model":        "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"task-stream-frames/model":              "prose: the model is the LLM the mock stands in for, not the payload's model key",
-	"noninteractive-run/model":              "the text-mode banner printed on stderr, not the event stream's model key",
-	"background-agent/script":               "prose: the scenario script the mock plays, not a script key",
-	"background-bash-reaped-at-exit/script": "prose: the scenario script the mock plays, not a script key",
-	"foreground-subagent-result/script":     "prose: the scenario script the mock plays, not a script key",
-	"manual-compaction/script":              "prose: the scenario script the mock plays, not a script key",
-	"session-fork/script":                   "prose: the scenario script the mock plays, not a script key",
-	"task-stream-frames/script":             "prose: the scenario script the mock plays, not a script key",
+// excuses are the occurrences of a dropped key's word in the cells' codex text
+// that are prose, not the key (see replaytest.Excuse). Filled in below.
+var excuses = []replaytest.Excuse{
+	{Cell: "agent-input-validation", Key: "model", Text: "does not model the items form", Why: "prose: 'model' is a verb (the mock does not model it), not the payload's model key"},
+	{Cell: "background-agent", Key: "script", Text: "driven by the scenario script it is given", Why: "prose: the scenario script the mock plays, not a script key"},
+	{Cell: "background-bash-reaped-at-exit", Key: "model", Text: "the recorded model started its command", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
+	{Cell: "background-bash-reaped-at-exit", Key: "script", Text: "through codex's script tool", Why: "prose: the scenario script the mock plays, not a script key"},
+	{Cell: "background-bash", Key: "model", Text: "does not model polling a running command", Why: "prose: 'model' is a verb (the mock does not model it), not the payload's model key"},
+	{Cell: "file-tools", Key: "model", Text: "does not model moving a file", Why: "prose: 'model' is a verb (the mock does not model it), not the payload's model key"},
+	{Cell: "foreground-subagent-result", Key: "script", Text: "no wait_agent call of the script is modelled", Why: "prose: the scenario script the mock plays, not a script key"},
+	{Cell: "manual-compaction", Key: "model", Text: "sends /compact to the model as ordinary prompt text", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
+	{Cell: "manual-compaction", Key: "script", Text: "a scenario script requests the compaction", Why: "prose: the scenario script the mock plays, not a script key"},
+	{Cell: "noninteractive-run", Key: "model", Text: "it has no model, so the final message", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
+	{Cell: "noninteractive-run", Key: "model", Text: "it calls no model and has no failing turn", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
+	{Cell: "noninteractive-run", Key: "model", Text: "directory, model and session; the prompt", Why: "the text-mode banner printed on stderr, not the event stream's model key"},
+	{Cell: "plugin-hooks", Key: "model", Text: "does not model a plugin's install", Why: "prose: 'model' is a verb (the mock does not model it), not the payload's model key"},
+	{Cell: "session-fork", Key: "script", Text: "so a script cannot read the earlier conversation", Why: "prose: the scenario script the mock plays, not a script key"},
+	{Cell: "session-start-hook", Key: "model", Text: "or model request after it", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
+	{Cell: "subagent-lifecycle-hooks", Key: "model", Text: "the mock does not model. only the stop hook's", Why: "prose: 'model' is a verb (the mock does not model it), not the payload's model key"},
+	{Cell: "task-stream-frames", Key: "model", Text: "the mock runs no model", Why: "prose: the model is the LLM the mock stands in for, not the payload's model key"},
+	{Cell: "task-stream-frames", Key: "script", Text: "the scenario script the spawn_agent call names", Why: "prose: the scenario script the mock plays, not a script key"},
 }
 
 // The codex replay drops a key from both sides only if no capability cell is
-// about it: each cell's statement and its codex deviations (the text a cell says
-// its behaviour in) are searched for every dropped key, bar the places notAbout
-// explains.
+// about it: everything a cell says for codex is searched, whatever the case, for
+// each dropped key, bar the occurrences excuses explains.
 // sr:proves replay-fidelity
 func TestNoCellNamesWhatTheCodexReplayDrops(t *testing.T) {
-	keys := Rules("", "").DropKeys
-	sort.Strings(keys)
-	cells, err := filepath.Glob(filepath.Join("..", "..", "..", "spec", "capabilities", "*.yaml"))
-	if err != nil || len(cells) == 0 {
-		t.Fatalf("no capability cells found: %v", err)
-	}
-	used := map[string]bool{}
-	for _, path := range cells {
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var cell struct {
-			Statement string
-			Providers map[string]any
-		}
-		if err := yaml.Unmarshal(raw, &cell); err != nil {
-			t.Fatalf("%s: %v", path, err)
-		}
-		codex, _ := cell.Providers["codex"].(map[string]any)
-		if codex == nil {
-			continue
-		}
-		text := cell.Statement
-		devs, _ := codex["deviations"].([]any)
-		for _, d := range devs {
-			if m, ok := d.(map[string]any); ok {
-				s, _ := m["statement"].(string)
-				text += " " + s
-			}
-		}
-		name := strings.TrimSuffix(filepath.Base(path), ".yaml")
-		for _, k := range keys {
-			if !regexp.MustCompile(`(^|[^A-Za-z_])` + regexp.QuoteMeta(k) + `($|[^A-Za-z_])`).MatchString(text) {
-				continue
-			}
-			if _, ok := notAbout[name+"/"+k]; ok {
-				used[name+"/"+k] = true
-				continue
-			}
-			t.Errorf("the cell %s names %q, which the codex replay drops from the comparison: scrub it to a placeholder (the key stays), or explain in notAbout", name, k)
-		}
-	}
-	for k := range notAbout {
-		if !used[k] {
-			t.Errorf("notAbout lists %s, which no cell needs: remove it", k)
-		}
-	}
+	replaytest.NoCellNames(t, filepath.Join("..", "..", ".."), "codex", Rules("", "").DropKeys, excuses)
 }
 
 // A value that differs per run and is about a cell's presence (a working
