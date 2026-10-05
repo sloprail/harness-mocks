@@ -59,7 +59,12 @@ func captureAll(t *testing.T, harness, pin, installedAs, banner string) (string,
 		t.Fatal(err)
 	}
 	cmd := exec.Command("bash", filepath.Join(snap, "capture.sh"), "run", "x")
-	cmd.Env = append(os.Environ(), "HARNESS_BIN_CACHE="+cache)
+	// codex's capture.sh checks for a login before it looks at the binary; a runner has none.
+	auth := filepath.Join(t.TempDir(), "auth.json")
+	if err := os.WriteFile(auth, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd.Env = append(os.Environ(), "HARNESS_BIN_CACHE="+cache, "CODEX_AUTH_JSON="+auth)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
