@@ -64,6 +64,19 @@ func TestActedBlockIsTheLastToFinish(t *testing.T) {
 	}
 }
 
+// Two blockers that finish together have no order of their own: the one
+// configured last is acted on, whichever the scheduler finished first.
+func TestActedBlockOfBlockersThatFinishTogetherIsTheLastConfigured(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		out := RunAll(context.Background(), []Command{
+			{Line: `echo A >&2; exit 2`}, {Line: `echo B >&2; exit 2`}, {Line: "exit 0"},
+		}, nil, rt)
+		if idx, ok := ActedBlock(out, false); !ok || idx != 1 {
+			t.Fatalf("run %d: ActedBlock = (%d, %v), want (1, true)", i, idx, ok)
+		}
+	}
+}
+
 func TestActedBlockNoneBlocked(t *testing.T) {
 	out := RunAll(context.Background(), []Command{{Line: "exit 0"}, {Line: "exit 1"}, {Line: "exit 3"}}, nil, rt)
 	if _, ok := ActedBlock(out, false); ok {
