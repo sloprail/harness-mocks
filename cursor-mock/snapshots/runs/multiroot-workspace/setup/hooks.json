@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/hook.sh" }],
+    "preToolUse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "beforeShellExecution": [{ "command": ".cursor/hooks/hook.sh" }],
+    "afterShellExecution": [{ "command": ".cursor/hooks/hook.sh" }],
+    "postToolUse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "stop": [{ "command": ".cursor/hooks/hook.sh" }],
+    "sessionEnd": [{ "command": ".cursor/hooks/hook.sh" }]
+  }
+}
