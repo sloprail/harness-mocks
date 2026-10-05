@@ -7,13 +7,12 @@ sloprails: [file-guard/adr-conformance]
 
 ## Concern
 
-How many recorded-run replays of a mock (the replay core's `Run`, which the
-codex and claude replays go through) run at once. A recording's hooks run under
-wall-clock limits (SessionEnd's default is one second), which a machine loaded by
-many replays at once makes a mock miss, though the mock is right.
+How many recorded-run replays of a mock run at once. A recording's hooks run
+under wall-clock limits (SessionEnd's default is one second), which a machine
+loaded by many replays at once makes a mock miss, though the mock is right.
 
 ## Decision
 
-- Replays run with limited concurrency so hook timeouts are not hit under load.
-- The limit is held by the replay core (`internal/replay`): its `Run` takes a
-  slot before a replay and gives it back after, for every mock.
+- Replays run with limited concurrency so hook timeouts are not hit under load:
+  the replay core's `Run` (`internal/replay`) holds one of at most
+  `min(max(NumCPU/2, 1), 4)` process-wide slots for each replay, for every mock.
