@@ -81,12 +81,12 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		return want, got, err
 	}
 	for name, body := range s.Files {
-		if err := os.WriteFile(filepath.Join(repo, name), []byte(body), 0o755); err != nil {
+		if err := os.WriteFile(filepath.Join(repo, name), []byte(inRepo(name, body, repo)), 0o755); err != nil {
 			return want, got, err
 		}
 	}
 	script := filepath.Join(root, "scenario.sh")
-	if err := os.WriteFile(script, []byte(s.Script), 0o755); err != nil {
+	if err := os.WriteFile(script, []byte(strings.ReplaceAll(s.Script, runPlaceholder, repo)), 0o755); err != nil {
 		return want, got, err
 	}
 
@@ -123,4 +123,14 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	sort.Strings(want.Hooks)
 	sort.Strings(got.Hooks)
 	return want, got, nil
+}
+
+// inRepo is a file the replay writes into the repository, with the run's directory where the
+// scenario has the placeholder: a sub-agent's script holds calls, the run's own hook script is
+// not ours to edit.
+func inRepo(name, body, repo string) string {
+	if name == "hook.sh" {
+		return body
+	}
+	return strings.ReplaceAll(body, runPlaceholder, repo)
 }

@@ -8,7 +8,6 @@ package e2e
 // "untriaged:" is a replay that differs and has not been looked at (the mock,
 // the adapter or the recording may be wrong).
 var notReplaying = map[string]string{
-	"agent-input-validation":                      "untriaged: the replay differs from the recording (hook payloads: recording 2 lines, mock 1, first difference at line 1)",
 	"agent-input-validation-spawn":                "untriaged: the replay differs from the recording (hook payloads: recording 5 lines, mock 3, first difference at line 1)",
 	"background-agent":                            "untriaged: the replay differs from the recording (event stream: recording 11 lines, mock 9, first difference at line 6)",
 	"bg-bash-reaped-at-exit":                      "adapter: an exec_command whose cmd is not a string literal",
@@ -45,5 +44,4 @@ var notReplaying = map[string]string{
 	"subagent-worktree-isolation":                 "untriaged: the replay differs from the recording (hook payloads: recording 4 lines, mock 3, first difference at line 1)",
 	"subprocess-session-env":                      "untriaged: the replay differs from the recording (event stream: recording 8 lines, mock 8, first difference at line 5)",
 	"task-stream-frames":                          "adapter: the model called tools.write_stdin: the adapter maps exec_command and spawn_agent",
-	"user-prompt-submit-hook-bg":                  "untriaged: the replay differs from the recording (event stream: recording 7 lines, mock 8, first difference at line 6)",
 }

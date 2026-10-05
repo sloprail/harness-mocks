@@ -26,6 +26,10 @@ type modelCall struct {
 	Input map[string]any `json:"input"`
 }
 
+// runPlaceholder stands, in the scenario's calls, for the repository the mock runs
+// in, which the replay's own directory replaces; the recording has it as <RUN>.
+const runPlaceholder = "@RUN@"
+
 // Denormalize turns the unified recording into the mock's scenario: the
 // unified tools go back to the mock's names, and each sub-agent's turns become
 // a script file of their own.
@@ -63,6 +67,9 @@ func mockCall(c core.Call) modelCall {
 	}
 	in := make(map[string]any, len(c.Input)+1)
 	for k, v := range c.Input {
+		if s, ok := v.(string); ok { // the run's own directory: the recording has it as <RUN>
+			v = strings.ReplaceAll(s, "<RUN>", runPlaceholder)
+		}
 		in[k] = v
 	}
 	return modelCall{Text: c.Said, Name: name, Input: in}
