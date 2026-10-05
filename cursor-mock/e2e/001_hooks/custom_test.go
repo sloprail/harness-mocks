@@ -95,12 +95,14 @@ func TestAHookCommandRunsThroughTheShellInTheProjectRootWithThePayloadOnStdin(t 
 // TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart:
 // recorded, the transcript is .cursor/projects/<workspace path with every
 // non-alphanumeric character as "-">/agent-transcripts/<session>/<session>.jsonl;
-// the start hook's payload has no transcript path, and the payloads from the
-// first command's afterShellExecution on have it (runs/symlinked-cwd: whether
-// the hooks before it do varies from one capture to the next).
+// the start hook's payload and the first preToolUse's have no transcript path,
+// and the payloads from the first command's afterShellExecution on have it; in
+// between, the first beforeShellExecution's varies from one capture to the
+// next (named in runs/tool-failure, runs/symlinked-cwd, null in
+// runs/shell-exit-status, runs/hook-json-nonzero), and the mock names it there.
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *testing.T) {
-	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
+	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"preToolUse":[{"command":"cat > \"$HOOK_LOG.pre\""}],"beforeShellExecution":[{"command":"cat > \"$HOOK_LOG.before\""}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
 	path, session := c.transcript(t)
 	project := strings.NewReplacer("/", "-", ".", "-", "_", "-").Replace(strings.TrimPrefix(c.ws, "/"))
 	require.Equal(t, filepath.Join(c.home, ".cursor", "projects", project, "agent-transcripts", session, session+".jsonl"), path)
@@ -109,6 +111,10 @@ func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *te
 	require.Contains(t, string(start), `"transcript_path":null`)
 	tree, _ := os.ReadFile(c.log + ".tree")
 	require.NotContains(t, string(tree), session+".jsonl", "the file does not exist yet when the start hook runs")
+	pre, _ := os.ReadFile(c.log + ".pre")
+	require.Contains(t, string(pre), `"transcript_path":null`, "the first preToolUse names no transcript")
+	before, _ := os.ReadFile(c.log + ".before")
+	require.Contains(t, string(before), `"transcript_path":"`+path+`"`, "the mock names it at the first beforeShellExecution")
 	require.Contains(t, c.logged(t), `"transcript_path":"`+path+`"`)
 }
 
