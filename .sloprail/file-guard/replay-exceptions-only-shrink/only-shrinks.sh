@@ -31,6 +31,13 @@ ranks() {
     sed -n 's/^[[:space:]]*"\([^"]*\)":[[:space:]]*"\(.*\)",\{0,1\}$/\1\t\2/p' |
     awk -F'\t' '{ r = 2; if ($2 ~ /^flaky:/) r = 0; else if ($2 ~ /^untriaged:/) r = 1; print $1 "\t" r }' | sort -u
 }
+# malformed TEXT: the lines of the map that are not blank, a whole-line comment or one
+# "run": "reason", entry; such a line (a trailing comment, a raw string, a value on two lines)
+# hides an entry from the comparison, so it is refused instead of read
+malformed() {
+  printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{$/,/^}$/p' | sed '1d;$d' |
+    grep -vE '^[[:space:]]*($|//|"[^"]*":[[:space:]]*"([^"\\]|\\.)*",$)'
+}
 tab="$(printf '\t')"
 rank_name() { case "$1" in 0) printf 'flaky:' ;; 1) printf 'untriaged:' ;; *) printf 'a triaged reason' ;; esac; }
 
@@ -47,8 +54,10 @@ while [ "$i" -lt "$count" ]; do
     refuse "could not read the base of $path from the changeset, so it could not be checked"
   new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
     refuse "could not read $path from the changeset, so it could not be checked"
-  printf '%s\n' "$new" | grep -q '^var notReplaying = map\[string\]string{' ||
+  printf '%s\n' "$new" | grep -qx 'var notReplaying = map\[string\]string{' ||
     refuse "$path: the notReplaying map could not be found; keep it as 'var notReplaying = map[string]string{' with one \"run\": \"reason\" per line"
+  bad="$(malformed "$new")"
+  [ -z "$bad" ] || refuse "$path: a notReplaying line is not one \"run\": \"reason\", entry, so the list could not be compared (a line this rule cannot read would hide an entry): $(printf '%s' "$bad" | head -n 1)"
   added="$(comm -13 <(keys "$old") <(keys "$new"))"
   [ -z "$added" ] || refuse "$path: the replay exception list may only shrink, and these entries were added: $(printf '%s' "$added" | tr '\n' ' '): make the run replay instead of listing it"
   weaker=""
