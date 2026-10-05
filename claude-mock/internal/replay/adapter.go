@@ -106,16 +106,28 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 		}{body, 0o755}
 	}
 	for path, f := range files {
+		if f.body == "" && filepath.Base(path) == "settings.json" { // a scenario's preparation may write it
+			continue
+		}
 		if err := os.WriteFile(path, []byte(f.body), f.mode); err != nil {
 			return nil, nil, "", "", err
 		}
 	}
 
+	if prep := rec.Setup["prepare.sh"]; prep != "" {
+		// a capture runs the scenario's preparation in the scratch repository, before git init and claude
+		if err := os.WriteFile(filepath.Join(work, "prepare.sh"), []byte(prep), 0o644); err != nil {
+			return nil, nil, "", "", err
+		}
+		if res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"sh", filepath.Join(work, "prepare.sh")}, Dir: repo, Env: env}); err != nil || res.ExitCode != 0 {
+			return nil, nil, "", "", fmt.Errorf("prepare.sh: %v %s", err, res.Stderr)
+		}
+	}
 	res, err := procexec.Run(ctx, procexec.Spec{
-		Argv: []string{mock, "-p", "--model", "haiku", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
-			"--script", filepath.Join(work, "main.sh"), "--session-id", sessionID, s.Prompt},
+		Argv: append([]string{mock, "-p", "--model", "haiku", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
+			"--script", filepath.Join(work, "main.sh"), "--session-id", sessionID}, append(strings.Fields(rec.Setup["args"]), s.Prompt)...),
 		Dir: repo, Env: env, Timeout: 3 * time.Minute})
-	if err != nil || res.ExitCode != 0 || res.TimedOut {
+	if err != nil || res.ExitCode != wantExit(rec) || res.TimedOut {
 		return nil, nil, "", "", &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
 	}
 	hookLog, _ := os.ReadFile(filepath.Join(work, "hook.log"))

@@ -23,7 +23,7 @@ const standardCommand = "claude -p --model haiku --dangerously-skip-permissions 
 // the files of a recording's setup the adapter installs; any other (extra
 // flags, later steps, a preparation script, environment) is something of the
 // recording the adapter cannot reproduce yet
-var installed = map[string]bool{"hook.sh": true, "prompt.txt": true, "settings.json": true}
+var installed = map[string]bool{"hook.sh": true, "prompt.txt": true, "settings.json": true, "prepare.sh": true, "args": true}
 
 // sampleDir is the latest sample of the run in dir, the one the model's turns
 // and the stream's session are read from; empty when it has none.
@@ -76,8 +76,9 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 	if sample == "" {
 		return core.Recording{}, unbuildable(fmt.Errorf("no sample was recorded"))
 	}
-	if code := strings.TrimSpace(readFile(filepath.Join(sample, "exit.txt"))); code != "0" {
-		return core.Recording{}, unbuildable(fmt.Errorf("claude exited %q: the adapter replays runs that end well", code))
+	code := strings.TrimSpace(readFile(filepath.Join(sample, "exit.txt")))
+	if code != "0" && code != "1" {
+		return core.Recording{}, unbuildable(fmt.Errorf("claude exited %q: the adapter replays runs that end with 0 or 1", code))
 	}
 	stream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
 	if err != nil {
@@ -109,12 +110,19 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 	if len(subs) > 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("a sub-agent whose starting call is in no transcript"))
 	}
+	args, err := parseArgs(readFile(filepath.Join(setup, "args")))
+	if err != nil {
+		return core.Recording{}, err
+	}
 	return core.Recording{
 		Dir:    runDir,
 		Prompt: strings.TrimSpace(readFile(filepath.Join(setup, "prompt.txt"))),
 		Setup: map[string]string{
 			"settings.json": readFile(filepath.Join(setup, "settings.json")),
 			"hook.sh":       readFile(filepath.Join(setup, "hook.sh")),
+			"prepare.sh":    readFile(filepath.Join(setup, "prepare.sh")),
+			"args":          strings.Join(args, "\n"),
+			"exit":          code,
 		},
 		Agent: agent,
 	}, nil

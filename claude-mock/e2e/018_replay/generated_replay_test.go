@@ -47,6 +47,9 @@ func TestGeneratedReplay(t *testing.T) {
 			var unbuildable *claudereplay.Unbuildable
 			reason, listed := notReplaying[name]
 			switch {
+			case errors.As(err, &unbuildable) && strings.HasPrefix(unbuildable.Reason, claudereplay.RefusedPrefix):
+				// a recording of what the mock refuses by design (fail-fast): nothing to replay, and not a listed failure
+				t.Skipf("the mock refuses it: %s", unbuildable.Reason)
 			case errors.As(err, &unbuildable) && listed:
 				t.Skipf("not replaying: %s", reason)
 			case errors.As(err, &unbuildable):

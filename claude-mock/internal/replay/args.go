@@ -1,0 +1,57 @@
+package replay
+
+import (
+	"fmt"
+	"strings"
+
+	core "github.com/sloprail/harness-mocks/internal/replay"
+)
+
+// modelled are the flags of a recording's setup/args that the mock models, with
+// how many values each takes; the replay passes them to the mock as they were
+// given to claude.
+var modelled = map[string]int{"--max-turns": 1}
+
+// refused are the flags the mock refuses (adr/fail-fast-unimplemented): a
+// recording made with one cannot be replayed, and says so rather than being
+// listed as a replay that fails (see RefusedPrefix).
+var refused = map[string]bool{
+	"--include-hook-events": true, "--max-budget-usd": true, "--input-format": true,
+	"--include-partial-messages": true, "--agent": true,
+}
+
+// RefusedPrefix starts the reason of a recording the mock refuses by design.
+const RefusedPrefix = "the mock refuses "
+
+// parseArgs are the flags of a setup/args file (one argument per line) as
+// arguments for the mock. A flag the mock refuses is an Unbuildable that says
+// so, one it does not model at all an Unbuildable that says that.
+func parseArgs(text string) ([]string, error) {
+	var out []string
+	f := strings.Fields(text)
+	for i := 0; i < len(f); {
+		flag := f[i]
+		if refused[flag] {
+			return nil, unbuildable(fmt.Errorf("%s%s", RefusedPrefix, flag))
+		}
+		n, ok := modelled[flag]
+		if !ok {
+			return nil, unbuildable(fmt.Errorf("the setup's args have %s, which the adapter does not map to a mock flag", flag))
+		}
+		if i+n >= len(f) {
+			return nil, unbuildable(fmt.Errorf("the setup's args end after %s, short of its value", flag))
+		}
+		out = append(out, f[i:i+1+n]...)
+		i += 1 + n
+	}
+	return out, nil
+}
+
+// wantExit is the exit status the recorded run ended with, which the mock's
+// run must end with too.
+func wantExit(rec core.Recording) int {
+	if rec.Setup["exit"] == "1" {
+		return 1
+	}
+	return 0
+}
