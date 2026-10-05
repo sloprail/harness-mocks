@@ -33,7 +33,7 @@ func scriptFor(tag string, steps []modelCall, final string, unfinished bool, fin
 		if c.Text != nil {
 			content = append(content, map[string]any{"type": "text", "text": *c.Text})
 		}
-		content = append(content, map[string]any{"type": "tool_use", "id": "", "name": c.Name, "input": c.Input})
+		content = append(content, map[string]any{"type": "tool_use", "id": "", "name": c.Name, "input": c.Input, "more": c.More})
 		line := map[string]any{"type": "assistant", "message": map[string]any{"content": content}}
 		if !c.Gate.None() {
 			line["gate"] = c.Gate

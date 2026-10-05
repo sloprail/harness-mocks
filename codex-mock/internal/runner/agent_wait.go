@@ -20,7 +20,6 @@ import (
 type waitInput struct {
 	Targets []string `json:"targets"`
 	Timeout *int     `json:"timeout_ms"`
-	More    bool     `json:"more"` // the mock's own parameter (moreFollows)
 }
 
 func (in waitInput) timeout() time.Duration {

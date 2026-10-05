@@ -142,7 +142,7 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 		}
 	}
 	h.rollout.ToolOutput(c.ID, text)
-	h.afterOutput(c)
+	h.prog.move(0, 1) // finished: what another agent's gate may wait for
 	if c.Name == agentTool && a.Kind == toolcall.Done && !a.Replaced && !a.Result.Failed {
 		h.startBackground(c, a.Result.Output) // a dispatch not waited for runs once it is answered
 	}

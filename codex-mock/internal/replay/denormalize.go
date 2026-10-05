@@ -32,6 +32,8 @@ type modelCall struct {
 	Text  *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
 	Name  string         `json:"name"`
 	Input map[string]any `json:"input"`
+	// More is that another call of the model's script follows: it is not asked again after this call.
+	More bool `json:"more,omitempty"`
 	// Final is the end of a turn: the model's answer, with no call.
 	Final *string `json:"-"`
 	// Hang is an agent that never ends (an unfinished one).
@@ -103,8 +105,5 @@ func mockCall(c core.Call) modelCall {
 		}
 		in["targets"] = ids
 	}
-	if c.More { // the mock's own parameter: the model is not asked again after this call (one script made them)
-		in["more"] = true
-	}
-	return modelCall{Text: c.Said, Name: name, Input: in}
+	return modelCall{Text: c.Said, Name: name, Input: in, More: c.More}
 }
