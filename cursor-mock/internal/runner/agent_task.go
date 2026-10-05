@@ -38,24 +38,9 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 	return in, in.Description != "" && in.Prompt != "" && in.Script != ""
 }
 
-// runSubagent is a foreground Task call: the parent's preToolUse hooks, the
-// call on the stream, the sub-agent running to its final response in a
-// conversation of its own (its own session id and transcript, its tool calls
-// fired to the hooks under that id and not shown on the stream), and the call
-// completed with what it said. A command the sub-agent started in the
-// background is terminated when it gives its final response (recorded:
-// runs/foreground-subagent-bash-ends-with-response); no hook of the Task call
-// can refuse it here, and subagentStart and subagentStop were not recorded
-// firing in a print-mode run (adr/modeled-surface).
-//
-// The call's result is the sub-agent's report: its conversation steps (its
-// final response the last), its agent id, that it did not run in the background
-// and how long it took (recorded: runs/foreground-subagent-result).
-//
-// sr:provides foreground-subagent-bash-ends-with-response/cursor
-// sr:provides foreground-subagent-result/cursor
-// sr:docs https://cursor.com/docs/hooks#subagentstop
-func (s *session) runSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) {
+// startSubagent is the first half of a foreground Task call: the parent's
+// preToolUse hooks and the call on the stream; it returns the second half.
+func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) (finish func()) {
 	typ := in.SubagentType
 	if typ == "" {
 		typ = "generalPurpose"
@@ -71,7 +56,28 @@ func (s *session) runSubagent(ctx context.Context, tu scenario.ToolUse, in taskI
 	}
 	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
 	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt, "subagent_type": typ})
+	return func() { s.finishSubagent(ctx, tu, in, typ, args) }
+}
 
+// finishSubagent is the second half of a foreground Task call (the first is
+// startSubagent: the parent's preToolUse hooks and the call on the stream): the
+// sub-agent running to its final response in a conversation of its own (its
+// own session id and transcript, its tool calls fired to the hooks under that
+// id and not shown on the stream), and the call
+// completed with what it said. A command the sub-agent started in the
+// background is terminated when it gives its final response (recorded:
+// runs/foreground-subagent-bash-ends-with-response); no hook of the Task call
+// can refuse it here, and subagentStart and subagentStop were not recorded
+// firing in a print-mode run (adr/modeled-surface).
+//
+// The call's result is the sub-agent's report: its conversation steps (its
+// final response the last), its agent id, that it did not run in the background
+// and how long it took (recorded: runs/foreground-subagent-result).
+//
+// sr:provides foreground-subagent-bash-ends-with-response/cursor
+// sr:provides foreground-subagent-result/cursor
+// sr:docs https://cursor.com/docs/hooks#subagentstop
+func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput, typ string, args map[string]any) {
 	started := time.Now()
 	sub := *s
 	sub.id, sub.parent = coresession.NewID(), s

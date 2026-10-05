@@ -36,11 +36,14 @@ type Compact struct {
 }
 
 // Turn is what one run of the script said: the agent's messages in order, and
-// how the turn ends, with a tool call or with the result that ends the run
+// how the turn ends, with tool calls or with the result that ends the run
 // (neither: the script ended without a tool call or a result).
 type Turn struct {
 	Texts []string
+	// Tool is the turn's first call and Tools all of them, in order: a turn has
+	// several when the script prints tool_use lines in a row.
 	Tool  *ToolUse
+	Tools []ToolUse
 	// Compact is the compaction the turn ends with, when it asked for one.
 	Compact *Compact
 	Result  *string
@@ -65,10 +68,10 @@ func Idents(in Input) map[string]string {
 }
 
 // RunTurn runs the script once and reads its lines up to the first tool call
-// or result.
+// (with the tool_use lines that follow it) or result.
 //
-// The script runs once per turn and prints stream-json lines: a tool_use line
-// ends the turn, the mock runs the tool and runs the script again; a result
+// The script runs once per turn and prints stream-json lines: tool_use lines
+// end the turn, the mock runs the tools and runs the script again; a result
 // line ends the run.
 //
 // sr:invariant turn-loop

@@ -125,6 +125,7 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		if t.Tool == nil && t.Compact == nil {
 			return last, nil
 		}
+		calls := turnCalls(h, t)
 		// A scenario script that emits the same tool_use 5 turns in a row makes
 		// the run abort with an error, so a stuck scenario cannot loop forever.
 		// sr:invariant loop-guard
@@ -132,8 +133,8 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		if t.Compact != nil {
 			key += " " + t.Compact.Trigger
 		}
-		if t.Tool != nil {
-			key = t.Tool.Name + string(t.Tool.Input)
+		if len(calls) > 0 {
+			key = callsKey(calls)
 		}
 		if key == prev {
 			same++
@@ -143,8 +144,6 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		if same >= LoopLimit {
 			return "", fmt.Errorf("the scenario script emitted the same tool_use %d turns in a row", LoopLimit)
 		}
-		if t.Tool != nil {
-			h.Tool(ctx, *t.Tool)
-		}
+		perform(ctx, h, calls)
 	}
 }
