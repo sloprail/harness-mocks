@@ -91,7 +91,7 @@ func TestAForegroundSubAgentBlocksItsParentAndItsReportIsTheCallsResult(t *testi
 sleep 0.4
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"PINEAPPLE-7"}]}}'
 `), 0o755))
-	input, err := json.Marshal(map[string]any{"description": wantArgs["description"], "prompt": wantArgs["prompt"], "script": sub})
+	input, err := json.Marshal(map[string]any{"description": wantArgs["description"], "prompt": wantArgs["prompt"], "run_in_background": false, "script": sub})
 	require.NoError(t, err)
 	task := `{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_1","name":"Task","input":` + string(input) + `}]}}`
 	main := filepath.Join(ws, "main.sh")

@@ -13,21 +13,15 @@ import (
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
-// backgroundTask is a Task call that asks to run in the background.
-type backgroundTask struct {
-	taskInput
-	Background bool `json:"run_in_background"`
-}
-
 // startsBackgroundSubagent reports whether the call is a Task the mock runs as a
 // sub-agent in the background: one with its description, prompt and the script
 // that plays the sub-agent, asking to run in the background.
 func startsBackgroundSubagent(tu scenario.ToolUse) (taskInput, bool) {
-	var in backgroundTask
-	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil || !in.Background {
-		return in.taskInput, false
+	var in taskInput
+	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil || in.RunInBackground == nil || !*in.RunInBackground {
+		return in, false
 	}
-	return in.taskInput, in.Description != "" && in.Prompt != "" && in.Script != ""
+	return in, in.Description != "" && in.Prompt != "" && in.Script != ""
 }
 
 // launchSubagent is a background Task call: the parent's preToolUse hook, the
@@ -40,15 +34,7 @@ func startsBackgroundSubagent(tu scenario.ToolUse) (taskInput, bool) {
 //
 // sr:provides background-agent/cursor
 func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) {
-	typ := in.SubagentType
-	if typ == "" {
-		typ = "generalPurpose"
-	}
-	tool := hooks.Tool{Name: "Task", UseID: tu.ID, Input: map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagent_type": typ, "run_in_background": true}}
-	s.hooks.Fire(ctx, hooks.PreToolUse, tool.Name, hooks.ToolFields(tool))
-	s.named = true
-
+	typ, args := s.announceTask(ctx, tu, in)
 	sub := *s
 	sub.id, sub.parent = coresession.NewID(), s
 	sub.owner = sub.id
@@ -60,10 +46,6 @@ func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	}
 	sub.hooks = &hooks.Hooks{Config: s.hooks.Config, Dir: s.cfg.Dir, Env: sub.hookEnv, Common: sub.common}
 
-	args := map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{typ: map[string]any{}},
-		"model": "default", "agentId": coresession.NewID(),
-	}
 	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
 	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt, "subagent_type": typ, "run_in_background": true})
 
