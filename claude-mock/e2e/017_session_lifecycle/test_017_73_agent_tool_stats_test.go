@@ -79,5 +79,9 @@ func TestT017_74_AKeptWorktreeIsNamedInTheResult(t *testing.T) {
 	assert.True(t, strings.HasSuffix(want["worktreePath"].(string), "/.claude/worktrees/agent-"+want["agentId"].(string)))
 	assert.Equal(t, "worktree-agent-"+want["agentId"].(string), want["worktreeBranch"])
 	block, _ := toolResultOf(t, readRecs(t, transcriptPath(t, cfg, dir, "kept-1")), "ag1turn-orch-a")
-	assert.Contains(t, block["content"].([]any)[0].(map[string]any)["text"], "\nworktreePath: "+got["worktreePath"].(string)+"\n<usage>")
+	text := block["content"].([]any)[0].(map[string]any)["text"]
+	assert.Contains(t, text, "\nworktreePath: "+got["worktreePath"].(string)+"\nworktreeBranch: worktree-agent-"+id+"\n<usage>")
+	// the recorded hand-back names the branch the same way (runs/isolated-worktree)
+	wantID := want["agentId"].(string)
+	assert.Contains(t, recordedAgentResultText(t, "isolated-worktree"), "\nworktreePath: "+want["worktreePath"].(string)+"\nworktreeBranch: worktree-agent-"+wantID+"\n<usage>")
 }
