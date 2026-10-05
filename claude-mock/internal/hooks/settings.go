@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
@@ -24,6 +25,13 @@ type HookEntry struct {
 type HandlerSpec struct {
 	Type    string `json:"type"`
 	Command string `json:"command,omitempty"`
+	// Args makes a command hook run its program directly, without a shell, with
+	// these arguments (recorded: snapshots/runs/hook-args: each its own argument,
+	// "two words" one of them). Shell names a shell the real harness is told to use;
+	// recorded as changing nothing on this machine (snapshots/runs/hook-shell: both
+	// hooks ran under /bin/sh), so the mock accepts and ignores it.
+	Args    Args   `json:"args,omitempty"`
+	Shell   string `json:"shell,omitempty"`
 	URL     string `json:"url,omitempty"`
 	Timeout int    `json:"timeout,omitempty"`
 	Async   bool   `json:"async,omitempty"`
@@ -140,4 +148,26 @@ func matcherSubject(in Input) string {
 		return in.Error
 	}
 	return ""
+}
+
+// Args is the arguments of an exec-form command hook, held as one string so that
+// a handler stays comparable (two copies of a hook are one hook).
+type Args string
+
+// UnmarshalJSON reads a JSON array of strings.
+func (a *Args) UnmarshalJSON(b []byte) error {
+	var list []string
+	if err := json.Unmarshal(b, &list); err != nil {
+		return err
+	}
+	*a = Args(strings.Join(list, "\x00"))
+	return nil
+}
+
+// List is the arguments, nil for a hook that has none (a shell command line).
+func (a Args) List() []string {
+	if a == "" {
+		return nil
+	}
+	return strings.Split(string(a), "\x00")
 }

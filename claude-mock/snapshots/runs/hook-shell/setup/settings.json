@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "printf '{\"hook\":\"with-shell-bash\",\"zero\":\"%s\"}\\n' \"$0\" >>\"$HOOK_LOG\"", "shell": "bash" },
+        { "type": "command", "command": "printf '{\"hook\":\"default\",\"zero\":\"%s\"}\\n' \"$0\" >>\"$HOOK_LOG\"" }
+      ] }
+    ]
+  }
+}

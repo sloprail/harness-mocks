@@ -28,7 +28,7 @@ func (inv *Invoker) runHandlers(ctx context.Context, handlers []HandlerSpec, ev 
 				continue
 			}
 			// sr:provides hook-command-handler/claude
-			cmds = append(cmds, corehooks.Command{Line: strings.TrimSpace(h.Command), Timeout: commandTimeout(h, ev), Env: h.env()})
+			cmds = append(cmds, corehooks.Command{Line: strings.TrimSpace(h.Command), Args: h.Args.List(), Timeout: commandTimeout(h, ev), Env: h.env()})
 			at = append(at, i)
 		case "http":
 			wg.Add(1)

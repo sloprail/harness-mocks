@@ -2,7 +2,9 @@ package e2e
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,9 +44,15 @@ func TestT017_90_CompactPayloadsCarryTheCommonFields(t *testing.T) {
 }
 
 // The same hook command listed under the same matcher in two of a project's
-// settings files runs once, not once per file (docs, hook handler fields).
+// settings files runs once, not once per file (docs, hook handler fields;
+// recorded in runs/hook-two-settings-files: one run of the hook for the two files).
 // sr:proves hook-matcher-filter/claude
+// sr:proves hooks-all-matching-run/claude
 func TestT017_90_ASameHookInTwoSettingsFilesRunsOnce(t *testing.T) {
+	rec, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/hook-two-settings-files/samples/*/payloads.jsonl"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, strings.Count(string(rec), `"hook_ran":"same"`), "recorded: the hook ran once for the two files")
+
 	dir := t.TempDir()
 	log := filepath.Join(dir, "payloads.log")
 	h := payloadLogger(t, dir, "log.sh", log, "")
