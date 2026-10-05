@@ -106,13 +106,13 @@ func TestScriptCallsKeepJavaScriptsOrder(t *testing.T) {
 
 func TestUnifyYieldIsAWholeNumber(t *testing.T) {
 	for _, y := range []float64{1.9, 1e20} {
-		_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": number{y}}}})
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": number{y}}}}, nil, nil)
 		assert.Error(t, err, "%v", y)
 	}
 }
 
 func TestUnifyASpawnWithNoArgumentsIsTheRefusedCall(t *testing.T) {
-	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}})
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}}, nil, nil)
 	require.NoError(t, err)
 	assert.Empty(t, c.Input)
 }
