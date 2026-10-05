@@ -107,9 +107,9 @@ providers:
         kind: mock-not-modeled
         statement: >-
           The mock fires sessionStart, sessionEnd, preToolUse, postToolUse,
-          postToolUseFailure, beforeShellExecution, afterShellExecution and
-          afterFileEdit, and no others. The docs' exit-code rules for the other
-          permission hooks (beforeMCPExecution, beforeReadFile,
+          postToolUseFailure, beforeShellExecution, afterShellExecution,
+          afterFileEdit and beforeReadFile, and no others. The docs' exit-code rules for the other
+          permission hooks (beforeMCPExecution,
           beforeTabFileRead, subagentStart) and for afterMCPExecution,
           subagentStop, beforeSubmitPrompt, preCompact, stop,
           afterAgentResponse, afterAgentThought, the Tab hooks and
