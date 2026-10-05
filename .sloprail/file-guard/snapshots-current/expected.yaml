@@ -1,0 +1,40 @@
+# What a recording may legitimately hold that snapshots-current / capture.sh would otherwise refuse
+# (_lib/recording.sh): per "<harness>/<run>", any of
+#   stderr     an ERE every harness error line on stderr.txt must match
+#   stream     an ERE every error frame of stream.jsonl must match
+#   unparsed   how many non-JSON lines the side-channel log (payloads.jsonl) holds
+#   mode       why the run is recorded in another mode than the mock imitates
+# Declaring a thing here is a change to the project's rules: it needs the user's words.
+
+# A hook that blocks a tool makes the harness log that block as an ERROR line: it is what the
+# scenario provokes.
+codex/hook-exit-codes: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=Command blocked by PreToolUse hook: '}
+codex/hook-exit-json: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=Command blocked by PreToolUse hook: '}
+codex/hooks-all-matching-run-blockers-fast-first: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=Command blocked by PreToolUse hook: '}
+codex/hooks-all-matching-run-blockers-slow-first: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=Command blocked by PreToolUse hook: '}
+codex/pretool-decisions: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=Command blocked by PreToolUse hook: '}
+codex/stops: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=Command blocked by PreToolUse hook: '}
+codex/posttool-block: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=POST-FEEDBACK-MSG$'}
+# A tool call the scenario makes fail on purpose, and a refused input, are logged as ERROR lines.
+codex/file-tools-failure: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=apply_patch verification failed: '}
+codex/agent-input-validation: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::tools::router: error=Provide one of: message or items$'}
+# A scenario that provokes the refusal it records.
+codex/noninteractive-run-git-check-refused: {stderr: '^Not inside a trusted directory and --skip-git-repo-check was not specified\.$'}
+codex/session-resume-unknown: {stderr: '^Error: thread/resume: thread/resume failed: no rollout found for thread id '}
+codex/session-end-hook-failure: {stream: 'running async SessionEnd hook synchronously in '}
+claude/hook-exit-codes: {stderr: '^SessionEnd hook \[.*\] failed: session-end stderr on exit 1$'}
+claude/resume-unknown: {stderr: '^No conversation found with session ID: ', stream: '"subtype":"error_during_execution"'}
+cursor/session-fork: {stderr: "^(error: unknown option '--fork'|\\(Did you mean --force\\?\\))$"}
+
+# KNOWN DEBT, found by the demo review of 2026-10-03: recordings that hold a harness error the
+# scenario did not provoke (codex failing to record its own rollout), and a hook log with
+# non-JSON lines. They need re-recording; this list may only shrink.
+codex/background-bash-start: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::session: failed to record rollout items: '}
+codex/bg-bash-reaped-at-exit: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::session: failed to record rollout items: ', unparsed: 4}
+codex/foreground-subagent-bash-ends-with-response: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::session: failed to record rollout items: '}
+codex/task-notifications-bg: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::session: failed to record rollout items: '}
+codex/user-prompt-submit-hook-bg: {stderr: '^[0-9TZ:.-]+ ERROR codex_core::session: failed to record rollout items: '}
+
+# Mode variants: the mock imitates `exec --json` in its default mode.
+codex/noninteractive-run-text-output: {mode: "recorded without --json on purpose: it is the text-output variant", stderr: '.'}
+codex/subagent-transcripts-v2: {mode: "KNOWN DEBT: recorded with --enable multi_agent_v2, while the mock imitates the default (v1) mode; a cell that cites it for the mock is citing another mode's behaviour"}

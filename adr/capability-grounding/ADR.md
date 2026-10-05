@@ -37,10 +37,22 @@ quirks.
   disagree, what the real harness was recorded doing is what it does. A cell
   is supported when its recordings show the behaviour, whatever a doc says
   elsewhere, and unsupported when its recordings show the behaviour not
-  happening, even where a doc describes it.
+  happening, even where a doc describes it. The disagreement is not left
+  silent: the cell discloses it as a `deviations` entry that starts "Doc and
+  recording conflict:", names the doc section, quotes its sentence and says
+  what the recording shows.
+- A supported cell's deviations never negate the statement's defining clause,
+  the part without which the harness would not be said to provide the
+  capability. A cell whose deviations say the harness does not do that part
+  is `supported: false`, grounded by the evidence of the absence.
 - Adding or removing a capability, or changing its `statement`, carries the
   user's words on its commit (`Sloprail-Cites-User`): the statement is the
   capability the user wants implemented.
-- A cell's `deviations` need no user words: they are found empirically or
-  follow from other ADRs (e.g. a mock does not wait out a 5-minute background
-  limit, so e2e stays fast).
+- Every new `deviations` entry, and every cell that becomes `supported: false`
+  or changes its `reason`, is a claim that the real harness does not do
+  something (or that the mock may differ), and carries the user's words on its
+  commit (`Sloprail-Cites-User`) like a statement. The one exception is the
+  "Doc and recording conflict:" entry above, which records what the evidence
+  shows and claims no absence. A deviation that merely follows from another
+  ADR (e.g. a mock does not wait out a 5-minute background limit, so e2e stays
+  fast) still carries the user's words, quoting the decision it follows from.
