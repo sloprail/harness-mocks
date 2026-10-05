@@ -23,6 +23,11 @@ type taskInput struct {
 	Prompt       string `json:"prompt"`
 	SubagentType string `json:"subagent_type"`
 	Script       string `json:"script"`
+	// Model and RunInBackground are optional: what the model left out the hooks
+	// are not told of either (recorded: runs/subagent-worktree-isolation and
+	// runs/foreground-subagent-result).
+	Model           *string `json:"model"`
+	RunInBackground *bool   `json:"run_in_background"`
 }
 
 // dispatchesSubagent reports whether the call is a foreground Task the mock
@@ -41,25 +46,7 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 // startSubagent is the first half of a foreground Task call: the parent's
 // preToolUse hooks and the call on the stream; it returns the second half.
 func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) (finish func()) {
-	typ := in.SubagentType
-	if typ == "" {
-		typ = "generalPurpose"
-	}
-	tool := hooks.Tool{Name: "Task", UseID: tu.ID, Input: map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagent_type": typ, "run_in_background": false}}
-	s.hooks.Fire(ctx, hooks.PreToolUse, tool.Name, hooks.ToolFields(tool))
-	s.named = true
-
-	// the hook says generalPurpose where the stream says unspecified (recorded:
-	// runs/foreground-subagent-result)
-	streamType := typ
-	if typ == "generalPurpose" {
-		streamType = "unspecified"
-	}
-	args := map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{streamType: map[string]any{}},
-		"model": "default", "agentId": coresession.NewID(),
-	}
+	typ, args := s.announceTask(ctx, tu, in)
 	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
 	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt, "subagent_type": typ})
 	return func() { s.finishSubagent(ctx, tu, in, typ, args) }

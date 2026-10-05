@@ -2,8 +2,6 @@ package runner
 
 import (
 	"time"
-
-	coresession "github.com/sloprail/harness-mocks/internal/session"
 )
 
 // The frames of Cursor's stream-json output that the mock itself writes
@@ -32,10 +30,10 @@ func assistantFrame(session, text string) []byte {
 }
 
 // resultFrame ends the stream: the run succeeded, with what the agent said.
-func resultFrame(session, text string, took time.Duration) []byte {
+func resultFrame(session, request, text string, took time.Duration) []byte {
 	return jsonLine(map[string]any{
 		"type": "result", "subtype": "success", "is_error": false, "result": text, "session_id": session,
-		"duration_ms": took.Milliseconds(), "duration_api_ms": took.Milliseconds(), "request_id": coresession.NewID(),
+		"duration_ms": took.Milliseconds(), "duration_api_ms": took.Milliseconds(), "request_id": request,
 		"usage": map[string]any{"inputTokens": 0, "outputTokens": 0, "cacheReadTokens": 0, "cacheWriteTokens": 0},
 	})
 }

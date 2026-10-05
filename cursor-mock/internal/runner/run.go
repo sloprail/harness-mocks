@@ -21,7 +21,10 @@ type session struct {
 	tr      *transcript
 	hooks   *hooks.Hooks
 	started time.Time
-	texts   []string // what the agent said, in order: the result frame's text
+	// requestID names the run's model request: the result frame says it, and the
+	// hooks of a Task call name it as their generation.
+	requestID string
+	texts     []string // what the agent said, in order: the result frame's text
 	// named: hook payloads carry the transcript path. Cursor leaves it null
 	// until the conversation's first tool call is past its preToolUse hooks
 	// (recorded: runs/tool-failure), though the file is there from the first
@@ -82,7 +85,7 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now()}
+	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID()}
 	if s.id == "" {
 		s.id = coresession.NewID()
 	}
@@ -115,7 +118,7 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}
 	s.flushOwed()
-	s.forward(resultFrame(s.id, strings.Join(s.texts, ""), time.Since(s.started)))
+	s.forward(resultFrame(s.id, s.requestID, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }
 
