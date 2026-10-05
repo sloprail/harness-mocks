@@ -11,6 +11,15 @@ providers:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bashfail
       - claude-mock/snapshots/runs/run-failure
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock refuses --output-format text and json, piped stdin and
+          --include-partial-messages (adr fail-fast-unimplemented): only
+          stream-json is produced, from the scenario's own script. It does not
+          model the SIGTERM exit code 143. All of these stay so until a
+          recording drives them.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#basic-usage
