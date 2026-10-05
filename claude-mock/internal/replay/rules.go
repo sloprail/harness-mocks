@@ -28,12 +28,14 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 	}
 	return rp.Rules{
 		DropKeys: []string{
-			"uuid", "request_id", "timestamp", // ids and times that differ in every run
+			"uuid", "request_id", // ids that differ in every run
 			"usage", "modelUsage", "total_cost_usd", "duration_ms", "duration_api_ms", // the model's cost: the mock has no model
 			"signature",                                                              // the model's thinking, signed
 			"script",                                                                 // the mock's own Agent input (the sub-agent's script): the real tool has no such key
 			"first_content_frame_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
 		},
+		// when a frame was written differs in every run; that it has one does not
+		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		// the order the capture sanitised in: the repository first, as it holds the temp root
 		Scrub: []rp.Scrub{
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
