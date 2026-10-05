@@ -27,4 +27,5 @@ func TestUnimplementedNamesAnotherDirectory(t *testing.T) {
 	assert.Equal(t, "", h.unimplemented(call(`{"command":"x","shell":"zsh","login":true,"max_output_tokens":9}`)))
 	assert.Equal(t, "", h.unimplemented(call(`{"command":"x","workdir":"`+h.cfg.Cwd+`"}`)))
 	assert.NotEqual(t, "", h.unimplemented(call(`{"command":"x","workdir":"/"}`)))
+	assert.Contains(t, h.unimplemented(call(`{"command":"x","shell":"fish"}`)), "shell fish")
 }

@@ -14,13 +14,16 @@ type execOptions struct {
 	TTY             bool    `json:"tty"`
 	Workdir         *string `json:"workdir"`
 	MaxOutputTokens *int    `json:"max_output_tokens"`
+	Shell           *string `json:"shell"`
 }
 
 // unimplemented is what an exec_command asks for that the mock does not carry
 // out, refused instead of ignored (adr/fail-fast-unimplemented): a working
-// directory other than the run's. A tty is carried out as far as the recordings
-// show it: the terminal's line ending (ttyOutput). shell and login only choose
-// the shell, and every command of a scenario is run by /bin/sh. max_output_tokens only caps what the model
+// directory other than the run's, and a shell other than zsh, the one the
+// recordings name (every command of a scenario is run by /bin/sh, which is
+// all the mock has of a shell: what zsh itself would do differently is not
+// modelled, and neither is login). A tty is carried out as far as the recordings
+// show it: the terminal's line ending (ttyOutput). max_output_tokens only caps what the model
 // is shown: the mock has no model, so it matters only once a command's output
 // would exceed it (tooLong).
 func (h toolHost) unimplemented(c toolcall.Call) string {
@@ -28,6 +31,9 @@ func (h toolHost) unimplemented(c toolcall.Call) string {
 	_ = json.Unmarshal(c.Input, &o)
 	if o.Workdir != nil && !sameDir(*o.Workdir, h.cfg.Cwd) {
 		return "workdir other than the run's directory"
+	}
+	if o.Shell != nil && *o.Shell != "zsh" {
+		return "shell " + *o.Shell + " (only zsh, the recorded one, is accepted)"
 	}
 	return ""
 }
