@@ -27,6 +27,7 @@ the stream through:
   cursor-agent -p --force --output-format stream-json <prompt>
   ->
   a10n-cursor-mock -p --force --output-format stream-json --script scenario.sh <prompt>`,
+		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE:          func(cmd *cobra.Command, args []string) error { return run(cmd, f, args) },
@@ -48,5 +49,6 @@ the stream through:
 	p.StringVar(&f.sandbox, "sandbox", "", "accepted, ignored")
 	p.StringVar(&f.script, "script", "", "the scenario script (default: $A10N_MOCK_SCRIPT)")
 	p.StringArrayVar(&f.pluginDirs, "plugin-dir", nil, "load a local plugin directory: its hooks join the project's (repeatable)")
+	root.AddCommand(newReplay())
 	return root
 }
