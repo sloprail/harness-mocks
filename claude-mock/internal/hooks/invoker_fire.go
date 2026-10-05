@@ -34,6 +34,14 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 		corehooks.Agent{ID: inv.agentID, Type: inv.agentType})
 	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
 	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
+	if input.HookEventName == EventUserPromptSubmit {
+		input.PromptID = inv.turn.begin()
+	} else if input.PromptID == "" {
+		input.PromptID = inv.turn.current()
+	}
+	if input.PermissionMode == "" && turnEvents[input.HookEventName] {
+		input.PermissionMode = inv.permissionMode
+	}
 	handlers := inv.settings.EntriesFor(input.HookEventName, matcherSubject(input))
 	if len(handlers) == 0 {
 		return Output{}, nil, nil

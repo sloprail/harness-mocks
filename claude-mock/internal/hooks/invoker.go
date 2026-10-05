@@ -1,7 +1,10 @@
 package hooks
 
 import (
+	"sync"
 	"time"
+
+	"github.com/sloprail/harness-mocks/internal/session"
 )
 
 // defaultTimeout is how long a hook with no timeout of its own may run:
@@ -39,6 +42,51 @@ type Invoker struct {
 	recorder func(Input, []HandlerRun)
 
 	agentID, agentType string
+
+	// turn is the user prompt the session is on, shared with every invoker of a
+	// sub-agent run inside it; permissionMode is what the session runs in.
+	turn           *Turn
+	permissionMode string
+}
+
+// Turn is the user prompt a session is on: it gets a new id when a
+// UserPromptSubmit fires, and every later event carries it.
+type Turn struct {
+	mu sync.Mutex
+	id string
+}
+
+func (t *Turn) begin() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.id = session.NewID()
+	return t.id
+}
+
+func (t *Turn) current() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.id
+}
+
+// Turn is the prompt this invoker's events belong to; a sub-agent's invoker
+// is given the session's (SetTurn).
+func (inv *Invoker) Turn() *Turn { return inv.turn }
+
+// SetTurn makes the invoker share the prompt state of the session it runs inside.
+func (inv *Invoker) SetTurn(t *Turn) { inv.turn = t }
+
+// SetPermissionMode sets the permission_mode the events about a turn carry
+// ("bypassPermissions" for a run with --dangerously-skip-permissions).
+// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+func (inv *Invoker) SetPermissionMode(mode string) { inv.permissionMode = mode }
+
+// turnEvents are the events that carry permission_mode: the ones about a turn
+// of the conversation, not a session's or a sub-agent's start and end, nor a
+// compaction (recorded: snapshots/runs/bgagent, compact).
+var turnEvents = map[EventName]bool{
+	EventUserPromptSubmit: true, EventPreToolUse: true, EventPostToolUse: true,
+	EventPostToolUseFailure: true, EventStop: true, EventSubagentStop: true,
 }
 
 // SetProjectDir sets the project root every command hook is told as
@@ -117,5 +165,5 @@ type HandlerRun struct {
 //
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID, CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)
 func NewInvoker(settings *Settings, cwd, sessionID string) *Invoker {
-	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID}
+	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID, turn: &Turn{}}
 }

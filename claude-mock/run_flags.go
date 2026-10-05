@@ -70,7 +70,7 @@ func addRunFlags(cmd *cobra.Command) {
 	// The autopilot supervisor passes these flags; accept them for CLI compatibility.
 	cmd.Flags().String("system-prompt", "", "Accepted for CLI compatibility; passed to script via A10N_MOCK_SYSTEM_PROMPT")
 	cmd.Flags().StringArray("add-dir", nil, "Accepted for CLI compatibility; has no effect")
-	cmd.Flags().Bool("dangerously-skip-permissions", false, "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().Bool("dangerously-skip-permissions", false, "Run in bypassPermissions mode (the permission_mode hooks are told)")
 
 	// --- sr-agent (sloprail guardrail JUDGE) compatibility flags ---
 	//
@@ -110,7 +110,7 @@ func addRunFlags(cmd *cobra.Command) {
 	// --permission-mode: default|acceptEdits|plan|auto|bypassPermissions|dontAsk.
 	// Reachable via --claude-args (e.g. '{"permission-mode":"plan"}').
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--permission-mode
-	cmd.Flags().String("permission-mode", "", "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().String("permission-mode", "", "The permission_mode hooks are told")
 	// --settings: a settings file path OR an inline JSON string.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--settings
 	cmd.Flags().String("settings", "", "Accepted for CLI compatibility; has no effect")
