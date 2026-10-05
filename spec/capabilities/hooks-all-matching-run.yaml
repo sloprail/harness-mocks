@@ -13,6 +13,8 @@ providers:
       - claude-mock/snapshots/runs/all-hooks
       - claude-mock/snapshots/runs/all-hooks-slow-first
       - claude-mock/snapshots/runs/all-hooks-close-second
+      - claude-mock/snapshots/runs/all-hooks-close-first
+      - claude-mock/snapshots/runs/hook-two-settings-files
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#where-codex-looks-for-hooks

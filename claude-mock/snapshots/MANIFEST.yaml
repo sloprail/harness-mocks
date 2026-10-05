@@ -22,7 +22,7 @@ docs:
     sha256: 427cd3a4cc17eb3d0993cc4eb212db7a848c9d2cc44463cd70e0c7c9d4964eba
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/cli-reference:
-    sha256: 82f96e4b4b44c634d0c69443c3fcd745c340968879d0758fa4dc1778d5ea1328
+    sha256: 5c49605ccfb8f46946d8fffd71439b86ff2623f5a0adbed52dd8904e3d9afb28
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/headless:
     sha256: e2213e785a9105847e0d2ad006f3885c35ded7b88f0db23ce708ea45c43a7fbc
