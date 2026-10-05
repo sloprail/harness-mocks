@@ -50,11 +50,11 @@ run_rule() {
   PATH="$TMPDIR/shim:$PATH" sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 }
 expect_passed() {   # LABEL
-  jq -es --arg r "$RULE" '[.[] | select(.kind=="FileGuardChecked" and .rule==$r)] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
+  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="module-distinct")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE did not pass (sr-checks exit $ran)" >&2; exit 1; }
 }
 expect_refused() {   # LABEL SUBSTRING : refused, and the reason says it
-  jq -es --arg r "$RULE" --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule==$r and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
+  jq -es --arg s "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="module-distinct" and .outcome=="refused" and (.reason|contains($s)))' "$SR_EVENTS_FILE" >/dev/null ||
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1: $RULE did not refuse with a reason saying '$2' (sr-checks exit $ran)" >&2; exit 1; }
 }
 # inject LABEL REASON — a fresh commit on BASE (change_for N makes it), with the failure the caller set in force: refused with REASON
@@ -102,7 +102,7 @@ unsplit() {
   (cd "$SR_TEST_SLOPRAIL_DIR/file-guard/module-distinct" &&
     SR_TREE="$REPO" SR_GUARDRAIL_DIR="$PWD" PATH="$TMPDIR/shim:$PATH" ./prepare.sh <"$TMPDIR/unsplit.json")
 }
-out="$(unsplit)" || true
+out="$(unsplit)" && rc=0 || rc=$?
 jq -e '.additionalContext.module.dir == "internal/a"' <<<"$out" >/dev/null || { echo "unsplit control: prepare.sh did not name internal/a: $out" >&2; exit 1; }
-out="$(FAIL_JQ_ARGS='rtrimstr("/module.yaml")' unsplit)" || true
+out="$(FAIL_JQ_ARGS='rtrimstr("/module.yaml")' unsplit)" && rc=0 || rc=$?
 jq -e '.reason | contains("the changed module.yaml could not be worked out")' <<<"$out" >/dev/null || { echo "unsplit: no refusal for the module.yaml of the changeset: $out" >&2; exit 1; }
