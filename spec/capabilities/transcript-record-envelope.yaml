@@ -14,10 +14,11 @@ providers:
   codex:
     supported: false
     reason: >-
-      Codex does not stamp the bookkeeping on every record: only the first record
-      (session_meta) carries session, start time, working directory, branch,
-      version and launch mode, every other record carries just its timestamp, and
-      the prompt of a non-interactive run is not marked.
+      Codex does not stamp the bookkeeping on every record: session, start time,
+      working directory, branch, version and launch mode are carried by the first
+      record (session_meta); a turn_context record repeats the working directory
+      and item events carry a thread id, and the other records carry just a
+      timestamp. The prompt of a non-interactive run is not marked.
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields
     runs:

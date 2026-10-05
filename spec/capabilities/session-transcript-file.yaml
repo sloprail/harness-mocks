@@ -27,6 +27,14 @@ providers:
           id>.jsonl, the day it started and the session id, and the working
           directory is only a field of the file's first record
           (recorded: runs/session-transcript-file). The mock does the same.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the statement says a fresh session's file
+          does not exist yet when the start hook runs, and the recording shows
+          it does: the file the SessionStart payload's transcript_path names
+          already exists then (runs/session-transcript-file). The recording
+          decides, and the mock does the same.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema

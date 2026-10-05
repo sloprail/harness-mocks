@@ -55,7 +55,7 @@ providers:
       - cursor-mock/snapshots/runs/hooks-all-matching-run-same-hook-two-sources
     deviations:
       - adr: capability-grounding
-        kind: mock-not-modeled
+        kind: harness-lacks
         statement: >-
           Cursor does not run a hook configured in several sources once: the
           same command in the user's ~/.cursor/hooks.json and the project's

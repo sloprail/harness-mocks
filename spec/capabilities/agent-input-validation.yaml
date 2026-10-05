@@ -23,24 +23,13 @@ providers:
       - codex-mock/snapshots/runs/agent-input-validation
       - codex-mock/snapshots/runs/agent-input-validation-spawn
   cursor:
+    supported: false
+    reason: >-
+      Cursor requires only a prompt of a Task call: a call without a description
+      is not refused but runs with the description empty, and only a call without
+      its prompt is refused ("Invalid arguments"), before any hook fires.
     docs:
       - https://cursor.com/docs/hooks#pretooluse
     runs:
       - cursor-mock/snapshots/runs/agent-input-validation
       - cursor-mock/snapshots/runs/agent-input-validation-description
-    deviations:
-      - adr: capability-grounding
-        kind: harness-lacks
-        statement: >-
-          Cursor's Task call requires only a prompt: a call without a
-          description is not refused but runs with the description empty
-          (recorded: runs/agent-input-validation-description). A call without
-          its prompt is refused with "Invalid arguments:" and "prompt:
-          Required" before any hook (not even preToolUse) fires, and nothing
-          runs (recorded: runs/agent-input-validation).
-      - adr: modeled-surface
-        kind: mock-not-modeled
-        statement: >-
-          The mock runs no sub-agent: a Task call that passes the check
-          reaches preToolUse as Cursor's does and is then answered as an
-          error.

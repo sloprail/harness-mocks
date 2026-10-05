@@ -68,6 +68,13 @@ providers:
       - cursor-mock/snapshots/runs/noninteractive-no-force
       - cursor-mock/snapshots/runs/noninteractive-force-write
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the headless doc (#how-it-works) says
+          "Without --force, changes are only proposed, not applied", and the
+          recording shows a file write applied without --force
+          (runs/noninteractive-no-force). The recording decides.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-

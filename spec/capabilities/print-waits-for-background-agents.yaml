@@ -27,6 +27,13 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
+          Doc and recording conflict: the hooks doc (#subagentstop) says
+          subagentStop fires when a sub-agent completes, and the recording shows
+          it does not fire for the background sub-agent in print mode
+          (runs/print-waits-for-background-agents). The recording decides.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
           Cursor fires neither subagentStart nor subagentStop for the
           background sub-agent in print mode, though both were configured
           (recorded: runs/print-waits-for-background-agents), so what the
