@@ -105,7 +105,7 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".cursor", "hooks.json"), []byte(conf), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c, err := Load(dir)
+	c, err := Load(dir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	if got := c.Entries(SessionStart); len(got) != 0 {
 		t.Errorf("an event with no hooks has entries: %v", got)
 	}
-	if empty, err := Load(t.TempDir()); err != nil || len(empty.Entries(PreToolUse)) != 0 {
+	if empty, err := Load(t.TempDir(), ""); err != nil || len(empty.Entries(PreToolUse)) != 0 {
 		t.Errorf("no hooks.json is no hooks: %v %v", empty, err)
 	}
 }

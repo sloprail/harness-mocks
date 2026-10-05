@@ -50,11 +50,11 @@ func TestPluginHooksAreFoundByDefaultOrByTheManifest(t *testing.T) {
 		[]byte(`{"version":1,"hooks":{"beforeShellExecution":[{"command":"default-location-hook"}]}}`), 0o644))
 	writePlugin(t, unloaded, `{"name":"c"}`, "hooks/hooks.json")
 
-	c, err := Load(ws, "plugins/a", named)
+	c, err := Load(ws, "", "plugins/a", named)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"plugin-hook", "plugin-hook", "project-hook"}, commands(c), "each loaded plugin's, then the project's; c is not loaded")
 
-	c, err = Load(ws)
+	c, err = Load(ws, "")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"project-hook"}, commands(c))
 }
