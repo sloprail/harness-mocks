@@ -139,3 +139,16 @@ for s in inputs-ready.sh prepare.sh; do
   direct "$s" "PATH=$PWD/shim:$PATH" SHIM_JQ_FAIL= SHIM_GIT_DIFF_FAIL=1
   expect_direct_refused "$s: the diff of a changed file fails" "the capability markers this change touches could not be worked out, $tail_reason"
 done
+
+# A run with no samples is a legitimately empty listing, not a failed one: the glob matches nothing, and a
+# listing loop that ends on a false `[ -f ] &&` would fail the substitution under pipefail and refuse here.
+# prepare.sh, over the payload of a change citing such a run, must hand the judge the run with `samples: []`
+# (inputs-ready.sh may report its own "no sealed sample"; it is not run here).
+mkdir -p claude-mock/snapshots/runs/empty
+printf 'version: 1\n' >claude-mock/snapshots/runs/empty/run.yaml
+printf 'statement: c works\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: [claude-mock/snapshots/runs/empty]\n' >spec/capabilities/c.yaml
+git add -A && git commit -q -m "c cites a run with no samples"
+sr-checks changeset --rule capability-rigor --base "$DBASE" --head HEAD | jq -c '.subjects[0].payload' >direct.payload
+direct prepare.sh SHIM_JQ_FAIL=
+[ "$rc" -eq 0 ] && printf '%s' "$out" | jq -e '.additionalContext.subjects[0].context.runs[0].samples == []' >/dev/null ||
+  { echo "a cited run with no samples: prepare.sh refused or lost the run (exit $rc): $out" >&2; exit 1; }

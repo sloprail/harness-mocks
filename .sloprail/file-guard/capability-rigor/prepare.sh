@@ -29,8 +29,8 @@ while IFS=$'\t' read -r pair cell c; do
   cited_runs="$(jq -r '(.runs // [])[]' <<<"$cell")" || refuse_error "$pair: its cited runs could not be listed, so it could not be prepared for the judge"
   cited_docs="$(jq -r '(.docs // [])[]' <<<"$cell")" || refuse_error "$pair: its cited docs could not be listed, so it could not be prepared for the judge"
   runs="[]"; for r in $cited_runs; do
-    samples="$(cd "$SR_TREE" && for s in "$r"/samples/*/events.jsonl; do [ -f "$s" ] && printf '%s\n' "$s"; done | jq -R . | jq -sc .)" ||
-      refuse_error "$pair: the samples of $r could not be listed, so it could not be prepared for the judge"
+    samples="$(cd "$SR_TREE" && for s in "$r"/samples/*/events.jsonl; do if [ -f "$s" ]; then printf '%s\n' "$s"; fi; done | jq -R . | jq -sc .)" ||
+      refuse "$pair: the samples of $r could not be listed, so it could not be prepared for the judge"
     runs="$(jq -c --arg r "$r" --slurpfile sm <(printf '%s' "$samples") \
       '. + [{name: ($r | split("/") | last), dir: $r, setup: ($r + "/setup"), samples: $sm[0]}]' <<<"$runs")" ||
       refuse_error "$pair: the run $r could not be listed, so it could not be prepared for the judge"; done
