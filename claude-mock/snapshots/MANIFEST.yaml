@@ -1,44 +1,44 @@
 pin: 2.1.285
 docs:
   https://code.claude.com/docs/en/env-vars:
-    sha256: 4071acaa854d4de336f004efae18bb66e080e94765bc38e8b31b97f9921c7de8
-    fetched: "2026-10-01"
+    sha256: 016816acaeab3981c1bebd7e3ac884a4fc2ebd9d9bbb65fd12748d4e0bfbab2d
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/hooks:
-    sha256: 94e33cf5e328fb21343332d39fe2093becb27bf9e93b8c3601b2787468eea839
-    fetched: "2026-10-01"
+    sha256: 69c05a2c5eb2ec43f024375a11ffa2dc22fee2364236603fc9bd2e9368b73f24
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/tools-reference:
-    sha256: d6c333e5c338b5f9943ef724f016f068e649bb118d152e820f30fbe226f787ab
-    fetched: "2026-10-01"
+    sha256: e0da8a3914ef811c6543ef8f7b31b3f8b2d548b4774f118981a9f13a21163909
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/hooks-guide:
-    sha256: 02621714b53ad11b95643b35dccbee54e940fa5aeafb8eaffa3efcc70232727b
-    fetched: "2026-10-01"
+    sha256: addf370e321f65ba567fee6b002c473d6a4e09e83b0849a706ff464fd2b8e22e
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/plugin-marketplaces:
-    sha256: b624040340b1aa58cba1f31f70ba356d9ded06842128b533614c1ea2b33c44cd
-    fetched: "2026-10-01"
+    sha256: 0597250fec9a5eb9734df9c6821409431623604656129cf8e462f93460db6a84
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/agent-sdk/sessions:
     sha256: 8ef5a7629ad2c0069ff75255e9a0dec3de29aba30241a9f41af60b17495d5025
     fetched: "2026-10-01"
   https://code.claude.com/docs/en/claude-directory:
-    sha256: 68cc92fa7d6f0ad0feb59470efb20eb694b3f6b664823898ab1fa1acba288d67
-    fetched: "2026-10-01"
+    sha256: ada65719991b700cd65351402efaa7575fd2b00205aae5915afbe41410ccd178
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/cli-reference:
-    sha256: 7ae06c04372724043d560d2d37a9c132262849035611df9eeb29cf9786811252
-    fetched: "2026-10-01"
+    sha256: 82f96e4b4b44c634d0c69443c3fcd745c340968879d0758fa4dc1778d5ea1328
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/headless:
-    sha256: d7fa0cbbe242527efcb44114ad4c1e7242d8326c0f460bf52fa1eb82609a5d2d
-    fetched: "2026-10-01"
+    sha256: e2213e785a9105847e0d2ad006f3885c35ded7b88f0db23ce708ea45c43a7fbc
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/sub-agents:
-    sha256: f7a49266d42328f2a24ab778e2c28689d527b57da737e52b8928f6e275ca01e3
-    fetched: "2026-10-01"
+    sha256: b7458cb749979269a7db37d0adf853fe34541cee2ad477463fb16aa616a6c315
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/worktrees:
-    sha256: 37fb7f8adcadda1897b9fc78540595c7dcd396f17e6efe1e7d2878efe291edf9
-    fetched: "2026-10-01"
+    sha256: cb2a422f9dc7f3a1dc21dcaf3a4ace38759334c1535683f8a0f64fedf01593b8
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/agent-sdk/typescript:
-    sha256: 695a0de1702947d9e741109465d121644aa79dd9f092a321ddbafb4dd679e1fa
-    fetched: "2026-10-01"
+    sha256: d57286dba2d1bb9aefd328fa34145474870efa4817fab8dca69884c1fcb2aa28
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/interactive-mode:
-    sha256: 4fcff02c9ed2a1853c89fecdd9d442fddc77d4920e4114ec66ca85aeafa238d5
-    fetched: "2026-10-01"
+    sha256: b9755bd87299d0d9e7d4216cfcfb484700ec0c6e70d9df8a1b69635f1748f81b
+    fetched: "2026-10-05"
   https://code.claude.com/docs/en/scheduled-tasks:
     sha256: bd61138121e36e5e0b888c7e2ad15df0d65d735cfcdcc46e35b950b0ce80846e
     fetched: "2026-10-01"
