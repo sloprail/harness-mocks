@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,4 +43,15 @@ func TestAddingARootChangesNeitherWhatARunMayReadNorWhatItsHooksSee(t *testing.T
 			require.Equal(t, []string{"tool_call/completed/readToolCall/success", "tool_call/completed/readToolCall/success", "tool_call/completed/readToolCall/success"}, completedReads(o.frames), run+" "+name)
 		}
 	}
+}
+
+// TestAddDirIsRefusedWithoutForce: --add-dir is modeled only in the mode the
+// recordings cover (-p --force); the mock refuses it otherwise, naming the
+// flag, rather than guess what a run without --force does with it.
+func TestAddDirIsRefusedWithoutForce(t *testing.T) {
+	cmd := exec.Command(binary, "-p", "--trust", "--output-format", "stream-json", "--add-dir", t.TempDir(), "go")
+	cmd.Dir = t.TempDir()
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err)
+	require.Contains(t, string(out), "--add-dir is modeled only with --force")
 }
