@@ -56,8 +56,6 @@ const (
 // beginning prompt gets a fresh id, every other event the current prompt's
 // (none before the first); the permission mode is told only on the events about
 // a turn (PromptBegins, PromptContinues), not on the ones that surround it.
-//
-// sr:capability hook-common-payload
 func PromptFields(t *Turn, newID func() string, e PromptEvent, mode string) (promptID, permissionMode string) {
 	if e == PromptBegins {
 		promptID = t.begin(newID)
