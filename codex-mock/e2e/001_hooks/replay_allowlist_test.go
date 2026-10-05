@@ -30,6 +30,5 @@ var notReplaying = map[string]string{
 	"session-resume-unknown":                     "adapter: the setup has args, which the adapter does not install",
 	"session-start-compact-continue-false":       "adapter: the setup has args, which the adapter does not install",
 	"subagent-stop-block-loop-cap":               "adapter: the model called wait: the adapter maps only exec",
-	"subagent-transcripts-v2":                    "adapter: the setup has args, which the adapter does not install",
 	"task-stream-frames":                         "adapter: the model called tools.write_stdin: the adapter maps exec_command, spawn_agent and wait_agent",
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The recorded run runs/subagent-transcripts-v2: the agent spawns one
+// The recorded run runs/subagent-transcripts-v2 (the default multi-agent mode): the agent spawns one
 // sub-agent (task "ping", which answers PONG) and waits for it. The model's
 // spawn_agent call is replayed by a script, the sub-agent's answer by another.
 const (
@@ -82,8 +82,7 @@ func saidBy(rec []map[string]any) (out []string) {
 
 // A sub-agent's records go to a rollout of its own, beside the session's (the
 // same directory, named the same way) and not into it. Its meta record names
-// what spawned it (the parent thread) and how deep it is, and gives it a path
-// in the tree of agents; what the sub-agent said is in its file, not the
+// what spawned it (the parent thread) and how deep it is; what the sub-agent said is in its file, not the
 // session's. There is no sidecar file (runs/subagent-transcripts-v2).
 // sr:proves subagent-transcripts/codex
 func TestSubAgentRecordsGoToARolloutOfItsOwn(t *testing.T) {
@@ -116,8 +115,8 @@ func TestSubAgentRecordsGoToARolloutOfItsOwn(t *testing.T) {
 	assert.Equal(t, sessionID, gotMeta["session_id"], "the session it belongs to")
 	assert.Equal(t, sessionID, spawn(gotMeta)["parent_thread_id"])
 	assert.Equal(t, wantMeta["thread_source"], gotMeta["thread_source"])
-	assert.Equal(t, "/root/ping", wantMeta["agent_path"], "recording: its path in the tree of agents")
-	assert.Nil(t, gotMeta["agent_path"], "mock: the path is not modelled")
+	assert.Nil(t, wantMeta["agent_path"], "recording: no path in the tree of agents")
+	assert.Nil(t, gotMeta["agent_path"], "mock: none either")
 	assert.Equal(t, spawn(wantMeta)["depth"], spawn(gotMeta)["depth"], "its depth")
 	assert.EqualValues(t, 1, spawn(gotMeta)["depth"])
 	assert.NotEqual(t, sessionID, gotMeta["id"], "a thread of its own")
