@@ -102,7 +102,7 @@ func TestAHookCommandRunsThroughTheShellInTheProjectRootWithThePayloadOnStdin(t 
 // runs/shell-exit-status, runs/hook-json-nonzero), and the mock names it there.
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *testing.T) {
-	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"preToolUse":[{"command":"cat > \"$HOOK_LOG.pre\""}],"beforeShellExecution":[{"command":"cat > \"$HOOK_LOG.before\""}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
+	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"preToolUse":[{"command":"cat > \"$HOOK_LOG.pre\""}],"beforeShellExecution":[{"command":"cat > \"$HOOK_LOG.before\"; p=$(jq -r .transcript_path \"$HOOK_LOG.before\"); [ -f \"$p\" ] && echo exists > \"$HOOK_LOG.exists\""}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
 	path, session := c.transcript(t)
 	project := strings.NewReplacer("/", "-", ".", "-", "_", "-").Replace(strings.TrimPrefix(c.ws, "/"))
 	require.Equal(t, filepath.Join(c.home, ".cursor", "projects", project, "agent-transcripts", session, session+".jsonl"), path)
@@ -115,6 +115,8 @@ func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *te
 	require.Contains(t, string(pre), `"transcript_path":null`, "the first preToolUse names no transcript")
 	before, _ := os.ReadFile(c.log + ".before")
 	require.Contains(t, string(before), `"transcript_path":"`+path+`"`, "the mock names it at the first beforeShellExecution")
+	exists, _ := os.ReadFile(c.log + ".exists")
+	require.Contains(t, string(exists), "exists", "the file is there when a payload names it, as recorded (transcript_exists is true at the first beforeShellExecution of runs/symlinked-cwd)")
 	require.Contains(t, c.logged(t), `"transcript_path":"`+path+`"`)
 }
 
