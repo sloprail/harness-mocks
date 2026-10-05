@@ -34,6 +34,9 @@ type Outcome struct {
 	Done int
 	// Took is how long it ran.
 	Took time.Duration
+	// Finished is when it finished, counted from the moment its event's commands
+	// were started together.
+	Finished time.Duration
 	// Timeout is the limit it ran under.
 	Timeout time.Duration
 }
@@ -58,6 +61,7 @@ type Runtime struct {
 func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Outcome {
 	out := make([]Outcome, len(cmds))
 	var finished atomic.Int64
+	began := time.Now()
 	var wg sync.WaitGroup
 	for i, c := range cmds {
 		wg.Add(1)
@@ -65,6 +69,7 @@ func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Out
 			defer wg.Done()
 			out[i] = runOne(ctx, c, stdin, rt)
 			out[i].Done = int(finished.Add(1))
+			out[i].Finished = time.Since(began)
 		}()
 	}
 	wg.Wait()
