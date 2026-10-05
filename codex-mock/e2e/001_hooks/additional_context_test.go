@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -64,21 +65,23 @@ func TestPostToolUseBlockAndAddedContextAreBothKept(t *testing.T) {
 	}
 }
 
-// What a SessionStart hook adds when the session is resumed (source "resume") reaches
-// the agent as developer context in the session's record, as at startup; a hook matching
-// only startup adds nothing then.
+// What a SessionStart hook adds when the session is resumed (source "resume") is kept as
+// developer context in the session's record after the startup's, in the same file; the
+// hook matching only startup does not run again (recorded: runs/session-resume-context).
 // sr:proves hook-additional-context/codex
 func TestSessionStartContextOnAResumedSessionIsKept(t *testing.T) {
-	hooks := `{"hooks":{"SessionStart":[
- {"matcher":"startup","hooks":[{"type":"command","command":"sh hook.sh startup"}]},
- {"matcher":"resume","hooks":[{"type":"command","command":"sh hook.sh resume"}]}]}}`
-	hook := `cat >/dev/null; echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"CTX-'$1'"}}'`
-	first := execMock(t, scenario{HooksJSON: hooks, Files: map[string]string{"hook.sh": hook},
-		Script: callThenResult, Prompt: "go", Env: withCalls(t)})
+	rec := loadRecording(t, "session-resume-context")
+	first := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")), Script: resumeScript,
+		Prompt: strings.TrimSpace(readFile(t, filepath.Join(rec.setup, "prompt.txt"))),
+	})
 	require.Equal(t, 0, first.Code, first.Stderr)
-	assert.Equal(t, []string{"CTX-startup"}, developerTexts(t, first.rollout(t)))
+	elsewhere, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	got := resumeIn(t, first, elsewhere, threadIDs(first)[0], strings.TrimSpace(readFile(t, filepath.Join(rec.setup, "then-01-prompt.txt"))))
+	require.Equal(t, 0, got.Code, got.Stderr)
 
-	resumed := resumeIn(t, first, first.Repo, threadIDs(first)[0], "again")
-	require.Equal(t, 0, resumed.Code, resumed.Stderr)
-	assert.Equal(t, []string{"CTX-startup", "CTX-resume"}, developerTexts(t, first.rollout(t)), "the resume start added its context, and startup's did not run again")
+	want := []string{"CTX-startup", "CTX-resume"}
+	assert.Equal(t, want, addedContext(t, recordedRollout(t, rec)), "recorded")
+	assert.Equal(t, want, addedContext(t, first.rollout(t)), "the mock's")
 }
