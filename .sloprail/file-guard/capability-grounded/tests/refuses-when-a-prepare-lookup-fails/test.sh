@@ -124,9 +124,9 @@ scenario
 sr-checks changeset --rule capability-grounded --base "$BASE" --head HEAD | jq -c '.subjects[0].payload' >cell.payload
 jq -c '.changeset.files += [range(0; 2500) | {path: ("pad/" + ("x" * 40) + (. | tostring)), status: "A"}]' cell.payload >big.payload
 [ "$(jq -r '[.changeset.files[].path] | join("\n") | length' big.payload)" -gt 65536 ] || { echo "the padded changed-files list is not over 64 KB" >&2; exit 1; }
-out="$(cd .sloprail/file-guard/capability-grounded && SR_TREE="$OLDPWD" SR_GUARDRAIL_DIR="$PWD" bash ./prepare.sh <"$OLDPWD/big.payload")" || true
-printf '%s' "$out" | jq -e '.additionalContext.subjects[0].id == "c"' >/dev/null ||
-  { echo "a changed-files list over 64 KB: prepare.sh dropped the changed capability: $out" >&2; exit 1; }
+if out="$(cd .sloprail/file-guard/capability-grounded && SR_TREE="$OLDPWD" SR_GUARDRAIL_DIR="$PWD" bash ./prepare.sh <"$OLDPWD/big.payload")"; then big_rc=0; else big_rc=$?; fi
+[ "$big_rc" -eq 0 ] && printf '%s' "$out" | jq -e '.additionalContext.subjects[0].id == "c"' >/dev/null ||
+  { echo "a changed-files list over 64 KB: prepare.sh dropped the changed capability (exit $big_rc): $out" >&2; exit 1; }
 
 # the count of the subjects, and the output
 scenario; inject_exact 'length'
