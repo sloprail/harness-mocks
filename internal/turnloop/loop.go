@@ -11,36 +11,6 @@ import (
 	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
-// Host is the harness side of a turn: its hooks and its record of the session.
-type Host interface {
-	// SubmitPrompt fires the prompt hooks: the context they add, and whether
-	// one blocked the prompt.
-	SubmitPrompt(ctx context.Context) (extra string, blocked bool)
-	// Say records a message from the agent.
-	Say(text string)
-	// Tool carries out the tool call the agent made.
-	Tool(ctx context.Context, tu scenario.ToolUse)
-	// EndOfTurn fires the end-of-turn hooks after the agent's last message,
-	// continuing being true when an earlier block already continued the turn;
-	// again is whether one blocked, with the reason it gave.
-	EndOfTurn(ctx context.Context, last string, continuing bool) (reason string, again bool)
-	// Continue records the reason a block gave, as the prompt that continues
-	// the turn.
-	Continue(reason string)
-	// CapOverridden records that a block was overridden: blocks in a row had
-	// already continued the turn as often as the cap allows, so it ends.
-	CapOverridden(blocks int)
-	// SessionFile is the path of the session record so far.
-	SessionFile() string
-}
-
-// Gater is a host that holds a turn back until what its script's gate names has
-// happened (scenario.Gate): the script, not the time anything takes, orders the
-// agents' steps.
-type Gater interface {
-	Gate(ctx context.Context, g scenario.Gate)
-}
-
 // Params is what the loop is told.
 type Params struct {
 	Script  string
@@ -80,6 +50,12 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 		}
 		if err != nil {
 			return "", err
+		}
+		if n, ok := h.(Noticer); ok {
+			if text, found := n.Notice(); found {
+				n.Told(text)
+				continue
+			}
 		}
 		reason, blocked := h.EndOfTurn(ctx, last, continuing)
 		if !Continues(blocked, false) {
@@ -155,5 +131,10 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 			return "", fmt.Errorf("the scenario script emitted the same tool_use %d turns in a row", LoopLimit)
 		}
 		perform(ctx, h, calls)
+		if n, ok := h.(Noticer); ok && len(calls) > 0 && !calls[len(calls)-1].More {
+			if text, found := n.Notice(); found {
+				n.Told(text)
+			}
+		}
 	}
 }
