@@ -65,6 +65,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      # the recorded runs name zsh as the shell a command runs by, and the mock runs it by that shell
+      - name: zsh
+        run: sudo apt-get install -y zsh
       - run: make -C codex-mock test-e2e
 
   cursor-unit:
@@ -112,6 +115,9 @@ jobs:
       # the cursor and codex suites replay recorded runs, whose hook scripts use jq
       - name: jq
         run: sudo apt-get install -y jq
+      # the codex suite's recorded runs name zsh as the shell a command runs by
+      - name: zsh
+        run: sudo apt-get install -y zsh
       # the same commands as each mock's Makefile test-e2e (race build, same environment), with
       # -count=1 only: the Makefile pins it, and each replica is one more run of the suite
       - name: e2e
