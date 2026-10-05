@@ -69,7 +69,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				finish()
 				return nil
 			}
-			if resultFailed(turn.resultLine) {
+			if final.Failed() {
 				finish()
 				return errRunFailed
 			}
