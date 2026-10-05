@@ -21,7 +21,8 @@ payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
 load_spec capabilities; caps="$SPEC"; load_touched
-changed="$(cs '.changeset.files[].path')"
+changed="$(cs '.changeset.files[].path')" ||
+  refuse "the changed files could not be listed, so nothing could be prepared for the judge"
 subjects="[]"
 # Every lookup below that fails refuses: a prepare that cannot work out what to put before the judge
 # must not hand it less (or nothing) and let the verdict pass on that.

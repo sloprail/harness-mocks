@@ -22,8 +22,8 @@ payload="$(cat)"
 load_spec capabilities; caps="$SPEC"
 load_markers capability; impl="$MARKERS"
 load_markers proves; proves="$(printf '%s\n' "$MARKERS" | awk -F'\t' 'NF && $2 ~ /\//')"
-hs="$(harnesses)"
-[ -n "$hs" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness cell could be checked (an incomplete tree?)"
+hs="$(harnesses)" || refuse "the harness mocks could not be listed, so it could not be worked out what to check"
+[ -n "$hs" ] || refuse "there is no <harness>-mock/ in the tree, so it could not be worked out what to check"
 
 problems=""
 pending=""
@@ -37,8 +37,10 @@ while IFS= read -r c; do
   [ -n "$c" ] || continue
   id="$(jq -r '.id' <<<"$c")" || refuse_error "a capability's id could not be read, so it could not be checked"
   kebab "$id" || add "spec/capabilities/$id.yaml: the file name must be kebab-case"
-  jq -e '(.doc.providers | type) == "object"' <<<"$c" >/dev/null || continue   # a bad shape is shapes' finding
-  keys="$(jq -r '.doc.providers | keys[]' <<<"$c")" || refuse_error "capability '$id': its cells could not be listed, so it could not be checked"
+  jq -e '(.doc.providers | type) == "object"' <<<"$c" >/dev/null; rc=$?
+  [ "$rc" -le 1 ] || refuse "capability '$id': its cells could not be read, so it could not be checked"
+  [ "$rc" -eq 0 ] || continue   # not an object: a bad shape is shapes' finding
+  keys="$(jq -r '.doc.providers | keys[]' <<<"$c")" || refuse "capability '$id': its cells could not be listed, so it could not be checked"
   for h in $keys; do
     printf '%s\n' "$hs" | grep -Fxq -- "$h" || add "capability '$id' has a cell for '$h', but there is no $h-mock/"
   done
