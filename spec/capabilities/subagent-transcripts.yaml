@@ -45,13 +45,6 @@ providers:
           spawned it and no type beyond a role that was null in the recording,
           and its path in the tree of agents is null too (recorded:
           runs/subagent-transcripts-v2). The mock does the same.
-      - adr: capability-grounding
-        kind: mock-not-modeled
-        statement: >-
-          Codex records the sub-agent's final answer in the session's rollout
-          also as a subagent_notification message (recorded:
-          runs/subagent-transcripts-v2); the mock records it as the output of
-          the wait call only.
   cursor:
     docs:
       - https://cursor.com/docs/subagents#how-subagents-work

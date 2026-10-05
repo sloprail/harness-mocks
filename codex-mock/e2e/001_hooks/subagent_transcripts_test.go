@@ -146,3 +146,69 @@ func TestSubAgentRecordsGoToARolloutOfItsOwn(t *testing.T) {
 }
 
 func toJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
+
+// notice is a <subagent_notification> message of a rollout: the user's message the
+// harness adds when a sub-agent has ended, with where it sits among the records.
+type notice struct {
+	Agent, Completed string
+	AfterOutput      bool // the record before it is a tool output
+	BeforeAnswer     bool // the record after it is the assistant's message
+}
+
+func noticesOf(t *testing.T, rec []map[string]any) (out []notice) {
+	t.Helper()
+	var items []map[string]any
+	for _, r := range rec {
+		if p, ok := r["payload"].(map[string]any); ok && r["type"] == "response_item" && p["type"] != "reasoning" {
+			items = append(items, p)
+		}
+	}
+	for i, p := range items {
+		if p["type"] != "message" || p["role"] != "user" {
+			continue
+		}
+		c, _ := p["content"].([]any)[0].(map[string]any)["text"].(string)
+		if !strings.HasPrefix(c, "<subagent_notification>") {
+			continue
+		}
+		body := strings.TrimSuffix(strings.TrimPrefix(c, "<subagent_notification>\n"), "\n</subagent_notification>")
+		var n struct {
+			AgentPath string            `json:"agent_path"`
+			Status    map[string]string `json:"status"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(body), &n))
+		out = append(out, notice{Agent: n.AgentPath, Completed: n.Status["completed"],
+			AfterOutput:  i > 0 && strings.HasSuffix(toJSON(items[i-1]["type"]), `_output"`),
+			BeforeAnswer: i+1 < len(items) && items[i+1]["role"] == "assistant"})
+	}
+	return out
+}
+
+// The harness tells the session when a sub-agent it started has ended, as a
+// <subagent_notification> message of the user's naming the sub-agent and its
+// final answer, after the tool output the agent was given and before its next
+// answer, once, though the agent had waited for the sub-agent (recorded:
+// runs/subagent-transcripts-v2).
+// sr:proves subagent-transcripts/codex
+func TestTheSessionIsToldWhenASubAgentEnds(t *testing.T) {
+	rec := loadRecording(t, "subagent-transcripts-v2")
+	want := rolloutFiles(t, filepath.Join(rec.sample, "transcript"))
+	wantParent, wantChild := splitRollouts(t, want)
+
+	got := execMock(t, scenario{Script: pingSpawn, Files: map[string]string{"pong.sh": pongScript},
+		Prompt: strings.TrimSpace(readFile(t, filepath.Join(rec.setup, "prompt.txt")))})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	have := rolloutFiles(t, got.Home)
+	parentPath, childPath := splitRollouts(t, have)
+
+	for name, c := range map[string]struct {
+		notices []notice
+		child   string
+	}{
+		"recording": {noticesOf(t, want[wantParent]), metaOf(want[wantChild])["id"].(string)},
+		"mock":      {noticesOf(t, have[parentPath]), metaOf(have[childPath])["id"].(string)},
+	} {
+		require.Len(t, c.notices, 1, name)
+		assert.Equal(t, notice{Agent: c.child, Completed: "PONG", AfterOutput: true, BeforeAnswer: true}, c.notices[0], name)
+	}
+}

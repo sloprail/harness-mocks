@@ -51,6 +51,7 @@ func (h toolHost) startBackground(c toolcall.Call, receipt string) {
 	}
 	_ = json.Unmarshal([]byte(receipt), &r)
 	t := tasks.NewTask(tasks.Agent, r.AgentID)
+	t.Owner = h.id // the agent that started it is the one told when it ends
 	h.bg.StartAgent(t, func(ctx context.Context) {
 		rollout, err := h.createSub(r.AgentID)
 		if err != nil {
