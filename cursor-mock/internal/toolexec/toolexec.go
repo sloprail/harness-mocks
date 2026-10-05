@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
-	"time"
 )
 
 // Call is a tool call as Cursor names it: the kind of its tool_call frame
@@ -15,31 +14,6 @@ type Call struct {
 	Kind string
 	Args map[string]any
 }
-
-// Result is what a tool call came to.
-type Result struct {
-	// Failed: the call ran and failed.
-	Failed bool
-	// Frame is the result object of the call's completed stream frame.
-	Frame map[string]any
-	// ToolOutput is the call's result as postToolUse reports it, a JSON string.
-	ToolOutput string
-	// ErrorMessage is what postToolUseFailure reports when the call failed.
-	ErrorMessage string
-	// Output is what a shell command printed, for afterShellExecution.
-	Output string
-	// Background: the call started a background shell (no afterShellExecution
-	// follows it; its end comes as a task notification).
-	Background bool
-	// Read is what a successful read returned, for beforeReadFile.
-	Read *ReadFile
-	// Edits are the changes a file write made, for afterFileEdit.
-	Edits []Edit
-	Took  time.Duration
-}
-
-// ReadFile is the file a read returned.
-type ReadFile struct{ Path, Content string }
 
 // toolTable is the tools the mock models, by the name a scenario script gives
 // them (the Claude Code names, with Cursor's Shell too): the kind of Cursor
