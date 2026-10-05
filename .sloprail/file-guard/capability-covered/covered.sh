@@ -22,7 +22,14 @@ payload="$(cat)"
 load_spec capabilities; caps="$SPEC"
 load_markers capability; impl="$MARKERS"
 load_markers proves; proves="$(printf '%s\n' "$MARKERS" | awk -F'\t' 'NF && $2 ~ /\//')"
-hs="$(harnesses)" || refuse "the harness mocks could not be listed, so it could not be worked out what to check"
+# The harness mocks are listed here, by a glob of directories: harnesses() (spec.sh) ends on its last `[ -d ]`,
+# so a stray file named like a mock sorted last would fail its listing. No mock directory at all is one refusal.
+hs=""
+for d in "$SR_TREE"/*-mock/; do
+  [ -d "$d" ] || continue
+  d="${d%/}"; d="${d##*/}"
+  hs="${hs}${d%-mock}"$'\n'
+done
 [ -n "$hs" ] || refuse "there is no <harness>-mock/ in the tree, so it could not be worked out what to check"
 
 problems=""
@@ -42,7 +49,7 @@ while IFS= read -r c; do
   [ "$rc" -eq 0 ] || continue   # not an object: a bad shape is shapes' finding
   keys="$(jq -r '.doc.providers | keys[]' <<<"$c")" || refuse "capability '$id': its cells could not be listed, so it could not be checked"
   for h in $keys; do
-    printf '%s\n' "$hs" | grep -Fxq -- "$h" || add "capability '$id' has a cell for '$h', but there is no $h-mock/"
+    case $'\n'"$hs" in *$'\n'"$h"$'\n'*) ;; *) add "capability '$id' has a cell for '$h', but there is no $h-mock/" ;; esac
   done
   n="$(printf '%s\n' "$impl" | awk -F'\t' -v id="$id" '$2 == id' | grep -c .)"
   [ "$n" -eq 1 ] || add "capability '$id' needs exactly one // sr:capability $id, in internal/ (found $n)"
@@ -62,7 +69,7 @@ while IFS= read -r c; do
         for a in $adrs; do
           [ -f "$SR_TREE/adr/$a/ADR.md" ] || add "capability '$id' × '$h' deviates citing adr/$a, which does not exist"
         done
-        printf '%s\n' "$proves" | awk -F'\t' -v f="$id/$h" '$2 == f && $1 ~ /_test\.go$/' | grep -q . ||
+        printf '%s\n' "$proves" | awk -F'\t' -v f="$id/$h" '$2 == f && $1 ~ /_test\.go$/ {ok = 1} END {exit !ok}' ||
           add "capability '$id' is provided by '$h' but no test carries // sr:proves $id/$h"
         ;;
     esac
