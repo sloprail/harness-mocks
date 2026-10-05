@@ -49,7 +49,12 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	if _, noForce := rec.Setup["no-force"]; !noForce {
 		argv = append(argv, "--force")
 	}
-	argv = append(argv, "--trust", "--model", "auto", "--output-format", "stream-json", "--script", l.main, rec.Prompt)
+	extra, err := flagWords(rec.Setup["args"]) // checked at Load
+	if err != nil {
+		return want, got, err
+	}
+	argv = append(append(argv, "--trust", "--model", "auto", "--output-format", "stream-json"), extra...)
+	argv = append(argv, "--script", l.main, rec.Prompt)
 	res, err := procexec.Run(context.Background(), procexec.Spec{Argv: argv, Dir: l.cwd, Env: l.env, Timeout: 2 * time.Minute})
 	if err != nil || res.ExitCode != 0 || res.TimedOut {
 		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}

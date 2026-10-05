@@ -101,6 +101,18 @@ func mockCall(c core.Call) scriptCall {
 		name = "Write"
 		in["file_path"] = in["path"]
 		delete(in, "path")
+	case core.ToolSearchFiles:
+		name = "Grep"
+	case core.ToolDeleteFile:
+		name = "Delete"
+		in["file_path"] = in["path"]
+		delete(in, "path")
+	case core.ToolMCP:
+		name = fmt.Sprintf("mcp__%v__%v", in["server"], in["tool"])
+		in, _ = in["arguments"].(map[string]any)
+		if in == nil {
+			in = map[string]any{}
+		}
 	}
 	return scriptCall{Name: name, Input: in}
 }
