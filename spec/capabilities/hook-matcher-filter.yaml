@@ -44,6 +44,7 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/hook-matchers
       - cursor-mock/snapshots/runs/hook-matchers-after-events
+      - cursor-mock/snapshots/runs/hook-matchers-task-read
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled

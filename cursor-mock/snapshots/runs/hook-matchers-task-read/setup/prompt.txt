@@ -1,0 +1,1 @@
+Do these as separate tool calls, one per call, in order: 1) use the Task tool to start one sub-agent whose task is: reply only SUB-DONE; wait for it to finish 2) read the file note.txt with your Read tool. Then reply only DONE.

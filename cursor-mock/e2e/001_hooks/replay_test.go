@@ -248,9 +248,11 @@ func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	for i, c := range calls {
 		line, rest := scriptCall(t, strings.ReplaceAll(strings.ReplaceAll(c, "<RUN>", ws), "<TMP>", filepath.Dir(ws)), writes)
 		writes = rest
+		line = strings.ReplaceAll(line, "<SUBSCRIPT>", filepath.Join(scratch, "sub.sh"))
 		require.NoError(t, os.WriteFile(filepath.Join(scratch, itoa(i)+".json"), []byte(line+"\n"), 0o644))
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(scratch, "end.json"), []byte(`{"type":"result","subtype":"success","is_error":false,"result":"DONE"}`+"\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scratch, "sub.sh"), []byte("#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"SUB-DONE\"}]}}' '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"SUB-DONE\"}'\n"), 0o755))
 	script := filepath.Join(scratch, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nn=$(grep -c '\"type\":\"tool_use\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\nn=${n:-0}\nf=\""+scratch+"/$n.json\"\n[ -f \"$f\" ] || f=\""+scratch+"/end.json\"\ncat \"$f\"\n"), 0o755))
 	logPath := filepath.Join(scratch, "payloads.jsonl")
@@ -347,6 +349,11 @@ func scriptCall(t *testing.T, frame string, writes []string) (string, []string) 
 				content, writes = writes[0], writes[1:]
 			}
 			name, input = "Write", map[string]any{"file_path": args["path"], "content": content}
+		case "taskToolCall":
+			// a sub-agent the recorded agent started: the mock's sub-agent plays
+			// the script of its Task call's input (a knob of its own), here one that
+			// only replies
+			name, input = "Task", map[string]any{"description": args["description"], "prompt": args["prompt"], "subagent_type": "generalPurpose", "script": "<SUBSCRIPT>"}
 		}
 	}
 	require.NotEmpty(t, name, "a started frame naming no tool the mock runs: %s", frame)

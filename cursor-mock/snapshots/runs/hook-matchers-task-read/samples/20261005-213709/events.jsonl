@@ -1,0 +1,11 @@
+{"event":"hook","hook":null,"payload":{"hook_ran":"start","event":"sessionStart","tool":"","command":""}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-Task","event":"preToolUse","tool":"Task","command":""}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-Read","event":"preToolUse","tool":"Read","command":""}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"readfile-Read","event":"beforeReadFile","tool":"","command":""}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"post-Read","event":"postToolUse","tool":"Read","command":""}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"taskToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"taskToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}
