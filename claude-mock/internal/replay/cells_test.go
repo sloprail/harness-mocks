@@ -16,14 +16,13 @@ import (
 // left out ("cell/word": reason). An entry the cells no longer need fails the
 // test, so the list only shrinks.
 var notAbout = map[string]string{
-	"background-agent/script":              "prose: a mock sub-agent is a scenario script",
-	"session-fork/script":                  "prose: the scenario script writes the init and result frames",
-	"session-resume/script":                "prose: the scenario script writes the init frame",
-	"session-fork/init":                    "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
-	"session-resume/init":                  "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
-	"foreground-subagent-result/usage":     "the sub-agent's token counts, which the mock does not spend (a trailer's text is still compared)",
-	"stop-block-continuation/caller":       "prose: the caller who reads the result",
-	"transcript-record-envelope/timestamp": "transcripts are not compared yet (Load reads only their model turns), so the cell has no replay evidence",
+	"background-agent/script":          "prose: a mock sub-agent is a scenario script",
+	"session-fork/script":              "prose: the scenario script writes the init and result frames",
+	"session-resume/script":            "prose: the scenario script writes the init frame",
+	"session-fork/init":                "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
+	"session-resume/init":              "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
+	"foreground-subagent-result/usage": "the sub-agent's token counts, which the mock does not spend (a trailer's text is still compared)",
+	"stop-block-continuation/caller":   "prose: the caller who reads the result",
 }
 
 // No capability cell may be about what the replay leaves out of the comparison:
