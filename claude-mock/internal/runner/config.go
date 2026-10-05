@@ -48,7 +48,6 @@ type Config struct {
 	Stderr io.Writer
 	// Out receives the passthrough JSONL (defaults to os.Stdout).
 	Out io.Writer
-
 	// SuppressSubagentHooks marks a NESTED sub-agent run (set only by the Agent
 	// tool, agent.go): no SessionStart, UserPromptSubmit, Stop or SessionEnd of
 	// its own — the Agent-tool layer fires SubagentStart/SubagentStop with the
@@ -103,6 +102,7 @@ type Config struct {
 	// backgroundEndsWithFinalResponse).
 	SyncSubagent bool
 	Prompting    // what hook payloads tell of the prompt the session is on
+	*SubFrames   // what a sub-agent's stream frames name (nil for the root run)
 	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
 	// after its final turn; zero waits without a limit.
 	BgWaitCeiling time.Duration

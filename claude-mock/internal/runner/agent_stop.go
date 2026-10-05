@@ -36,6 +36,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		PluginCacheDir:          s.parent.PluginCacheDir,
 		Model:                   s.parent.Model,
 		Prompting:               s.parent.Prompting,
+		SubFrames:               &SubFrames{ParentToolUseID: s.toolUseID, TaskDescription: s.description},
 		Stderr:                  s.parent.Stderr,
 		Out:                     &buf,
 		SuppressSubagentHooks:   true,
@@ -50,6 +51,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SpawnLimit:              s.parent.SpawnLimit,
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
+	subCfg.announce(subCfg, prompt)
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)

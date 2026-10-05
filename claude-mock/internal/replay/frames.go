@@ -93,6 +93,16 @@ func assistant(f map[string]any) (map[string]any, bool) {
 		out[k] = v
 	}
 	out["message"] = message
+	if wire, ok := f["wire_tool_inputs"].(map[string]any); ok { // by call id: an Agent call's input has the mock's script key too
+		w := map[string]any{}
+		for id, in := range wire {
+			if m, ok := in.(map[string]any); ok {
+				in = withoutScript(m)
+			}
+			w[id] = in
+		}
+		out["wire_tool_inputs"] = w
+	}
 	return out, true
 }
 

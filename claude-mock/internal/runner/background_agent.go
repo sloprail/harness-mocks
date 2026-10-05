@@ -81,6 +81,10 @@ func writeStreamLine(cfg Config, line []byte) {
 	buf := make([]byte, 0, len(line)+1)
 	buf = append(append(buf, line...), '\n')
 	cfg.Out.Write(buf) //nolint:errcheck
+	// a sub-agent's own messages also stream, to the session's stream, where the run's output is captured
+	if cfg.AgentID != "" && cfg.stream != nil && isMessageFrame(line) {
+		cfg.stream.Write(buf) //nolint:errcheck
+	}
 }
 
 // inputValidationError is the tool_result real Claude Code returns for a call

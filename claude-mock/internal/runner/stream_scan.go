@@ -67,6 +67,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				// fires — real Claude Code writes the tool_use first and the
 				// PreToolUse hook's attachment after it, and the tool_use is part
 				// of the trajectory whatever the hook decides.
+				if cfg.AgentID != "" {
+					cfg.progress(cfg, toolName, toolInput)
+				}
 				writeStreamLine(cfg, line)
 				tr.persist(line)
 

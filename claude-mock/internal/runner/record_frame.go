@@ -20,6 +20,9 @@ func stampFrame(cfg Config, line []byte) []byte {
 	}
 	if _, ok := m["parent_tool_use_id"]; !ok {
 		m["parent_tool_use_id"] = nil
+		if cfg.AgentID != "" { // a sub-agent's frame names the call that started it
+			cfg.frameFields(cfg, m)
+		}
 	}
 	if _, ok := m["timestamp"]; !ok { // when the frame was written (recorded: every assistant and user frame)
 		m["timestamp"] = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
@@ -55,4 +58,31 @@ func wireToolInputs(frame map[string]any) map[string]any {
 		}
 	}
 	return wire
+}
+
+// isMessageFrame is whether a stream line is a frame a sub-agent streams: a user
+// message (its prompt, a tool's result) or an assistant message that calls a
+// tool. Its final answer does not stream: the task's notification carries it
+// (recorded: snapshots/runs/isolated-worktree).
+func isMessageFrame(line []byte) bool {
+	var f struct {
+		Type    string `json:"type"`
+		Message struct {
+			Content []struct {
+				Type string `json:"type"`
+			} `json:"content"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(line, &f) != nil {
+		return false
+	}
+	if f.Type == "user" {
+		return true
+	}
+	for _, b := range f.Message.Content {
+		if f.Type == "assistant" && b.Type == "tool_use" {
+			return true
+		}
+	}
+	return false
 }
