@@ -18,7 +18,8 @@ every difference between a recording and its mock into an accepted one.
   keys and never adds one: adding an entry fails CI (the
   `replay-exceptions-only-shrink` file-guard compares the map's keys at the base
   and at the head). A new `flaky:` entry is an addition, and a new list file
-  carries no entries.
+  carries no entries. The list file is never deleted (the map is
+  emptied instead), and the map is named only on its declaration line.
 - An existing entry's reason never moves to a weaker category: `flaky:` is the
   weakest, `untriaged:` is weaker than every triaged reason, and a triaged
   reason is any reason that is neither `flaky:` nor `untriaged:` (`adapter:`,

@@ -47,6 +47,11 @@ printf "$head"'\t"run-a": "\\u0066laky: x",\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "escaped flaky"
 refuses "an escaped flaky: reason" "is not one \"run\": \"reason\", entry"
 
+# an entry added by an init() is an entry the literal does not show: refused
+printf "$head"'\t"run-a": "adapter: x",\n}\n\nfunc init() { notReplaying["run-e"] = "flaky: z" }\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "init adds an entry"
+refuses "an init adding an entry" "notReplaying may appear only on its declaration line"
+
 # recovery: one entry per line, and the list only shrank
 printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b replays"

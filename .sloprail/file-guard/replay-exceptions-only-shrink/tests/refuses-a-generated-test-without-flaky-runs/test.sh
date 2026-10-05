@@ -41,6 +41,11 @@ printf 'package e2e\n\nconst flakyRuns = 3\n\nfunc f() {\n\t_ = strings.HasPrefi
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "no retry"
 refuses "a flaky: entry with no retry" "must be run through replayUntilGreen(run, flakyRuns)"
 
+# a block comment holding what the rule asks for, beside a real single run, is refused
+printf 'package e2e\n\n/*\n'"$good"'*/\nvar flakyRuns = 1\n' > "$gen"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "decoy comment"
+refuses "a block comment decoy" "a block comment or raw string could hide what this rule reads"
+
 # recovery: three runs and the retry, and the change passes
 printf 'package e2e\n\n'"$good" | sed 's/func f() {/\/\/ ok\nfunc f() {/' > "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "five runs"

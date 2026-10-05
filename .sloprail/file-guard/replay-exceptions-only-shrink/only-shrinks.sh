@@ -57,6 +57,13 @@ while [ "$i" -lt "$count" ]; do
       [ "$status" = "D" ] && continue
       new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
         refuse "could not read $path from the changeset, so it could not be checked"
+      # code lines only: a block comment or raw string could hold a copy of what is asked for
+      code="$(printf '%s\n' "$new" | grep -v '^[[:space:]]*//')"
+      if printf '%s\n' "$code" | grep -q '/\*\|`'; then
+        refuse "$path: a block comment or raw string could hide what this rule reads; use whole-line // comments and interpreted strings"
+      fi
+      [ "$(printf '%s\n' "$code" | grep -c 'flakyRuns[[:space:]]*=')" = 1 ] ||
+        refuse "$path: flakyRuns must be assigned exactly once, as 'const flakyRuns = 3'"
       runs="$(printf '%s\n' "$new" | sed -n 's/^const flakyRuns = \([0-9][0-9]*\)$/\1/p')"
       [ "$runs" = 3 ] || refuse "$path: a flaky: entry is replayed three times: declare 'const flakyRuns = 3'"
       printf '%s\n' "$new" | grep -q 'replayUntilGreen(run, flakyRuns)' &&
@@ -67,7 +74,9 @@ while [ "$i" -lt "$count" ]; do
       ;;
   esac
   # a deleted file has no list; a created one has an empty base, so each of its entries is an addition
-  if [ "$status" = "D" ]; then continue; fi
+  if [ "$status" = "D" ]; then
+    refuse "$path: the list file is deleted: empty the notReplaying map instead, so the list stays where this rule reads it"
+  fi
   old=""
   if [ "$status" != "A" ]; then
     old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
@@ -81,6 +90,10 @@ while [ "$i" -lt "$count" ]; do
   # written some other way) would show this rule a map that Go never reads
   [ "$(printf '%s\n' "$new" | grep -c '^[[:space:]]*var[[:space:]][[:space:]]*notReplaying\b')" = 1 ] ||
     refuse "$path: notReplaying must be declared exactly once, as 'var notReplaying = map[string]string{' on a line of its own"
+  # notReplaying appears on the declaration line only (and in whole-line comments): a read or write of
+  # the map elsewhere (an init() adding an entry, a var ( group) is an entry this rule would not see
+  [ "$(printf '%s\n' "$new" | grep -v '^[[:space:]]*//' | grep -c 'notReplaying')" = 1 ] ||
+    refuse "$path: notReplaying may appear only on its declaration line (comments aside): do not read or change the map elsewhere in this file"
   bad="$(malformed "$new")"
   [ -z "$bad" ] || refuse "$path: a notReplaying line is not one \"run\": \"reason\", entry, so the list could not be compared (a line this rule cannot read would hide an entry): $(printf '%s' "$bad" | head -n 1)"
   added="$(comm -13 <(keys "$old") <(keys "$new"))"
