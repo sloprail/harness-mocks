@@ -19,7 +19,6 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "e2e: %v\n", err)
 		os.Exit(1)
 	}
-	defer os.RemoveAll(tmp)
 	if binary = os.Getenv("A10N_CURSOR_MOCK_TEST_BINARY"); binary == "" {
 		out, err := exec.Command("go", "env", "GOMOD").Output()
 		if err != nil {
@@ -35,5 +34,7 @@ func TestMain(m *testing.M) {
 			os.Exit(1)
 		}
 	}
-	os.Exit(m.Run())
+	code := m.Run()
+	os.RemoveAll(tmp)
+	os.Exit(code)
 }
