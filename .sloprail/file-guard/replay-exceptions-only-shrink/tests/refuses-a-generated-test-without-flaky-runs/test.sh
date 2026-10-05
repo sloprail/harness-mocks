@@ -34,14 +34,14 @@ BASE=$(git rev-parse HEAD)
 git checkout -q -b once "$BASE"
 sed 's/flakyRuns = 3/flakyRuns = 1/' "$gen" > "$gen.new" && mv "$gen.new" "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run flaky once"
-refuses "a flaky: entry run once" "declare 'const flakyRuns = N' with N of at least 2"
+refuses "a flaky: entry run once" "declare 'const flakyRuns = 3'"
 
 # a flaky: entry passed outright, with no retry, is refused
 printf 'package e2e\n\nconst flakyRuns = 3\n\nfunc f() {\n\t_ = strings.HasPrefix(reason, "flaky:")\n}\n' > "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "no retry"
 refuses "a flaky: entry with no retry" "must be run through replayUntilGreen(run, flakyRuns)"
 
-# recovery: the runs are 5, still several, and the change passes
-printf 'package e2e\n\n'"$good" | sed 's/flakyRuns = 3/flakyRuns = 5/' > "$gen"
+# recovery: three runs and the retry, and the change passes
+printf 'package e2e\n\n'"$good" | sed 's/func f() {/\/\/ ok\nfunc f() {/' > "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "five runs"
-passes "a generated test running a flaky: entry five times"
+passes "a generated test running a flaky: entry three times"
