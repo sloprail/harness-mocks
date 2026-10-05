@@ -1,0 +1,16 @@
+{"event":"hook","hook":null,"payload":{"hook_ran":"start","event":"sessionStart","tool":"","command":""}}
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-mcp-echo","event":"preToolUse","tool":"MCP:echo","command":""}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"pre-all","event":"preToolUse","tool":"MCP:echo","command":""}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"MCP:echo","tool_input":{"text":"HELLO"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"MCP:echo","tool_input":{"text":"HELLO"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"post-all","event":"postToolUse","tool":"MCP:echo","command":""}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"MCP:echo","tool_input":{"text":"HELLO"},"tool_output":"{\"content\":[{\"type\":\"text\",\"text\":\"ECHOED: HELLO\"}],\"isError\":false}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"post-mcp-echo","event":"postToolUse","tool":"MCP:echo","command":""}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"MCP:echo","tool_input":{"text":"HELLO"},"tool_output":"{\"content\":[{\"type\":\"text\",\"text\":\"ECHOED: HELLO\"}],\"isError\":false}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"getMcpToolsToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"getMcpToolsToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"mcpToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"mcpToolCall","outcome":"success"}
+{"event":"stream","type":"result","subtype":"success"}

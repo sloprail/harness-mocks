@@ -69,8 +69,14 @@ func TestAScriptsToolCallBecomesACursorCall(t *testing.T) {
 	if c.Kind != "editToolCall" || c.Path("/") != "/a/b" || c.Name() != "Write" || c.HookInput("/")["content"] != "hi" {
 		t.Errorf("Write: %+v", c)
 	}
-	if _, known := Required("Grep"); known {
-		t.Error("Grep is not a tool the mock runs")
+	if _, known := Required("Glob"); known {
+		t.Error("Glob is not a tool the mock runs")
+	}
+	if c := FromScript("Grep", []byte(`{"pattern":"NEEDLE"}`)); c.Kind != "grepToolCall" || c.Name() != "Grep" || c.HookInput("/")["pattern"] != "NEEDLE" {
+		t.Errorf("Grep: %+v", c)
+	}
+	if c := FromScript("mcp__local__echo", []byte(`{"text":"HI"}`)); c.Kind != "mcpToolCall" || c.Name() != "MCP:echo" || c.HookInput("/")["text"] != "HI" {
+		t.Errorf("an MCP tool: %+v", c)
 	}
 	if req, known := Required("Read"); !known || len(req) != 1 || req[0] != "file_path" {
 		t.Errorf("Read requires %v (known %v)", req, known)

@@ -56,6 +56,6 @@ func run(cmd *cobra.Command, f flags, args []string) error {
 	}
 	return runner.Run(cmd.Context(), runner.Config{
 		Script: script, Prompt: strings.Join(args, " "), Resume: f.resume, Dir: dir, Environ: os.Environ(), Home: home,
-		Version: version, Force: f.force || f.yolo, Stdout: os.Stdout, Stderr: os.Stderr, PluginDirs: f.pluginDirs,
+		Version: version, Force: f.force || f.yolo, Stdout: os.Stdout, Stderr: os.Stderr, PluginDirs: f.pluginDirs, ApproveMCPs: f.approveMCPs,
 	})
 }

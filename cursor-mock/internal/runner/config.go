@@ -20,6 +20,9 @@ type Config struct {
 	Home string
 	// PluginDirs are the plugin directories loaded with --plugin-dir.
 	PluginDirs []string
+	// ApproveMCPs is --approve-mcps: the project's MCP servers are approved
+	// without asking (the only mode MCP calls were recorded in).
+	ApproveMCPs bool
 	// Version is the Cursor version the mock reports in hook payloads.
 	Version string
 	// Force: the run was started with --force or --yolo, which approves every
