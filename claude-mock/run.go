@@ -105,6 +105,12 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	model, _ := cmd.Flags().GetString("model")
+	permissionMode := "default"
+	if skip, _ := cmd.Flags().GetBool("dangerously-skip-permissions"); skip {
+		permissionMode = "bypassPermissions"
+	} else if m, _ := cmd.Flags().GetString("permission-mode"); m != "" {
+		permissionMode = m
+	}
 	err := runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:              scriptPath,
 		SessionID:               sessionID,
@@ -117,6 +123,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		PluginCacheDir:          pluginCacheDir,
 		PrintMode:               printMode,
 		Model:                   model,
+		PermissionMode:          permissionMode,
 		BgWaitCeiling:           printWaitCeiling(),
 		SpawnLimit:              spawnLimit(),
 		BackgroundTasksDisabled: backgroundTasksDisabled(),

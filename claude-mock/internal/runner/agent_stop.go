@@ -35,6 +35,8 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		ConfigDir:               s.parent.ConfigDir,
 		PluginCacheDir:          s.parent.PluginCacheDir,
 		Model:                   s.parent.Model,
+		PermissionMode:          s.parent.PermissionMode,
+		Turn:                    s.parent.Turn,
 		Stderr:                  s.parent.Stderr,
 		Out:                     &buf,
 		SuppressSubagentHooks:   true,

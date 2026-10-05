@@ -73,6 +73,12 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
+	inv.SetPermissionMode(cfg.PermissionMode)
+	if cfg.Turn != nil {
+		inv.SetTurn(cfg.Turn)
+	} else {
+		cfg.Turn = inv.Turn()
+	}
 	inv.SetTranscriptPath(tr.reported)
 	inv.SetProjectDir(projectDirOf(cfg))
 	inv.SetRecorder(tr.recordHookRuns)
