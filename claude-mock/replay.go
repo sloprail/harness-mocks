@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -33,7 +34,8 @@ func newReplay() *cobra.Command {
 				return err
 			}
 			diff, err := replay.Run(self, args[0], os.Environ())
-			if u, ok := err.(*replay.Unbuildable); ok {
+			var u *replay.Unbuildable
+			if errors.As(err, &u) {
 				fmt.Fprintf(cmd.OutOrStdout(), "not replayable: %s\n", u.Reason)
 				os.Exit(2)
 			}

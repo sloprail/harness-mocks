@@ -114,7 +114,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	res, err := procexec.Run(ctx, procexec.Spec{
 		Argv: []string{mock, "-p", "--model", "haiku", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
 			"--script", filepath.Join(work, "main.sh"), "--session-id", sessionID, s.Prompt},
-		Dir: repo, Env: env, Timeout: time.Minute})
+		Dir: repo, Env: env, Timeout: 3 * time.Minute})
 	if err != nil || res.ExitCode != 0 || res.TimedOut {
 		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
 	}
@@ -138,9 +138,12 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	}
 
 	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
-	rules := Rules(repo, work)
+	rules := Rules(repo, work, RunIDs(recStream, mockStream, recHooks, mockHooks))
 	wantC, gotC := core.New(rules), core.New(rules)
 	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
 	want.Hooks, got.Hooks = wantC.Lines(recHooks), gotC.Lines(mockHooks)
+	// hooks of one event run at the same time, so the order they log in is not the behaviour
+	sort.Strings(want.Hooks)
+	sort.Strings(got.Hooks)
 	return want, got, nil
 }

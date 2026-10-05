@@ -33,6 +33,9 @@ func modelTurns(records []map[string]any) (turns, error) {
 			block, _ := b.(map[string]any)
 			switch block["type"] {
 			case "text":
+				if said != nil {
+					return turns{}, fmt.Errorf("the model said two things before one call: the adapter keeps one")
+				}
 				text, _ := block["text"].(string)
 				said = &text
 			case "tool_use":

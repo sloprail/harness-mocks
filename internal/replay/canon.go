@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strings"
 )
 
 // Rules say what may differ between a recording and a replay of it. The
@@ -27,10 +26,6 @@ type Rules struct {
 	// first appearance, so a line that names the same id as an earlier one must
 	// still do so.
 	IDs []*regexp.Regexp
-	// IDKeys are object keys whose string value is an id of the same kind
-	// (a task id that has no pattern of its own): it is renamed like an ID
-	// match, and renamed again wherever it occurs inside a string that follows.
-	IDKeys []string
 }
 
 // Scrub is one rewrite of the text of a string value.
@@ -47,7 +42,7 @@ type Canon struct{ c canon }
 
 // New makes a Canon for one run's outputs.
 func New(r Rules) *Canon {
-	return &Canon{canon{r: r, ids: map[string]string{}, keyed: map[string]string{}}}
+	return &Canon{canon{r: r, ids: map[string]string{}}}
 }
 
 // Lines canonicalises JSON objects: one string per object, keys sorted, rules applied.
@@ -63,8 +58,6 @@ func (n *Canon) Lines(objs []map[string]any) []string {
 type canon struct {
 	r   Rules
 	ids map[string]string
-	// keyed are the ids that an IDKeys value named, by value: the ones to find inside strings
-	keyed map[string]string
 }
 
 func (c *canon) walk(v any) any {
@@ -83,12 +76,6 @@ func (c *canon) walk(v any) any {
 			for _, d := range c.r.DropKeys {
 				if k == d {
 					continue next
-				}
-			}
-			for _, d := range c.r.IDKeys {
-				if str, ok := e.(string); ok && k == d && str != "" {
-					e = c.name(str)
-					c.keyed[str] = e.(string)
 				}
 			}
 			if fn := c.r.Rewrite[k]; fn != nil {
@@ -118,9 +105,6 @@ func (c *canon) str(x string) string {
 	}
 	for _, re := range c.r.IDs {
 		x = re.ReplaceAllStringFunc(x, c.name)
-	}
-	for id, n := range c.keyed {
-		x = strings.ReplaceAll(x, id, n)
 	}
 	return x
 }

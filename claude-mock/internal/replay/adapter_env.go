@@ -3,6 +3,7 @@ package replay
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -29,3 +30,42 @@ func readHooks(path string) ([]map[string]any, error) {
 	}
 	return out, nil
 }
+
+// RunIDs are the task and agent ids the frames and payloads name: ids the
+// harness makes up per run that, unlike a session's, have no pattern of their
+// own, so the canonicalisation is told them. The keys that hold one are found
+// by walking each object, not by searching its text.
+func RunIDs(sets ...[]map[string]any) []string {
+	seen := map[string]bool{}
+	var walk func(v any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			for k, e := range x {
+				if s, ok := e.(string); ok && s != "" && idKeys[k] {
+					seen[s] = true
+				}
+				walk(e)
+			}
+		case []any:
+			for _, e := range x {
+				walk(e)
+			}
+		}
+	}
+	for _, set := range sets {
+		for _, o := range set {
+			walk(o)
+		}
+	}
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	// longest first, so an id that holds another is renamed whole
+	sort.Slice(ids, func(i, j int) bool { return len(ids[i]) > len(ids[j]) || len(ids[i]) == len(ids[j]) && ids[i] < ids[j] })
+	return ids
+}
+
+// idKeys are the keys whose value is such an id.
+var idKeys = map[string]bool{"task_id": true, "backgroundTaskId": true, "agent_id": true, "agentId": true}

@@ -43,8 +43,11 @@ type run struct {
 
 // Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the
 // unified form: the main agent's calls from its transcript, with the
-// sub-agents it spawned attached. An *Unbuildable says what the adapter cannot
-// reproduce.
+// sub-agents it spawned attached. Only the transcripts' assistant records are
+// read (the model's turns); what else they hold (user, system and attachment
+// records) is not compared: a replay compares the stream and the hook payloads,
+// whose files are only checked to be readable here. An *Unbuildable says what
+// the adapter cannot reproduce.
 func (Adapter) Load(runDir string) (core.Recording, error) {
 	if fi, err := os.Stat(runDir); err != nil || !fi.IsDir() {
 		return core.Recording{}, fmt.Errorf("%s is not a recorded run", runDir)
