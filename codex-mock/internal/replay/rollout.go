@@ -79,8 +79,8 @@ func unify(m jsCall) (core.Call, error) {
 			if k == "cmd" || k == "yield_time_ms" {
 				continue
 			}
-			if w, isStr := v.(string); k == "workdir" && isStr && w != "<RUN>" {
-				return core.Call{}, fmt.Errorf("an exec_command run in %s: the mock runs in the run's directory only", w)
+			if k == "workdir" && v != "<RUN>" {
+				return core.Call{}, fmt.Errorf("an exec_command run in %v: the mock runs in the run's directory only", v)
 			}
 			sv, ok := scalar(v)
 			if !ok {

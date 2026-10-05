@@ -157,3 +157,19 @@ func TestRunDirectoryReachesTheScript(t *testing.T) {
 	rec := core.Recording{Agent: core.Agent{Calls: []core.Call{{Tool: core.ToolShell, Input: map[string]any{"command": "cat <RUN>/a", "workdir": "<RUN>"}}}}}
 	assert.Contains(t, Denormalize(rec).Script, `cat `+runPlaceholder+`/a`)
 }
+
+// A sub-agent's script is a script body: <RUN> in its calls reaches it as the run's directory,
+// and the run's own hook script is left as recorded.
+func TestPlaceholderIsReplacedInSubAgentScriptsOnly(t *testing.T) {
+	sub := &core.Agent{Calls: []core.Call{{Tool: core.ToolShell, Input: map[string]any{"command": "cat <RUN>/a"}}}}
+	rec := core.Recording{Setup: map[string]string{"hook.sh": "echo <RUN> @RUN@"},
+		Agent: core.Agent{Calls: []core.Call{{Tool: core.ToolSpawn, Input: map[string]any{"message": "m"}, Sub: sub}}}}
+	s := Denormalize(rec)
+	assert.Contains(t, s.Files["sub0.sh"], runPlaceholder+"/a")
+	assert.Equal(t, "echo <RUN> @RUN@", s.Files["hook.sh"])
+}
+
+func TestInRepoReplacesThePlaceholderInScriptsOnly(t *testing.T) {
+	assert.Equal(t, "cat /r/a", inRepo("sub0.sh", "cat "+runPlaceholder+"/a", "/r"))
+	assert.Equal(t, "echo "+runPlaceholder, inRepo("hook.sh", "echo "+runPlaceholder, "/r"))
+}
