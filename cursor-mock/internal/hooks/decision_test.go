@@ -3,6 +3,7 @@ package hooks
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -140,5 +141,18 @@ func TestRefusalWording(t *testing.T) {
 	want := "Command execution was blocked by a hook: msg\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool."
 	if failure != want || result != want {
 		t.Errorf("ShellRefusal = %q %q", failure, result)
+	}
+}
+
+// A call's frame names the event the context came from and holds every hook's
+// text, set apart by a rule; no context is an empty list.
+func TestContextsJoinsTheHooksTextsForTheEvent(t *testing.T) {
+	got := Contexts(PostToolUse, []Decision{{Context: "P1"}, {}, {Context: "P2"}})
+	want := []any{map[string]any{"hookEventName": "postToolUse", "content": "P1\n\n---\n\nP2"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if Contexts(PostToolUse, []Decision{{}}) != nil {
+		t.Fatal("no context must be none")
 	}
 }

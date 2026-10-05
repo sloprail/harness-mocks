@@ -137,3 +137,20 @@ func Refusal(ds []Decision) (refused bool, message string) {
 	}
 	return corehooks.PreToolRefusal(votes, refusalSeparator)
 }
+
+// Contexts are the additional context the event's hooks gave, as a tool call's
+// frame carries it: one entry naming the event with all the hooks' texts, in the
+// order the hooks are configured in, set apart by a rule; none when no hook gave
+// any (recorded: runs/additional-context).
+func Contexts(e Event, ds []Decision) []any {
+	var texts []string
+	for _, d := range ds {
+		if d.Context != "" {
+			texts = append(texts, d.Context)
+		}
+	}
+	if len(texts) == 0 {
+		return nil
+	}
+	return []any{map[string]any{"hookEventName": string(e), "content": strings.Join(texts, "\n\n---\n\n")}}
+}
