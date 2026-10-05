@@ -23,7 +23,7 @@ func (s *session) Say(text string) {
 // the stop hook, so nothing blocks the end of the turn. What can continue it is
 // a background shell's end (afterTurn).
 func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
-	s.flushText()
+	s.flushText(false)
 	if s.owner != "" { // a sub-agent ends with its final response: its parent goes on
 		return "", false
 	}
