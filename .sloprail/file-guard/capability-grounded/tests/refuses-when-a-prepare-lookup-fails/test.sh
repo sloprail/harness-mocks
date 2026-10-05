@@ -111,9 +111,11 @@ expect_prepare_refused() {   # LABEL SUBSTRING
 out="$(prepare SHIM_JQ_FAIL=)"
 printf '%s' "$out" | jq -e '.additionalContext.subjects[0] | .id == "d" and .removed == true' >/dev/null ||
   { echo "control: a deletion: prepare.sh did not hand the judge the removed capability: $out" >&2; exit 1; }
-out="$(prepare "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=startswith("spec/capabilities/"))) | .path')" || true
+out="$(prepare "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=startswith("spec/capabilities/"))) | .path')" &&
+  { echo "the deleted files listing fails: prepare.sh exited 0: $out" >&2; exit 1; }
 expect_prepare_refused "the deleted files listing fails" "the deleted capability files could not be listed, so nothing could be prepared for the judge"
-out="$(prepare "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=removed: true')" || true
+out="$(prepare "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=removed: true')" &&
+  { echo "the deleted capability assembly fails: prepare.sh exited 0: $out" >&2; exit 1; }
 expect_prepare_refused "the deleted capability assembly fails" "spec/capabilities/d.yaml: the deleted capability could not be listed, so it could not be prepared for the judge"
 
 # the count of the subjects, and the output
