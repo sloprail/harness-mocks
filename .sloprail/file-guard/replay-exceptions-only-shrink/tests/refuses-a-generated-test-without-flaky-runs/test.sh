@@ -51,6 +51,16 @@ printf 'package e2e\n\nconst flakyRuns = 3\n\n// func replayUntilGreen(\n// repl
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "comment only"
 refuses "the wiring only in comments" "must be run through replayUntilGreen(run, flakyRuns)"
 
+# the generated test may only read the list: an init() adding an entry is refused
+printf 'package e2e\n\n'"$good"'func init() { notReplaying["run-z"] = "flaky: z" }\n' > "$gen"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "init in the generated test"
+refuses "an init in the generated test" "the generated test may only read notReplaying"
+
+# flakyRuns used some other way (here: multiplied away) is refused
+printf 'package e2e\n\n'"$good"'func g() int { return flakyRuns * 0 }\n' > "$gen"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "flakyRuns used elsewhere"
+refuses "flakyRuns used elsewhere" "flakyRuns may appear only as"
+
 # recovery: three runs and the retry, and the change passes
 printf 'package e2e\n\n'"$good" | sed 's/func f() {/\/\/ ok\nfunc f() {/' > "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "five runs"

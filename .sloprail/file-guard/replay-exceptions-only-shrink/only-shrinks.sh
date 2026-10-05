@@ -89,8 +89,16 @@ while [ "$i" -lt "$count" ]; do
       if printf '%s\n' "$code" | grep -q '/\*\|`'; then
         refuse "$path: a block comment or raw string could hide what this rule reads; use whole-line // comments and interpreted strings"
       fi
-      [ "$(printf '%s\n' "$code" | grep -c 'flakyRuns[[:space:]]*=')" = 1 ] ||
+      [ "$(printf '%s\n' "$code" | grep -c 'flakyRuns[[:space:]]*:\{0,1\}=')" = 1 ] ||
         refuse "$path: flakyRuns must be assigned exactly once, as 'const flakyRuns = 3'"
+      # flakyRuns appears only as that const, in the replayUntilGreen call and in an error message
+      stray="$(printf '%s\n' "$code" | grep 'flakyRuns' | grep -vE '^const flakyRuns = [0-9]+$|replayUntilGreen\(run, flakyRuns\)|^[[:space:]]*t\.Errorf\(')"
+      [ -z "$stray" ] ||
+        refuse "$path: flakyRuns may appear only as 'const flakyRuns = 3', in replayUntilGreen(run, flakyRuns) and in a t.Errorf message (found: $(printf '%s' "$stray" | head -n 1))"
+      # the generated test only reads the list: a write (an init() adding an entry) would add one unseen
+      writes="$(printf '%s\n' "$code" | grep -w notReplaying | grep -vE '^[[:space:]]*t\.Errorf\(|^[[:space:]]*for [A-Za-z_, ]+ := range notReplaying \{$|^[[:space:]]*[A-Za-z_, ]+ :?= notReplaying\[[^]]*\]$')"
+      [ -z "$writes" ] ||
+        refuse "$path: the generated test may only read notReplaying (a range, or a lookup on the right of := or =), not change it (found: $(printf '%s' "$writes" | head -n 1))"
       runs="$(printf '%s\n' "$new" | sed -n 's/^const flakyRuns = \([0-9][0-9]*\)$/\1/p')"
       [ "$runs" = 3 ] || refuse "$path: a flaky: entry is replayed three times: declare 'const flakyRuns = 3'"
       [ "$(printf '%s\n' "$code" | grep -c '^func replayUntilGreen(')" = 1 ] &&
