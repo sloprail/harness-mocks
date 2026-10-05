@@ -8,7 +8,8 @@ set -euo pipefail
 #   2. spec/invariants gone from the tree (an incomplete tree): refused with an error (no verdict)
 #   3. spec/invariants holds no *.yaml (a failed listing): refused with an error (no verdict)
 #   4. a real finding (an invariant marker naming a spec file that is not there while others are): a plain
-#      refusal: a verdict, not an error
+#      refusal: a verdict, not an error; adding the spec and its proof then passes
+#   5. an invariant with no implementation, or no proving test: plain refusals
 # the rules read the specs with yq, which the case's PATH (jq, git, bash, the sloprail binaries) does not carry
 YQ="$(PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin" command -v yq)" || { echo "needs yq on the machine running the case" >&2; exit 1; }
 mkdir -p "$TMPDIR/tools" && ln -sf "$YQ" "$TMPDIR/tools/yq" && export PATH="$PATH:$TMPDIR/tools"
@@ -57,3 +58,16 @@ expect_error "$BASE" "no spec file" "lists no *.yaml"
 git checkout -q -b real "$BASE"
 printf 'package core\n\n// sr:invariant b-rule\nfunc B() {}\n' > internal/core/b.go; c "marker names a missing spec"
 expect_fail "$BASE" "a real finding" "sr:invariant 'b-rule' names no spec/invariants/b-rule.yaml"
+
+# recovery: the spec file is added and proven, and the same range passes
+printf 'statement: b holds\n' > spec/invariants/b-rule.yaml
+printf 'package core\n\n// sr:proves b-rule\nfunc TestB() {}\n' > internal/core/b_test.go; c "b-rule specified and proven"
+expect_passed "$BASE" "the spec and its proof were added"
+
+# the rule's other findings stay plain refusals: an invariant with no code, and one with no test
+git checkout -q -b noimpl "$BASE"
+git rm -q internal/core/a.go; c "the implementation is gone"
+expect_fail "$BASE" "no implementation" "invariant 'a-rule' has no implementation"
+git checkout -q -b notest "$BASE"
+git rm -q internal/core/a_test.go; c "the proof is gone"
+expect_fail "$BASE" "no test" "invariant 'a-rule' has no test"
