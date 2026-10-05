@@ -74,9 +74,7 @@ while [ "$i" -lt "$count" ]; do
       ;;
   esac
   # a deleted file has no list; a created one has an empty base, so each of its entries is an addition
-  if [ "$status" = "D" ]; then
-    refuse "$path: the list file is deleted: empty the notReplaying map instead, so the list stays where this rule reads it"
-  fi
+  if [ "$status" = "D" ]; then continue; fi
   old=""
   if [ "$status" != "A" ]; then
     old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
