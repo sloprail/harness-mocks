@@ -45,13 +45,22 @@ func (a Adapter) install(work string, rec core.Recording) (layout, error) {
 			return l, fmt.Errorf("%s: %v %s", strings.Join(argv, " "), err, res.Stderr)
 		}
 	}
+	if prep := rec.Setup["prepare.sh"]; prep != "" { // as the capture runs it: in the repository, under the run's home
+		path := filepath.Join(work, "prepare.sh")
+		if err := os.WriteFile(path, []byte(prep), 0o755); err != nil {
+			return l, err
+		}
+		if res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"sh", path}, Dir: repo, Env: l.env}); err != nil || res.ExitCode != 0 {
+			return l, fmt.Errorf("the setup's prepare.sh failed: %v %s", err, res.Stderr)
+		}
+	}
 	files := map[string]string{
 		filepath.Join(repo, ".cursor", "hooks.json"): rec.Setup["hooks.json"],
 		filepath.Join(home, ".cursor", "hooks.json"): rec.Setup["user-hooks.json"],
 	}
 	modes := map[string]os.FileMode{}
 	for name, body := range rec.Setup {
-		if strings.HasSuffix(name, ".sh") {
+		if strings.HasSuffix(name, ".sh") && name != "prepare.sh" {
 			path := filepath.Join(repo, ".cursor", "hooks", name)
 			files[path], modes[path] = body, 0o755
 		}
@@ -95,16 +104,42 @@ func (a Adapter) install(work string, rec core.Recording) (layout, error) {
 // group is the run of consecutive lines about the same event (the payloads and
 // what the hook scripts logged for it); sorted is only within it.
 func concurrent(objs []map[string]any, lines []string) []string {
+	events := groups(objs)
 	out := append([]string(nil), lines...)
 	for i := 0; i < len(objs); {
 		j := i + 1
-		for j < len(objs) && eventOf(objs[j]) == eventOf(objs[i]) {
+		for j < len(objs) && events[j] == events[i] {
 			j++
 		}
 		sort.Strings(out[i:j])
 		i = j
 	}
 	return out
+}
+
+// groups is the event each logged line belongs to: its own when it names one of
+// Cursor's hook events, and else the event of the line before it, as a tag a hook
+// script gives its own log line ("closed") is not an event, and the script ran
+// for the event whose lines surround it.
+func groups(objs []map[string]any) []string {
+	out := make([]string, len(objs))
+	cur := ""
+	for i, o := range objs {
+		if e := eventOf(o); hookEvents[e] {
+			cur = e
+		}
+		out[i] = cur
+	}
+	return out
+}
+
+// hookEvents are Cursor's hook events (https://cursor.com/docs/hooks).
+var hookEvents = map[string]bool{
+	"sessionStart": true, "sessionEnd": true, "preToolUse": true, "postToolUse": true, "postToolUseFailure": true,
+	"subagentStart": true, "subagentStop": true, "beforeShellExecution": true, "afterShellExecution": true,
+	"beforeMCPExecution": true, "afterMCPExecution": true, "beforeReadFile": true, "afterFileEdit": true,
+	"beforeSubmitPrompt": true, "preCompact": true, "stop": true, "afterAgentResponse": true, "afterAgentThought": true,
+	"beforeTabFileRead": true, "afterTabFileEdit": true,
 }
 
 func str(m map[string]any, k string) string { s, _ := m[k].(string); return s }

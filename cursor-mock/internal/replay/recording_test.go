@@ -51,9 +51,9 @@ func TestLoadRefusesATool(t *testing.T) {
 
 // A setup the adapter does not install is refused, naming the file.
 func TestLoadRefusesASetupItDoesNotInstall(t *testing.T) {
-	_, err := Adapter{}.Load(runDir("plugin-hooks"))
-	if u, ok := err.(*Unbuildable); !ok || !strings.Contains(u.Reason, "args") {
-		t.Fatalf("err = %v, want an Unbuildable naming args", err)
+	_, err := Adapter{}.Load(runDir("session-fork"))
+	if u, ok := err.(*Unbuildable); !ok || !strings.Contains(u.Reason, "then-01") {
+		t.Fatalf("err = %v, want an Unbuildable naming the later step", err)
 	}
 }
 
@@ -84,6 +84,20 @@ func TestConcurrentSortsOnlyWithinAnEvent(t *testing.T) {
 	}
 }
 
+// What a hook script logs under a tag of its own, not a hook event, is part of
+// the event whose lines surround it, so the order the concurrent hooks logged in
+// does not matter.
+func TestConcurrentGroupsAScriptsOwnTagWithItsEvent(t *testing.T) {
+	objs := []map[string]any{
+		{"hook_event_name": "beforeReadFile"}, {"hook_result": map[string]any{"event": "closed"}}, {"hook_event_name": "beforeReadFile"},
+		{"hook_event_name": "postToolUse"},
+	}
+	got := concurrent(objs, []string{"c", "a", "b", "z"})
+	if strings.Join(got, "") != "abcz" {
+		t.Fatalf("got %v", got)
+	}
+}
+
 // A named sample of a run is the one replayed, so every sample can be.
 func TestLoadReadsTheNamedSample(t *testing.T) {
 	samples, _ := filepath.Glob(filepath.Join(runDir("additional-context"), "samples", "*"))
@@ -95,5 +109,40 @@ func TestLoadReadsTheNamedSample(t *testing.T) {
 	}
 	if _, err := (Adapter{Sample: "19700101-000000"}).Load(runDir("additional-context")); err == nil {
 		t.Fatal("a sample that does not exist must not load")
+	}
+}
+
+// A flag of a setup's args the mock models is passed on with its value; any
+// other is refused, and so is a value that names an earlier step's session.
+func TestFlagWordsPassOnWhatTheMockModelsAndRefuseTheRest(t *testing.T) {
+	got, err := flagWords("--add-dir\n../second-root\n--approve-mcps\n")
+	if err != nil || strings.Join(got, " ") != "--add-dir ../second-root --approve-mcps" {
+		t.Fatalf("got %v, %v", got, err)
+	}
+	for _, bad := range []string{"--model\nx\n", "--add-dir\n", "--resume\n<SESSION>\n"} {
+		if _, err := flagWords(bad); err == nil {
+			t.Errorf("%q must be refused", bad)
+		}
+	}
+}
+
+// A recorded MCP call is a call of the server's tool with the model's arguments,
+// the lookup before it left to the mock; Grep and Delete are the unified search
+// and delete.
+func TestLoadMapsMCPGrepAndDelete(t *testing.T) {
+	rec, err := Adapter{}.Load(runDir("hook-matchers-mcp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := rec.Agent.Calls[0]
+	if c.Tool != core.ToolMCP || c.Input["server"] != "local" || c.Input["tool"] != "echo" || len(rec.Agent.Calls) != 1 {
+		t.Fatalf("calls %+v", rec.Agent.Calls)
+	}
+	if s := Denormalize(rec, "<scripts>", nil); !strings.Contains(s.Script, "mcp__local__echo") {
+		t.Fatalf("script:\n%s", s.Script)
+	}
+	rec, err = Adapter{}.Load(runDir("hook-matchers-grep-delete"))
+	if err != nil || rec.Agent.Calls[0].Tool != core.ToolSearchFiles || rec.Agent.Calls[1].Tool != core.ToolDeleteFile {
+		t.Fatalf("calls %+v, %v", rec.Agent.Calls, err)
 	}
 }
