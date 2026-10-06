@@ -35,6 +35,7 @@ var shellParams = []toolspec.Param{
 	}},
 	{Name: "description", Type: toolspec.String},
 	{Name: "block_until_ms", Type: toolspec.Integer, Values: []any{0, 15000, 35000}},
+	{Name: "task_id", Type: toolspec.String, MockOnly: true},
 	{Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true},
 }
 

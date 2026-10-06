@@ -15,12 +15,11 @@ type Interleaver interface {
 	Start(ctx context.Context, tu scenario.ToolUse) (finish func())
 }
 
-// LateStarter is an Interleaver that starts some calls of a turn after the
-// others (the harness's own order of starting), whatever order the model made
-// them in: those it names come after the rest, each group in the order made.
-// The calls are still completed in the order made.
-type LateStarter interface {
-	StartsLate(tu scenario.ToolUse) bool
+// Orderer is an Interleaver that starts and completes the calls of a response in an
+// order of its own, not the one the model made them in.
+type Orderer interface {
+	// Order is the calls of one response in the order the harness takes them.
+	Order(calls []scenario.ToolUse) []scenario.ToolUse
 }
 
 // turnCalls is the calls of the turn the host carries out: all of them for an
@@ -46,18 +45,16 @@ func callsKey(calls []scenario.ToolUse) string {
 // there are several (only an Interleaver is given them), all started in order
 // before any is completed, in the same order.
 func perform(ctx context.Context, h Host, calls []scenario.ToolUse) {
+	if o, ok := h.(Orderer); ok && len(calls) > 1 {
+		calls = o.Order(calls)
+	}
 	if len(calls) == 1 {
 		h.Tool(ctx, calls[0])
 		return
 	}
-	finish := make([]func(), len(calls))
-	late, _ := h.(LateStarter)
-	for pass := 0; pass < 2; pass++ {
-		for i, c := range calls {
-			if (late != nil && late.StartsLate(c)) == (pass == 1) {
-				finish[i] = h.(Interleaver).Start(ctx, c)
-			}
-		}
+	var finish []func()
+	for _, c := range calls {
+		finish = append(finish, h.(Interleaver).Start(ctx, c))
 	}
 	for _, f := range finish {
 		f()

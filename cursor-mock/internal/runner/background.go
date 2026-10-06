@@ -38,7 +38,10 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 	if r, refused := toolexec.RefusesRipgrep(c); refused {
 		return r
 	}
-	id := strconv.Itoa(100000 + rand.Intn(900000))
+	id := c.ShellID
+	if id == "" {
+		id = strconv.Itoa(100000 + rand.Intn(900000))
+	}
 	folder := s.terminalsFolder()
 	_ = os.MkdirAll(folder, 0o755)
 	failed := func(err error) toolexec.Result {
@@ -55,8 +58,11 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 		t.Description = c.Command()
 	}
 	start := time.Now()
+	title := c.Described
+	trailer, ended := s.finishTerminal(filepath.Join(folder, id+".txt"), start, s.cfg.Dir, c.Command(), title)
+	_, _ = out.WriteString(terminalHeader(0, s.cfg.Dir, c.Command(), title, "running", start, 0)) // the process writes after it
 	if err := s.registry().StartCommand(t, tasks.CommandSpec{
-		Argv: []string{"/bin/sh", "-c", c.Command()}, Dir: s.cfg.Dir, Env: env, Out: out,
+		Argv: []string{"/bin/sh", "-c", c.Command()}, Dir: s.cfg.Dir, Env: env, Out: out, Trailer: trailer, Ended: ended,
 	}); err != nil {
 		return failed(err)
 	}
