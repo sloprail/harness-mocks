@@ -24,8 +24,13 @@ func (s *session) Say(text string) {
 // EndOfTurn fires no hook: cursor-agent in print mode was recorded not firing
 // the stop hook, so nothing blocks the end of the turn. What can continue it is
 // a background shell's end (afterTurn).
+//
+// What the agent said in the turn is not brought out when the turn ends: a
+// turn a finished background shell gives the agent follows, and everything said
+// since the last call comes out as one frame at the end of the run, after the
+// task's notification (recorded: runs/background-bash-start,
+// runs/bg-bash-reaped-at-exit).
 func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
-	s.flushText(false)
 	if s.owner != "" { // a sub-agent ends with its final response: its parent goes on
 		return "", false
 	}
