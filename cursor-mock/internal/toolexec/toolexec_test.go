@@ -126,3 +126,16 @@ func TestAStrReplaceEditsTheFileAndTheHooksSeeTheWholeFile(t *testing.T) {
 		t.Fatal("an old text that is not in the file must fail the call")
 	}
 }
+
+func TestACommandUsingTheHarnessRipgrepIsRefused(t *testing.T) {
+	for _, cmd := range []string{`"$CURSOR_RIPGREP_PATH" foo .`, `~/.local/share/cursor-agent/versions/1/rg foo`} {
+		r := Execute(context.Background(), Call{Kind: "shellToolCall", Args: map[string]any{"command": cmd}}, t.TempDir(), nil)
+		if _, ok := r.NotModeled(); !ok {
+			t.Errorf("%q was not refused: %+v", cmd, r)
+		}
+	}
+	r := Execute(context.Background(), Call{Kind: "shellToolCall", Args: map[string]any{"command": "echo CURSOR_AGENT"}}, t.TempDir(), nil)
+	if _, ok := r.NotModeled(); ok {
+		t.Errorf("an ordinary command was refused")
+	}
+}
