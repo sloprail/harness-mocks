@@ -15,10 +15,10 @@ import (
 func Denormalize(rec core.Recording, dir string) Scenario {
 	scripts := map[string]string{}
 	n := 0
-	var scriptFor func(tag string, a core.Agent, parent *core.Agent, skip int) string
-	scriptFor = func(tag string, a core.Agent, parent *core.Agent, skip int) string {
+	var scriptFor func(tag string, a core.Agent, parent *core.Agent, above []*core.Agent, skip int) string
+	scriptFor = func(tag string, a core.Agent, parent *core.Agent, above []*core.Agent, skip int) string {
 		calls := make([]scriptCall, len(a.Calls))
-		gates := core.Gates(a, parent)
+		gates := core.Gates(a, parent, above...)
 		for i, c := range a.Calls {
 			calls[i] = mockCall(c)
 			calls[i].Gate = gates[i]
@@ -26,7 +26,7 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 				name := fmt.Sprintf("sub%d.sh", n)
 				subTag := fmt.Sprintf("sub%d", n)
 				n++
-				scripts[name] = scriptFor(subTag, *c.Sub, &a, 0)
+				scripts[name] = scriptFor(subTag, *c.Sub, &a, append(aboveOf(parent), above...), 0)
 				calls[i].Input["script"] = dir + "/" + name
 			}
 		}
@@ -40,7 +40,7 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 	before := 0
 	for i, e := range earlierOf(rec) {
 		name := fmt.Sprintf("pre%d.sh", i)
-		scripts[name] = scriptFor(fmt.Sprintf("pre%d", i), e.Agent, nil, 0)
+		scripts[name] = scriptFor(fmt.Sprintf("pre%d", i), e.Agent, nil, nil, 0)
 		earlier = append(earlier, ScenarioEarlier{Prompt: e.Prompt, Script: name})
 		before += len(e.Agent.Calls)
 	}
@@ -50,7 +50,7 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 	if resumes(strings.Fields(rec.Setup["args"])) {
 		skipMain = before
 	}
-	main := scriptFor("main", rec.Agent, nil, skipMain)
+	main := scriptFor("main", rec.Agent, nil, nil, skipMain)
 	var then []ScenarioStep
 	done := before + len(rec.Agent.Calls)
 	var files []stepFiles
@@ -63,7 +63,7 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 			skip = done
 		}
 		done += len(st.Agent.Calls)
-		step := ScenarioStep{Script: scriptFor(fmt.Sprintf("step%d", i+1), st.Agent, nil, skip), Prompt: st.Prompt, Args: st.Args, Cwd: st.Cwd}
+		step := ScenarioStep{Script: scriptFor(fmt.Sprintf("step%d", i+1), st.Agent, nil, nil, skip), Prompt: st.Prompt, Args: st.Args, Cwd: st.Cwd}
 		if i < len(files) {
 			step.Symlink, step.Settings, step.Hook = files[i].Symlink, files[i].Settings, files[i].Hook
 		}
@@ -96,4 +96,12 @@ func hasFlag(args []string, flag string) bool {
 		}
 	}
 	return false
+}
+
+// aboveOf is the agent that started the agent being scripted, as one of the agents above its sub-agents.
+func aboveOf(parent *core.Agent) []*core.Agent {
+	if parent == nil {
+		return nil
+	}
+	return []*core.Agent{parent}
 }
