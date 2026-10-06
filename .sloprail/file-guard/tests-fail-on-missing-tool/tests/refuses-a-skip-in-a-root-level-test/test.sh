@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only this rule's
-# outcome is asserted. Proves a gate combined with the lookup error, and a skip many lines after the lookup, are refused (the checker resolves them by types, not by distance), and a gate on its own passes.
+# outcome is asserted. Proves a test file at the root of the repository is checked too (its directory is "."), and a package whose lookup is in a variable initializer is refused for a skip elsewhere.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/tests-fail-on-missing-tool/tests/_setup.sh"
 install_checker || exit 1
@@ -39,38 +39,14 @@ var _ = exec.Command
 '
 REASON="which reaches os/exec.LookPath ("
 
-branch_with gate_or_err "${HEAD_}func TestTool(t *testing.T) {
-	_, err := exec.LookPath(\"zsh\")
-	if os.Getenv(\"A10N_X_TEST\") != \"1\" || err != nil {
-		t.Skip(\"x\")
-	}
-}"
-refuses "a gate combined with the lookup error" "$REASON"
 
-branch_with far "${HEAD_}func TestTool(t *testing.T) {
-	_, err := exec.LookPath(\"zsh\")
-	_ = err
-	a := 1
-	b := 2
-	c := 3
-	d := 4
-	e := 5
-	f := 6
-	g := 7
-	_, _, _, _, _, _, _ = a, b, c, d, e, f, g
-	if err != nil {
-		t.Skipf(\"no zsh\")
-	}
-}"
-refuses "a skip many lines after the lookup" "$REASON"
+git checkout -q -b root "$BASE"
+printf 'package main\n\nimport (\n\t"os/exec"\n\t"testing"\n)\n\nfunc TestRoot(t *testing.T) {\n\tif _, err := exec.LookPath("zsh"); err != nil {\n\t\tt.Skip("no zsh")\n\t}\n}\n' > root_test.go
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "a root-level test skips on a missing tool"
+refuses "a skip in a root-level test" "$REASON"
 
-# recovery: a gate on its own, and a failing lookup, and the same base passes
-branch_with ok "${HEAD_}func TestTool(t *testing.T) {
-	if os.Getenv(\"A10N_X_TEST\") != \"1\" {
-		t.Skip(\"set A10N_X_TEST=1\")
-	}
-	if _, err := exec.LookPath(\"zsh\"); err != nil {
-		t.Fatalf(\"install zsh\")
-	}
-}"
-passes "a gate on its own and a failing lookup"
+# recovery: it fails instead, and the same range passes
+git checkout -q -b rootfix "$BASE"
+printf 'package main\n\nimport (\n\t"os/exec"\n\t"testing"\n)\n\nfunc TestRoot(t *testing.T) {\n\tif _, err := exec.LookPath("zsh"); err != nil {\n\t\tt.Fatalf("install zsh")\n\t}\n}\n' > root_test.go
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "the root-level test fails instead"
+passes "a root-level test that fails on a missing tool"

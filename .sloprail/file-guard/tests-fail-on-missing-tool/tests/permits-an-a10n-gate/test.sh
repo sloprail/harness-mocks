@@ -37,7 +37,7 @@ var _ = os.Getenv
 var _ = exec.Command
 
 '
-REASON="which reaches os/exec.LookPath: a test whose required tool is missing fails, it never skips"
+REASON="which reaches os/exec.LookPath ("
 
 branch_with gate "${HEAD_}func TestTool(t *testing.T) {
 	_, err := exec.LookPath(\"zsh\")

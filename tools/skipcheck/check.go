@@ -6,23 +6,23 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"os"
 	"path/filepath"
 	"sort"
 )
 
-// unit is one function declaration (its literals included): what it uses.
-type unit struct {
-	fd      *ast.FuncDecl
-	obj     *types.Func
-	refs    map[*types.Func]bool // the functions it names (package functions, LookPath, Skip methods)
-	lookup  bool                 // reaches os/exec.LookPath
-	skipper bool                 // uses a testing Skip, or names a skipper
-}
-
+// checkDir judges the Go packages of dir. A directory that does not exist, or holds no .go file, is an
+// error (the checker could not look), never an empty pass.
 func checkDir(fset *token.FileSet, imp types.Importer, dir string) ([]string, error) {
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		return nil, fmt.Errorf("%s is not a directory", dir)
+	}
 	names, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		return nil, err
+	}
+	if len(names) == 0 {
+		return nil, fmt.Errorf("%s holds no .go file", dir)
 	}
 	sort.Strings(names)
 	groups := map[string][]*ast.File{}
@@ -50,34 +50,67 @@ func checkDir(fset *token.FileSet, imp types.Importer, dir string) ([]string, er
 	return out, nil
 }
 
+// checkPackage: when any code of the package (a function, a variable initializer, TestMain) names
+// os/exec.LookPath, the package looks a tool up, and every Skip, Skipf and SkipNow of the testing package in it
+// (a call, a method value, a generic or interface method) is refused unless it is the opt-in gate.
 func checkPackage(fset *token.FileSet, imp types.Importer, name string, files []*ast.File) ([]string, error) {
 	info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}, Types: map[ast.Expr]types.TypeAndValue{}}
 	conf := types.Config{Importer: imp, Error: func(error) {}, FakeImportC: true}
 	if pkg, _ := conf.Check(name, fset, files, info); pkg == nil {
 		return nil, fmt.Errorf("type-checking %s produced no package", name)
 	}
-	units := collect(files, info)
-	propagate(units)
-	var out []string
-	for _, u := range units {
-		if !u.lookup {
-			continue
+	var lookup token.Pos
+	for id, obj := range info.Uses {
+		if fn, ok := obj.(*types.Func); ok && isLookPath(fn) && (lookup == token.NoPos || id.Pos() < lookup) {
+			lookup = id.Pos()
 		}
-		walk(u.fd.Body, func(n ast.Node, stack []ast.Node) {
+	}
+	if lookup == token.NoPos {
+		return nil, nil
+	}
+	var out []string
+	for _, f := range files {
+		walk(f, func(n ast.Node, stack []ast.Node) {
 			id, ok := n.(*ast.Ident)
 			if !ok {
 				return
 			}
 			fn, ok := info.Uses[id].(*types.Func)
-			if !ok || !(isSkip(fn) || (units[fn] != nil && units[fn].skipper)) || exempt(id, stack, info) {
+			if !ok || !isSkip(fn) || exempt(id, stack, info) {
 				return
 			}
-			what := "(*testing.T)." + fn.Name()
-			if !isSkip(fn) {
-				what = "the helper " + fn.Name() + ", which skips,"
-			}
-			out = append(out, fmt.Sprintf("%s: %s is used in %s, which reaches os/exec.LookPath: a test whose required tool is missing fails, it never skips", fset.Position(id.Pos()), what, u.fd.Name.Name))
+			out = append(out, fmt.Sprintf("%s: (*testing.T).%s is used in package %s, which reaches os/exec.LookPath (%s): a test whose required tool is missing fails, it never skips", fset.Position(id.Pos()), fn.Name(), name, fset.Position(lookup)))
 		})
 	}
 	return out, nil
+}
+
+func isLookPath(fn *types.Func) bool {
+	return fn.Pkg() != nil && fn.Pkg().Path() == "os/exec" && fn.Name() == "LookPath"
+}
+
+// isSkip: a Skip, Skipf or SkipNow method of the testing package (T, B, F, TB and a generic instance of them).
+func isSkip(fn *types.Func) bool {
+	fn = fn.Origin()
+	if fn.Pkg() == nil || fn.Pkg().Path() != "testing" {
+		return false
+	}
+	switch fn.Name() {
+	case "Skip", "Skipf", "SkipNow":
+		return fn.Type().(*types.Signature).Recv() != nil
+	}
+	return false
+}
+
+func walk(root ast.Node, visit func(n ast.Node, stack []ast.Node)) {
+	var stack []ast.Node
+	ast.Inspect(root, func(n ast.Node) bool {
+		if n == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		stack = append(stack, n)
+		visit(n, stack)
+		return true
+	})
 }

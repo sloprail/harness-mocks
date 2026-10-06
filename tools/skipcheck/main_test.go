@@ -114,7 +114,33 @@ func TestX(t *testing.T) {
 	if !has() {
 		skipIt(t)
 	}
-}`, "the helper skipIt"},
+}`, "(*testing.T).Skip"},
+		{"a lookup in a package variable, the skip elsewhere", head + `var zsh, zshErr = exec.LookPath("zsh")
+
+func TestX(t *testing.T) {
+	if zshErr != nil || zsh == "" {
+		t.Skip("no zsh")
+	}
+}`, "(*testing.T).Skip"},
+		{"a lookup in TestMain, the skip in a test", head + `func TestMain(m *testing.M) {
+	_, err := exec.LookPath("zsh")
+	if err != nil {
+		os.Setenv("NO_ZSH", "1")
+	}
+	os.Exit(m.Run())
+}
+
+func TestX(t *testing.T) {
+	if os.Getenv("NO_ZSH") != "" {
+		t.Skip("no zsh")
+	}
+}`, "(*testing.T).Skip"},
+		{"an interface skip on testing.TB", head + `func skipper(tb testing.TB) {
+	_, err := exec.LookPath("zsh")
+	if err != nil {
+		tb.Skip("no zsh")
+	}
+}`, "(*testing.T).Skip"},
 		{"a gate in an else branch", head + `func TestX(t *testing.T) {
 	_, err := exec.LookPath("zsh")
 	if os.Getenv("A10N_X_TEST") == "" {
@@ -164,5 +190,15 @@ func TestPermittedForms(t *testing.T) {
 		if v := violations(t, c.body, nil); v != "" {
 			t.Errorf("%s was refused:\n%s", c.name, v)
 		}
+	}
+}
+
+func TestADirThatIsMissingOrEmptyIsAnErrorNotAPass(t *testing.T) {
+	fset := token.NewFileSet()
+	if _, err := checkDir(fset, newImporter(fset), filepath.Join(t.TempDir(), "nope")); err == nil {
+		t.Error("a missing directory passed")
+	}
+	if _, err := checkDir(fset, newImporter(fset), t.TempDir()); err == nil {
+		t.Error("a directory with no .go file passed")
 	}
 }

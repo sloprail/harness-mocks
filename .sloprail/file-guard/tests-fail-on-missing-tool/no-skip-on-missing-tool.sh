@@ -3,9 +3,9 @@
 # t.Skip for that. Only an explicit opt-in environment gate (A10N_*_TEST) may skip.
 #
 # The Go is read from its types by tools/skipcheck, never from its text: it type-checks each package that
-# has a changed *_test.go and refuses a call or method value of (*testing.T).Skip, Skipf or SkipNow, or a
-# call of a package helper that skips, in a function that reaches os/exec.LookPath (an alias or a dot import
-# of os/exec counts, the lookup may be in a helper). A skip directly under
+# has a changed *_test.go (a root-level file's directory is "."), and when any code of the package (a function,
+# a variable initializer, TestMain) names os/exec.LookPath (an alias or a dot import counts) it refuses every
+# call or method value of (*testing.T).Skip, Skipf or SkipNow in the package. A skip directly under
 # `if os.Getenv("A10N_<NAME>_TEST") <op> <constant>` (that condition and nothing else) is the opt-in gate.
 # A checker that cannot build or run is refuse_error, not a verdict.
 set -uo pipefail
@@ -29,7 +29,7 @@ printf '%s' "$payload" | jq -e '.changeset.files | type == "array"' >/dev/null 2
   refuse_error "the changeset's files could not be read, so they could not be checked"
 
 # the directories of the changed (not deleted) test files
-dirs="$(printf '%s' "$payload" | jq -r '[.changeset.files[] | select(.status != "D" and (.path | endswith("_test.go"))) | .path | sub("/[^/]*$"; "")] | unique | .[]')" ||
+dirs="$(printf '%s' "$payload" | jq -r '[.changeset.files[] | select(.status != "D" and (.path | endswith("_test.go"))) | .path | if contains("/") then sub("/[^/]*$"; "") else "." end] | unique | .[]')" ||
   refuse_error "could not read the changed test files from the changeset, so they could not be checked"
 [ -n "$dirs" ] || exit 0
 

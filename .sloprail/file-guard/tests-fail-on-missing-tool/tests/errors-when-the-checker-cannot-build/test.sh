@@ -2,11 +2,12 @@
 set -euo pipefail
 
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only this rule's
-# outcome is asserted. Proves a gate combined with the lookup error, and a skip many lines after the lookup, are refused (the checker resolves them by types, not by distance), and a gate on its own passes.
+# outcome is asserted. Proves a checker that cannot be built is an error, never a pass: the range is refused as "could not be evaluated" (no verdict is cached), with the reason the rule gave.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/tests-fail-on-missing-tool/tests/_setup.sh"
 install_checker || exit 1
 mkdir -p pkg
+printf 'package main\n\nthis is not Go\n' > tools/skipcheck/broken.go
 printf 'package pkg\n\nimport "testing"\n\nfunc TestTool(t *testing.T) {}\n' > pkg/tool_test.go
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "base"
 BASE=$(git rev-parse HEAD)
@@ -39,38 +40,9 @@ var _ = exec.Command
 '
 REASON="which reaches os/exec.LookPath ("
 
-branch_with gate_or_err "${HEAD_}func TestTool(t *testing.T) {
-	_, err := exec.LookPath(\"zsh\")
-	if os.Getenv(\"A10N_X_TEST\") != \"1\" || err != nil {
-		t.Skip(\"x\")
-	}
-}"
-refuses "a gate combined with the lookup error" "$REASON"
 
-branch_with far "${HEAD_}func TestTool(t *testing.T) {
-	_, err := exec.LookPath(\"zsh\")
-	_ = err
-	a := 1
-	b := 2
-	c := 3
-	d := 4
-	e := 5
-	f := 6
-	g := 7
-	_, _, _, _, _, _, _ = a, b, c, d, e, f, g
-	if err != nil {
-		t.Skipf(\"no zsh\")
-	}
-}"
-refuses "a skip many lines after the lookup" "$REASON"
-
-# recovery: a gate on its own, and a failing lookup, and the same base passes
-branch_with ok "${HEAD_}func TestTool(t *testing.T) {
-	if os.Getenv(\"A10N_X_TEST\") != \"1\" {
-		t.Skip(\"set A10N_X_TEST=1\")
-	}
-	if _, err := exec.LookPath(\"zsh\"); err != nil {
-		t.Fatalf(\"install zsh\")
-	}
-}"
-passes "a gate on its own and a failing lookup"
+branch_with changed "${HEAD_}func TestTool(t *testing.T) {}"
+: > "$SR_EVENTS_FILE"
+sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+jq -es 'any(.[]; .kind=="FileGuardChecked" and .rule=="tests-fail-on-missing-tool" and .outcome=="refused" and (.reason|contains("could not be evaluated")) and (.reason|contains("could not build tools/skipcheck")))' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; echo "a checker that cannot build was not reported as an error (sr-checks exit $ran)" >&2; exit 1; }
