@@ -15,6 +15,14 @@ type Interleaver interface {
 	Start(ctx context.Context, tu scenario.ToolUse) (finish func())
 }
 
+// LateStarter is an Interleaver that starts some calls of a turn after the
+// others (the harness's own order of starting), whatever order the model made
+// them in: those it names come after the rest, each group in the order made.
+// The calls are still completed in the order made.
+type LateStarter interface {
+	StartsLate(tu scenario.ToolUse) bool
+}
+
 // turnCalls is the calls of the turn the host carries out: all of them for an
 // Interleaver, the first otherwise.
 func turnCalls(h Host, t scenario.Turn) []scenario.ToolUse {
@@ -42,9 +50,14 @@ func perform(ctx context.Context, h Host, calls []scenario.ToolUse) {
 		h.Tool(ctx, calls[0])
 		return
 	}
-	var finish []func()
-	for _, c := range calls {
-		finish = append(finish, h.(Interleaver).Start(ctx, c))
+	finish := make([]func(), len(calls))
+	late, _ := h.(LateStarter)
+	for pass := 0; pass < 2; pass++ {
+		for i, c := range calls {
+			if (late != nil && late.StartsLate(c)) == (pass == 1) {
+				finish[i] = h.(Interleaver).Start(ctx, c)
+			}
+		}
 	}
 	for _, f := range finish {
 		f()

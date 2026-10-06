@@ -103,8 +103,20 @@ func modelTurns(records []map[string]any, heard []thoughtAt) (core.Agent, error)
 				said, saidThought = nil, nil
 				calls[0].Said = text
 				agent.Calls = append(agent.Calls, calls...)
+			case text != nil && said != nil:
+				// a second text-only response with no user turn between is one more thing
+				// the model said in the same turn (it ended with its end-of-stream token, recorded:
+				// runs/nested-subagents-background): the stream joins what was said, so it is one
+				// answer here too
+				if saidThought != nil && thought(ri) != nil {
+					return core.Agent{}, fmt.Errorf("the model thought in two text responses of one turn: the mock plays them as one")
+				}
+				joined := *said + *text
+				said = &joined
+				if saidThought == nil {
+					saidThought = thought(ri)
+				}
 			case text != nil:
-				flush()
 				said, saidThought = text, thought(ri)
 			}
 		}
