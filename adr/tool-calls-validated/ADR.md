@@ -13,5 +13,8 @@ script or a wrong recording pass.
 
 ## Decision
 
-- A mock validates every tool call its scenario script asks it to make before it
-  plays it, in replays and in ordinary runs alike.
+- Every mock (claude, codex, cursor) checks each tool call its scenario script
+  asks for against that harness's recorded tool schema (internal/toolspec)
+  before playing it, in replays and ordinary runs.
+- A call that fails the check fails the run, except where a recording shows the
+  real harness answering that call itself.
