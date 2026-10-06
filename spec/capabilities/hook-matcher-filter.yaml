@@ -26,6 +26,8 @@ providers:
     runs:
       - codex-mock/snapshots/runs/hook-matchers
       - codex-mock/snapshots/runs/hook-matcher-omitted
+      - codex-mock/snapshots/runs/interrupt-hook
+      - codex-mock/snapshots/runs/interrupt-hook-output
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled

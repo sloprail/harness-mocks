@@ -28,8 +28,11 @@ visible and deliberate, not a test nobody wrote.
   - the file-system effects a mock's scripted control record only announces
     (for claude-mock, the worktree directory behind `worktree_create` and
     `worktree_remove`: they fire the hooks, and no directory exists);
-  - aborting a running tool: a mock never interrupts one, so what a harness
-    reports for an abort (an interrupted result, `is_interrupt`) is out;
+  - aborting a running tool: a mock does not interrupt one by itself, so what a
+    harness reports for an abort (an interrupted result, `is_interrupt`) is out,
+    with this exception: The codex mock models Interrupt: a SIGINT during a turn
+    fires the Interrupt hook, aborts the turn and exits 1, as runs/interrupt-hook
+    records; a mock may interrupt a running tool when a recording drives it.;
   - failures a mock's own runtime cannot produce (for claude-mock, a Bash
     whose shell will not start: it always runs `/bin/sh`);
   - the reference text a harness prints inside its own diagnostics (such as

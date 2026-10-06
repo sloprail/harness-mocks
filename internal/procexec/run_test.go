@@ -2,7 +2,10 @@ package procexec
 
 import (
 	"context"
+	"os"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -47,3 +50,29 @@ func TestRunTimeoutKillsTheWholeGroup(t *testing.T) {
 		t.Fatalf("grandchild %s is %s after the timeout", pid, got)
 	}
 }
+
+// Stdout is given what the child writes as it writes it, and OnStart a way to signal the child, so
+// a caller can act on what the output shows: here SIGTERM once "ready" is printed.
+func TestStdoutAndOnStartLetACallerSignalTheChildWhenItsOutputShowsSomething(t *testing.T) {
+	started := make(chan func(os.Signal) error, 1)
+	var once sync.Once
+	w := writerFunc(func(p []byte) {
+		if strings.Contains(string(p), "ready") {
+			once.Do(func() { _ = (<-started)(syscall.SIGTERM) }) // OnStart ran before the child could print anything we wait on
+		}
+	})
+	res, err := Run(context.Background(), Spec{
+		Argv: []string{"/bin/sh", "-c", "sleep 0.3; echo ready; sleep 30"}, Stdout: w,
+		OnStart: func(s func(os.Signal) error) { started <- s },
+	})
+	if err != nil || !res.Started {
+		t.Fatalf("Run: %v %+v", err, res)
+	}
+	if !strings.Contains(string(res.Stdout), "ready") || res.ExitCode == 0 {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+type writerFunc func([]byte)
+
+func (f writerFunc) Write(p []byte) (int, error) { f(p); return len(p), nil }

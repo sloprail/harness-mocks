@@ -85,11 +85,12 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock fires no PermissionRequest and no Interrupt event (a
-          non-interactive run has nothing to request or interrupt), so the
-          docs' exit-code rows for those two events are not modeled; it fires every other event the docs give a row
+          The mock fires no PermissionRequest event (a non-interactive run has
+          nothing to request), so the docs' exit-code row for it is not
+          modeled; it fires every other event the docs give a row
           (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop,
-          PreCompact, PostCompact, SubagentStart, SubagentStop, SessionEnd).
+          PreCompact, PostCompact, SubagentStart, SubagentStop, SessionEnd and
+          Interrupt, which a SIGINT during a turn fires: runs/interrupt-hook).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#command-based-hooks
