@@ -56,10 +56,16 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 		h.s.named = true
 		return true, h.result
 	}
-	h.s.named = true
+	if h.call.Kind != "shellToolCall" {
+		h.s.named = true
+	}
 	if h.call.Kind == "shellToolCall" {
+		// a shell command's own hook still names no transcript: the conversation's
+		// file is there once it has run (recorded: runs/shell-exit-status)
 		own := map[string]any{"command": h.call.Command(), "cwd": "", "sandbox": false}
-		if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.BeforeShellExecution, h.call.Command(), own)); refused {
+		refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.BeforeShellExecution, h.call.Command(), own))
+		h.s.named = true
+		if refused {
 			h.failure, h.result = hooks.ShellRefusal(msg)
 			h.refused = true
 			return true, h.result
