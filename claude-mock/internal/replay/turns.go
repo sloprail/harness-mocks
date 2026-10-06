@@ -36,6 +36,14 @@ func modelTurns(records []map[string]any) (turns, error) {
 			said = nil
 			continue
 		}
+		if rec["type"] == "user" && isNotificationTurn(rec) && said != nil {
+			// a finished background agent's notification starts a new turn: what the model said before it was its answer
+			// to the turn that ended, and it answers the notification in turn
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}})
+			t.ids = append(t.ids, "")
+			said = nil
+			continue
+		}
 		if rec["type"] != "assistant" {
 			continue
 		}
@@ -72,6 +80,13 @@ func modelTurns(records []map[string]any) (turns, error) {
 // toolReply is the adapter's unified name of an answer the model gave that a Stop hook then refused
 // to end the turn on: Input "text". It is not a tool call: the model said it, and was told to go on.
 const toolReply = "reply"
+
+// isNotificationTurn is whether a user record is a background task's notification handed over as a turn.
+func isNotificationTurn(rec map[string]any) bool {
+	msg, _ := rec["message"].(map[string]any)
+	s, _ := msg["content"].(string)
+	return strings.HasPrefix(s, "<task-notification>")
+}
 
 // stopFeedback starts the user record a blocking Stop hook leaves.
 const stopFeedback = "Stop hook feedback:"

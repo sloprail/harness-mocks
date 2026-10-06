@@ -62,7 +62,7 @@ type agentScript struct {
 // (n counts them), and its spawn call names it.
 func agentCalls(a core.Agent, parent *core.Agent, scripts map[string]string, n *int) agentScript {
 	calls := make([]modelCall, len(a.Calls))
-	gates := gatesOf(a, parent)
+	gates := core.Gates(a, parent)
 	for i, c := range a.Calls {
 		calls[i] = mockCall(c)
 		calls[i].Gate = gates[i]

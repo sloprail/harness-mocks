@@ -38,6 +38,8 @@ type subagentRun struct {
 	// begun is the sub-agent as begun at its launch (subagents.Begin), when it
 	// was begun before its run; nil begins it with the run.
 	begun func(blockCap int, run func() subagents.Outcome) subagents.Outcome
+	// startAnnounced is that the launch's start frames are written already (announce).
+	startAnnounced bool
 	// startFrames is the SubagentStart hook's frames that are still to be written (hook_frames).
 	startFrames *pendingFrames
 }
@@ -60,13 +62,10 @@ type subagentOutcome struct {
 func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks, prompt string) subagentOutcome {
 	started := time.Now()
 	frames := frameObserver{s.parent}
-	task := tasks.NewTask(tasks.Agent, s.agentID)
-	task.ToolUseID, task.Description, task.AgentType, task.OutputFile = s.toolUseID, s.description, s.agentType, s.outputFile
-	task.Meta = taskStart{
-		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
-		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
+	task := s.frameTask(prompt)
+	if !s.startAnnounced { // a background launch announced itself ahead of the result that answered it
+		tasks.Announce(bg.Registry, task, frames)
 	}
-	tasks.Announce(bg.Registry, task, frames)
 	begin := s.begun
 	if begin == nil {
 		begin = subagents.Begin(s.hooks(ctx, inv, bg))
@@ -126,4 +125,22 @@ func (s *subagentRun) hooks(ctx context.Context, inv *hooks.Invoker, bg *backgro
 			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
 		},
 	}, s.limit)
+}
+
+// frameTask is the task the sub-agent's frames speak of.
+func (s *subagentRun) frameTask(prompt string) *tasks.Task {
+	task := tasks.NewTask(tasks.Agent, s.agentID)
+	task.ToolUseID, task.Description, task.AgentType, task.OutputFile = s.toolUseID, s.description, s.agentType, s.outputFile
+	task.Meta = taskStart{
+		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
+		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
+	}
+	return task
+}
+
+// announce writes the launch's start frames (the running set, task_started) now, as the harness does ahead
+// of the result that answers a background launch (recorded: runs/bgagent, bgagent-concurrent-limit).
+func (s *subagentRun) announce(bg *backgroundTasks, prompt string) {
+	tasks.Announce(bg.Registry, s.frameTask(prompt), frameObserver{s.parent})
+	s.startAnnounced = true
 }

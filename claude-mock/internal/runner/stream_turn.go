@@ -97,7 +97,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	//     every tool_use, which IS the "wake-up fired, resume" behaviour.
 	// sr:docs https://code.claude.com/docs/en/sub-agents
 	var res toolexec.Result
-	var startAgent func()
+	var startAgent func(answered <-chan struct{})
 	toolStarted := time.Now()
 	switch {
 	case isAgentTool(pending.ToolName) && agentRunsInBackground(cfg, pending.ToolInput):
@@ -123,7 +123,12 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	if cfg.HookEvents { // its hook frames come ahead of the result frame, its records after the result's (recorded: runs/include-hook-events)
 		firePostTool(ctx, cfg, inv.WithRecorder(tr.holdHookRuns), pending, res, took)
 	}
+	answered := make(chan struct{})
+	if startAgent != nil { // a background agent's start is announced ahead of the result that answers its launch
+		startAgent(answered)
+	}
 	if err := emitToolResult(cfg, pending, res, tr); err != nil {
+		close(answered)
 		return turnResult{}, err
 	}
 	tr.flushHookRuns()
@@ -138,9 +143,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	if !cfg.HookEvents {
 		firePostTool(ctx, cfg, inv, pending, res, took)
 	}
-	if startAgent != nil {
-		startAgent()
-	}
+	close(answered) // the sub-agent's run begins now
 
 	// A background task that finished while this tool ran is handed over now,
 	// inside the turn.
