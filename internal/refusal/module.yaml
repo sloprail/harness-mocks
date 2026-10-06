@@ -1,0 +1,5 @@
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# cursor-mock's run-wide tracker of the first refusal of something the mock does not model.
+concern: "a run's refusal of what a mock does not model, which fails the run"
+home: ["cursor-mock/internal/runner/refusal.go"]   # everything about the concern lives here
+api: []       # the only packages others may import
