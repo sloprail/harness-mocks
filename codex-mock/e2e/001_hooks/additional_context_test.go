@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -84,4 +85,52 @@ func TestSessionStartContextOnAResumedSessionIsKept(t *testing.T) {
 	want := []string{"CTX-startup", "CTX-resume"}
 	assert.Equal(t, want, addedContext(t, recordedRollout(t, rec)), "recorded")
 	assert.Equal(t, want, addedContext(t, first.rollout(t)), "the mock's")
+}
+
+// contextSequence is the order, in a rollout, of the calls, the compactions and the context a
+// start hook added: where the context goes.
+func contextSequence(rollout string) (out []string) {
+	for _, l := range jsonLines(rollout) {
+		p, _ := l["payload"].(map[string]any)
+		switch {
+		case l["type"] == "compacted":
+			out = append(out, "compacted")
+		case l["type"] == "response_item" && (p["type"] == "function_call" || p["type"] == "custom_tool_call"):
+			out = append(out, "call")
+		case l["type"] == "response_item" && p["role"] == "developer" && strings.Contains(fmt.Sprint(p["content"]), "CTX-"):
+			out = append(out, strings.TrimSuffix(strings.TrimPrefix(fmt.Sprint(p["content"]), "[map[text:"), " type:input_text]]"))
+		}
+	}
+	return out
+}
+
+// A compaction in the middle of a turn starts the session again with source "compact", and what
+// that hook adds comes right after the compaction's record and before the agent's next call, each
+// time (recorded: runs/manual-compaction-auto-context, three auto compactions).
+// sr:proves hook-additional-context/codex
+func TestStartContextAfterAMidTurnCompactionComesBeforeTheNextCall(t *testing.T) {
+	rec, got := replayCompacting(t, "manual-compaction-auto-context")
+	require.Equal(t, 0, got.Code, got.Stderr)
+	want := []string{"CTX-startup", "call", "compacted", "CTX-compact", "call", "compacted", "CTX-compact", "call", "compacted", "CTX-compact"}
+	assert.Equal(t, want, contextSequence(recordedRollout(t, rec)), "recorded")
+	assert.Equal(t, want, contextSequence(got.rollout(t)), "the mock's")
+}
+
+// `codex exec` has no /clear: a prompt of "/clear" is plain text, and the session starts once, with
+// source "startup", so a SessionStart hook is never run for source "clear" there
+// (recorded: runs/session-start-clear-prompt). The mock does the same.
+// sr:proves hook-additional-context/codex
+func TestAClearPromptDoesNotStartTheSessionAgain(t *testing.T) {
+	rec := loadRecording(t, "session-start-clear-prompt")
+	assert.Equal(t, "/clear", strings.TrimSpace(readFile(t, filepath.Join(rec.setup, "prompt.txt"))))
+	sources := func(log []map[string]any) (out []any) {
+		for _, l := range log {
+			out = append(out, l["source"])
+		}
+		return
+	}
+	got := replay(t, rec)
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, []any{"startup"}, sources(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))), "recorded")
+	assert.Equal(t, []any{"startup"}, sources(got.hookLog()), "the mock's")
 }
