@@ -46,3 +46,16 @@ func TestGatesOrderWhatRanAtTheSameTime(t *testing.T) {
 	ended := Agent{Calls: []Call{{Tool: ToolShell, At: at(7)}}, FinalAt: at(8)}
 	assert.True(t, Gates(ended, &parent)[0].ParentEnded, "the agent that started it had ended by its first step")
 }
+
+// A call also waits, before it is carried out, for the steps of the agents above its parent that came
+// while it ran (recorded: claude bgagent-nested-launcher: the main agent's answer came before the inner
+// agent's shell started).
+func TestGatesOrderACallAgainstTheAgentsAboveItsParent(t *testing.T) {
+	t0 := time.Unix(1000, 0)
+	at := func(s int) time.Time { return t0.Add(time.Duration(s) * time.Second) }
+	inner := Agent{Calls: []Call{{Tool: ToolShell, At: at(7), Done: at(13)}}, FinalAt: at(14)}
+	outer := Agent{Calls: []Call{{Tool: ToolSpawn, Sub: &inner, At: at(4), Done: at(5)}}, FinalAt: at(6)}
+	main := Agent{Calls: []Call{{Tool: ToolSpawn, Sub: &outer, At: at(2), Done: at(6)}}, FinalAt: at(9)}
+	g := Gates(inner, &outer, &main)
+	assert.Equal(t, []int{2}, g[0].ExecAncestorSteps, "the main agent's call and answer came while the inner call ran")
+}

@@ -15,7 +15,7 @@ import (
 //     and after the step before it: the first step taken after a sub-agent's final answer.
 //   - A step of a sub-agent waits for the agent that started it to have started and
 //     finished as many calls as the recording shows it had by then.
-func Gates(a Agent, parent *Agent) []scenario.Gate {
+func Gates(a Agent, parent *Agent, ancestors ...*Agent) []scenario.Gate {
 	steps := len(a.Calls) + 1
 	out := make([]scenario.Gate, steps)
 	at := func(j int) time.Time {
@@ -73,6 +73,20 @@ func Gates(a Agent, parent *Agent) []scenario.Gate {
 			}
 			if n := stepsBy(*parent, c.Done); n > stepsBy(*parent, c.At) {
 				out[j].ExecParentSteps = n
+			}
+		}
+		for i, anc := range ancestors { // and for the agents above that one
+			for j, c := range a.Calls {
+				if c.Done.IsZero() || c.At.IsZero() {
+					continue
+				}
+				n := stepsBy(*anc, c.Done)
+				for len(out[j].ExecAncestorSteps) <= i {
+					out[j].ExecAncestorSteps = append(out[j].ExecAncestorSteps, 0)
+				}
+				if n > stepsBy(*anc, c.At) {
+					out[j].ExecAncestorSteps[i] = n
+				}
 			}
 		}
 		var started, done int

@@ -69,8 +69,10 @@ type Gate struct {
 	ParentEnded   bool  `json:"parent_ended,omitempty"`
 	// ExecParentSteps is held before the step's call is carried out, not before it is taken: how many
 	// steps (calls started, answers given) the agent that started this one must have taken by then.
-	ExecParentSteps int          `json:"exec_parent_steps,omitempty"`
-	ChildStarted    []ChildCalls `json:"child_started,omitempty"`
+	ExecParentSteps int `json:"exec_parent_steps,omitempty"`
+	// ExecAncestorSteps is the same for the agents above that one, nearest first.
+	ExecAncestorSteps []int        `json:"exec_ancestor_steps,omitempty"`
+	ChildStarted      []ChildCalls `json:"child_started,omitempty"`
 }
 
 // ChildCalls is how many calls the sub-agent at position Sub must have started.
@@ -89,7 +91,7 @@ func (g *Gate) UnmarshalJSON(b []byte) error {
 
 // None reports whether the gate holds nothing back.
 func (g Gate) None() bool {
-	return len(g.Ended) == 0 && g.ParentStarted == 0 && g.ParentDone == 0 && !g.ParentEnded && g.ExecParentSteps == 0 && len(g.ChildStarted) == 0
+	return len(g.Ended) == 0 && g.ParentStarted == 0 && g.ParentDone == 0 && !g.ParentEnded && g.ExecParentSteps == 0 && len(g.ExecAncestorSteps) == 0 && len(g.ChildStarted) == 0
 }
 
 // Idents are the variables a script is given.

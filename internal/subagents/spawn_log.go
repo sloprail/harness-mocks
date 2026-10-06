@@ -99,3 +99,13 @@ func (l *SpawnLog) at(k int) (string, bool) {
 	}
 	return l.ids[k], true
 }
+
+// Progress is how far a sub-agent has got, if it has begun (nil if not).
+func (l *SpawnLog) Progress(id string) *Progress {
+	if l == nil {
+		return nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.progress[id]
+}

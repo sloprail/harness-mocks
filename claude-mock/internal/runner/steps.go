@@ -16,6 +16,8 @@ type agentSteps struct {
 	prog    *subagents.Progress // this agent's calls started and finished
 	spawned *subagents.SpawnLog // the sub-agents this agent started, in order
 	parent  *subagents.Progress // the progress of the agent that started this one (nil: the session's own)
+	// above are the progress of the agents above that one, nearest first
+	above []*subagents.Progress
 }
 
 // newAgentSteps are the steps of an agent started by the agent whose steps are given (nil: the session's own).
@@ -23,6 +25,10 @@ func newAgentSteps(parent *agentSteps) *agentSteps {
 	s := &agentSteps{prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}}
 	if parent != nil {
 		s.parent = parent.prog
+		if parent.parent != nil {
+			s.above = append(s.above, parent.parent)
+		}
+		s.above = append(s.above, parent.above...)
 	}
 	return s
 }
@@ -31,6 +37,14 @@ func newAgentSteps(parent *agentSteps) *agentSteps {
 func (s *agentSteps) child(id string, c *agentSteps) {
 	if s != nil && c != nil {
 		s.spawned.SetProgress(id, c.prog)
+	}
+}
+
+// endChild says a sub-agent this agent started has ended, for one whose end waits for the call that
+// started it to have been answered (a foreground one).
+func (s *agentSteps) endChild(id string) {
+	if s != nil {
+		s.spawned.Progress(id).End()
 	}
 }
 
@@ -51,7 +65,7 @@ func (s *agentSteps) answered() {
 // holdExec holds the carrying out of the agent's call until what the script's gate names for it has happened.
 func (s *agentSteps) holdExec(ctx context.Context, g *scenario.Gate) {
 	if s != nil && g != nil {
-		subagents.HoldExec(ctx, *g, s.parent)
+		subagents.HoldExec(ctx, *g, s.parent, s.above)
 	}
 }
 
