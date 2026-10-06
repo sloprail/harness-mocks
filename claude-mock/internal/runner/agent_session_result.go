@@ -17,6 +17,31 @@ type runState struct {
 	denials        []map[string]any
 	results        int
 	stopErrorShown bool // the notice of a Stop hook's error is shown once per run
+	// local is the slash command the run was (its result says so), "" for a prompt for the model.
+	local string
+}
+
+// runLocal notes that the run is a slash command the harness carried out itself.
+func (r *runState) runLocal(command string) {
+	r.mu.Lock()
+	r.local = command
+	r.mu.Unlock()
+}
+
+// isLocal is whether the run is a slash command of the harness's own.
+func (r *runState) isLocal() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.local != ""
+}
+
+// takeLocal is the slash command the result is of, and forgets it.
+func (r *runState) takeLocal() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	local := r.local
+	r.local = ""
+	return local
 }
 
 // turn counts a turn the model took: it called a tool or answered.
@@ -89,6 +114,11 @@ func withResultFields(line []byte, st *runState, sessionID string) []byte {
 		// a run in which the model took no turn has neither (recorded: prompt-blocked, compact, resume-unknown)
 		delete(fields, "terminal_reason")
 		delete(fields, "api_error_status")
+	}
+	if local := st.takeLocal(); local != "" { // a slash command's result names it (recorded: runs/compact)
+		frame["local_command"] = local
+		delete(fields, "api_error_status")
+		delete(fields, "terminal_reason")
 	}
 	for k, v := range fields {
 		if _, ok := frame[k]; !ok {

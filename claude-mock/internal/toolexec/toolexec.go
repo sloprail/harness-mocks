@@ -55,16 +55,16 @@ func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd, s
 	case "Bash":
 		return executeBash(ctx, input, cwd, sessionID)
 	case "Read":
-		return executeRead(input, cwd)
+		return executeRead(ctx, input, cwd, sessionID)
 	case "Write":
-		return executeWrite(input, cwd)
+		return executeWrite(ctx, input, cwd, sessionID)
 	case "Edit":
-		return executeEdit(input, cwd)
+		return executeEdit(ctx, input, cwd, sessionID)
 	case "Glob":
 		return executeGlob(input, cwd)
 	case "ToolSearch":
 		// The mock has no deferred tools, so none matches (recorded: runs/fgsub-tool-stats).
-		return Result{Output: "No matching deferred tools found"}
+		return executeToolSearch(input)
 	default:
 		return Result{
 			Output:  fmt.Sprintf("tool %q is not implemented in the mock", toolName),

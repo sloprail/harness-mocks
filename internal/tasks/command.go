@@ -65,7 +65,9 @@ func (r *Registry) StartCommand(t *Task, s CommandSpec) error {
 // sr:capability background-agent
 func (r *Registry) StartAgent(t *Task, run func(ctx context.Context)) {
 	t.Kind = Agent
-	r.Add(t)
+	if !r.has(t.ID) { // a launcher that announced the task has added it already
+		r.Add(t)
+	}
 	r.Go(func() {
 		run(r.ctx)
 		r.Finish(t)

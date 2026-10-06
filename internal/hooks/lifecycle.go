@@ -80,12 +80,17 @@ const (
 	PromptTaskNotification
 	// PromptSubagentDispatch: the prompt a sub-agent was dispatched with.
 	PromptSubagentDispatch
+	// PromptLocalCommand: a slash command the harness carries out itself (/compact), which never
+	// reaches the model (recorded: claude runs/compact).
+	PromptLocalCommand
 )
 
 // PromptHookFires reports whether the prompt hooks fire for a prompt: for what
 // the user submits and for a background task's notification, not for the
-// prompt a parent dispatched a sub-agent with.
-func PromptHookFires(src PromptSource) bool { return src != PromptSubagentDispatch }
+// prompt a parent dispatched a sub-agent with, nor for a command the harness runs itself.
+func PromptHookFires(src PromptSource) bool {
+	return src != PromptSubagentDispatch && src != PromptLocalCommand
+}
 
 // PromptOutcome is what the prompt hooks decide: the prompt is refused when a
 // hook blocked it, and otherwise goes to the agent unchanged with the context

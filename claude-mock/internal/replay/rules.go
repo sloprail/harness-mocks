@@ -35,7 +35,7 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		},
 		// a sub-agent's spend and the model id its alias resolved to: there in both, their values the run's own
 		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
-		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd",
+		MaskKeys: []string{"end_time", "scheduledFor", "pre_tokens", "post_tokens", "cumulative_dropped_tokens", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd",
 			// the harness's pid and its messaging secret, as a child's environment names them (a hook's payload): the run's own
 			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN",
 			// how long a tool took (Glob's durationMs): measured, there in both
@@ -49,6 +49,8 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			// a sub-agent trailer's usage line is compared; its counts are the model's spend
 			{Re: re(`subagent_tokens: \d+`), With: "subagent_tokens: <MASKED>"},
 			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
+			// when a scheduled wakeup falls: the wall clock and the seconds to the next minute's boundary
+			{Re: re(`scheduled for \d\d:\d\d:\d\d \(in \d+s\)`), With: "scheduled for <TIME> (in <N>s)"},
 			// the same, as a command prints its environment: the pid, the socket named for it, the secret (the capture redacts it), the executable's path
 			{Re: re(`CLAUDE_PID=\d+`), With: "CLAUDE_PID=<MASKED>"},
 			{Re: re(`cc-socks/\d+\.sock`), With: "cc-socks/<MASKED>.sock"},

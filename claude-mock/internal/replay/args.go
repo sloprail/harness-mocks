@@ -36,6 +36,13 @@ func parseArgs(text string) ([]string, error) {
 		if refused[flag] {
 			return nil, unbuildable(fmt.Errorf("%s%s", RefusedPrefix, flag))
 		}
+		if flag == "--session-id" { // the replay gives the mock a session id of its own (sessionID)
+			if i+1 >= len(f) {
+				return nil, unbuildable(fmt.Errorf("the setup's args end after %s, short of its value", flag))
+			}
+			i += 2
+			continue
+		}
 		if strings.HasPrefix(flag, "--tools=") { // the tools the run has, in one word as recorded
 			out = append(out, flag)
 			i++

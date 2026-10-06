@@ -80,7 +80,9 @@ func writeCompactCommand(cfg Config, tr *transcript, preRuns, postRuns []hooks.H
 		"content": "<command-name>/compact</command-name>\n            <command-message>compact</command-message>\n            <command-args></command-args>"}})
 	stdout := "<local-command-stdout>Compacted " + strings.Join(lines, "\n") + "</local-command-stdout>"
 	tr.persistMap(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": stdout}})
-	writeFrame(cfg, map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": stdout}, "isReplay": true})
+	if line, err := marshalRecord(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": stdout}, "isReplay": true}); err == nil {
+		writeStreamLine(cfg, line) // stamped as every message frame is
+	}
 	tr.flushHookRuns()
 }
 
@@ -96,3 +98,13 @@ func compactBlockMessage(out hooks.Output, err error) string {
 	}
 	return strings.TrimSpace(out.Reason)
 }
+
+// modelOutput is what the summarizing model wrote: the record's own account of it, else the summary.
+func modelOutput(rec *cliRecord, summary string) string {
+	if rec.ModelOutput != "" {
+		return rec.ModelOutput
+	}
+	return summary
+}
+
+func ptrTo(s string) *string { return &s }

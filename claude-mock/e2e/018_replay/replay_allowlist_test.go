@@ -10,13 +10,6 @@ var notReplaying = map[string]string{
 	"bgagent-concurrent-limit": "adapter: the setup has env, which the adapter does not install",
 	"bgagent-definition":       "adapter: the model said two things before one call: the adapter keeps one",
 	"bgagent-nested-launcher":  "adapter: the model said two things before one call: the adapter keeps one",
-	"cap":                      "adapter: the model said two things before one call: the adapter keeps one",
-	"compact":                  "adapter: the setup has then, which the adapter does not install",
-	"compact-nohooks":          "adapter: the setup has then, which the adapter does not install",
-	"fg-subagent-bash":         "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 18 vs 14; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"fgsub-maxturns":           "adapter: the model called SendMessage: the adapter maps Bash and Agent",
-	"fgsub-tool-stats":         "adapter: sub-agent: the model called Write: the adapter maps Bash and Agent",
-	"meta":                     "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 22 vs 17; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"nested-fork-limit":        "adapter: the setup has env, which the adapter does not install",
-	"schedule-wakeup-limits":   "adapter: the model called ScheduleWakeup: the adapter maps Bash and Agent",
 }

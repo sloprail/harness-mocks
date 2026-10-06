@@ -55,3 +55,11 @@ func snakeKeys(v any) any {
 	}
 	return v
 }
+
+// writeSummaryFrame streams a compaction's summary: the message the agent is given in place of what
+// was compacted, as a synthetic user frame (recorded: runs/compact), not the record the transcript keeps.
+func writeSummaryFrame(cfg Config, sum map[string]any) {
+	if line, err := marshalRecord(map[string]any{"type": "user", "isReplay": false, "isSynthetic": true, "message": sum["message"]}); err == nil {
+		writeStreamLine(cfg, line)
+	}
+}

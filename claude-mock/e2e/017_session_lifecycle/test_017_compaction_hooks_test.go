@@ -174,7 +174,7 @@ func TestT017_07j_CompactionStreamsItsFrames(t *testing.T) {
 			}
 			summary, command := false, false
 			for _, fr := range frames[boundary+1:] {
-				if fr["isCompactSummary"] == true {
+				if fr["isSynthetic"] == true && fr["isReplay"] == false { // the summary frame (recorded: runs/compact)
 					summary = true
 				}
 				if msg, _ := fr["message"].(map[string]any); msg != nil {
@@ -237,7 +237,7 @@ func TestT017_07k_CompactionWithoutHooksStreamsNoHookFrames(t *testing.T) {
 		"--project-dir", dir, "--config-dir", cfg, "-p", "hello")
 	require.Equal(t, 0, code, out)
 	assert.Contains(t, out, `"subtype":"compact_boundary"`)
-	assert.Contains(t, out, `"isCompactSummary":true`)
+	assert.Contains(t, out, `"isSynthetic":true`, "the summary streams as a synthetic user frame")
 	assert.NotContains(t, out, `"subtype":"hook_started"`)
 	assert.NotContains(t, out, `"subtype":"hook_response"`)
 	assert.NotContains(t, out, `"hook_event":"PreCompact"`)

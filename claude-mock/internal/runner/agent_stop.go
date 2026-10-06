@@ -53,7 +53,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		Invocation:              Invocation{Tools: s.parent.Tools, RestrictTools: s.parent.RestrictTools},
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
-	if !s.announced { // a re-run after a blocking SubagentStop streams no prompt of its own (recorded: snapshots/runs/hookmix)
+	if !s.announced && !s.background && s.spawnDepth <= 1 { // no prompt frame for a re-run after a blocking SubagentStop (hookmix), a background sub-agent (bgagent) or a nested one (meta)
 		subCfg.announce(subCfg, prompt)
 		s.announced = true
 	}

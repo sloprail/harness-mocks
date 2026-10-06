@@ -1,6 +1,7 @@
 package toolexec
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,7 +48,7 @@ func CheckInput(toolName string, raw json.RawMessage, cwd string) (Result, bool)
 // snapshots/runs/file-tools).
 //
 // sr:provides file-tools/claude
-func executeEdit(raw json.RawMessage, cwd string) Result {
+func executeEdit(ctx context.Context, raw json.RawMessage, cwd, sessionID string) Result {
 	var inp editInput
 	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
 		return Result{Output: "Edit: missing or invalid 'file_path' field", IsError: true}
@@ -67,9 +68,17 @@ func executeEdit(raw json.RawMessage, cwd string) Result {
 	if _, _, werr := tools.WriteFile(path, updated); werr != nil {
 		return failed(werr.Error())
 	}
-	return Result{Output: "The file " + path + " has been updated successfully.", ToolUseResult: map[string]any{
+	// When the agent's context holds the file as it was, the result says it is current and the structured
+	// result does not flag the content as outside the model's context (recorded: runs/fgsub-tool-stats,
+	// file-tools).
+	res := Result{Output: "The file " + path + " has been updated successfully.", ToolUseResult: map[string]any{
 		"filePath": path, "oldString": inp.OldString, "newString": inp.NewString, "originalFile": content,
 		"structuredPatch": patchOf(content, updated), "userModified": false, "replaceAll": inp.ReplaceAll,
-		"contentNotInModelContext": true,
 	}}
+	if isKnown(ctx, sessionID, path) {
+		res.Output += fileStateNote
+	} else {
+		res.ToolUseResult.(map[string]any)["contentNotInModelContext"] = true
+	}
+	return res
 }

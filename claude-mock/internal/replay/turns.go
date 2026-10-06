@@ -24,17 +24,22 @@ type turns struct {
 func modelTurns(records []map[string]any) (turns, error) {
 	var t turns
 	var said *string
+	var before []string // what it said earlier still, ahead of the same call
+	compacts := newCompactions(records)
 	for _, rec := range records {
-		if rec["type"] == "user" && isStopFeedback(rec) {
-			// a Stop hook blocked the end of the turn: what the model said before it was a reply of its
-			// own, and the model answers again
-			if said == nil {
-				return turns{}, fmt.Errorf("a Stop hook's feedback came to a model that had said nothing")
-			}
-			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}})
+		if rec["type"] == "user" && isStopFeedback(rec) && said == nil {
+			return turns{}, fmt.Errorf("a Stop hook's feedback came to a model that had said nothing")
+		}
+		if endsTurn(rec) && said != nil {
+			// a turn ends and the harness goes on from it (a Stop hook's feedback, a task's notification):
+			// what the model said last was the answer that ended it, and the model answers again
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}, SaidBefore: before})
 			t.ids = append(t.ids, "")
-			said = nil
-			continue
+			said, before = nil, nil
+		}
+		if c, ok := compacts.see(rec); ok {
+			t.agent.Calls = append(t.agent.Calls, c)
+			t.ids = append(t.ids, "")
 		}
 		if rec["type"] == "user" && isNotificationTurn(rec) && said != nil {
 			// a finished background agent's notification starts a new turn: what the model said before it was its answer
@@ -54,7 +59,7 @@ func modelTurns(records []map[string]any) (turns, error) {
 			switch block["type"] {
 			case "text":
 				if said != nil {
-					return turns{}, fmt.Errorf("the model said two things before one call: the adapter keeps one")
+					before = append(before, *said)
 				}
 				text, _ := block["text"].(string)
 				said = &text
@@ -63,8 +68,8 @@ func modelTurns(records []map[string]any) (turns, error) {
 				if err != nil {
 					return turns{}, err
 				}
-				call.Said = said
-				said = nil
+				call.Said, call.SaidBefore = said, before
+				said, before = nil, nil
 				id, _ := block["id"].(string)
 				t.agent.Calls = append(t.agent.Calls, call)
 				t.ids = append(t.ids, id)
@@ -119,7 +124,10 @@ func unify(block map[string]any) (core.Call, error) {
 		in["message"] = prompt
 		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
 	}
-	return core.Call{}, fmt.Errorf("the model called %s: the adapter maps Bash, Read, Write, Edit, Glob and Agent", name)
+	if name == "" {
+		return core.Call{}, fmt.Errorf("a tool call with no name")
+	}
+	return core.Call{Tool: toolPrefix + name, Input: in}, nil // any other tool goes on under its own name: the mock runs or refuses it
 }
 
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,
@@ -143,3 +151,17 @@ func attachSubagents(t turns, subs map[string]turns) core.Agent {
 }
 
 // wireInputs are the inputs of the calls the main agent made as the model sent them, by call id, as
+
+// toolPrefix starts the unified name of a tool the claude adapter passes on as it is.
+const toolPrefix = "claude:"
+
+// endsTurn is whether a record opens a turn of the model's own accord: a user record whose content is
+// text (a task's notification, a hook's feedback), not a tool's result.
+func endsTurn(rec map[string]any) bool {
+	if rec["type"] != "user" {
+		return false
+	}
+	msg, _ := rec["message"].(map[string]any)
+	_, text := msg["content"].(string)
+	return text
+}

@@ -48,13 +48,16 @@ func withEmptyResult(line []byte) []byte {
 
 // writeCapOverride writes the warning real Claude Code records when it
 // overrides a Stop block at the cap and ends the turn (claude 2.1.282, verbatim).
-func writeCapOverride(tr *transcript, blocks int) {
+func writeCapOverride(cfg Config, tr *transcript, blocks int) {
+	text := fmt.Sprintf("A hook blocked the turn from ending %d consecutive times — overriding and ending turn. ", blocks) +
+		"For Stop/SubagentStop hooks, check stop_hook_active in the input and return success while it's true. Set CLAUDE_CODE_STOP_HOOK_BLOCK_CAP to raise this limit."
 	tr.persistMap(map[string]any{
-		"type": "system", "subtype": "informational",
-		"content": fmt.Sprintf("A hook blocked the turn from ending %d consecutive times — overriding and ending turn. ", blocks) +
-			"For Stop/SubagentStop hooks, check stop_hook_active in the input and return success while it's true. Set CLAUDE_CODE_STOP_HOOK_BLOCK_CAP to raise this limit.",
+		"type": "system", "subtype": "informational", "content": text,
 		"isMeta": false, "level": "warning",
 	})
+	// and the stream says so too (recorded: runs/cap)
+	writeFrame(cfg, map[string]any{"type": "system", "subtype": "informational", "content": text, "level": "warning"})
+	writeFrame(cfg, map[string]any{"type": "system", "subtype": "notification", "key": "stop-hook-block-cap", "text": text, "priority": "high", "color": "warning"})
 }
 
 // turnResult is one script invocation's outcome.

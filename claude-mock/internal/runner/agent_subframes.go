@@ -37,7 +37,7 @@ func (s *SubFrames) progress(cfg Config, tool string, input json.RawMessage) {
 
 // progressWhat is what a task_progress frame says of the call about to run, as recorded
 // (runs/meta, bgagent, file-tools...): an Agent call its own description, a Bash "Running "
-// and its description, a Read "Reading " and an Edit "Editing " and the file's name; any other
+// and its description, a Read "Reading ", an Edit "Editing " and a Write "Writing " and the file's name, a ToolSearch "tools"; any other
 // tool "Running " and its description, else its name.
 func progressWhat(tool string, input json.RawMessage) string {
 	var in struct {
@@ -52,6 +52,10 @@ func progressWhat(tool string, input json.RawMessage) string {
 		return "Reading " + filepath.Base(in.FilePath)
 	case tool == "Edit" && in.FilePath != "":
 		return "Editing " + filepath.Base(in.FilePath)
+	case tool == "Write" && in.FilePath != "":
+		return "Writing " + filepath.Base(in.FilePath)
+	case tool == "ToolSearch":
+		return "tools"
 	case in.Description != "":
 		return "Running " + in.Description
 	}

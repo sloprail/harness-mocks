@@ -25,8 +25,9 @@ const (
 	ToolPoll = "write_stdin"
 	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".
 	ToolWait = "wait_agent"
-	// ToolCompact is a compaction of the session the harness made on its own (a context limit): Input
-	// "trigger" ("auto").
+	// ToolCompact is a compaction of the session: Input "trigger" ("auto" for one the harness made on its own
+	// at a context limit, "manual" for /compact) and, when the recording gives them, "summary", "preserve",
+	// "logical_parent", "preserved_segment" and "model_output".
 	ToolCompact = "compact"
 	// ToolAnswer is the end of a turn: the model's answer, with no call: Input "text" (string).
 	// A turn that a hook continues is followed by more steps, so an agent can hold several.
@@ -39,12 +40,14 @@ const (
 
 // Call is one tool call the model made.
 type Call struct {
-	Said  *string // what the model said just before the call, if it said anything
-	Tool  string
-	Input map[string]any
-	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
-	Ref   string // the harness's id of that agent (what its receipt named), when known
-	More  bool   // another call of the same script follows: the model is not sampled between them
+	Said *string // what the model said just before the call, if it said anything
+	// SaidBefore is what it said earlier still, in order, when it said several things ahead of the call.
+	SaidBefore []string
+	Tool       string
+	Input      map[string]any
+	Sub        *Agent // the turns of the agent a ToolSpawn started, when they were recorded
+	Ref        string // the harness's id of that agent (what its receipt named), when known
+	More       bool   // another call of the same script follows: the model is not sampled between them
 	// SameTurn: the model made this call in the same response as the previous one.
 	SameTurn bool
 	Thinking *Thinking // what the model thought in the response this call begins, when recorded

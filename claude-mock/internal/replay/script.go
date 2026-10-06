@@ -22,7 +22,12 @@ func mockCall(c core.Call) scriptCall {
 			}
 		}
 	case toolReply:
-		return scriptCall{Reply: c.Input["text"].(string)}
+		return scriptCall{Reply: c.Input["text"].(string), Early: c.SaidBefore}
+	case core.ToolCompact:
+		return scriptCall{Name: "compact", Input: c.Input, Control: true}
+	}
+	if strings.HasPrefix(c.Tool, toolPrefix) {
+		name = strings.TrimPrefix(c.Tool, toolPrefix)
 	}
 	in := make(map[string]any, len(c.Input))
 	for k, v := range c.Input {
@@ -30,7 +35,7 @@ func mockCall(c core.Call) scriptCall {
 			in[k] = v
 		}
 	}
-	return scriptCall{Text: c.Said, Name: name, Input: in, Gated: c.Input[gateKey] == true}
+	return scriptCall{Text: c.Said, Early: c.SaidBefore, Name: name, Input: in, Gated: c.Input[gateKey] == true}
 }
 
 // script is the mock script that makes the given calls, one per turn, then
@@ -45,10 +50,7 @@ func script(tag string, calls []scriptCall, final, extra string, skip int) strin
 	}
 	lines = append(lines, finalLines(final, extra))
 	return fmt.Sprintf(`#!/bin/sh
-n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
-f=$(grep -c '"content":"Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
-t=$(grep -c '"turnOrigin":"task_notification"' "$A10N_MOCK_SESSION_FILE")
-n=$((n+f+t))
+n=$(grep -c -e '"type":"tool_result"' -e '"turnOrigin":"task_notification"' -e '"isCompactSummary":true' -e '"content":"Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
 sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
 %s
 CALLS_EOF

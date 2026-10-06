@@ -68,7 +68,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		}
 		if turn.done {
 			final.Hold(turn.resultLine)
-			if nested {
+			if nested || bg.run.isLocal() { // a sub-agent's run, or a command the harness carried out itself: no Stop
 				finish()
 				return nil
 			}
@@ -111,7 +111,8 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				// the next block is overridden and the turn ends, with a
 				// warning record (the 2.1.282 binary: `ve>xe`; a controlled run
 				// fired Stop 9 times). 0 disables the cap.
-				writeCapOverride(tr, stopBlocks)
+				writeCapOverride(cfg, tr, stopBlocks)
+				bg.run.turn() // the override counts as a turn (runs/cap: num_turns 10)
 				// The overridden turn's result carries no text: claude
 				// 2.1.282 streamed "result":"" after the override.
 				final.Hold(withEmptyResult(turn.resultLine))

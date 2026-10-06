@@ -122,6 +122,8 @@ func Run(ctx context.Context, cfg Config) error {
 	src := corehooks.PromptFromUser
 	if nested {
 		src = corehooks.PromptSubagentDispatch
+	} else if isLocalCommand(cfg.Prompt) {
+		src = corehooks.PromptLocalCommand
 	}
 	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, src, true)
 	if refused {

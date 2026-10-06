@@ -34,10 +34,13 @@ func TestLoadAttachesTheSubagent(t *testing.T) {
 	}
 }
 
-// What the adapter does not map is refused, never guessed.
-func TestLoadRefusesATool(t *testing.T) {
-	_, err := Adapter{}.Load(filepath.Join("..", "..", "snapshots", "runs", "schedule-wakeup-limits"))
-	if _, ok := err.(*Unbuildable); !ok {
-		t.Fatalf("err = %v, want an Unbuildable", err)
+// A tool the adapter has no mapping for goes on under its own name: the mock runs or refuses it.
+func TestLoadPassesAToolOnByName(t *testing.T) {
+	rec, err := Adapter{}.Load(filepath.Join("..", "..", "snapshots", "runs", "schedule-wakeup-limits"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := rec.Agent.Calls[0]; c.Tool != "claude:ScheduleWakeup" {
+		t.Fatalf("call %+v", c)
 	}
 }

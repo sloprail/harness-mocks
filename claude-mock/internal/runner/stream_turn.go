@@ -113,7 +113,7 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		// A subagent's nested run carries the PARENT's session id (subagentRun.run), the
 		// same id its hooks get — real claude shares one session_id across subagents.
 		owned := ownedBashFrames(cfg, pending)
-		res = toolexec.Execute(ctx, pending.ToolName, pending.ToolInput, cfg.Cwd, cfg.SessionID)
+		res = toolexec.Execute(toolexec.WithAgent(ctx, cfg.AgentID), pending.ToolName, pending.ToolInput, cfg.Cwd, cfg.SessionID)
 		owned(res)
 	}
 

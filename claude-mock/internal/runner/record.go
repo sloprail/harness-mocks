@@ -68,6 +68,10 @@ type cliRecord struct {
 	Trigger   string `json:"trigger,omitempty"`
 	Preserve  *int   `json:"preserve,omitempty"`
 	PreTokens int    `json:"pre_tokens,omitempty"`
+	// ModelOutput is what the summarizing model wrote, which the summarizer's SubagentStop and
+	// PostCompact are told, where the summary record keeps it in the form the agent reads
+	// (default: the summary itself; recorded: runs/compact).
+	ModelOutput string `json:"model_output,omitempty"`
 	// PostTokens is compactMetadata.postTokens (0 unless the scenario says).
 	PostTokens int `json:"post_tokens,omitempty"`
 	// PreservedSegment false writes the second shape real compactions left:
