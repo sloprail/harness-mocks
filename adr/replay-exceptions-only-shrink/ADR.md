@@ -29,11 +29,19 @@ accepted one.
 - A `flaky:` entry is never skipped: the replay test generated for the
   recordings (`generated_replay_test.go`, beside each list) runs it three times
   and fails when none of them is green.
+- Replays no `-skip` hides: a `go test -skip` in a workflow or a mock's Makefile
+  may name only the timed pair of replays
+  (`TestGeneratedReplay/all-hooks-close-first` and `-second`), whose recorded
+  gaps a CI runner's timers cannot keep. They are skipped in the macOS e2e jobs,
+  and run on Linux only, three times each, in the `e2e timed replays (linux)`
+  job, which runs on every PR. Any other skip of a replay is refused.
 
 ## Source
 
 The user's words for the second and third bullets: "A replay exception's reason may not
 move to a weaker category (flaky < untriaged < triaged), and a flaky entry runs
 3 times and fails if never green; it is never skipped."
+
+The user's words for the timed replays: "Timing-sensitive replays whose recorded gaps a CI runner's timers cannot keep may run on Linux only, three times each, as long as they run on every PR."
 
 The user's words for the categories: "A replay exception's reason must start with one of adapter:, mock gap:, untriaged: or flaky:; a reason with none of these is refused."

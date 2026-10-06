@@ -99,6 +99,13 @@ check_ci() {
       [ -z "$seen" ] || grep -F -- "-run '$timed'" <<<"$text" | grep -qF -- '-count=3' ||
         refuse "$f: it skips the timed replays '$timed' but no step runs them on their own with -count=3 (-run '$timed'): a skipped replay must run somewhere" ;;
   esac
+  # the user's words: they may run on Linux only, three times each, as long as they run on every PR
+  if [ -n "$seen" ] && [ "${f#.github/workflows/}" != "$f" ]; then
+    grep -qE '^[[:space:]]{2}pull_request:' <<<"$text" ||
+      refuse "$f: it skips the timed replays '$timed', which must run on every PR, but the workflow is not triggered by pull_request"
+    awk -v pat="-run '$timed'" '/^    runs-on:/ {on = $0} index($0, pat) {os = on} END {exit !(os ~ /ubuntu/)}' <<<"$text" ||
+      refuse "$f: it skips the timed replays '$timed' but the job that runs them is not on Linux (runs-on: ubuntu-*)"
+  fi
 }
 
 i=0

@@ -12,9 +12,12 @@ mkdir -p .github/workflows claude-mock
 wf=.github/workflows/test.yml
 mk=claude-mock/Makefile
 timed='TestGeneratedReplay/all-hooks-close-(first|second)'
-workflow() {   # TIMED_REPLAYS-VALUE SKIP-VALUE [no-linux-run]
-  printf 'env:\n  TIMED_REPLAYS: '"'"'%s'"'"'\njobs:\n  macos:\n    steps:\n      - run: make -C claude-mock test-e2e E2E_TEST_FLAGS="-skip '"'"'%s'"'"'"\n' "$1" "$2" > "$wf"
-  [ "${3:-}" = no-linux-run ] || printf '  linux:\n    steps:\n      - run: go test -race -count=3 -v ./claude-mock/e2e/018_replay -run '"'"'%s'"'"'\n' "$timed" >> "$wf"
+workflow() {   # TIMED_REPLAYS-VALUE SKIP-VALUE [no-linux-run | no-pull-request | timed-on-macos]
+  local trigger='  pull_request:' os=ubuntu-latest
+  [ "${3:-}" = no-pull-request ] && trigger='  push:'
+  [ "${3:-}" = timed-on-macos ] && os=macos-latest
+  printf 'on:\n%s\nenv:\n  TIMED_REPLAYS: '"'"'%s'"'"'\njobs:\n  macos:\n    runs-on: macos-latest\n    steps:\n      - run: make -C claude-mock test-e2e E2E_TEST_FLAGS="-skip '"'"'%s'"'"'"\n' "$trigger" "$1" "$2" > "$wf"
+  [ "${3:-}" = no-linux-run ] || printf '  linux:\n    runs-on: %s\n    steps:\n      - run: go test -race -count=3 -v ./claude-mock/e2e/018_replay -run '"'"'%s'"'"'\n' "$os" "$timed" >> "$wf"
 }
 printf 'E2E_TEST_FLAGS ?=\n' > "$mk"
 printf 'jobs:\n  macos:\n    steps:\n      - run: make -C claude-mock test-e2e\n' > "$wf"
@@ -54,6 +57,16 @@ refuses "a widened TIMED_REPLAYS" "does not define TIMED_REPLAYS as exactly"
 git checkout -q -b nowhere "$BASE"
 workflow "$timed" '$TIMED_REPLAYS' no-linux-run; commit "skip the timed replays with no run"
 refuses "the timed replays skipped and run nowhere" "no step runs them on their own with -count=3"
+
+# the timed pair is run on Linux but the workflow is not on every PR: refused
+git checkout -q -b no-pr "$BASE"
+workflow "$timed" '$TIMED_REPLAYS' no-pull-request; commit "the workflow is not triggered by pull requests"
+refuses "the timed replays not run on every PR" "which must run on every PR"
+
+# the timed pair is run three times but on macOS, whose timers cannot keep their gaps: refused
+git checkout -q -b on-macos "$BASE"
+workflow "$timed" '$TIMED_REPLAYS' timed-on-macos; commit "the timed replays run on macOS"
+refuses "the timed replays run on macOS" "the job that runs them is not on Linux"
 
 # a mock's Makefile skips another replay: refused
 git checkout -q -b makefile "$BASE"
