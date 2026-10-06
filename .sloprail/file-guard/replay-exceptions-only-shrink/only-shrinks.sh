@@ -8,7 +8,9 @@
 #
 # The rule compares the map's text, so it accepts only forms it can compare (one "run": "reason", per
 # line, no escape inside a reason's category, the map named only by its declaration): these restrictions
-# exist so that the entry comparison can be trusted. Deleting a list file outright is not judged:
+# exist so that the entry comparison can be trusted. The checks of the other files and of the reason
+# categories close three bypasses the rule before them passed (a reason weakened to one with no category,
+# an init() in another file adding an entry, the list moved to a file of another name with a new entry). Deleting a list file outright is not judged:
 # removing the whole list only shrinks it.
 # Follows the skill's check-template.sh: anything but a readable Changeset is a refusal.
 set -uo pipefail
