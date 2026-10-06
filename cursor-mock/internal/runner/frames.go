@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -70,7 +71,14 @@ func (s *session) stamp(line []byte) []byte {
 	if json.Unmarshal(line, &f) != nil || (f["type"] != "assistant" && f["type"] != "tool_call") {
 		return line
 	}
-	f["timestamp_ms"] = time.Now().UnixMilli()
+	now := time.Now().UnixMilli()
+	f["timestamp_ms"] = now
+	if tc, ok := f["tool_call"].(map[string]any); ok { // a call's frames say when it began and, once it has ended, when (recorded: every tool_call frame)
+		tc["startedAtMs"] = strconv.FormatInt(now, 10)
+		if f["subtype"] == "completed" {
+			tc["completedAtMs"] = strconv.FormatInt(now, 10)
+		}
+	}
 	f["model_call_id"] = s.modelCallID()
 	b, err := json.Marshal(f)
 	if err != nil {
