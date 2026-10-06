@@ -47,7 +47,6 @@ providers:
       - cursor-mock/snapshots/runs/hook-matchers-task-read
       - cursor-mock/snapshots/runs/hook-matchers-grep-delete
       - cursor-mock/snapshots/runs/hook-matchers-mcp
-      - cursor-mock/snapshots/runs/nested-subagents
       - cursor-mock/snapshots/runs/hook-matchers-thought
     deviations:
       - adr: modeled-surface
