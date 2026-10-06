@@ -37,9 +37,25 @@ providers:
           The mock has no interactive session (no /clear, which changes the
           session id in Codex) and its tool executor runs every command with
           /bin/sh, where Codex runs the user's login shell.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Codex has no env file for a SessionStart hook to write exports to: the
+          hook's environment, logged whole in the recorded runs, holds only
+          CODEX_HOME and the package manager's variables, and no variable names
+          a file (recorded: runs/subprocess-session-env, nested-session-env).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#environment-variables
     runs:
       - cursor-mock/snapshots/runs/subprocess-session-env
       - cursor-mock/snapshots/runs/nested-session-env
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor has no env file for a sessionStart hook to write exports to:
+          the hook's environment, logged whole for every CURSOR and CLAUDE
+          variable in the recorded runs, holds the project dir, the version and
+          the paths of the agent's own tools, and no variable names a file
+          (recorded: runs/subprocess-session-env, nested-session-env).
