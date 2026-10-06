@@ -65,7 +65,7 @@ func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) 
 		if err := json.Unmarshal(data, &s); err != nil {
 			return nil, err
 		}
-		if err := merged.addDeny(s.Permissions); err != nil {
+		if err := merged.accept(s); err != nil {
 			return nil, err
 		}
 		for evt, entries := range s.Hooks {

@@ -107,3 +107,20 @@ func TestT017_106_UnmodelledDenyRuleIsRefused(t *testing.T) {
 		assert.Contains(t, out, "not implemented")
 	}
 }
+
+// TestT017_107_AllowManagedHooksOnlyIsRefused: allowManagedHooksOnly, which the docs say blocks
+// the hooks of plugins the managed settings do not force-enable, is refused wherever the
+// settings set it, by name, rather than ignored (the managed settings are root-owned: no
+// run of it could be recorded).
+// sr:proves plugin-hooks/claude
+func TestT017_107_AllowManagedHooksOnlyIsRefused(t *testing.T) {
+	for _, file := range []string{"settings.json", "settings.local.json"} {
+		dir := t.TempDir()
+		write(t, filepath.Join(dir, ".claude", file), `{"allowManagedHooksOnly":true}`, 0o644)
+		out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s"), "--session-id", "mh-1", "--project-dir", dir,
+			"--config-dir", filepath.Join(dir, "config"), "-p", "hello")
+		assert.NotEqual(t, 0, code, file)
+		assert.Contains(t, out, "allowManagedHooksOnly")
+		assert.Contains(t, out, "not implemented")
+	}
+}

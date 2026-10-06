@@ -86,3 +86,15 @@ func (s *Settings) Denied(tool string, input json.RawMessage) (command string, d
 	}
 	return "", false
 }
+
+// accept takes a settings file's modelled parts: its deny rules. allowManagedHooksOnly, which blocks
+// the hooks of plugins the managed settings do not force-enable, is refused wherever it is set
+// (adr/fail-fast-unimplemented): the mock reads no managed settings, and the managed file is
+// root-owned, so no run of it could be recorded.
+// sr:docs https://code.claude.com/docs/en/hooks#hook-locations
+func (s *Settings) accept(f settingsWithPlugins) error {
+	if f.AllowManagedHooksOnly != nil {
+		return &UnimplementedError{What: "allowManagedHooksOnly"}
+	}
+	return s.addDeny(f.Permissions)
+}
