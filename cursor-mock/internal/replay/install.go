@@ -3,6 +3,7 @@ package replay
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,15 @@ import (
 type layout struct {
 	repo, cwd, main, hookLog string
 	env                      []string
+	// later are the steps after the first, each with its script, command line and
+	// directory (install.go, steps.go).
+	later []laterStep
+}
+
+// laterStep is how a later step of a run is started.
+type laterStep struct {
+	script, prompt, dir string
+	flags               []string // the step's setup/args, with <SESSION> for the first step's session
 }
 
 // install lays the run's setup out under work as a capture lays out its own: a
@@ -77,6 +87,28 @@ func (a Adapter) install(work string, rec core.Recording) (layout, error) {
 		path := filepath.Join(scripts, name)
 		files[path], modes[path] = body, 0o755
 	}
+	lines := s.Lines // the records the session's file holds after the steps so far
+	for i, name := range stepNames(rec.Setup) {
+		st := rec.Later[i]
+		flags, err := flagWords(rec.Setup["then-"+name+"-args"], true)
+		if err != nil {
+			return l, err
+		}
+		after := 0
+		if contains(flags, "--resume") { // a resumed session's file holds what the steps before it said
+			after = lines
+		}
+		sc := DenormalizeStep(st, i+1, scripts, &Paths{Run: repo, Tmp: work, RunDirname: encode(repo)}, after)
+		lines += sc.Lines
+		step := laterStep{script: filepath.Join(work, fmt.Sprintf("main%d.sh", i+1)), prompt: st.Prompt, dir: stepDir(work, repo, rec.Setup, name)}
+		files[step.script], modes[step.script] = sc.Script, 0o755
+		for sname, body := range sc.Scripts {
+			path := filepath.Join(scripts, sname)
+			files[path], modes[path] = body, 0o755
+		}
+		step.flags = flags
+		l.later = append(l.later, step)
+	}
 	for path, body := range files {
 		if body == "" && filepath.Base(path) == "hooks.json" && strings.HasPrefix(path, home) {
 			continue // no user source
@@ -101,5 +133,44 @@ func (a Adapter) install(work string, rec core.Recording) (layout, error) {
 			return l, err
 		}
 	}
+	for _, st := range l.later { // a step's own directory has the project's hooks, as the capture makes it
+		if st.dir != repo {
+			if err := copyDir(filepath.Join(repo, ".cursor"), filepath.Join(st.dir, ".cursor")); err != nil {
+				return l, err
+			}
+		}
+	}
 	return l, nil
+}
+
+// copyDir copies a directory tree (the project's .cursor) to dst.
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(src, path)
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, b, info.Mode())
+	})
+}
+
+func contains(words []string, w string) bool {
+	for _, x := range words {
+		if x == w {
+			return true
+		}
+	}
+	return false
 }

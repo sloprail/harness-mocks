@@ -60,7 +60,7 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	for _, e := range entries {
 		name := e.Name()
 		switch {
-		case installed[name]:
+		case installed[name] || stepFile(name):
 			rec.Setup[name] = readFile(filepath.Join(setup, name))
 		case strings.HasSuffix(name, ".sh"):
 			rec.Setup[name] = readFile(filepath.Join(setup, name))
@@ -68,7 +68,7 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 			return core.Recording{}, unbuildable("the setup has %s, which the adapter does not install", name)
 		}
 	}
-	if _, err := flagWords(rec.Setup["args"]); err != nil {
+	if _, err := flagWords(rec.Setup["args"], false); err != nil {
 		return core.Recording{}, err
 	}
 	if _, noForce := rec.Setup["no-force"]; noForce != (command == unforcedCommand) || command != forcedCommand && command != unforcedCommand {
@@ -77,8 +77,9 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if sample == "" {
 		return core.Recording{}, unbuildable("no sample was recorded")
 	}
-	if code := strings.TrimSpace(readFile(filepath.Join(sample, "exit.txt"))); code != "0" {
-		return core.Recording{}, unbuildable("cursor-agent exited %q: the adapter replays runs that end well", code)
+	prompts, exits, err := stepsOf(&rec, sample)
+	if err != nil {
+		return core.Recording{}, err
 	}
 	stream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
 	if err != nil {
@@ -104,10 +105,11 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if len(records) == 0 {
 		return core.Recording{}, unbuildable("no transcript of the main session was recorded: the model's turns are unknown")
 	}
-	main, err := modelTurns(records, thoughts[session])
+	agents, err := modelSteps(records, prompts, exits, thoughts[session])
 	if err != nil {
-		return core.Recording{}, unbuildable("%v", err)
+		return core.Recording{}, err
 	}
+	main := agents[0]
 	delete(thoughts, session)
 	convs, err := conversations(dir, session, thoughts)
 	if err != nil {
@@ -119,6 +121,9 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if len(convs) > 0 {
 		return core.Recording{}, unbuildable("a sub-agent whose starting call is in no transcript")
 	}
+	if err := addLater(&rec, prompts, agents); err != nil {
+		return core.Recording{}, err
+	}
 	if len(thoughts) > 0 {
 		return core.Recording{}, unbuildable("the model thought in a conversation that has no transcript")
 	}
@@ -126,6 +131,9 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 		rec.Setup[name] = body
 	}
 	if err := nameHookIDs(&rec.Agent, stream, payloads, session); err != nil {
+		return core.Recording{}, err
+	}
+	if err := nameShellIDs(&rec.Agent, stream, session); err != nil {
 		return core.Recording{}, err
 	}
 	describeMCPCalls(&rec.Agent, stream)
