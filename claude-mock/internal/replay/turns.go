@@ -30,6 +30,7 @@ func modelTurns(records []map[string]any) (turns, error) {
 	var before []string // what it said earlier still, ahead of the same call
 	records = withoutForkContext(records)
 	compacts := newCompactions(records)
+	agents := callAgentIDs(records)
 	done := map[string]time.Time{} // when each call's result was given back
 	for _, rec := range records {
 		if rec["type"] == "user" {
@@ -85,6 +86,7 @@ func modelTurns(records []map[string]any) (turns, error) {
 					return turns{}, err
 				}
 				call.Said, call.SaidBefore, call.At = said, before, stampOf(rec)
+				call.Ref = agents[blockID(block)] // the agent a spawn started, as a message to it names it
 				said, before = nil, nil
 				id, _ := block["id"].(string)
 				if n := len(t.ids); n > 0 && t.ids[n-1] != "" {
@@ -104,6 +106,11 @@ func modelTurns(records []map[string]any) (turns, error) {
 		t.agent.Calls[i].Done = done[id]
 	}
 	return t, nil
+}
+
+func blockID(block map[string]any) string {
+	id, _ := block["id"].(string)
+	return id
 }
 
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,

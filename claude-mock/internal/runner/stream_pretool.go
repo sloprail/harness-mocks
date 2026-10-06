@@ -34,7 +34,7 @@ func preTool(ctx context.Context, cfg Config, inv *hooks.Invoker, call *pendingT
 	}
 	pre := hooks.Input{
 		SessionID: cfg.SessionID, AgentID: cfg.AgentID, Cwd: cfg.Cwd, HookEventName: hooks.EventPreToolUse,
-		ToolName: call.ToolName, ToolUseID: call.ToolUseID, ToolInput: call.ToolInput,
+		ToolName: call.ToolName, ToolUseID: call.ToolUseID, ToolInput: hookInput(true, call.ToolName, call.ToolInput),
 	}
 	hookOut, runs, hookErr := inv.FireRuns(ctx, pre)
 	writeHookEventFrames(cfg, pre, runs)

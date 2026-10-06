@@ -29,6 +29,8 @@ type backgroundTasks struct {
 	endedAtLaunch sync.Map
 	// receiptAfterEnd holds the tool calls whose background command the receipt waits for (see takeGate).
 	receiptAfterEnd sync.Map
+	// agents are the session's sub-agents by id, for SendMessage to resume one.
+	agents agentRegistry
 }
 
 func newBackgroundTasks() *backgroundTasks {
@@ -64,6 +66,9 @@ func taskSummary(t *tasks.Task) string {
 	if t.Kind == tasks.Agent {
 		if t.Failure != "" {
 			return `Agent "` + t.Description + `" failed: ` + t.Failure
+		}
+		if t.StoppedAtTurns > 0 { // recorded: runs/fgsub-maxturns
+			return fmt.Sprintf(`Agent "%s" stopped at its %d-turn limit (partial result; SendMessage to task-id to continue)`, t.Description, t.StoppedAtTurns)
 		}
 		return `Agent "` + t.Description + `" finished`
 	}

@@ -25,6 +25,8 @@ func mockCall(c core.Call) scriptCall {
 	case toolReply:
 		silent, _ := c.Input["silent"].(bool)
 		return scriptCall{Reply: c.Input["text"].(string), Early: c.SaidBefore, Silent: silent}
+	case toolSend:
+		return scriptCall{Text: c.Said, Name: "SendMessage", Input: copyInput(c.Input)}
 	case core.ToolCompact:
 		return scriptCall{Name: "compact", Input: c.Input, Control: true}
 	}
@@ -65,4 +67,12 @@ sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
 %s
 CALLS_EOF
 `, skip, strings.Join(lines, "\n"))
+}
+
+func copyInput(in map[string]any) map[string]any {
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }

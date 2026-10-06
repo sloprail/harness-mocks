@@ -43,6 +43,8 @@ func runCall(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	var startAgent func(answered <-chan struct{}) <-chan struct{}
 	toolStarted := time.Now()
 	switch {
+	case pending.ToolName == "SendMessage":
+		res, startAgent = bg.resumeAgent(cfg, inv, pending.ToolUseID, pending.ToolInput)
 	case isAgentTool(pending.ToolName) && agentRunsInBackground(cfg, pending.ToolInput):
 		res, startAgent = bg.launchAgent(cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isAgentTool(pending.ToolName):

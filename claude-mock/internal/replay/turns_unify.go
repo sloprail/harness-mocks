@@ -20,6 +20,8 @@ func unify(block map[string]any) (core.Call, error) {
 		return core.Call{Tool: tool, Input: in}, nil
 	}
 	switch name {
+	case "SendMessage":
+		return core.Call{Tool: toolSend, Input: in}, nil
 	case "Bash":
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
 	case "Agent", "Task":

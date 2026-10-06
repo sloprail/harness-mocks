@@ -5,6 +5,4 @@ package e2e
 // green, fails TestGeneratedReplay. "adapter:" is something of the recording
 // the claude adapter cannot reproduce yet; "mock gap:" is what the mock does not produce that
 // the recording shows (each gap is a PR of its own).
-var notReplaying = map[string]string{
-	"fgsub-maxturns": "adapter: the model called SendMessage: the adapter maps Bash and Agent",
-}
+var notReplaying = map[string]string{}

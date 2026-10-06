@@ -76,6 +76,10 @@ func (r *runState) addTurns(n int) {
 func (r *runState) deny(call pendingToolUse) {
 	var input any
 	_ = json.Unmarshal(call.ToolInput, &input)
+	if m, ok := input.(map[string]any); ok { // the mock's own keys are not the call the model made
+		delete(m, "script")
+		delete(m, "task_frames")
+	}
 	r.mu.Lock()
 	r.denials = append(r.denials, map[string]any{"tool_name": call.ToolName, "tool_use_id": call.ToolUseID, "tool_input": input})
 	r.mu.Unlock()

@@ -71,6 +71,9 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 			b.stats.End(out.failure != "")
 			sub.cleanupWorktree(ctx)
 			task.Result, task.Failure = out.finalText, out.failure
+			if sub.limit.Reached() {
+				task.StoppedAtTurns = sub.limit.Max
+			}
 			task.ToolUses, task.DurationMs = out.toolUses, time.Since(task.Started).Milliseconds()
 			if out.failure != "" {
 				task.ExitCode = 1

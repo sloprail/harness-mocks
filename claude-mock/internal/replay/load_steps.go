@@ -94,7 +94,10 @@ func agentsOf(setup, sample string, stream, payloads []map[string]any) (core.Age
 			subs[id] = t
 		}
 	}
-	wire, gated := wireInputs(stream), receiptsAfterEnd(stream)
+	wire, gated, framed := wireInputs(stream), receiptsAfterEnd(stream), framedBash(stream)
+	for id, t := range subs {
+		subs[id] = withTaskFrames(t, framed)
+	}
 	records := [][]map[string]any{sessions[session]}
 	if len(all) > 1 {
 		if records, err = stepRecords(all, allThreads, sessions); err != nil {
@@ -108,7 +111,7 @@ func agentsOf(setup, sample string, stream, payloads []map[string]any) (core.Age
 		if err != nil {
 			return core.Agent{}, nil, nil, unbuildable(err)
 		}
-		agents = append(agents, attachSubagents(withReceiptGates(withWireInputs(t, wire), gated), subs, early, late))
+		agents = append(agents, attachSubagents(withTaskFrames(withReceiptGates(withWireInputs(t, wire), gated), framed), subs, early, late))
 	}
 	if len(subs) > 0 {
 		return core.Agent{}, nil, nil, unbuildable(fmt.Errorf("a sub-agent whose starting call is in no transcript"))
