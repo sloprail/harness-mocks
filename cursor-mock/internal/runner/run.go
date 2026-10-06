@@ -17,9 +17,7 @@ import (
 
 // session is one run's state, and the harness side (turnloop.Host) of its turn.
 type session struct {
-	// refusal is shared by the run's sessions, a sub-agent's too: the first
-	// "not modeled" refusal of a call in any of them ends the run with that error.
-	refusal *refusal
+	refusal *refusal // shared by the run's sessions: the first "not modeled" refusal ends the run
 	cfg     Config
 	id      string
 	tr      *transcript
@@ -29,16 +27,12 @@ type session struct {
 	// hooks of a Task call name it as their generation.
 	requestID string
 	texts     []string // what the agent said, in order: the result frame's text
-	// pending is what the agent said that the stream has not shown yet: Cursor
-	// shows it as one frame when the next call starts, or at the end of the turn
-	// (recorded: runs/foreground-subagent-failure, a call refused before it started
-	// shows nothing and the text goes out with the rest at the end).
+	// pending is what the agent said that the stream has not shown yet: one frame
+	// when the next call starts, or at the end of the turn (runs/foreground-subagent-failure).
 	pending []string
 	modelN  int // the model responses so far: a call's frames and the text before it name theirs
-	// named: hook payloads carry the transcript path. Cursor leaves it null
-	// until the conversation's first tool call is past its preToolUse hooks
-	// (recorded: runs/tool-failure), though the file is there from the first
-	// record.
+	// named: hook payloads carry the transcript path, null until the first tool
+	// call is past its preToolUse hooks (recorded: runs/tool-failure).
 	named bool
 	// added is the context the hooks have handed the agent so far (their
 	// additional_context), in the order their events fired and, within an event,
