@@ -60,9 +60,8 @@ func text(line string, w *syntax.Word) string { return line[w.Pos().Offset():w.E
 var number = regexp.MustCompile(`^[0-9]+$`)
 
 // wordType is what Cursor calls a word: a number, a single-quoted string (raw_string),
-// a double-quoted one (string), or any other word (recorded: word, number and
-// raw_string; a double-quoted word is not in any recording, "string" is the name
-// the parser gives it).
+// a double-quoted one (string), a command substitution (command_substitution), or
+// any other word (recorded: runs/shell-exit-status, runs/shell-syntax).
 func wordType(w *syntax.Word) string {
 	if len(w.Parts) == 1 {
 		switch p := w.Parts[0].(type) {
@@ -70,6 +69,8 @@ func wordType(w *syntax.Word) string {
 			return "raw_string"
 		case *syntax.DblQuoted:
 			return "string"
+		case *syntax.CmdSubst:
+			return "command_substitution"
 		case *syntax.Lit:
 			if number.MatchString(p.Value) {
 				return "number"
@@ -95,28 +96,26 @@ func redirect(line string, r *syntax.Redirect) map[string]any {
 	}
 	target, kind := "", "word"
 	if r.Word != nil {
-		target = text(line, r.Word)
-		kind = wordType(r.Word)
-		if kind == "number" || kind == "raw_string" {
-			kind = "word"
-		}
+		target, kind = text(line, r.Word), wordType(r.Word) // a number for a dup (2>&1), a word for a file (recorded: runs/shell-syntax)
 	}
 	return map[string]any{"operator": r.Op.String(), "destinationFds": []any{fd}, "targetNodeType": kind, "targetText": target}
 }
 
-// outputRedirects reports whether any redirection writes, and devNull whether all
-// of them go to /dev/null.
-func (p parsed) outputRedirects() (writes, devNull bool) {
-	devNull = true
+// outputRedirects reports whether any redirection writes, and quiet whether every
+// one of them leaves no file behind: a copy of one descriptor to another (2>&1) or
+// a write to /dev/null (recorded: runs/shell-syntax, where the frame says
+// allRedirectsAreDevNull of a 2>&1).
+func (p parsed) outputRedirects() (writes, quiet bool) {
+	quiet = true
 	for _, r := range p.Redirects {
 		if fds, _ := r["destinationFds"].([]any); len(fds) > 0 && fds[0] != 0 {
 			writes = true
 		}
-		if r["targetText"] != "/dev/null" {
-			devNull = false
+		if r["targetText"] != "/dev/null" && r["operator"] != ">&" && r["operator"] != "<&" {
+			quiet = false
 		}
 	}
-	return writes, devNull
+	return writes, quiet
 }
 
 // inputRedirects reports whether any redirection reads.
