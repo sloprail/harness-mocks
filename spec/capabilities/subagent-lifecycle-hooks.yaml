@@ -21,6 +21,8 @@ providers:
     runs:
       - codex-mock/snapshots/runs/subagent-lifecycle-hooks
       - codex-mock/snapshots/runs/subagent-start-refused
+      - codex-mock/snapshots/runs/subagent-start-systemmessage
+      - codex-mock/snapshots/runs/subagent-stop-no-message
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
