@@ -8,8 +8,8 @@ providers:
       - https://code.claude.com/docs/en/hooks#common-input-fields
     runs:
       - claude-mock/snapshots/runs/hookmix
-      - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/scratchpad-dir
+      - claude-mock/snapshots/runs/stops
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
