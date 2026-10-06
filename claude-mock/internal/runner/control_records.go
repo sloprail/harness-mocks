@@ -1,8 +1,10 @@
 package runner
 
-import "errors"
+import (
+	"errors"
 
-import "github.com/sloprail/harness-mocks/internal/session"
+	"github.com/sloprail/harness-mocks/internal/session"
+)
 
 // isCompactBoundary: a compact_boundary system record, where Claude Code's
 // compaction starts.

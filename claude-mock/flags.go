@@ -59,6 +59,7 @@ func addRefusedFlags(cmd *cobra.Command) {
 
 // flagError words a flag the mock does not know as claude does: `error: unknown option '--x'`
 // on stderr, nothing on stdout, exit status 1, before the run starts (recorded: snapshots/runs/invalid-flag).
+// Only a long flag's wording is recorded: a short one (-x) keeps the mock's own.
 // sr:docs https://code.claude.com/docs/en/headless#basic-usage
 func flagError(_ *cobra.Command, err error) error {
 	if name, ok := strings.CutPrefix(err.Error(), "unknown flag: "); ok {
