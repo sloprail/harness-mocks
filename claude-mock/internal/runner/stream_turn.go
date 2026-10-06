@@ -116,6 +116,11 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{}, err
 	}
 	tr.flushHookRuns()
+	if m, ok := res.ToolUseResult.(map[string]any); ok && isAgentTool(pending.ToolName) {
+		if id, _ := m["agentId"].(string); id != "" {
+			cfg.steps.endChild(id)
+		}
+	}
 
 	// PostToolUse for the synthesised result; PostToolUseFailure instead when
 	// the tool ran and failed (a Bash exiting non-zero, a file tool's error),
