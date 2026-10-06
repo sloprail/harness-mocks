@@ -60,9 +60,11 @@ func TestAFileThatQuotesTheMocksRefusalWordingIsNotARefusal(t *testing.T) {
 	require.Contains(t, out, `"success"`, "the read succeeded")
 }
 
-// --yolo is --force under another name, so --add-dir is accepted with it too.
+// --add-dir is recorded only with --force: with --yolo, which no recording of
+// it covers, the mock refuses it rather than guess.
 // sr:proves noninteractive-run/cursor
-func TestAddDirIsAcceptedWithYolo(t *testing.T) {
+func TestAddDirIsRefusedWithYolo(t *testing.T) {
 	out, err := runOneCall(t, `Read","input":{"path":"a.txt"}`, map[string]string{"a.txt": "hi\n"}, "--yolo", "--add-dir", t.TempDir())
-	require.NoError(t, err, out)
+	require.Error(t, err, out)
+	require.Contains(t, out, "--add-dir is modeled only with --force")
 }
