@@ -96,6 +96,9 @@ func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *ho
 		"queueSkipAttachments": true,
 	})
 	tr.flushHookRuns()
+	if cfg.AgentID == "" {
+		writeInitFrame(cfg)
+	}
 	return true
 }
 

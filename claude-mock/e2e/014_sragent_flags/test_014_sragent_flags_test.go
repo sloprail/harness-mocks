@@ -127,7 +127,7 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 		"--session-id", "x", "--", "go",
 	)
 	assert.NotEqual(t, 0, code, "mock must reject a flag real claude does not have")
-	assert.Contains(t, out, "unknown flag", "output should name the unknown flag; got:\n%s", out)
+	assert.Contains(t, out, "unknown option", "output should name the unknown flag; got:\n%s", out)
 }
 
 // TestT014_04_AuthoredToolResultEnvelopeAccepted proves a scenario may emit a

@@ -131,7 +131,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				lastSig, repeats = "", 0
 				continue
 			}
-			bg.ReapAtExit(cfg.AgentID, printReapGrace)
+			bg.endRun(cfg)
 			return nil
 		}
 		sig := turn.sig

@@ -103,6 +103,8 @@ func finisher(cfg Config, bg *backgroundTasks, final *scenario.Result) func() {
 		final.Finish(func(line []byte) {
 			if cfg.AgentID == "" {
 				line = withResultFields(line, &bg.run, cfg.SessionID)
+				bg.writeResult(cfg, line)
+				return
 			}
 			writeStreamLine(cfg, line)
 		})
