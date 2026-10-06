@@ -40,6 +40,8 @@ providers:
           command started by a background sub-agent that keeps running after
           that sub-agent's final response, unlike a foreground sub-agent's.
   codex:
+    supported: false
+    reason: Codex has no background shell mode; a command still running after its yield time is answered with a receipt naming only a session id, not a task and not a file its output goes to, and dies with the run.
     docs:
       - https://developers.openai.com/codex/hooks#tool-coverage
       - https://developers.openai.com/codex/cli/reference#check-background-terminals-with-ps

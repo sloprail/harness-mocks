@@ -11,7 +11,6 @@ import (
 // what it printed and its exit code, completes the command's item in the event stream and fires the
 // PostToolUse of the call that started it, but no hook of its own for the poll; a session nobody was
 // told of fails the call (recorded: runs/task-stream-frames).
-// sr:proves background-bash/codex
 func TestAYieldedCommandIsPolledToItsEnd(t *testing.T) {
 	got := execMock(t, scenario{
 		HooksJSON: hooksJSON("sh hook.sh", "PostToolUse"),
