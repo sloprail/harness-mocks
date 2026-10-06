@@ -35,6 +35,7 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "command", Type: toolspec.String, Required: true},
 		{Name: "description", Type: toolspec.String},
 		{Name: "run_in_background", Type: toolspec.Boolean},
+		{Name: "task_frames", Type: toolspec.Boolean, MockOnly: true},
 	}},
 	{Name: "Read", Params: []toolspec.Param{
 		{Name: "file_path", Type: toolspec.String, Required: true},

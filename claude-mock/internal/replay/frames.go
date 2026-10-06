@@ -73,7 +73,7 @@ func assistant(f map[string]any) (map[string]any, bool) {
 				kept[k] = v
 			}
 		}
-		if input, ok := kept["input"].(map[string]any); ok && isAgentTool(kept["name"]) {
+		if input, ok := kept["input"].(map[string]any); ok && hasMockKeys(kept["name"]) {
 			kept["input"] = withoutScript(input)
 		}
 		content = append(content, kept)
@@ -106,14 +106,16 @@ func assistant(f map[string]any) (map[string]any, bool) {
 	return out, true
 }
 
-func isAgentTool(name any) bool { return name == "Agent" || name == "Task" }
+// hasMockKeys is a tool whose input may carry a key of the mock's own: the sub-agent's script of an
+// Agent call, whether a Bash call leaves task frames.
+func hasMockKeys(name any) bool { return name == "Agent" || name == "Task" || name == "Bash" }
 
-// withoutScript is an Agent call's input without the mock's own `script` key (the
-// sub-agent's script, which the real tool has no key for), a copy.
+// withoutScript is a call's input without the mock's own keys, `script` (the sub-agent's script) and
+// `task_frames` (whether a Bash call leaves task frames), which the real tools have no key for; a copy.
 func withoutScript(input map[string]any) map[string]any {
 	out := map[string]any{}
 	for k, v := range input {
-		if k != "script" {
+		if k != "script" && k != "task_frames" {
 			out[k] = v
 		}
 	}
@@ -126,7 +128,7 @@ func HookPayloads(payloads []map[string]any) []map[string]any {
 	out := make([]map[string]any, len(payloads))
 	for i, p := range payloads {
 		out[i] = p
-		if input, ok := p["tool_input"].(map[string]any); ok && isAgentTool(p["tool_name"]) {
+		if input, ok := p["tool_input"].(map[string]any); ok && hasMockKeys(p["tool_name"]) {
 			c := map[string]any{}
 			for k, v := range p {
 				c[k] = v

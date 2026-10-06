@@ -24,12 +24,11 @@ func bashDescription(call pendingToolUse) string {
 	return in.Command
 }
 
-// slowBashFrames streams the task frames of a foreground Bash command of the main agent or of a sub-agent a message resumed that outlasts
+// slowBashFrames streams the task frames of a foreground Bash command of the main agent that outlasts
 // foregroundTaskAfter, and returns what ends them (a failed command's notification reads "failed": that
 // status is not measured). A command that ends sooner leaves none.
 func slowBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
-	owned := cfg.AgentID != ""
-	if owned && !cfg.resumed { // a foreground sub-agent's commands leave none
+	if cfg.AgentID != "" {
 		return func(toolexec.Result) {}
 	}
 	var mu sync.Mutex
@@ -40,7 +39,7 @@ func slowBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
 		defer mu.Unlock()
 		if !done {
 			started = true
-			writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: call.ToolUseID, Description: desc, TaskType: "local_bash", OwnedBySubagent: owned})
+			writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: call.ToolUseID, Description: desc, TaskType: "local_bash"})
 		}
 	})
 	return func(res toolexec.Result) {
