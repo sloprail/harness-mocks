@@ -94,6 +94,12 @@ providers:
           The mock has no setting that disables transcripts (which makes the
           transcript path null throughout), so that variant of the common schema
           is not modeled.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock's payloads always carry an empty attachments list; the
+          entries a real cursor-agent adds for an attached file or rule (a type
+          and a file_path) are not modeled, since no headless run can attach one.
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
