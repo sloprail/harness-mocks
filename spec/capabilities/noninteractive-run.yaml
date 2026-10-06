@@ -30,6 +30,11 @@ providers:
         statement: >-
           The claude mock does not model system/api_retry events; it refuses
           them until a recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock refuses --bare and --agent, and permission deny rules
+          other than an exact Bash command, until a recording drives them.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#basic-usage
