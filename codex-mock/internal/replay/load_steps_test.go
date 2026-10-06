@@ -88,10 +88,10 @@ func TestACompactedRecordIsACompactStepOfTheScript(t *testing.T) {
 // An exec_command option the mock does not implement is refused, not passed on to be ignored: the
 // recording is not replayed; one it does implement goes through.
 func TestUnifyRefusesAnExecOptionTheMockDoesNotImplement(t *testing.T) {
-	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "x", "sandbox_permissions": "all"}}}, nil, nil)
+	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "x", "sandbox_permissions": "all"}}}, nil, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "sandbox_permissions")
-	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "x", "login": false, "workdir": "<RUN>"}}}, nil, nil)
+	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "x", "login": false, "workdir": "<RUN>"}}}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "x", c.Input["command"])
 }
@@ -99,13 +99,13 @@ func TestUnifyRefusesAnExecOptionTheMockDoesNotImplement(t *testing.T) {
 // An apply_patch of the model's script is the unified patch call, and the mock's script has it as its
 // apply_patch command with the run's directory in the patch.
 func TestAnApplyPatchCallIsReadAndReplayedAsTheMocksOwn(t *testing.T) {
-	c, err := unify(jsCall{Name: "apply_patch", Args: []any{"*** Begin Patch\n*** Add File: <RUN>/a.txt\n+X\n*** End Patch"}}, nil, nil)
+	c, err := unify(jsCall{Name: "apply_patch", Args: []any{"*** Begin Patch\n*** Add File: <RUN>/a.txt\n+X\n*** End Patch"}}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, core.ToolPatch, c.Tool)
 	m := mockCall(c)
 	assert.Equal(t, "apply_patch", m.Name)
 	assert.Contains(t, m.Input["command"], runPlaceholder+"/a.txt")
-	_, err = unify(jsCall{Name: "apply_patch", Args: []any{map[string]any{"patch": "x"}}}, nil, nil)
+	_, err = unify(jsCall{Name: "apply_patch", Args: []any{map[string]any{"patch": "x"}}}, nil, nil, nil)
 	assert.Error(t, err, "not a patch text")
 }
 
@@ -116,4 +116,21 @@ func TestHookLogKeepsRawLinesAndCollapsesTheirRuns(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]any{{"a": float64(1)}, {"raw": "{x:tick}"}, {"a": float64(2)}, {"raw": "{x:tick}"}, {"a": float64(1)}, {"a": float64(1)}}, log,
 		"identical JSON lines are not collapsed: a hook that ran twice wrote two")
+}
+
+// A write_stdin poll names a session the agent was given by an earlier output, and is read by that
+// session's position; chars, or a session nobody was told of, is refused.
+func TestAPollIsReadByTheSessionsPosition(t *testing.T) {
+	sessions := appendSessions(nil, `{"chunk_id":"a","session_id":89847,"output":""}`)
+	sessions = appendSessions(sessions, `{"session_id":89847}`) // a poll of it adds none
+	sessions = appendSessions(sessions, `{"session_id":12345}`)
+	assert.Equal(t, []int{89847, 12345}, sessions)
+
+	c, err := unify(jsCall{Name: "write_stdin", Args: []any{map[string]any{"session_id": number{12345}, "yield_time_ms": number{10000}}}}, nil, nil, sessions)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"session": 1, "yield_time_ms": 10000}, c.Input)
+	for _, in := range []map[string]any{{"session_id": number{1}}, {"session_id": number{89847}, "chars": "x"}} {
+		_, err = unify(jsCall{Name: "write_stdin", Args: []any{in}}, nil, nil, sessions)
+		assert.Error(t, err)
+	}
 }

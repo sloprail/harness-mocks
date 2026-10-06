@@ -20,6 +20,9 @@ const (
 	ToolPatch = "apply_patch"
 	// ToolSpawn starts a sub-agent: Input "message"; Call.Sub is its turns.
 	ToolSpawn = "spawn_agent"
+	// ToolPoll polls a command left running: "session" (its position among the commands the agent left
+	// running), "yield_time_ms", "max_output_tokens".
+	ToolPoll = "write_stdin"
 	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".
 	ToolWait = "wait_agent"
 	// ToolCompact is a compaction of the session the harness made on its own (a context limit): Input

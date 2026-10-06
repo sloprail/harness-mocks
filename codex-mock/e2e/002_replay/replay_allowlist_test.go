@@ -10,6 +10,4 @@ package e2e
 var notReplaying = map[string]string{
 	"noninteractive-run-output-schema": "adapter: the setup has args, which the adapter does not install",
 	"noninteractive-run-text-output":   "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
-	"subagent-stop-block-loop-cap":     "adapter: the model called wait: the adapter maps only exec",
-	"task-stream-frames":               "adapter: the model called tools.write_stdin: the adapter maps exec_command, spawn_agent and wait_agent",
 }

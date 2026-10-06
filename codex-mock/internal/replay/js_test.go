@@ -80,17 +80,17 @@ func TestScriptCallsInMethodArguments(t *testing.T) {
 }
 
 func TestUnifyTakesOneArgument(t *testing.T) {
-	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}}, nil, nil)
+	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}}, nil, nil, nil)
 	assert.ErrorContains(t, err, "2 arguments")
 }
 
 func TestUnifyPassesTheHarnessOptionsOnAsGiven(t *testing.T) {
-	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>", "max_output_tokens": number{100}, "tty": true}}}, nil, nil)
+	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>", "max_output_tokens": number{100}, "tty": true}}}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"command": "a", "workdir": "<RUN>", "max_output_tokens": 100, "tty": true}, c.Input)
-	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": opaque{}}}}, nil, nil)
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": opaque{}}}}, nil, nil, nil)
 	assert.ErrorContains(t, err, "stdin")
-	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}}, nil, nil)
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}}, nil, nil, nil)
 	assert.Error(t, err)
 }
 
@@ -106,20 +106,20 @@ func TestScriptCallsKeepJavaScriptsOrder(t *testing.T) {
 
 func TestUnifyYieldIsAWholeNumber(t *testing.T) {
 	for _, y := range []float64{1.9, 1e20} {
-		_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": number{y}}}}, nil, nil)
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": number{y}}}}, nil, nil, nil)
 		assert.Error(t, err, "%v", y)
 	}
 }
 
 func TestUnifyASpawnWithNoArgumentsIsTheRefusedCall(t *testing.T) {
-	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}}, nil, nil)
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.Empty(t, c.Input)
 }
 
 func TestUnifyMapsOnlyAnObjectArgument(t *testing.T) {
 	for _, a := range []any{nil, "hi", number{2}, []any{}, opaque{}} {
-		_, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{a}}, nil, nil)
+		_, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{a}}, nil, nil, nil)
 		assert.Error(t, err, "%v", a)
 	}
 }
@@ -144,10 +144,10 @@ func TestUnifyRefusesWhatItCannotCarry(t *testing.T) {
 		for k, v := range opts {
 			in[k] = v
 		}
-		_, err := unify(jsCall{Name: "exec_command", Args: []any{in}}, nil, nil)
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{in}}, nil, nil, nil)
 		assert.Error(t, err, name)
 	}
-	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{"message": "m", "fork": true, "n": number{1.5}}}}, nil, nil)
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{"message": "m", "fork": true, "n": number{1.5}}}}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"message": "m", "fork": true, "n": 1.5}, c.Input)
 }

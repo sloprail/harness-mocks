@@ -13,7 +13,7 @@ import (
 var execOptions = map[string]bool{"cmd": true, "workdir": true, "yield_time_ms": true, "max_output_tokens": true, "shell": true, "login": true, "tty": true}
 
 // unify is the unified call of one of codex's tool calls.
-func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
+func unify(m jsCall, spawns []int, told []string, sessions []int) (core.Call, error) {
 	var arg map[string]any
 	if m.Name == "apply_patch" && len(m.Args) == 1 { // its one argument is the patch text, not an object
 		patch, ok := m.Args[0].(string)
@@ -83,6 +83,8 @@ func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 			in[k] = sv
 		}
 		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
+	case "write_stdin":
+		return unifyPoll(arg, sessions)
 	case "multi_agent_v1__wait_agent":
 		return unifyWait(arg, spawns, told)
 	}
