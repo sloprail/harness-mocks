@@ -65,9 +65,10 @@ type state struct {
 	prog, parent *subagents.Progress
 	// refused is the run's refusal of a script's call the mock does not implement (validate.go);
 	// home is where the session's files go (ephemeral.go).
-	refused *toolspec.Refusals
-	home    string
-	spawned *subagents.SpawnLog
+	refused  *toolspec.Refusals
+	sessions *sessionLog // the commands a call left running, by session id (stdin_session.go)
+	home     string
+	spawned  *subagents.SpawnLog
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
@@ -96,7 +97,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	s := &state{home: home, refused: &toolspec.Refusals{}, prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
+	s := &state{sessions: &sessionLog{}, home: home, refused: &toolspec.Refusals{}, prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
 		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),

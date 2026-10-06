@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -16,12 +17,7 @@ type Unbuildable = core.Unbuildable
 
 func unbuildable(err error) error { return &core.Unbuildable{Reason: err.Error()} }
 
-// the command line every replayable recording was made with; one made another way is not replayed.
-const standardCommand = "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna"
-
-// Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the unified form: the
-// main agent's calls with the sub-agents it spawned attached. An *Unbuildable says what the
-// adapter cannot reproduce.
+// Load reads the recorded run in runDir into the unified form; an *Unbuildable says what cannot be reproduced.
 func (Adapter) Load(runDir string) (core.Recording, error) {
 	if fi, err := os.Stat(runDir); err != nil || !fi.IsDir() {
 		return core.Recording{}, fmt.Errorf("%s is not a recorded run", runDir)
@@ -31,13 +27,18 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
 	}
-	if run.Command != standardCommand {
-		return core.Recording{}, unbuildable(fmt.Errorf("recorded with another command line: %q", run.Command))
+	cmdline, err := cmdFlags(run.Command)
+	if err != nil {
+		return core.Recording{}, unbuildable(err)
+	}
+	if flag, _ := refusedFlagIn(readFile(filepath.Join(setup, "args"))); flag != "" { // replayed as a check that the mock refuses it
+		rec := refusedRun(runDir, setup, map[string]string{"refused-flag": flag, "refused-args": readFile(filepath.Join(setup, "args")), "cmdflags": strings.Join(cmdline, " ")})
+		return rec, nil
 	}
 	entries, _ := os.ReadDir(setup)
 	for _, e := range entries {
-		if n := e.Name(); !setupFileOK(setup, n) {
-			return core.Recording{}, unbuildable(fmt.Errorf("the setup has %s, which the adapter does not install", n))
+		if !setupFileOK(setup, e.Name()) {
+			return core.Recording{}, unbuildable(fmt.Errorf("the setup has %s, which the adapter does not install", e.Name()))
 		}
 	}
 	if sample == "" {
@@ -45,19 +46,25 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	}
 	paths, _ := filepath.Glob(filepath.Join(sample, "transcript", "*.jsonl"))
 	if ephemeral(setup) { // no rollout is kept: the turns are read off the stream
-		return loadEphemeral(runDir, setup, sample)
+		return loadEphemeral(runDir, setup, sample, cmdline)
+	}
+	if len(paths) == 0 && exitOf(sample) != "0" && exitOf(sample) != "" { // the harness refused the run: what is replayed is the refusal
+		return refusedRun(runDir, setup, setupOf(setup, sample, cmdline)), nil
 	}
 	if len(paths) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout was recorded: the model's turns are unknown"))
 	}
-	stream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
+	stream, err := eventStream(sample, cmdline)
 	if err != nil {
 		return core.Recording{}, err
 	}
-	if _, err := readJSONL(filepath.Join(sample, "payloads.jsonl")); err != nil {
+	if _, err := parseHookLog(readFile(filepath.Join(sample, "payloads.jsonl"))); err != nil {
 		return core.Recording{}, err
 	}
 	threads := threadsOf(stream)
+	if len(threads) == 0 && !hasFlag(cmdline, "--json") && len(paths) == 1 { // text mode prints no thread: the one rollout is the session's
+		threads = []string{threadOf(paths[0])}
+	}
 	if len(threads) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("the stream starts no thread"))
 	}
@@ -89,34 +96,18 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
 	}
-	for i := range agent.Calls {
-		c := &agent.Calls[i]
-		if c.Tool != core.ToolSpawn || c.Ref == "" { // a spawn with no receipt was refused: no sub-agent
-			continue
-		}
-		rollout, ok := subs[c.Ref]
-		if !ok {
-			return core.Recording{}, unbuildable(fmt.Errorf("a spawn_agent whose receipt names %s, which has no recorded rollout", c.Ref))
-		}
-		delete(subs, c.Ref)
-		sub, err := modelTurns(rollout, nil)
-		if err != nil {
-			return core.Recording{}, unbuildable(fmt.Errorf("sub-agent: %w", err))
-		}
-		c.Sub = &sub
+	if err := attachSubs(&agent, subs); err != nil {
+		return core.Recording{}, unbuildable(err)
 	}
 	for thread := range subs {
-		return core.Recording{}, unbuildable(fmt.Errorf("the rollout of thread %s is no spawn_agent's of the main thread (a sub-agent's own sub-agents are not replayed yet)", thread))
+		return core.Recording{}, unbuildable(fmt.Errorf("the rollout of thread %s is no spawn_agent's of any agent", thread))
 	}
 	return core.Recording{
 		Dir:    runDir,
 		Prompt: specs[0].prompt,
-		Setup: map[string]string{
-			"hooks.json": readFile(filepath.Join(setup, "hooks.json")),
-			"hook.sh":    readFile(filepath.Join(setup, "hook.sh")),
-		},
-		Agent: agent,
-		Then:  then,
+		Setup:  setupOf(setup, sample, cmdline),
+		Agent:  agent,
+		Then:   then,
 	}, nil
 }
 

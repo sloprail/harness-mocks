@@ -40,15 +40,14 @@ func yieldTime(c toolcall.Call) (time.Duration, bool) {
 //
 // sr:provides background-bash/codex
 // sr:docs https://developers.openai.com/codex/hooks#tool-coverage
-func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, argv []string, yield time.Duration) (r tools.BashResult, running bool) {
+func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, item string, argv []string, yield time.Duration) (r tools.BashResult, running bool) {
 	start := time.Now()
 	out, err := os.CreateTemp("", "codex-session-*")
 	if err != nil {
 		return tools.BashResult{Output: err.Error(), ExitCode: -1}, false
 	}
-	defer os.Remove(out.Name())
-	session := 10000 + rand.Intn(90000)
-	t := tasks.NewTask(tasks.Command, strconv.Itoa(session))
+	sid := 10000 + rand.Intn(90000)
+	t := tasks.NewTask(tasks.Command, strconv.Itoa(sid))
 	t.Meta = c.ID
 	ended, err := h.bg.StartYielding(ctx, t, tasks.CommandSpec{Argv: argv, Dir: h.cfg.Cwd, Env: h.toolEnv, Out: out}, yield)
 	if err != nil {
@@ -56,11 +55,13 @@ func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, argv []strin
 	}
 	printed, _ := os.ReadFile(out.Name())
 	if !ended {
+		h.sessions.add(sid, &liveCommand{call: c, item: item, cmd: command(c), out: out.Name(), read: int64(len(printed))})
 		receipt, _ := json.Marshal(map[string]any{
 			"chunk_id": fmt.Sprintf("%06x", rand.Intn(1<<24)), "wall_time_seconds": time.Since(start).Seconds(),
-			"session_id": session, "original_token_count": len(printed) / 4, "output": string(printed)})
+			"session_id": sid, "original_token_count": len(printed) / 4, "output": string(printed)})
 		return tools.BashResult{Output: string(receipt)}, true
 	}
+	os.Remove(out.Name())
 	return tools.BashResult{Output: string(printed), ExitCode: t.ExitCode}, false
 }
 

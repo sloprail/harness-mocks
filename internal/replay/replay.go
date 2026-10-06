@@ -16,8 +16,13 @@ const (
 	// ToolShell runs a command: Input "command" (string), "yield_time_ms" (int) and any other
 	// option of the harness's own tool, as given (a string, number or boolean).
 	ToolShell = "shell"
+	// ToolPatch applies a patch to files: Input "patch" (string), in the harness's own patch format.
+	ToolPatch = "apply_patch"
 	// ToolSpawn starts a sub-agent: Input "message"; Call.Sub is its turns.
 	ToolSpawn = "spawn_agent"
+	// ToolPoll polls a command left running: "session" (its position among the commands the agent left
+	// running), "yield_time_ms", "max_output_tokens".
+	ToolPoll = "write_stdin"
 	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".
 	ToolWait = "wait_agent"
 	// ToolCompact is a compaction of the session the harness made on its own (a context limit): Input
@@ -92,6 +97,9 @@ type Step struct {
 type Observed struct {
 	Events []string
 	Hooks  []string
+	// Checked is a replay that was a check the adapter made itself, passed, with nothing to compare (a
+	// recording made with a flag the mock refuses replays as the check that the mock refuses it).
+	Checked bool
 }
 
 // Adapter is everything a harness contributes to a replay.
@@ -119,6 +127,9 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	}
 	if err != nil {
 		return "", err
+	}
+	if want.Checked && got.Checked {
+		return "", nil
 	}
 	if len(want.Events) == 0 && len(got.Events) == 0 {
 		return "event stream: none recorded and none produced: nothing was compared\n", nil

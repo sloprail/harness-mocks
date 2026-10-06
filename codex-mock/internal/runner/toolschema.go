@@ -39,6 +39,11 @@ var schema = toolspec.Schema{Harness: "codex", Tools: []toolspec.Tool{
 	{Name: "spawn_agent", Recorded: "multi_agent_v1__spawn_agent", Params: spawnParams,
 		Answers: map[toolspec.Kind]string{toolspec.Missing: "agent-input-validation"}},
 	{Name: "wait_agent", Recorded: "multi_agent_v1__wait_agent", Params: waitParams},
+	{Name: "write_stdin", Params: []toolspec.Param{
+		{Name: "session_id", Type: toolspec.Integer, Required: true},
+		{Name: "yield_time_ms", Type: toolspec.Integer},
+		{Name: "max_output_tokens", Type: toolspec.Integer},
+	}},
 	{Name: "apply_patch", Params: []toolspec.Param{{Name: "command", Recorded: "arg", Type: toolspec.String, Required: true}}},
 }}
 

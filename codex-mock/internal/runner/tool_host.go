@@ -29,6 +29,9 @@ func (h toolHost) Tool(name string) ([]string, bool) {
 	if name == waitTool && canDispatch(posOf(h.id)) { // offered with it
 		return waitRequired, true
 	}
+	if name == stdinTool {
+		return []string{"session_id"}, true
+	}
 	return []string{"command"}, name == toolName || name == patchTool
 }
 
@@ -50,7 +53,10 @@ func (h toolHost) payload(c toolcall.Call) map[string]any {
 
 // Before fires PreToolUse and asks for the refusal of what the hooks decided.
 func (h toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
-	defer h.prog.Move(1, 0) // started, hooks fired: what another agent's gate may wait for
+	defer h.prog.Move(1, 0)  // started, hooks fired: what another agent's gate may wait for
+	if c.Name == stdinTool { // a poll of a command fires no hook of its own
+		return false, ""
+	}
 	var ds []hooks.Decision
 	for _, o := range h.hooks.Fire(ctx, hooks.PreToolUse, fileOrHookName(c), h.payload(c)) {
 		ds = append(ds, hooks.Interpret(hooks.PreToolUse, o))
@@ -66,6 +72,9 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 	if c.Name == waitTool {
 		return h.waitAgent(ctx, c)
 	}
+	if c.Name == stdinTool {
+		return h.pollSession(ctx, c)
+	}
 	if c.Name == patchTool {
 		return h.applyPatch(c)
 	}
@@ -79,7 +88,7 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 	var r tools.BashResult
 	if y, yields := yieldTime(c); yields {
 		var running bool
-		if r, running = h.runYielding(ctx, c, argv, y); running {
+		if r, running = h.runYielding(ctx, c, id, argv, y); running {
 			return toolcall.Result{Output: r.Output} // still running: no end to report
 		}
 	} else {
@@ -101,7 +110,7 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // gives the agent its feedback in place of the result.
 // sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
-	if ctx.Err() != nil { // an interrupted call fires no PostToolUse
+	if ctx.Err() != nil || c.Name == stdinTool { // an interrupted call fires no PostToolUse, nor does a poll
 		return "", false
 	}
 	if !tasks.AfterHookFires(h.stillRunning(c.ID)) { // its PostToolUse comes when it ends, if ever

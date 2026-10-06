@@ -28,6 +28,14 @@ providers:
       - codex-mock/snapshots/runs/session-end
       - codex-mock/snapshots/runs/ephemeral-no-transcript
       - codex-mock/snapshots/runs/background-agent
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          With --ephemeral Codex keeps no transcript, so the transcript the
+          statement names does not exist: every hook payload has transcript_path
+          null (SessionStart, PreToolUse, PostToolUse, Stop, SessionEnd; recorded:
+          runs/ephemeral-no-transcript). The mock does the same.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema

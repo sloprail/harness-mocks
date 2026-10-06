@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"fmt"
 	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -21,8 +20,19 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
-	// Flags are run options the mock is given (--ephemeral).
+	// Flags are run options the mock is given (--ephemeral, -c agents.max_depth=N, -C dir).
 	Flags []string
+	// CmdFlags are the flags of the recorded command line (--json, --skip-git-repo-check ...); NoGit is a
+	// run outside a repository; Exit the status the recorded run ended with.
+	CmdFlags []string
+	NoGit    bool
+	Exit     string
+	// Env is what the recorded run's process was given beyond the hermetic environment (setup/env).
+	Env []string
+	// Prepare is the recorded run's prepare.sh, run in the repository before the mock (prepare.go).
+	Prepare string
+	// ProjectHooksJSON is the project layer's hooks, written to <repo>/.codex/hooks.json.
+	ProjectHooksJSON string
 	// Interrupt is a run the user interrupted: the mock is sent SIGINT once its last command has started.
 	Interrupt bool
 	// Then are the later runs of the harness (a resume, a fork), each with its own script.
@@ -66,64 +76,21 @@ const runPlaceholder = "@RUN@"
 func Denormalize(rec core.Recording) Scenario {
 	files := map[string]string{"hook.sh": rec.Setup["hook.sh"]}
 	scripts := map[string]string{}
-	calls := make([]modelCall, len(rec.Agent.Calls))
-	mainGates := gatesOf(rec.Agent, nil)
-	n := 0
-	for i, c := range rec.Agent.Calls {
-		calls[i] = mockCall(c)
-		calls[i].Gate = mainGates[i]
-		if c.Tool == core.ToolSpawn && c.Sub != nil {
-			name := fmt.Sprintf("sub%d.sh", n)
-			subCalls := make([]modelCall, len(c.Sub.Calls))
-			subGates := gatesOf(*c.Sub, &rec.Agent)
-			for j, sc := range c.Sub.Calls {
-				subCalls[j] = mockCall(sc)
-				subCalls[j].Gate = subGates[j]
-			}
-			scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), 0, subCalls, c.Sub.Final, c.Sub.Unfinished, subGates[len(subCalls)])
-			calls[i].Input["script"] = scriptsDir + "/" + name
-			n++
-		}
-	}
+	main := agentCalls(rec.Agent, nil, scripts, new(int))
 	return Scenario{
-		HooksJSON: rec.Setup["hooks.json"],
-		Files:     files,
-		Scripts:   scripts,
-		Script:    scriptFor("main", 0, calls, rec.Agent.Final, false, mainGates[len(calls)]),
-		Then:      thenScenario(rec),
-		Prompt:    rec.Prompt,
-		Flags:     strings.Fields(rec.Setup["flags"]),
-		Interrupt: rec.Agent.Interrupted,
+		HooksJSON:        rec.Setup["hooks.json"],
+		Files:            files,
+		Scripts:          scripts,
+		Script:           scriptFor("main", 0, main.calls, rec.Agent.Final, false, main.final),
+		Then:             thenScenario(rec),
+		Prompt:           rec.Prompt,
+		Flags:            strings.Fields(rec.Setup["flags"]),
+		CmdFlags:         strings.Fields(rec.Setup["cmdflags"]),
+		NoGit:            rec.Setup["no-git"] == "true",
+		Exit:             rec.Setup["exit"],
+		Env:              strings.Fields(rec.Setup["env"]),
+		Prepare:          rec.Setup["prepare.sh"],
+		ProjectHooksJSON: rec.Setup["project-hooks.json"],
+		Interrupt:        rec.Agent.Interrupted,
 	}
-}
-
-// mockCall is the mock's name for a unified call; the input is copied, as the
-// spawn's script parameter is added to it.
-func mockCall(c core.Call) modelCall {
-	if c.Tool == core.ToolAnswer {
-		text, _ := c.Input["text"].(string)
-		return modelCall{Final: &text}
-	}
-	name := c.Tool
-	if c.Tool == core.ToolCompact {
-		return modelCall{Name: core.ToolCompact, Input: map[string]any{"trigger": c.Input["trigger"]}}
-	}
-	if c.Tool == core.ToolShell {
-		name = "Bash"
-	}
-	in := make(map[string]any, len(c.Input)+1)
-	for k, v := range c.Input {
-		if s, ok := v.(string); ok { // the run's own directory: the recording has it as <RUN>
-			v = strings.ReplaceAll(s, "<RUN>", runPlaceholder)
-		}
-		in[k] = v
-	}
-	if c.Tool == core.ToolWait { // the targets are the receipts of the agent's spawns: the script puts each one in, by its position
-		var ids []any
-		for _, k := range c.Input["targets"].([]int) {
-			ids = append(ids, map[string]any{"spawned": k})
-		}
-		in["targets"] = ids
-	}
-	return modelCall{Text: c.Said, Name: name, Input: in, More: c.More}
 }

@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -43,6 +44,8 @@ func unifyWait(arg map[string]any, spawns []int, told []string) (core.Call, erro
 // agentIDs are the sub-agent ids a tool call's output tells the model of: the
 // output is a list of text items, and an item whose text is a spawn receipt, as
 // the script printed it, names one.
+var reAgentID = regexp.MustCompile(`"agent_id":"([0-9a-f-]{36})"`)
+
 func agentIDs(output any) (ids []string) {
 	items, _ := output.([]any)
 	for _, it := range items {
@@ -50,6 +53,10 @@ func agentIDs(output any) (ids []string) {
 		text, _ := m["text"].(string)
 		if id := subagents.ReceiptAgentID(text); id != "" {
 			ids = append(ids, id)
+		} else { // a script that printed receipts inside an object of its own ({agent, shell}) names them still
+			for _, m := range reAgentID.FindAllStringSubmatch(text, -1) {
+				ids = append(ids, m[1])
+			}
 		}
 	}
 	return ids

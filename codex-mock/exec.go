@@ -23,26 +23,7 @@ func newExec() *cobra.Command {
 		Short: "Run the scenario script as a non-interactive Codex session",
 		RunE:  runExec,
 	}
-	f := cmd.PersistentFlags()
-	f.String("script", "", "Scenario script that drives the agent (env: A10N_MOCK_SCRIPT)")
-	f.Bool("json", false, "Print events to stdout as JSONL")
-	f.StringP("cd", "C", "", "Working directory of the session (default: the current one)")
-	f.StringP("model", "m", "", "Model name reported in hook payloads")
-	f.StringArrayP("config", "c", nil, "Config override key=value; only agents.max_depth is implemented")
-	f.StringArray("enable", nil, "Not implemented: refused")
-	f.StringArray("disable", nil, "Not implemented: refused")
-	f.StringP("sandbox", "s", "", "Not implemented: refused")
-	f.StringP("profile", "p", "", "Not implemented: refused")
-	f.String("color", "", "Not implemented: refused")
-	f.StringP("output-last-message", "o", "", "Not implemented: refused")
-	f.String("output-schema", "", "Not implemented: refused")
-	f.String("thread-source", "", "Not implemented: refused")
-	for _, name := range []string{"ignore-user-config", "ignore-rules", "strict-config", "approve-for-me"} {
-		f.Bool(name, false, "Not implemented: refused")
-	}
-	for _, name := range []string{"skip-git-repo-check", "dangerously-bypass-approvals-and-sandbox", "dangerously-bypass-hook-trust", "ephemeral"} {
-		f.Bool(name, false, "Implemented")
-	}
+	execFlags(cmd)
 	return cmd
 }
 
@@ -71,6 +52,9 @@ func runExec(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("codex-mock: getwd: %w", err)
 		}
 	}
+	if abs, err := filepath.Abs(cwd); err == nil { // -C may be relative to where the mock was started
+		cwd = abs
+	}
 	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = resolved
 	}
@@ -85,7 +69,8 @@ func runExec(cmd *cobra.Command, args []string) error {
 		}
 		home = filepath.Join(user, ".codex")
 	}
-	asJSON, bypass, ephemeral := f.Lookup("json").Value.String() == "true", f.Lookup("dangerously-bypass-hook-trust").Value.String() == "true", f.Lookup("ephemeral").Value.String() == "true"
+	on := func(name string) bool { return f.Lookup(name).Value.String() == "true" }
+	asJSON, bypass, ephemeral := on("json"), on("dangerously-bypass-hook-trust"), on("ephemeral")
 	model, _ := f.GetString("model")
 	if resume != "" { // an unknown session fails before anything starts: no hook fires
 		if err := session.ResumeUnknown(home, resume); err != nil {
