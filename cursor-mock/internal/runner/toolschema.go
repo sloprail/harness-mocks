@@ -1,6 +1,9 @@
 package runner
 
-import "github.com/sloprail/harness-mocks/internal/toolspec"
+import (
+	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
+)
 
 // taskParams are the parameters of a Task call as the model makes it (recorded:
 // the Task calls of runs/*). Only its prompt is required: a call without a
@@ -61,7 +64,7 @@ var schema = toolspec.Schema{Harness: "cursor", Tools: []toolspec.Tool{
 	}},
 	// an MCP server's tool, named mcp__<server>__<tool> by a script, whose
 	// arguments are the server's (recorded as CallDynamicTool)
-	{Name: "mcp__*", Recorded: "CallDynamicTool", Open: true},
+	{Name: "mcp__*", Recorded: "CallDynamicTool", Open: true, Valid: toolexec.IsMCPName},
 	{Name: "Task", Params: taskParams, Answers: taskAnswers},
 	{Name: "Agent", Recorded: "Task", Params: taskParams, Answers: taskAnswers},
 }}

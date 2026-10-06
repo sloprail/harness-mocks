@@ -53,6 +53,9 @@ type Tool struct {
 	// Open: the tool takes whatever arguments its caller names, which the harness
 	// does not fix (an MCP server's tool); the input need only be an object.
 	Open bool
+	// Valid, when set, says whether a name matching Name's prefix is a name of
+	// the tool at all; one it refuses is an unknown tool.
+	Valid func(name string) bool
 	// Answers are the kinds of mistake the real harness answers itself, each with the
 	// recorded run that shows its answer: the mock answers it as recorded instead of
 	// refusing it. A kind with no recording behind it is not listed.
@@ -94,7 +97,7 @@ func (i Issue) String() string {
 // Tool is the schema's tool of that name.
 func (s Schema) Tool(name string) (Tool, bool) {
 	for _, t := range s.Tools {
-		if t.Name == name || strings.HasSuffix(t.Name, "*") && strings.HasPrefix(name, strings.TrimSuffix(t.Name, "*")) {
+		if t.Name == name || strings.HasSuffix(t.Name, "*") && strings.HasPrefix(name, strings.TrimSuffix(t.Name, "*")) && (t.Valid == nil || t.Valid(name)) {
 			return t, true
 		}
 	}

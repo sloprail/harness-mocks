@@ -20,10 +20,6 @@ import (
 //
 // sr:provides hook-matcher-filter/cursor
 func grep(c Call, dir string) Result {
-	if len(c.Unmodeled) > 0 {
-		msg := "cursor-mock: Grep takes only a pattern; " + strings.Join(c.Unmodeled, ", ") + " is not modeled"
-		return failed(msg, msg)
-	}
 	pattern := c.str("pattern")
 	re, err := regexp.Compile(pattern)
 	if err != nil {

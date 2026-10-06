@@ -30,6 +30,9 @@ func mcpName(name string) (server, tool string, ok bool) {
 	return server, tool, ok && server != "" && tool != ""
 }
 
+// IsMCPName: whether name is mcp__<server>__<tool>, both parts non-empty.
+func IsMCPName(name string) bool { _, _, ok := mcpName(name); return ok }
+
 type mcpServer struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`

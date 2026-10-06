@@ -67,3 +67,15 @@ func TestAddDirIsRefusedWithYolo(t *testing.T) {
 	require.Error(t, err, out)
 	require.Contains(t, out, "--add-dir is modeled only with --force")
 }
+
+// A script's call of mcp__, mcp__x or mcp__x__ is not a call of any server's
+// tool (a name is mcp__<server>__<tool>, both parts non-empty): it is refused
+// as an unknown tool and fails the run, where no recording shows an answer.
+// sr:proves hook-matcher-filter/cursor
+func TestAnMCPNameWithoutAServerAndAToolIsRefusedAsUnknown(t *testing.T) {
+	for _, name := range []string{"mcp__", "mcp__x", "mcp__x__"} {
+		out, err := runOneCall(t, name+`","input":{}`, nil, "--force")
+		require.Error(t, err, name+": "+out)
+		require.Contains(t, out, name+": unknown tool", name)
+	}
+}

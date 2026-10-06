@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
-	"sort"
 )
 
 // Call is a tool call as Cursor names it: the kind of its tool_call frame
@@ -17,9 +16,6 @@ type Call struct {
 	// Replace is a StrReplace's old and new text: the call edits the file by it
 	// and the hooks see the whole file it makes (recorded: runs/file-tools).
 	Replace *[2]string
-	// Unmodeled are the keys of a script's input the mock does not take for the
-	// tool (a Grep's path, glob and the rest): the call fails rather than ignore them.
-	Unmodeled []string
 }
 
 func (c Call) str(key string) string { s, _ := c.Args[key].(string); return s }
@@ -70,12 +66,6 @@ func FromScript(name string, input json.RawMessage) Call {
 		}
 	case "grepToolCall":
 		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
-		for k := range in {
-			if k != "pattern" {
-				c.Unmodeled = append(c.Unmodeled, k)
-			}
-		}
-		sort.Strings(c.Unmodeled)
 	case "deleteToolCall":
 		c.Args["path"] = str("file_path")
 	case "mcpToolCall":
