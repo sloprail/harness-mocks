@@ -59,6 +59,13 @@ func (a Adapter) install(work string, rec core.Recording) (layout, error) {
 	}
 	modes := map[string]os.FileMode{}
 	for name, body := range rec.Setup {
+		if rel, ok := strings.CutPrefix(name, homeFilePrefix); ok {
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(home, rel)), 0o755); err != nil {
+				return l, err
+			}
+			files[filepath.Join(home, rel)] = body
+			continue
+		}
 		if strings.HasSuffix(name, ".sh") && name != "prepare.sh" {
 			path := filepath.Join(repo, ".cursor", "hooks", name)
 			files[path], modes[path] = body, 0o755
