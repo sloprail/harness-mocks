@@ -45,6 +45,7 @@ func (h *toolHost) Tool(name string) ([]string, bool) { return toolexec.Required
 // sr:docs https://cursor.com/docs/hooks#pretooluse
 func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	h.call = toolexec.FromScript(c.Name, c.Input)
+	h.call.Request = h.s.requestID
 	useID := c.ID
 	if h.call.Kind == "mcpToolCall" {
 		useID = coresession.NewID() // an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp)

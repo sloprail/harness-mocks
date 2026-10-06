@@ -19,6 +19,8 @@ func jsonLine(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
 func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]any, contexts []any) []byte {
 	args := c.Args
 	switch c.Kind {
+	case "shellToolCall":
+		args = c.ShellFrameArgs(id, session, c.Request)
 	case "grepToolCall", "deleteToolCall", "mcpToolCall", "getMcpToolsToolCall":
 		// these tools' args name their own call (recorded: runs/hook-matchers-grep-delete,
 		// runs/hook-matchers-mcp)
@@ -28,6 +30,11 @@ func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]a
 		}
 	}
 	body := map[string]any{"args": args}
+	if _, rejected := result["rejected"]; rejected && c.Kind == "shellToolCall" {
+		body = map[string]any{} // a command a hook refused is reported by its result alone (recorded: runs/pretool-refusal)
+	} else if c.Kind == "shellToolCall" && c.Described != "" { // the model's description sits beside the args too
+		body["description"] = c.Described
+	}
 	if d, ok := args["__description"]; ok { // an MCP call's description sits beside its args (recorded: runs/hook-matchers-mcp)
 		body["description"] = d
 		args = copyWithout(args, "__description")
