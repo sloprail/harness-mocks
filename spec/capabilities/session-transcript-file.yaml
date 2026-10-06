@@ -20,6 +20,15 @@ providers:
       - codex-mock/snapshots/runs/session-transcript-file
       - codex-mock/snapshots/runs/session-transcript-file-hooks
       - codex-mock/snapshots/runs/ephemeral-no-transcript
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          With --ephemeral Codex keeps no transcript: no rollout exists under the
+          configuration directory, and every hook payload has transcript_path
+          null, on each event the run fires (SessionStart, PreToolUse,
+          PostToolUse, Stop, SessionEnd; recorded: runs/ephemeral-no-transcript).
+          The mock does the same.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema
