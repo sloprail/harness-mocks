@@ -49,7 +49,7 @@ func scriptFor(tag string, base int, steps []modelCall, final string, unfinished
 	}
 	return fmt.Sprintf(`#!/bin/sh
 n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
-k=$(( $(grep -c '"type":"compacted"' "$A10N_MOCK_SESSION_FILE") + $(grep -c '<hook_prompt' "$A10N_MOCK_SESSION_FILE") + $(jq -s '[.[]|select(.type=="response_item")|.payload] as $p | [range(1;($p|length)) | select($p[.].role=="user" and ($p[.].content|tostring|test("subagent_notification")) and $p[.-1].role=="assistant")] | length' "$A10N_MOCK_SESSION_FILE") ))
+k=$(( $(grep -c '"type":"compacted"' "$A10N_MOCK_SESSION_FILE") + $(grep -c '<hook_prompt' "$A10N_MOCK_SESSION_FILE") + $(jq -s '[.[]|select(.type=="response_item")|.payload] as $p | [range(1;($p|length)) | select((($p[.].role=="user" and ($p[.].content|tostring|test("subagent_notification"))) or $p[.].role=="developer") and $p[.-1].role=="assistant")] | length' "$A10N_MOCK_SESSION_FILE") ))
 steps=$(cat <<'STEPS_EOF'
 %s
 STEPS_EOF

@@ -48,4 +48,5 @@ func TestAMissingShellIsRefusedNotReplaced(t *testing.T) {
 	assert.Contains(t, h.unimplemented(call(`{"command":"x","shell":"zsh"}`)), "zsh is not installed")
 	assert.Equal(t, "", h.unimplemented(call(`{"command":"x"}`)))
 	assert.Equal(t, "login without a shell", h.unimplemented(call(`{"command":"x","login":true}`)))
+	assert.Equal(t, "", h.unimplemented(call(`{"command":"x","login":false}`)), "recorded: runs/exec-login-false")
 }

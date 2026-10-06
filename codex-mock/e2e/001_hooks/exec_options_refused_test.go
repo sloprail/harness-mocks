@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,4 +62,18 @@ fi
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' '{"type":"result","subtype":"success","result":"done"}'
 `})
 	assert.Contains(t, r.rollout(t), "wait_agent: invalid input")
+}
+
+// login:false with no shell named is accepted, as the real harness accepts it: the command runs by
+// the default shell, not a login one (recorded: runs/exec-login-false, `zsh -c`). login:true with no
+// shell is not recorded, so it stays refused.
+func TestLoginFalseWithNoShellRunsTheDefaultShell(t *testing.T) {
+	rec := loadRecording(t, "exec-login-false")
+	got := replay(t, rec)
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.NotContains(t, got.rollout(t), "is not implemented by the mock")
+	cmds, _ := got.commands()
+	assert.Len(t, cmds, 1)
+	assert.Contains(t, readFile(t, filepath.Join(rec.sample, "stream.jsonl")), `"aggregated_output":"one\n"`)
+	assert.Contains(t, got.Stdout, `"aggregated_output":"one\n"`)
 }
