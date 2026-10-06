@@ -27,7 +27,8 @@ func Rules(repo, work string) rp.Rules {
 			"durationMs": measuredText, "runtimeMs": measuredText, "outputLength": masked("<length>"),
 			"startedAtMs": measuredText, "completedAtMs": measuredText, // when a call began and ended: that it says so, not when
 			"model_call_id": masked("<model call>"), "request_id": masked("<request>"), // the service's ids of its own calls: that they are named
-			"task_id": maskedNumber("<shell>"), "taskId": maskedNumber("<shell>"), // a background shell's id is a number of the harness's own
+			"contentBlobId": masked("<blob>"),                                           // the id of content a frame does not carry: a hash of what the run read
+			"task_id":       maskedNumber("<shell>"), "taskId": maskedNumber("<shell>"), // a background shell's id is a number of the harness's own
 		},
 		// the order the capture sanitised in: the repository first, as it holds the temp root
 		Scrub: append([]rp.Scrub{
@@ -49,6 +50,11 @@ func Rules(repo, work string) rp.Rules {
 			{Re: re(`(?m)^pid: [0-9]+`), With: "pid: <pid>"},
 			{Re: re(`(?m)^(started_at|ended_at): [0-9T:.Z-]+`), With: "$1: <time>"},
 			{Re: re(`(?m)^(running_for_ms|elapsed_ms): [0-9]+ *`), With: "$1: <ms>"},
+			// a command's big output kept in a file of the harness's own (named by an id), and
+			// the random base64 lines the recorded command printed: the run's own
+			{Re: re(`/agent-tools/[0-9a-f-]{36}\.txt`), With: "/agent-tools/<id>.txt"},
+			{Re: re(`(?m)^[A-Za-z0-9+/]{76}$`), With: "<random>"},
+			{Re: re(`(?:[A-Za-z0-9+/]{76}\\n)+`), With: `<random>\n`},
 			{Re: re(`"content_length":[0-9]+`), With: `"content_length":<length>`},
 			// the lines of a process listing (ps ax: pid, terminal, state, time, command) are the
 			// machine's own: what runs beside the harness is not behaviour, and how many
