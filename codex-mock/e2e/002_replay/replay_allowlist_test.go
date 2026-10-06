@@ -8,7 +8,6 @@ package e2e
 // "untriaged:" is a replay that differs and has not been looked at (the mock,
 // the adapter or the recording may be wrong).
 var notReplaying = map[string]string{
-	"bg-bash-reaped-at-exit":           "adapter: an exec_command whose cmd is not a string literal",
 	"noninteractive-run-output-schema": "adapter: the setup has args, which the adapter does not install",
 	"noninteractive-run-text-output":   "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
 	"subagent-stop-block-loop-cap":     "adapter: the model called wait: the adapter maps only exec",

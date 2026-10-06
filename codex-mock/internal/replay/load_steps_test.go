@@ -108,3 +108,12 @@ func TestAnApplyPatchCallIsReadAndReplayedAsTheMocksOwn(t *testing.T) {
 	_, err = unify(jsCall{Name: "apply_patch", Args: []any{map[string]any{"patch": "x"}}}, nil, nil)
 	assert.Error(t, err, "not a patch text")
 }
+
+// A hook's own line that is not JSON stays in the hook log in its place, and a run of identical ones is
+// one: the ticks of a background job are as many as the run was long.
+func TestHookLogKeepsRawLinesAndCollapsesTheirRuns(t *testing.T) {
+	log, err := parseHookLog("{\"a\":1}\n{x:tick}\n{x:tick}\n{x:tick}\n{\"a\":2}\n{x:tick}\n{\"a\":1}\n{\"a\":1}\n")
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]any{{"a": float64(1)}, {"raw": "{x:tick}"}, {"a": float64(2)}, {"raw": "{x:tick}"}, {"a": float64(1)}, {"a": float64(1)}}, log,
+		"identical JSON lines are not collapsed: a hook that ran twice wrote two")
+}
