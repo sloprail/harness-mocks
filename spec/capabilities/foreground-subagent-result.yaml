@@ -81,3 +81,8 @@ providers:
         statement: >-
           The mock runs only a Task that carries a description, a prompt and the
           scenario script that plays the sub-agent.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The cursor mock does not model a sub-agent failing mid-run; no headless
+          run produces one.
