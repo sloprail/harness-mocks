@@ -38,6 +38,7 @@ type ScenarioEarlier struct{ Prompt, Script string }
 type scriptCall struct {
 	Text  *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
 	Name  string         `json:"name"`
+	Reply string         `json:"-"` // an answer a Stop hook refuses to end the turn on, not a call
 	Input map[string]any `json:"input"`
 }
 
@@ -113,6 +114,8 @@ func mockCall(c core.Call) scriptCall {
 		name = "Agent"
 	case toolRead:
 		name = "Read"
+	case toolReply:
+		return scriptCall{Reply: c.Input["text"].(string)}
 	}
 	in := make(map[string]any, len(c.Input))
 	for k, v := range c.Input {
@@ -136,6 +139,8 @@ func script(tag string, calls []scriptCall, final, extra string, skip int) strin
 	lines = append(lines, finalLines(final, extra))
 	return fmt.Sprintf(`#!/bin/sh
 n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
+f=$(grep -c '"content":"Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
+n=$((n+f))
 sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
 %s
 CALLS_EOF
