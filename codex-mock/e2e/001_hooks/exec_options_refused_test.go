@@ -82,6 +82,7 @@ func TestLoginFalseWithNoShellRunsTheDefaultShell(t *testing.T) {
 // asked for, with the options the mock implements (a shell, a login flag, a yield time): the command
 // does not run, by a deny or by exit 2 (hooks#tool-coverage, unified exec).
 // sr:proves hook-matcher-filter/codex
+// sr:proves pretooluse-refusal/codex
 func TestAPreToolUseHookRefusesAnExecCommandWithItsOptions(t *testing.T) {
 	for name, hook := range map[string]string{
 		"deny by JSON": `cat >/dev/null; echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"no exec"}}'`,

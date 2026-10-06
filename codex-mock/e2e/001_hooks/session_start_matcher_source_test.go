@@ -23,6 +23,7 @@ var sourceMatchers = `{"hooks":{"SessionStart":[
  {"matcher":"fork","hooks":[{"type":"command","command":"sh hook.sh fork"}]}]}}`
 
 // sr:proves session-start-hook/codex
+// sr:proves hook-matcher-filter/codex
 func TestSessionStartMatcherIsAppliedToTheResumeAndForkSources(t *testing.T) {
 	first := execMock(t, scenario{HooksJSON: sourceMatchers, Files: map[string]string{"hook.sh": sourceMarker},
 		Script: callThenResult, Prompt: "go", Env: withCalls(t)})
