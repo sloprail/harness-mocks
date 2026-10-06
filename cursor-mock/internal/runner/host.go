@@ -70,6 +70,7 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 		return s.startSubagent(ctx, tu, in)
 	}
 	c := toolexec.FromScript(tu.Name, tu.Input)
+	c.Request = s.requestID
 	if c.Kind == "mcpToolCall" {
 		if !s.cfg.ApproveMCPs {
 			s.forward(startedFrame(s.id, tu.ID, c))

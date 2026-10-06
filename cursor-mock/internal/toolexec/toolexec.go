@@ -20,6 +20,12 @@ type Call struct {
 	// Unmodeled are the keys of a script's input the mock does not take for the
 	// tool (a Grep's path, glob and the rest): the call fails rather than ignore them.
 	Unmodeled []string
+	// BlockMs is the shell call's block_until_ms, when it gave one, and Described
+	// its description: what the frames show of it (shellargs.go).
+	BlockMs   *int
+	Described string
+	// Request is the id of the model request the call was made in (the frames' requestId).
+	Request string
 }
 
 func (c Call) str(key string) string { s, _ := c.Args[key].(string); return s }
@@ -52,6 +58,11 @@ func FromScript(name string, input json.RawMessage) Call {
 	switch c.Kind {
 	case "shellToolCall":
 		c.Args["command"] = str("command")
+		c.Described = str("description")
+		if v, ok := in["block_until_ms"].(float64); ok && v > 0 {
+			ms := int(v)
+			c.BlockMs = &ms
+		}
 		// block_until_ms 0 (or run_in_background) is a shell left running in the
 		// background (recorded: runs/task-notifications-bg).
 		if v, ok := in["block_until_ms"].(float64); (ok && v == 0) || in["run_in_background"] == true {
