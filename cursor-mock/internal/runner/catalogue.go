@@ -15,13 +15,17 @@ import (
 // background task (AwaitShell). It returns the second half of the call, and
 // whether the call was one of these.
 //
-// The catalogue is Cursor's own list of tools, which the mock has none of: every
-// search finds nothing, the answer recorded for a pattern that matches none of
-// them (runs/schedule-wakeup-ask); one that matches is answered with the
-// catalogue, which is not modeled. A wait with no task named lasts as long as it
+// The catalogue is Cursor's own list of tools, which the mock has none of: a
+// search is answered only where a recording shows it finding nothing
+// (emptySearches), and any other is refused as not modeled, since the real
+// harness answers some with tools (runs/stop-hook-payload, a search that
+// matches). A wait with no task named lasts as long as it
 // was told to (recorded: runs/nested-subagents-background, a wait of 60000 ms
 // that ran 60000 ms with a sub-agent still running); a wait on a named task is
 // not modeled, as the task's id is the harness's.
+// emptySearches are the catalogue searches a recording shows finding nothing.
+var emptySearches = map[string]bool{"subscribe_timer|cursor-subscriptions": true} // runs/schedule-wakeup-ask
+
 func (s *session) startsHookless(ctx context.Context, tu scenario.ToolUse) (func(), bool) {
 	var in map[string]any
 	_ = json.Unmarshal(tu.Input, &in)
@@ -33,6 +37,10 @@ func (s *session) startsHookless(ctx context.Context, tu scenario.ToolUse) (func
 		s.tr.toolUse(tu.Name, in)
 		return func() {
 			s.named = true // the transcript is named once a call, hooks or not, is past (recorded: runs/nested-subagents-depth)
+			if !emptySearches[pattern] {
+				s.forward(errorFrame(s.id, tu.ID, c, "cursor-mock: a search of the tool catalogue for "+strconv.Quote(pattern)+" is not modeled: only a search a recording shows finding nothing is answered", nil))
+				return
+			}
 			body, _ := json.MarshalIndent(struct {
 				Mode    string `json:"mode"`
 				Pattern string `json:"pattern"`
