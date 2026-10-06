@@ -35,13 +35,15 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		},
 		// a sub-agent's spend and the model id its alias resolved to: there in both, their values the run's own
 		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
-		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
+		MaskKeys: []string{"end_time", "scheduledFor", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{
 			// a sub-agent trailer's usage line is compared; its counts are the model's spend
 			{Re: re(`subagent_tokens: \d+`), With: "subagent_tokens: <MASKED>"},
 			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
+			// when a scheduled wakeup falls: the wall clock and the seconds to the next minute's boundary
+			{Re: re(`scheduled for \d\d:\d\d:\d\d \(in \d+s\)`), With: "scheduled for <TIME> (in <N>s)"},
 			// the per-user folder of the temp root, named for the uid the capture and the replay ran under
 			{Re: re(`claude-\d+`), With: "claude-<UID>"},
 			// the order the capture sanitised in: the repository first, as it holds the temp root

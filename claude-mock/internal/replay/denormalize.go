@@ -97,8 +97,9 @@ func mockCall(c core.Call) scriptCall {
 		return scriptCall{Text: &text, Early: c.SaidBefore, Answer: true}
 	case core.ToolSpawn:
 		name = "Agent"
-	case toolRead:
-		name = "Read"
+	}
+	if strings.HasPrefix(c.Tool, toolPrefix) {
+		name = strings.TrimPrefix(c.Tool, toolPrefix)
 	}
 	in := make(map[string]any, len(c.Input))
 	for k, v := range c.Input {
