@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -80,5 +81,20 @@ func TestAScriptsToolCallBecomesACursorCall(t *testing.T) {
 	}
 	if req, known := Required("Read"); !known || len(req) != 1 || req[0] != "file_path" {
 		t.Errorf("Read requires %v (known %v)", req, known)
+	}
+}
+
+func TestAGrepWithAnyParameterButThePatternFails(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("NEEDLE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok := Execute(context.Background(), FromScript("Grep", []byte(`{"pattern":"NEEDLE"}`)), dir, nil)
+	if ok.Failed {
+		t.Fatalf("a Grep of a pattern alone failed: %s", ok.ErrorMessage)
+	}
+	r := Execute(context.Background(), FromScript("Grep", []byte(`{"pattern":"NEEDLE","path":"sub","-i":true}`)), dir, nil)
+	if !r.Failed || !strings.Contains(r.ErrorMessage, "-i, path is not modeled") {
+		t.Fatalf("a Grep with a path and -i: failed %v, %q", r.Failed, r.ErrorMessage)
 	}
 }

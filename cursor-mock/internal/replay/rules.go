@@ -17,7 +17,11 @@ func Rules(repo, work string) rp.Rules {
 	return rp.Rules{
 		DropKeys: dropKeys,
 		Measured: measured,
-		Rewrite:  map[string]func(string) string{"durationMs": measuredText, "runtimeMs": measuredText},
+		Rewrite: map[string]func(string) string{
+			"durationMs": measuredText, "runtimeMs": measuredText,
+			"startedAtMs": measuredText, "completedAtMs": measuredText, // when a call began and ended: that it says so, not when
+			"model_call_id": masked("<model call>"), "request_id": masked("<request>"), // the service's ids of its own calls: that they are named
+		},
 		// the order the capture sanitised in: the repository first, as it holds the temp root
 		Scrub: []rp.Scrub{
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
@@ -48,14 +52,22 @@ func encode(path string) string {
 // and what the real service reports of its own calls. Each is dropped wherever
 // it occurs.
 var dropKeys = []string{
-	"timestamp_ms", "startedAtMs", "completedAtMs", // when
-	"model_call_id", "request_id", // the model service's ids for its own calls
 	"usage", // the model's token counts: the mock has no model
 }
 
 // measured are the numbers that say how long something took: the cells that
 // speak of them ask that they be there and positive, not what they were.
-var measured = []string{"duration", "duration_ms", "duration_api_ms", "executionTime"}
+var measured = []string{"duration", "duration_ms", "duration_api_ms", "executionTime", "timestamp_ms"}
+
+// masked is a rewrite that says a value is there and not what it is.
+func masked(with string) func(string) string {
+	return func(s string) string {
+		if s == "" {
+			return s
+		}
+		return with
+	}
+}
 
 // measuredText is a duration the real stream writes as a string of digits, as
 // measure says it of a number.
