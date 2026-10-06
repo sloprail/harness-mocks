@@ -56,8 +56,8 @@ func (r *runState) take() (turns int, denials []map[string]any, index int) {
 // frames), derived from what the run did: num_turns (the model's turns since
 // the last result), permission_denials (the calls a hook refused),
 // result_index (the results before it) and, for a run in which the model took
-// a turn, stop_reason end_turn and terminal_reason completed (null when it took
-// none: a refused prompt, a compaction). A frame that is an error says its API
+// a turn, stop_reason end_turn and terminal_reason completed (stop_reason null and
+// no terminal_reason or api_error_status when it took none: a refused prompt, a compaction). A frame that is an error says its API
 // failed: stop_reason stop_sequence and terminal_reason api_error, with the
 // script's own api_error_status (recorded: snapshots/runs/run-failure). The
 // script's own fields win.
@@ -83,6 +83,11 @@ func withResultFields(line []byte, st *runState, sessionID string) []byte {
 		"is_error": false, "num_turns": turns, "stop_reason": stop, "terminal_reason": terminal,
 		"permission_denials": list, "queued_turn_count": 0, "result_index": index, "api_error_status": nil,
 		"session_id": sessionID,
+	}
+	if turns == 0 && !failed {
+		// a run in which the model took no turn has neither (recorded: prompt-blocked, compact, resume-unknown)
+		delete(fields, "terminal_reason")
+		delete(fields, "api_error_status")
 	}
 	for k, v := range fields {
 		if _, ok := frame[k]; !ok {
