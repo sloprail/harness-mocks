@@ -43,6 +43,19 @@ load_touched
 load_touched_markers || refuse_error "the capability markers this change touches could not be worked out, so nothing could be checked"
 changed="$(cs '.changeset.files[].path')" || refuse_error "the changed files could not be listed, so nothing could be checked"
 
+# The harness set changes when a <h>-mock/ directory is added or deleted: then every capability is in scope for its
+# cells (a cell for every harness mock, none for a harness without one), touched or not. The base set is read from the
+# base commit; a base that cannot be read counts as a change.
+base="$(cs '.changeset.base // ""')" || refuse_error "the base of the change could not be read, so nothing could be checked"
+base_hs=""
+if [ -n "$base" ]; then
+  base_dirs="$(git -C "$SR_TREE" ls-tree -d --name-only "$base" 2>/dev/null)" && base_hs="$(printf '%s\n' "$base_dirs" | sed -n 's/-mock$//p')"
+fi
+harness_set_changed=1
+if [ -n "$base" ] && [ -n "${base_dirs:-}" ]; then
+  [ "$(printf '%s\n' "$base_hs" | sort)" = "$(printf '%s' "$hs" | sort)" ] && harness_set_changed=0
+fi
+
 # runs_changed CELL — a recording the cell cites changed, or an ADR one of its deviations cites (changed or deleted)
 runs_changed() {
   local r a
@@ -66,6 +79,7 @@ in_scope_pair() {
 }
 # in_scope_cap ID CAPABILITY-JSON — the change touches the capability at all
 in_scope_cap() {
+  [ "$harness_set_changed" -eq 1 ] && return 0
   [ -n "$(touched_harnesses "spec/capabilities/$1.yaml")" ] && return 0
   awk -F'\t' -v id="$1" '$3 == id || index($3, id "/") == 1 {m = 1} END {exit !m}' <<<"$TOUCHED_MARKERS_TSV" && return 0
   local cell
