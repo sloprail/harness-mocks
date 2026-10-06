@@ -70,6 +70,7 @@ func receiptKeys(t *testing.T, js string) (keys []string) {
 // while the agent works (the next command runs beside it), shows on the stream
 // as started and never completed, fires no PostToolUse, and ends with the run
 // (recorded: runs/background-bash-start).
+// sr:proves background-bash/codex
 func TestACommandStillRunningAfterItsYieldTimeIsAnsweredWithAReceiptAndKeepsRunning(t *testing.T) {
 	rec := loadRecording(t, "background-bash-start")
 	cmds, yields := recordedYields(t, rec)

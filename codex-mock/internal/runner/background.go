@@ -38,6 +38,7 @@ func yieldTime(c toolcall.Call) (time.Duration, bool) {
 // as a background task of the run, tied to the call (task Meta), and the call
 // fires no PostToolUse while it does (recorded: runs/background-bash-start).
 //
+// sr:provides background-bash/codex
 // sr:docs https://developers.openai.com/codex/hooks#tool-coverage
 func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, item string, argv []string, yield time.Duration) (r tools.BashResult, running bool) {
 	start := time.Now()

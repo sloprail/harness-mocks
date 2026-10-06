@@ -40,8 +40,6 @@ providers:
           command started by a background sub-agent that keeps running after
           that sub-agent's final response, unlike a foreground sub-agent's.
   codex:
-    supported: false
-    reason: Codex has no background shell mode; a command still running after its yield time is answered with a receipt naming only a session id, not a task and not a file its output goes to, and dies with the run.
     docs:
       - https://developers.openai.com/codex/hooks#tool-coverage
       - https://developers.openai.com/codex/cli/reference#check-background-terminals-with-ps
@@ -51,16 +49,14 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          Codex has no background shell mode: a command started with a yield
-          time (unified exec, exec_command) returns once the time is up, and a
-          command still running then is answered with a receipt naming only a
-          session id (chunk_id, wall_time_seconds, session_id,
-          original_token_count and the output so far), not a task and not a
-          file its output goes to; the output is read by polling the session.
+          Codex runs the command in the background and answers at once with a
+          receipt naming a session id (chunk_id, wall_time_seconds,
+          session_id, original_token_count and the output so far), but the
+          receipt names no task and no file its output goes to; the output is
+          read by polling the session (recorded: runs/background-bash-start).
           The command is not the agent's to outlive the run: it is still
           running when codex exec ends and dies with it, shown on the event
-          stream as started and never completed (recorded:
-          runs/background-bash-start). The mock does the same.
+          stream as started and never completed. The mock does the same.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
