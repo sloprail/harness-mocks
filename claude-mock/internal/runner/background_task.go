@@ -27,6 +27,8 @@ type backgroundTasks struct {
 	// endedAtLaunch holds the commands that ended before their own receipt was written: told of at the
 	// next tool, not the launching one.
 	endedAtLaunch sync.Map
+	// receiptAfterEnd holds the tool calls whose background command the receipt waits for (see takeGate).
+	receiptAfterEnd sync.Map
 }
 
 func newBackgroundTasks() *backgroundTasks {

@@ -25,7 +25,7 @@ func fillToolDefaults(cfg Config, line []byte) (visible, streamed []byte) {
 	msg, _ := m["message"].(map[string]any)
 	blocks, _ := msg["content"].([]any)
 	wire := copyInputs(wireToolInputs(m)) // before the defaults go into the very maps it holds
-	filled := false
+	filled := takeGate(cfg, m, blocks)
 	for _, b := range blocks {
 		block, _ := b.(map[string]any)
 		in, _ := block["input"].(map[string]any)
@@ -74,4 +74,23 @@ func copyInputs(wire map[string]any) map[string]any {
 		out[id] = in
 	}
 	return out
+}
+
+// takeGate removes the scenario's own gate from an assistant line and registers it: {"mock_gate":
+// {"receipt_after_end":true}} says that the background command of the line's call has ended before
+// its receipt is written, as the recording's event order shows it (runs/midturn); the receipt then waits
+// for the command's end, whenever that is. It reports whether the line had one.
+func takeGate(cfg Config, m map[string]any, blocks []any) bool {
+	gate, ok := m["mock_gate"].(map[string]any)
+	if !ok {
+		return false
+	}
+	delete(m, "mock_gate")
+	for _, b := range blocks {
+		if block, _ := b.(map[string]any); block["type"] == "tool_use" && gate["receipt_after_end"] == true && cfg.bg != nil {
+			cfg.bg.receiptAfterEnd.Store(block["id"], true)
+			break
+		}
+	}
+	return true
 }
