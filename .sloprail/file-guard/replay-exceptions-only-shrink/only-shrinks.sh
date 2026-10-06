@@ -3,7 +3,8 @@
 # (one replay_allowlist_test.go per mock): a change may remove entries, never add one, and may
 # not move an existing entry's reason to a weaker category (flaky: is weaker than untriaged:,
 # which is weaker than any triaged reason such as adapter: or mock gap:). A file created by the
-# change has no base, so it may carry no entries: every entry would be an addition.
+# change has no base, so it may carry no entries: every entry would be an addition, unless the change
+# deletes a list in the same mock (a list moved to another replay directory), whose entries are its base.
 #
 # The rule compares the map's text, so it accepts only forms it can compare (one "run": "reason", per
 # line, no escape inside a reason's category, the map named only by its declaration): these restrictions
@@ -65,10 +66,16 @@ while [ "$i" -lt "$count" ]; do
   i=$((i + 1))
   # only a list file has a base to compare; the generated replay tests are not judged here
   case "$path" in */replay_allowlist_test.go) ;; *) continue ;; esac
-  # a deleted file has no list; a created one has an empty base, so each of its entries is an addition
+  # a deleted file has no list. A created one is compared with the lists the change deletes in the same
+  # mock (a list moved to another replay directory is its old self); with none deleted, its base is empty
+  # and each of its entries is an addition.
   if [ "$status" = "D" ]; then continue; fi
   old=""
-  if [ "$status" != "A" ]; then
+  if [ "$status" = "A" ]; then
+    mock="${path%%/*}"
+    old="$(printf '%s' "$payload" | jq -r --arg m "$mock/" '[.changeset.files[] | select(.status == "D" and (.path | startswith($m)) and (.path | test("(^|/)replay_allowlist_test\\.go$"))) | .oldContent] | join("\n")')" ||
+      refuse_error "could not read the lists deleted beside $path from the changeset, so it could not be checked"
+  else
     old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
       refuse_error "could not read the base of $path from the changeset, so it could not be checked"
   fi
