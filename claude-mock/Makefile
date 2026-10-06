@@ -25,7 +25,11 @@ test-e2e: export GIT_AUTHOR_NAME := harness-mocks-test
 test-e2e: export GIT_AUTHOR_EMAIL := harness-mocks-test@sloprail.invalid
 test-e2e: export GIT_COMMITTER_NAME := harness-mocks-test
 test-e2e: export GIT_COMMITTER_EMAIL := harness-mocks-test@sloprail.invalid
+# E2E_TEST_FLAGS are more `go test` flags (CI's macOS jobs pass -skip for the replays whose timing the
+# runner's timers cannot keep: see .github/workflows/test.yml).
+E2E_TEST_FLAGS ?=
+
 test-e2e: build-race
 	cd .. && A10N_CLAUDE_MOCK_TEST_BINARY=$(abspath $(CLAUDE_MOCK)) \
-		go test -race -count=1 -v \
+		go test -race -count=1 -v $(E2E_TEST_FLAGS) \
 		./claude-mock/e2e/...

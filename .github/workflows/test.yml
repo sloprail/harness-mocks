@@ -44,9 +44,19 @@ jobs:
   # The e2e jobs run on macOS: the recordings the replay packages (claude-mock/e2e/018_replay,
   # cursor-mock/e2e/003_replay, codex-mock/e2e/002_replay) replay were captured on macOS, and a
   # recorded command's output (BSD `ls` vs GNU `ls`) is the host's.
+  #
+  # Two replays are timed by their recordings' own scripts: all-hooks-close-first and
+  # all-hooks-close-second have two hooks answer 25 ms and 100 ms after they start, and the block
+  # acted on is the one that answers last, so the replay can tell them apart only when the
+  # runner keeps those delays 75 ms apart. macOS's runners do not: a `sleep 0.025` takes 32 to 109
+  # ms (median 84) and a `sleep 0.1` 106 to 185 ms (median 161), so the order of the two answers
+  # is a coin toss there (measured on macos-latest, macOS 26). They replay on Linux (e2e-timed
+  # below), whose timers keep the delays; nothing in their output is the host's.
   e2e:
     name: e2e tests
     runs-on: macos-latest
+    env:
+      TIMED_REPLAYS: 'TestGeneratedReplay/all-hooks-close-(first|second)'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -57,7 +67,23 @@ jobs:
       # The git identity the suite commits under comes from claude-mock/Makefile's test-e2e
       # environment: no step may write the global git config (copied onto a developer's machine
       # it rewrites their real ~/.gitconfig).
-      - run: make -C claude-mock test-e2e
+      - run: make -C claude-mock test-e2e E2E_TEST_FLAGS="-skip '$TIMED_REPLAYS'"
+
+  # The replays e2e skips, on a runner whose timers keep their recordings' delays: run 3 times,
+  # as the repeat jobs run the rest.
+  e2e-timed:
+    name: e2e timed replays (linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: |
+          make -C claude-mock build-race
+          A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock" \
+            go test -race -count=3 -v ./claude-mock/e2e/018_replay -run 'TestGeneratedReplay/all-hooks-close-(first|second)'
 
   codex-unit:
     name: codex-mock unit tests (with the shared core)
@@ -113,6 +139,8 @@ jobs:
   e2e-repeat:
     name: e2e repeat (${{ matrix.mock }}, run ${{ matrix.run }} of 3)
     runs-on: macos-latest
+    env:
+      TIMED_REPLAYS: 'TestGeneratedReplay/all-hooks-close-(first|second)'
     strategy:
       fail-fast: false
       matrix:
@@ -136,10 +164,10 @@ jobs:
           export GIT_AUTHOR_NAME=harness-mocks-test GIT_AUTHOR_EMAIL=harness-mocks-test@sloprail.invalid
           export GIT_COMMITTER_NAME=harness-mocks-test GIT_COMMITTER_EMAIL=harness-mocks-test@sloprail.invalid
           case "${{ matrix.mock }}" in
-            claude) export A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock" ;;
+            claude) export A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock"; skip=(-skip "$TIMED_REPLAYS") ;;
             cursor) export A10N_CURSOR_MOCK_TEST_BINARY="$PWD/bin/a10n-cursor-mock" ;;
           esac
-          go test -race -count=1 -v ./${{ matrix.mock }}-mock/e2e/...
+          go test -race -count=1 -v "${skip[@]}" ./${{ matrix.mock }}-mock/e2e/...
 
   subject-tests:
     name: rule subject tests
