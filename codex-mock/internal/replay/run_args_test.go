@@ -18,8 +18,15 @@ func TestRunFlagsGivesWhatTheMockTakesAndRefusesTheRest(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, pass, "the token limit is the script's compactions, not a flag")
 
-	for _, bad := range []string{"--output-schema\nschema.json", "-c\nsomething=1", "resume\nid", "-C"} {
+	for _, bad := range []string{"--output-schema\nschema.json", "-c\nsomething=1", "-C"} {
 		_, err := runFlags(bad)
 		assert.Error(t, err, bad)
 	}
+}
+
+// A resume of a session by its id is given to the mock as it was recorded.
+func TestRunFlagsGivesAResumeByItsID(t *testing.T) {
+	pass, err := runFlags("resume\n00000000-0000-4000-8000-0000000000ff\n")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"resume", "00000000-0000-4000-8000-0000000000ff"}, pass)
 }

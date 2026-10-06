@@ -71,7 +71,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	}
 	ctx := context.Background()
 	// the scratch repository a recording was made in: branch main, one empty commit, "init" (capture.sh; the host's default branch name is not behaviour)
-	for _, argv := range [][]string{{"init", "-q", "-b", "main"}, {"-c", "user.name=replay", "-c", "user.email=replay@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "init"}} {
+	for _, argv := range gitSetup(s.NoGit) {
 		if res, err := procexec.Run(ctx, procexec.Spec{Argv: append([]string{"git", "-C", repo}, argv...), Env: env}); err != nil || res.ExitCode != 0 {
 			return want, got, fmt.Errorf("git %s: %v %s", argv[len(argv)-1], err, res.Stderr)
 		}

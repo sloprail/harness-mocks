@@ -23,7 +23,7 @@ func runFlags(args string) (pass []string, err error) {
 			pass = append(pass, w)
 		case w == "-c" && strings.HasPrefix(next, "model_auto_compact_token_limit="):
 			i++
-		case w == "-c" && strings.HasPrefix(next, "agents.max_depth="), w == "-C" && next != "":
+		case w == "-c" && strings.HasPrefix(next, "agents.max_depth="), w == "-C" && next != "", w == "resume" && next != "":
 			pass = append(pass, w, next)
 			i++
 		default:

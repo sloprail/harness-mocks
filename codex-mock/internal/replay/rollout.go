@@ -29,6 +29,13 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 			continue
 		}
 		p, _ := rec["payload"].(map[string]any)
+		if rec["type"] == "event_msg" && p["type"] == "turn_aborted" && !interrupted && (len(calls) == 0 || calls[len(calls)-1].Tool != core.ToolCompact) {
+			// a turn aborted with no user interrupt: a compaction a hook stopped (nothing else aborts a turn here); the
+			// harness asked for it where the model would have gone on, so the mock is asked to at the same place
+			calls = append(calls, core.Call{Tool: core.ToolCompact, At: stampOf(rec), Input: map[string]any{"trigger": "auto"}})
+			sawFinal = true // the turn ended there: no answer, and the agent did not hang
+			continue
+		}
 		if rec["type"] != "response_item" || p == nil {
 			continue
 		}

@@ -46,7 +46,8 @@ func setupFileOK(setup, name string) bool {
 		return err == nil
 	}
 	// interrupt-after: the run was sent SIGINT; the replay sends it when the command has started (interrupt.go)
-	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || name == "project-hooks.json" || name == "interrupt-after" || stepFile.MatchString(name)
+	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || name == "project-hooks.json" || name == "interrupt-after" ||
+		name == "no-git" || name == "no-skip-git-check" || name == "no-sandbox-bypass" || stepFile.MatchString(name)
 }
 
 // threadsOf are the threads the stream starts, in order: the thread each run of the harness

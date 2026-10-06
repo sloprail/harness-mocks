@@ -20,7 +20,7 @@ func ephemeral(setup string) bool {
 // shows: each command it ran, in order, and its last message; so only a plain run is read, one that
 // ran commands and answered once. The command is what the stream shows of it, and the options the
 // model gave the tool are not shown: the mock runs it with none.
-func loadEphemeral(runDir, setup, sample string) (core.Recording, error) {
+func loadEphemeral(runDir, setup, sample string, cmdline []string) (core.Recording, error) {
 	stream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
 	if err != nil {
 		return core.Recording{}, err
@@ -45,11 +45,7 @@ func loadEphemeral(runDir, setup, sample string) (core.Recording, error) {
 	return core.Recording{
 		Dir:    runDir,
 		Prompt: strings.TrimSpace(readFile(filepath.Join(setup, "prompt.txt"))),
-		Setup: map[string]string{
-			"hooks.json": readFile(filepath.Join(setup, "hooks.json")),
-			"hook.sh":    readFile(filepath.Join(setup, "hook.sh")),
-			"flags":      flagsOf(setup),
-		},
-		Agent: core.Agent{Calls: calls, Final: final},
+		Setup:  setupOf(setup, sample, cmdline),
+		Agent:  core.Agent{Calls: calls, Final: final},
 	}, nil
 }

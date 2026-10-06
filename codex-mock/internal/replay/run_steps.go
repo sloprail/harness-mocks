@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/sloprail/harness-mocks/internal/procexec"
@@ -36,7 +37,7 @@ func runSteps(ctx context.Context, mock string, s Scenario, repo, root, scriptsA
 		if err := os.WriteFile(script, []byte(scriptText(r.script, scriptsAt, repo)), 0o755); err != nil {
 			return "", err
 		}
-		argv := []string{mock, "exec", "--dangerously-bypass-hook-trust", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model"}
+		argv := append(append([]string{mock, "exec"}, s.CmdFlags...), "--script", script, "-m", "mock-model")
 		if i == 0 {
 			argv = append(argv, s.Flags...)
 		}
@@ -55,12 +56,20 @@ func runSteps(ctx context.Context, mock string, s Scenario, repo, root, scriptsA
 			continue
 		}
 		res, err := procexec.Run(ctx, procexec.Spec{Argv: append(argv, r.prompt), Dir: r.cwd, Env: env})
-		if err != nil || res.ExitCode != 0 {
+		if want := s.exitOf(i); err != nil || res.ExitCode != want {
 			return "", &core.MockFailure{Detail: fmt.Sprintf("run %d: %v (exit %d): %s", i, err, res.ExitCode, res.Stderr)}
 		}
 		stdout.Write(res.Stdout)
 	}
 	return stdout.String(), nil
+}
+
+// exitOf is the status run i of the scenario is to end with: the recorded first run's, 0 for the later ones.
+func (s Scenario) exitOf(i int) int {
+	if n, err := strconv.Atoi(s.Exit); err == nil && i == 0 {
+		return n
+	}
+	return 0
 }
 
 // firstThread is the session the first run's stream starts.

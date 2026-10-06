@@ -16,9 +16,6 @@ type Unbuildable = core.Unbuildable
 
 func unbuildable(err error) error { return &core.Unbuildable{Reason: err.Error()} }
 
-// the command line every replayable recording was made with; one made another way is not replayed.
-const standardCommand = "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna"
-
 // Load reads the recorded run in runDir into the unified form; an *Unbuildable says what cannot be reproduced.
 func (Adapter) Load(runDir string) (core.Recording, error) {
 	if fi, err := os.Stat(runDir); err != nil || !fi.IsDir() {
@@ -29,8 +26,9 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
 	}
-	if run.Command != standardCommand {
-		return core.Recording{}, unbuildable(fmt.Errorf("recorded with another command line: %q", run.Command))
+	cmdline, err := cmdFlags(run.Command)
+	if err != nil {
+		return core.Recording{}, unbuildable(err)
 	}
 	entries, _ := os.ReadDir(setup)
 	for _, e := range entries {
@@ -43,7 +41,10 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	}
 	paths, _ := filepath.Glob(filepath.Join(sample, "transcript", "*.jsonl"))
 	if ephemeral(setup) { // no rollout is kept: the turns are read off the stream
-		return loadEphemeral(runDir, setup, sample)
+		return loadEphemeral(runDir, setup, sample, cmdline)
+	}
+	if len(paths) == 0 && exitOf(sample) != "0" && exitOf(sample) != "" { // the harness refused the run: what is replayed is the refusal
+		return refusedRun(runDir, setup, setupOf(setup, sample, cmdline)), nil
 	}
 	if len(paths) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout was recorded: the model's turns are unknown"))
@@ -96,14 +97,9 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	return core.Recording{
 		Dir:    runDir,
 		Prompt: specs[0].prompt,
-		Setup: map[string]string{
-			"hooks.json":         readFile(filepath.Join(setup, "hooks.json")),
-			"hook.sh":            readFile(filepath.Join(setup, "hook.sh")),
-			"project-hooks.json": readFile(filepath.Join(setup, "project-hooks.json")),
-			"flags":              flagsOf(setup),
-		},
-		Agent: agent,
-		Then:  then,
+		Setup:  setupOf(setup, sample, cmdline),
+		Agent:  agent,
+		Then:   then,
 	}, nil
 }
 

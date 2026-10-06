@@ -23,6 +23,11 @@ type Scenario struct {
 	Prompt  string
 	// Flags are run options the mock is given (--ephemeral, -c agents.max_depth=N, -C dir).
 	Flags []string
+	// CmdFlags are the flags of the recorded command line (--json, --skip-git-repo-check ...); NoGit is a
+	// run outside a repository; Exit the status the recorded run ended with.
+	CmdFlags []string
+	NoGit    bool
+	Exit     string
 	// ProjectHooksJSON is the project layer's hooks, written to <repo>/.codex/hooks.json.
 	ProjectHooksJSON string
 	// Interrupt is a run the user interrupted: the mock is sent SIGINT once its last command has started.
@@ -77,6 +82,9 @@ func Denormalize(rec core.Recording) Scenario {
 		Then:             thenScenario(rec),
 		Prompt:           rec.Prompt,
 		Flags:            strings.Fields(rec.Setup["flags"]),
+		CmdFlags:         strings.Fields(rec.Setup["cmdflags"]),
+		NoGit:            rec.Setup["no-git"] == "true",
+		Exit:             rec.Setup["exit"],
 		ProjectHooksJSON: rec.Setup["project-hooks.json"],
 		Interrupt:        rec.Agent.Interrupted,
 	}
