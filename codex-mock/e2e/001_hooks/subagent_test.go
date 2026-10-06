@@ -139,6 +139,7 @@ func TestSubagentStartAndStopHooks(t *testing.T) {
 // The start hook cannot refuse the sub-agent: with it exiting 2 and stating a
 // reason, the sub-agent still runs, and still stops (runs/subagent-start-refused).
 // sr:proves subagent-lifecycle-hooks/codex
+// sr:proves hook-exit-code-semantics/codex
 func TestSubagentStartCannotRefuse(t *testing.T) {
 	rec, got := replaySubagent(t, "subagent-start-refused")
 	want := byEvent(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))

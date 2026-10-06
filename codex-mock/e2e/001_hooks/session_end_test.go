@@ -65,6 +65,14 @@ func TestSessionEndHookFailureDoesNotEndTheRunAbnormally(t *testing.T) {
 		shape := streamShape(r.stream())
 		assert.Equal(t, "turn.completed", shape[len(shape)-1], "exit %s", code)
 		assert.Equal(t, "SessionEnd", r.hookLog()[len(r.hookLog())-1]["hook_event_name"])
+		// the failure is not reported: the only error frames of the stream are the trust warnings
+		// (recorded: runs/session-end-hook-failure, whose third frame warns of the async handler)
+		for _, e := range r.stream() {
+			if item, _ := e["item"].(map[string]any); item["type"] == "error" {
+				assert.NotContains(t, item["message"], "SessionEnd", "exit %s", code)
+				assert.NotContains(t, item["message"], "failed", "exit %s", code)
+			}
+		}
 	}
 }
 

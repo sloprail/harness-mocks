@@ -114,7 +114,6 @@ func TestRunTurnStopsAtAnUnreadableLineAfterTheCalls(t *testing.T) {
 
 // An assistant line may carry a gate: what must have happened (other agents' steps) before the
 // host takes the line's calls and messages. The script orders the agents, not the time anything takes.
-// sr:proves turn-loop
 func TestAnAssistantLineCarriesAGate(t *testing.T) {
 	s, dir := script(t, `printf '%s\n' '{"gate":{"ended":[0,2],"parent_started":3,"parent_done":1},"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{}}]}}'`)
 	turn, err := RunTurn(context.Background(), s, dir, environ, Input{})
