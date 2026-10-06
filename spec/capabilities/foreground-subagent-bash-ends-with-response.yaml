@@ -29,9 +29,13 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          Cursor fires neither subagentStart nor subagentStop for the
-          foreground sub-agent in print mode, though both were configured
-          (recorded: runs/foreground-subagent-bash-ends-with-response, whose
-          hook log has no event of either), so what the documented hooks carry,
-          such as parent_conversation_id, does not apply, and the mock fires
-          neither.
+          Doc and recording conflict: the doc section hooks#subagentstop
+          (https://cursor.com/docs/hooks#subagentstop) says "Called when a
+          subagent completes, errors, or is aborted. Can trigger follow-up
+          actions.", but the recording
+          cursor-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
+          shows Cursor firing neither subagentStart nor subagentStop for the
+          foreground sub-agent in print mode, though both were configured (its
+          payloads.jsonl has no event of either), so what the documented hooks
+          carry, such as parent_conversation_id, does not apply. The recording
+          decides, and the mock fires neither.
