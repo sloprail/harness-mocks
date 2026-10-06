@@ -109,3 +109,6 @@ func (l *SpawnLog) Progress(id string) *Progress {
 	defer l.mu.Unlock()
 	return l.progress[id]
 }
+
+// ID is the sub-agent at position k among those the agent started, if it has started that many.
+func (l *SpawnLog) ID(k int) (string, bool) { return l.at(k) }

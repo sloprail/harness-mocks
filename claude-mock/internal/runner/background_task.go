@@ -23,6 +23,8 @@ type backgroundTasks struct {
 	// refused is the first call a scenario script asked for that the mock does not
 	// implement, in any run of the session, a sub-agent's too: it fails the run.
 	refused toolspec.Refusals
+	// agents are the session's sub-agents by id, for SendMessage to resume one.
+	agents agentRegistry
 }
 
 func newBackgroundTasks() *backgroundTasks {
@@ -58,6 +60,9 @@ func taskSummary(t *tasks.Task) string {
 	if t.Kind == tasks.Agent {
 		if t.Failure != "" {
 			return `Agent "` + t.Description + `" failed: ` + t.Failure
+		}
+		if t.StoppedAtTurns > 0 { // recorded: runs/fgsub-maxturns
+			return fmt.Sprintf(`Agent "%s" stopped at its %d-turn limit (partial result; SendMessage to task-id to continue)`, t.Description, t.StoppedAtTurns)
 		}
 		return `Agent "` + t.Description + `" finished`
 	}

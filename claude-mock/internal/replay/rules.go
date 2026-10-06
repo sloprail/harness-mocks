@@ -37,7 +37,7 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
 		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd",
 			// the harness's pid and its messaging secret, as a child's environment names them (a hook's payload): the run's own
-			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN",
+			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN", "ref",
 			// how long a tool took (Glob's durationMs): measured, there in both
 			"durationMs"},
 		// when a frame was written differs in every run; that it has one does not
@@ -46,6 +46,9 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			// a sub-agent trailer's usage line is compared; its counts are the model's spend
 			{Re: re(`subagent_tokens: \d+`), With: "subagent_tokens: <MASKED>"},
 			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
+			// a resumed agent's pin: the reference the harness minted, and the agent's id as the message abbreviates it
+			{Re: re(`"ref":"[0-9a-z]+"`), With: `"ref":"<MASKED>"`},
+			{Re: re(`Resuming agent [0-9a-z]{7}`), With: "Resuming agent <MASKED>"},
 			// the same in a task notification's <usage> element
 			{Re: re(`<subagent_tokens>\d+</subagent_tokens>`), With: "<subagent_tokens><MASKED></subagent_tokens>"},
 			{Re: re(`<duration_ms>\d+</duration_ms>`), With: "<duration_ms><MASKED></duration_ms>"},
