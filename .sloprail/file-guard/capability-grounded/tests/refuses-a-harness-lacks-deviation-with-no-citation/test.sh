@@ -29,6 +29,13 @@ git add -A && git commit -q -m base
 BASE=$(git rev-parse HEAD)
 export SR_CHECKS_JUDGE_MOCKS='{"file-guard/capability-grounded/docs-support-statement":"'"$SR_TEST_CASE_DIR"'/judge.sh"}'
 
+run_rule() {
+  : > "$SR_EVENTS_FILE"
+  sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+}
+outcome() {   # the outcome capability-grounded reached over the range
+  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-grounded")] | if length == 0 then "none" elif all(.[]; .outcome=="passed") then "passed" else "refused" end' "$SR_EVENTS_FILE" | jq -r .
+}
 # harness-lacks-cited.sh judged on the payload the engine hands it (the citation requirement of added-or-removed.sh
 # comes before it in a real run, and needs a user's words a sandbox has none of)
 check() {   # prints the script's stdout, sets rc
@@ -37,11 +44,13 @@ check() {   # prints the script's stdout, sets rc
   out="$(cd .sloprail/file-guard/capability-grounded && SR_TREE="$PWD/../../.." SR_GUARDRAIL_DIR="$PWD" bash ./harness-lacks-cited.sh <<<"$payload")" && rc=0 || rc=$?
 }
 # lacks DOCS RUNS — capability c with a harness-lacks deviation on claude, citing DOCS and RUNS (YAML flow lists)
-lacks() { printf 'statement: c works\nproviders:\n  claude:\n    docs: %s\n    runs: %s\n    deviations:\n      - kind: harness-lacks\n        text: the harness has no such command\n' "$1" "$2" >spec/capabilities/c.yaml; }
+lacks() { printf 'statement: c works\nproviders:\n  claude:\n    docs: %s\n    runs: %s\n    deviations:\n      - adr: harness-gap\n        kind: harness-lacks\n        statement: the harness has no such command\n' "$1" "$2" >spec/capabilities/c.yaml; }
 
 git checkout -q -b lacks "$BASE"
 lacks '[]' '[]'
 git add -A && git commit -q -m "a harness-lacks deviation citing neither a doc nor a run"
+run_rule
+[ "$(outcome)" = refused ] || { jq -c . "$SR_EVENTS_FILE" >&2; echo "capability-grounded did not refuse a harness-lacks deviation citing nothing" >&2; exit 1; }
 check
 [ "$rc" -eq 1 ] && printf '%s' "$out" | jq -e '(.reason | contains("have a kind: harness-lacks deviation and cites no doc or run")) and (.error | not)' >/dev/null ||
   { echo "a harness-lacks deviation citing nothing was not refused as a verdict (exit $rc): $out" >&2; exit 1; }
@@ -49,5 +58,7 @@ check
 # recovery: it cites a doc section and a recorded run, and the same range from the same base passes
 lacks '[https://d.example/p#s]' '[claude-mock/snapshots/runs/c]'
 git add -A && git commit -q -m "the deviation cites a doc and a run"
+run_rule
+[ "$(outcome)" = passed ] || { jq -c . "$SR_EVENTS_FILE" >&2; echo "capability-grounded did not pass a harness-lacks deviation citing a doc and a run (sr-checks exit $ran)" >&2; exit 1; }
 check
 [ "$rc" -eq 0 ] || { echo "a harness-lacks deviation citing a doc and a run was refused (exit $rc): $out" >&2; exit 1; }
