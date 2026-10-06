@@ -118,15 +118,12 @@ func Hold(ctx context.Context, g scenario.Gate, reg *tasks.Registry, spawned *Sp
 
 // awaitEnd waits for the sub-agent's task to end, or for ctx to.
 func awaitEnd(ctx context.Context, reg *tasks.Registry, id string) {
-	for reg.Find(id) == nil { // its task is registered once its spawn has been answered
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
+	t := reg.Await(ctx, id) // its task is registered once its spawn has been answered
+	if t == nil {
+		return
 	}
 	select {
-	case <-reg.Find(id).Done():
+	case <-t.Done():
 	case <-ctx.Done():
 	}
 }
