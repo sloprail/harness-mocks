@@ -33,8 +33,9 @@ type taskInput struct {
 }
 
 // dispatchesSubagent reports whether the call is a foreground Task the mock
-// runs as a sub-agent: one with its description, prompt and the script that
-// plays the sub-agent. A background Task, and a main agent's call that lacks
+// runs as a sub-agent: one with its prompt (the description is optional: a call
+// without it ran, recorded: runs/agent-input-validation-description) and the
+// script that plays the sub-agent. A background Task, and a main agent's call that lacks
 // them, are not modelled (adr/modeled-surface); they end as a call to a tool
 // the mock does not have.
 func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
@@ -42,7 +43,7 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil {
 		return in, false
 	}
-	return in, in.Description != "" && in.Prompt != "" && in.Script != ""
+	return in, in.Prompt != "" && in.Script != ""
 }
 
 // startSubagent is the first half of a foreground Task call: the parent's

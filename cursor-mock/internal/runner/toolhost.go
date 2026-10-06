@@ -47,11 +47,14 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	h.call = toolexec.FromScript(c.Name, c.Input)
 	h.call.Request = h.s.requestID
 	useID := c.ID
-	if h.call.HookID != "" {
-		useID = h.call.HookID
+	if h.call.Kind == "mcpToolCall" || h.call.Kind == "shellToolCall" && !h.call.Background() {
+		// an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp),
+		// and so do a foreground command's; a command left in the background is
+		// named by its call (recorded: runs/task-notifications-bg, runs/shell-exit-status)
+		useID = coresession.NewID()
 	}
-	if h.call.Kind == "mcpToolCall" && h.call.HookID == "" {
-		useID = coresession.NewID() // an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp)
+	if h.call.HookID != "" && h.call.Kind != "mcpToolCall" { // a script names the id its recording's hooks gave the call
+		useID = h.call.HookID
 	}
 	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: useID}
 	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
@@ -92,7 +95,7 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 // Execute runs the call, with the identity of the session in a shell
 // command's environment, and prints its completed frame.
 func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result {
-	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id), childenv.Defaults())
+	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id, h.s.requestID, h.s.cfg.Version), childenv.Defaults())
 	if h.call.Kind == "shellToolCall" && !h.s.cfg.Force {
 		h.res = toolexec.Unapproved(h.call, h.s.cfg.Dir)
 	} else if !h.read {

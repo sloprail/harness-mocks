@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/scenario"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
@@ -71,6 +72,13 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 	}
 	c := toolexec.FromScript(tu.Name, tu.Input)
 	c.Request = s.requestID
+	if c.Kind == "taskToolCall" && len(corehooks.RejectedInput(tu.Input, toolexec.TaskRequired())) > 0 {
+		// a Task call that lacks its prompt is never started: only its completed
+		// frame is on the stream, so what the agent said before it is not brought
+		// out ahead of it (recorded: runs/agent-input-validation)
+		s.tr.toolUse(tu.Name, c.Args)
+		return func() { s.runTool(ctx, tu, false); s.named = true }
+	}
 	if c.Kind == "mcpToolCall" {
 		if !s.cfg.ApproveMCPs {
 			s.forward(startedFrame(s.id, tu.ID, c))

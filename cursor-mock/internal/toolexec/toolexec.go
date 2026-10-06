@@ -115,7 +115,17 @@ func FromScript(name string, input json.RawMessage) Call {
 func (c Call) HookInput(dir string) map[string]any {
 	switch c.Kind {
 	case "shellToolCall":
-		return map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory"), "timeout": 30000}
+		// a command left in the background has no timeout; any other has the one
+		// the model gave (block_until_ms), or the default (recorded:
+		// runs/task-notifications-inturn, runs/task-notifications-bg)
+		in := map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory")}
+		if !c.Background() {
+			in["timeout"] = 30000
+			if c.BlockMs != nil {
+				in["timeout"] = *c.BlockMs
+			}
+		}
+		return in
 	case "readToolCall":
 		return map[string]any{"file_path": c.Path(dir)}
 	case "taskToolCall":
