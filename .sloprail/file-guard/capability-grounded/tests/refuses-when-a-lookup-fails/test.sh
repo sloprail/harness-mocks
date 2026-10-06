@@ -5,8 +5,8 @@ set -euo pipefail
 # checked (which capabilities a change touches: subjects.sh; whether the user's words are required:
 # added-or-removed.sh; what the judge is handed: prepare.sh) refuses, with a reason naming what could not be
 # read, when it fails. The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's
-# rules; only this rule's outcome is asserted. The judge is a mock that always passes, so a refusal here is the
-# rule's own machinery, never a verdict. The failures are injected with a jq shim, first on PATH for one
+# rules; only this rule's outcome is asserted. The judge is a mock that decides from its prompt (it refuses a cell citing #undocumented, see the control), so a refusal
+# here is the rule's own machinery, never a verdict. The failures are injected with a jq shim, first on PATH for one
 # sr-checks run only, that exits non-zero when an argument contains a marker of one lookup's program and
 # otherwise runs the real jq. Each scenario is its own commit (a verdict is cached by content, and a stored
 # refusal is replayed).
@@ -67,6 +67,11 @@ inject_exact() {   # PROGRAM — the lookups whose jq program is exactly PROGRAM
 # control: nothing injected, the cell change is judged (by the mock) and passes
 scenario; run_rule SHIM_JQ_FAIL=
 expect_passed "control"
+
+# control: the judge mock decides from its input, so a cell citing a section that shows nothing of the statement is refused
+n=$((n + 1)); git checkout -q -b "s$n" "$BASE"; cap undocumented; git add -A && git commit -q -m "c cites #undocumented"
+run_rule SHIM_JQ_FAIL=
+expect_refused "control: the judge refuses an undocumented section" "the statement claims a part no cited doc or run shows"
 
 # subjects.sh: which capabilities the change touches
 scenario; inject 'harnesses:'

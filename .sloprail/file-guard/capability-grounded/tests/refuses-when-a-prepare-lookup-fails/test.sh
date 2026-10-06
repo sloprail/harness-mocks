@@ -6,7 +6,7 @@ set -euo pipefail
 # the harnesses a changed file touches, the harness narrowing, the doc assembly, the cited runs, the unsupported cells, the deleted-files listing,
 # the subject count and the final output (and, through cells.sh, the changed capability files). The other
 # lookups are refuses-when-a-lookup-fails'. The CI path, no agent turn: `sr-checks run` judges committed
-# ranges; the judge is a mock that always passes, so a refusal here is the rule's own machinery, never a
+# ranges; the judge is a mock that decides from its prompt (the control refuses an #undocumented cell), so a refusal here is the rule's own machinery, never a
 # verdict. The failures are injected with a jq shim, first on PATH for one sr-checks run only, that exits
 # non-zero when an argument contains a marker (SHIM_JQ_FAIL, SHIM_JQ_FAIL2) or equals SHIM_JQ_FAIL_EXACT, and
 # otherwise runs the real jq. Each marker is one a single lookup carries. Each scenario is its own commit
@@ -73,6 +73,11 @@ inject_exact() {   # PROGRAM — the lookups whose jq program is exactly PROGRAM
 # control: nothing injected, the cell change is judged (by the mock) and passes; so is a deletion
 scenario; run_rule SHIM_JQ_FAIL=
 expect_passed "control: a cell change"
+
+# control: the judge mock decides from its input, so a cell citing a section that shows nothing of the statement is refused
+n=$((n + 1)); git checkout -q -b "s$n" "$BASE"; cap undocumented; git add -A && git commit -q -m "c cites #undocumented"
+run_rule SHIM_JQ_FAIL=
+expect_refused "control: the judge refuses an undocumented section" "the statement claims a part no cited doc or run shows"
 
 # the changed files listing (the whole changeset's paths)
 scenario; inject_exact '.changeset.files[].path'
