@@ -119,7 +119,7 @@ func TestFlagWordsPassOnWhatTheMockModelsAndRefuseTheRest(t *testing.T) {
 	if err != nil || strings.Join(got, " ") != "--add-dir ../second-root --approve-mcps" {
 		t.Fatalf("got %v, %v", got, err)
 	}
-	for _, bad := range []string{"--model\nx\n", "--add-dir\n", "--resume\n<SESSION>\n"} {
+	for _, bad := range []string{"--sandbox\nx\n", "--add-dir\n", "--resume\n<SESSION>\n"} {
 		if _, err := flagWords(bad); err == nil {
 			t.Errorf("%q must be refused", bad)
 		}

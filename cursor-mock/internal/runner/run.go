@@ -105,7 +105,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.Resume != "" { // the workspace holds the session's transcript only if it was begun there
 		_ = coresession.ContinueTranscript(s.tr.path, func(l string) bool { return strings.Contains(l, `"turn_ended"`) })
 	}
-	s.forward(initFrame(s.id, cfg.Dir))
+	s.forward(initFrame(s.id, cfg.Dir, cfg.Model))
 	s.forward(userFrame(s.id, cfg.Prompt))
 	s.hooks.Fire(ctx, hooks.WorkspaceOpen, hooks.NoSubject, nil) // the app opens the workspace before the session starts (recorded: runs/workspace-open)
 	if startHook.For(cfg.Resume != "").Fires {
@@ -139,7 +139,7 @@ func (s *session) hookEnv() []string {
 // common is what every hook payload carries now: the transcript path only once
 // the conversation has a transcript.
 func (s *session) common() hooks.Common {
-	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version}
+	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version, Model: s.cfg.Model}
 	if s.named && s.tr.exists() {
 		c.TranscriptPath = s.tr.path
 	}

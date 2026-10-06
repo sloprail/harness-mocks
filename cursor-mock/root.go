@@ -40,7 +40,7 @@ the stream through:
 	p.BoolVar(&f.plan, "plan", false, "accepted, ignored")
 	p.StringVar(&f.resume, "resume", "", "resume the session with this id")
 	p.BoolVar(&f.cont, "continue", false, "not modeled")
-	p.StringVar(&f.model, "model", "", "accepted, ignored")
+	p.StringVar(&f.model, "model", "", "the model the run was started with: only auto and cursor-grok-4.5-high are modeled")
 	p.BoolVarP(&f.force, "force", "f", false, "accepted, ignored")
 	p.BoolVar(&f.yolo, "yolo", false, "accepted, ignored")
 	p.BoolVar(&f.trust, "trust", false, "accepted, ignored")

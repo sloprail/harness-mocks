@@ -24,5 +24,5 @@ func (s *session) Think(ctx context.Context, th scenario.Thought, took time.Dura
 			own[k] = v
 		}
 	}
-	s.hooks.Fire(ctx, hooks.AfterAgentThought, hooks.NoSubject, own)
+	s.hooks.Fire(ctx, hooks.AfterAgentThought, "AgentThought", own) // a matcher is tested against AgentThought (recorded: runs/hook-matchers-thought)
 }
