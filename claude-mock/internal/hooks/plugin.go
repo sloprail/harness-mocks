@@ -17,6 +17,7 @@ import (
 // sr:docs https://code.claude.com/docs/en/settings (extraKnownMarketplaces, enabledPlugins)
 type settingsWithPlugins struct {
 	Settings
+	Permissions            Permissions               `json:"permissions"`
 	EnabledPlugins         map[string]bool           `json:"enabledPlugins,omitempty"`
 	ExtraKnownMarketplaces map[string]marketplaceCfg `json:"extraKnownMarketplaces,omitempty"`
 }

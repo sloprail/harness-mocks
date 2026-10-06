@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"encoding/json"
 	"time"
 
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
@@ -73,6 +74,11 @@ func (inv *Invoker) SetProjectDir(dir string) { inv.projectDir = dir }
 // SetTranscriptPath sets the transcript_path every payload carries unless the
 // caller names one.
 func (inv *Invoker) SetTranscriptPath(path string) { inv.transcriptPath = path }
+
+// Denied is whether a deny rule of the settings refuses the tool call, and the command it names.
+func (inv *Invoker) Denied(tool string, input json.RawMessage) (string, bool) {
+	return inv.settings.Denied(tool, input)
+}
 
 // SetScratchpadDir sets the scratchpad_dir every payload carries ("" for a session that has none).
 func (inv *Invoker) SetScratchpadDir(dir string) { inv.scratchpadDir = dir }

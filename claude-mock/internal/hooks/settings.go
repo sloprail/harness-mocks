@@ -12,6 +12,7 @@ import (
 // Settings mirrors the subset of Claude Code settings.json that configures hooks.
 type Settings struct {
 	Hooks map[EventName][]HookEntry `json:"hooks"`
+	Deny  []string                  `json:"-"` // the Bash commands deny rules refuse (Permissions)
 }
 
 // HookEntry is one matcher+handler group under an event name.
@@ -36,14 +37,10 @@ type HandlerSpec struct {
 	PluginData string `json:"-"`
 }
 
-// LoadSettings reads hook settings from the standard Claude Code settings files,
-// merging project and local settings (local wins by appending last). It also
-// loads hooks declared by enabled plugins, resolving each plugin's marketplace
-// from extraKnownMarketplaces and cloning/reusing it under the plugin cache.
-// Missing files are silently ignored.
-//
-// pluginCacheDirOverride may be empty (falls back to CLAUDE_CODE_PLUGIN_CACHE_DIR
-// env var, then /tmp/a10n-mock-plugins).
+// LoadSettings reads hook settings and deny rules from the standard Claude Code settings files
+// (project and local merged, missing ones ignored) and the hooks of enabled plugins, resolving
+// each plugin's marketplace from extraKnownMarketplaces under the plugin cache
+// (pluginCacheDirOverride, else CLAUDE_CODE_PLUGIN_CACHE_DIR, else /tmp/a10n-mock-plugins).
 //
 // sr:docs https://code.claude.com/docs/en/settings
 // sr:docs https://code.claude.com/docs/en/plugin-marketplaces
@@ -66,6 +63,9 @@ func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) 
 		}
 		var s settingsWithPlugins
 		if err := json.Unmarshal(data, &s); err != nil {
+			return nil, err
+		}
+		if err := merged.addDeny(s.Permissions); err != nil {
 			return nil, err
 		}
 		for evt, entries := range s.Hooks {

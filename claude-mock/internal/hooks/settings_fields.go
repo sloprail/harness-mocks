@@ -49,3 +49,40 @@ func refuseUnmodelledFields(evt EventName, entries []HookEntry) error {
 	}
 	return nil
 }
+
+// Permissions is the part of a settings file's permissions the mock models: deny rules, each
+// naming one Bash command exactly, as `Bash(<command>)`.
+type Permissions struct {
+	Deny []string `json:"deny,omitempty"`
+}
+
+// addDeny adds a file's deny rules. A rule of any other form (another tool, a prefix or wildcard
+// pattern) is refused rather than ignored (adr/fail-fast-unimplemented): only the exact Bash
+// command is recorded (snapshots/runs/permission-denied).
+func (s *Settings) addDeny(p Permissions) error {
+	for _, rule := range p.Deny {
+		cmd, ok := strings.CutSuffix(strings.TrimPrefix(rule, "Bash("), ")")
+		if !strings.HasPrefix(rule, "Bash(") || !ok || strings.ContainsAny(cmd, "*") || strings.HasSuffix(cmd, ":") {
+			return &UnimplementedError{What: fmt.Sprintf("the permission rule %q (only Bash(<exact command>) is recorded)", rule)}
+		}
+		s.Deny = append(s.Deny, cmd)
+	}
+	return nil
+}
+
+// Denied is whether a deny rule refuses the call: a Bash call whose command is exactly a denied one.
+// sr:provides noninteractive-run/claude
+func (s *Settings) Denied(tool string, input json.RawMessage) (command string, denied bool) {
+	var in struct {
+		Command string `json:"command"`
+	}
+	if tool != "Bash" || json.Unmarshal(input, &in) != nil {
+		return "", false
+	}
+	for _, d := range s.Deny {
+		if d == in.Command {
+			return in.Command, true
+		}
+	}
+	return "", false
+}

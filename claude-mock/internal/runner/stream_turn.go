@@ -77,6 +77,10 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{sig: "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
 	}
 
+	if text, denied := ruleDenial(inv, pending); denied {
+		return denyByRule(ctx, cfg, inv, tr, bg, pending, text, sc.lastText)
+	}
+
 	// tool_use was seen — execute it.
 	//
 	// Some tools are special-cased here at the stream layer:
