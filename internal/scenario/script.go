@@ -35,11 +35,22 @@ type Compact struct {
 	Trigger string
 }
 
+// Thought is a thinking block of a script: the text, and the other keys the block
+// holds (the model that thought, say), which the core leaves to the harness.
+type Thought struct {
+	Text   string
+	Fields map[string]json.RawMessage
+}
+
 // Turn is what one run of the script said: the agent's messages in order, and
 // how the turn ends, with tool calls or with the result that ends the run
 // (neither: the script ended without a tool call or a result).
 type Turn struct {
 	Texts []string
+	// Thoughts are what the model thought before it answered or called, in order:
+	// the script's thinking blocks, which a mock that has no model otherwise
+	// never says.
+	Thoughts []Thought
 	// Tool is the turn's first call and Tools all of them, in order: a turn has
 	// several when the script prints tool_use lines in a row.
 	Tool  *ToolUse

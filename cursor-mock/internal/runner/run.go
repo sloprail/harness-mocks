@@ -89,6 +89,7 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
 	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID()}
+	first := s.requestID // the result frame names the run's first request, whatever turns follow
 	if s.id == "" {
 		s.id = coresession.NewID()
 	}
@@ -123,7 +124,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	s.flushOwed()
 	s.flushText(false)
-	s.forward(resultFrame(s.id, s.requestID, strings.Join(s.texts, ""), time.Since(s.started)))
+	s.forward(resultFrame(s.id, first, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }
 

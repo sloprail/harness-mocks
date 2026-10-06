@@ -5,6 +5,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/scenario"
+	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
@@ -32,7 +33,10 @@ func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool
 
 // Continue records the turn a finished background shell gives the agent, as the
 // user message it is in the transcript.
-func (s *session) Continue(prompt string) { s.tr.user(prompt) }
+func (s *session) Continue(prompt string) {
+	s.tr.user(prompt)
+	s.requestID, s.modelN = coresession.NewID(), 0 // a turn of its own is a model request of its own
+}
 
 // CapOverridden is never asked for: no end-of-turn hook blocks, so there is no
 // cap to reach.

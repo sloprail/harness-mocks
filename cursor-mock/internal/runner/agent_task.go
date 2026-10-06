@@ -74,6 +74,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	started := time.Now()
 	sub := *s
 	sub.id, sub.parent = coresession.NewID(), s
+	sub.requestID, sub.modelN = coresession.NewID(), 0 // a sub-agent is a model request of its own
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
 	sub.texts, sub.pending, sub.added, sub.named, sub.owed = nil, nil, nil, false, tasks.Deferred{}
