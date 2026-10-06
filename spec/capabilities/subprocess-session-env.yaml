@@ -30,6 +30,7 @@ providers:
     runs:
       - codex-mock/snapshots/runs/subprocess-session-env
       - codex-mock/snapshots/runs/nested-session-env
+      - codex-mock/snapshots/runs/env-names-start-hook
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
@@ -40,10 +41,10 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          Codex has no env file for a SessionStart hook to write exports to: the
-          hook's environment, logged whole in the recorded runs, holds only
-          CODEX_HOME and the package manager's variables, and no variable names
-          a file (recorded: runs/subprocess-session-env, nested-session-env).
+          Codex has no env file for a SessionStart hook to write exports to:
+          no variable of the environment the start hook, and each hook after
+          it, received has ENV, FILE or SOURCE in its name (recorded:
+          runs/env-names-start-hook, which logs the names that do).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#environment-variables

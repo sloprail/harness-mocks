@@ -62,10 +62,10 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 	}
-	// hermetic but for the tools (sh, git, jq) the hooks use: no CODEX_* or CLAUDE* variable of ours reaches the mock
-	env := []string{"CODEX_HOME=" + home, "TMPDIR=" + tmp, "HOOK_LOG=" + filepath.Join(tmp, "hook.log")}
+	// hermetic as a capture is (env -i PATH HOME CODEX_HOME USER LANG TERM TMPDIR HOOK_LOG): nothing else of ours reaches the mock
+	env := []string{"HOME=" + filepath.Dir(home), "CODEX_HOME=" + home, "TMPDIR=" + tmp, "HOOK_LOG=" + filepath.Join(tmp, "hook.log")}
 	for _, kv := range a.Environ {
-		if !strings.HasPrefix(kv, "CODEX") && !strings.HasPrefix(kv, "CLAUDE") && !strings.HasPrefix(kv, "TMPDIR=") {
+		if k, _, _ := strings.Cut(kv, "="); k == "PATH" || k == "USER" || k == "LANG" || k == "TERM" {
 			env = append(env, kv)
 		}
 	}

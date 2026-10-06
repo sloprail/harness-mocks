@@ -1,0 +1,8 @@
+{"session_id":"01a11130-ce9a-72c0-b7e1-3a0863d39cc3","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T14-29-34-01a11130-ce9a-72c0-b7e1-3a0863d39cc3.jsonl","cwd":"<RUN>","hook_event_name":"SessionStart","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","source":"startup"}
+{"hook_env_names_like_an_env_file":[]}
+{"session_id":"01a11130-ce9a-72c0-b7e1-3a0863d39cc3","turn_id":"01a11130-d0ba-7962-ab39-dfe382ceb72b","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T14-29-34-01a11130-ce9a-72c0-b7e1-3a0863d39cc3.jsonl","cwd":"<RUN>","hook_event_name":"PreToolUse","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"true"},"tool_use_id":"exec-e304b43f-41cd-45ed-868b-1512049334a2"}
+{"hook_env_names_like_an_env_file":[]}
+{"session_id":"01a11130-ce9a-72c0-b7e1-3a0863d39cc3","turn_id":"01a11130-d0ba-7962-ab39-dfe382ceb72b","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T14-29-34-01a11130-ce9a-72c0-b7e1-3a0863d39cc3.jsonl","cwd":"<RUN>","hook_event_name":"PostToolUse","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"true"},"tool_response":"","tool_use_id":"exec-e304b43f-41cd-45ed-868b-1512049334a2"}
+{"hook_env_names_like_an_env_file":[]}
+{"session_id":"01a11130-ce9a-72c0-b7e1-3a0863d39cc3","turn_id":"01a11130-d0ba-7962-ab39-dfe382ceb72b","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T14-29-34-01a11130-ce9a-72c0-b7e1-3a0863d39cc3.jsonl","cwd":"<RUN>","hook_event_name":"Stop","model":"gpt-5.6-luna","permission_mode":"bypassPermissions","stop_hook_active":false,"last_assistant_message":"DONE"}
+{"hook_env_names_like_an_env_file":[]}
