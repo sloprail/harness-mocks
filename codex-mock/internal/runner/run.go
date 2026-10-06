@@ -30,6 +30,9 @@ type Config struct {
 	Resume string
 	// ForkFrom is the id of the session `exec fork` continues in a new one.
 	ForkFrom string
+	// Ephemeral is --ephemeral: nothing of the session is kept under CODEX_HOME, and its hooks'
+	// payloads name no transcript (transcript_path null; recorded: runs/ephemeral-no-transcript).
+	Ephemeral bool
 	// Cwd is the session's working directory.
 	Cwd string
 	// CodexHome holds the user's hooks.json and the session's rollout.
@@ -77,11 +80,27 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot load hooks: %w", err)
 	}
-	id, rollout, start, err := session.Start(cfg.CodexHome, cfg.Cwd, cfg.Resume, cfg.ForkFrom, time.Now())
+	home := cfg.CodexHome
+	if cfg.Ephemeral {
+		if cfg.Resume != "" || cfg.ForkFrom != "" {
+			return errors.New("codex-mock: --ephemeral with resume or fork is not implemented by the mock: it is refused rather than ignored")
+		}
+		scratch, err := os.MkdirTemp("", "codex-mock-ephemeral-*") // the script reads the session so far from a file; nothing is kept
+		if err != nil {
+			return fmt.Errorf("codex-mock: cannot make the ephemeral session's scratch directory: %w", err)
+		}
+		defer os.RemoveAll(scratch)
+		home = scratch
+	}
+	id, rollout, start, err := session.Start(home, cfg.Cwd, cfg.Resume, cfg.ForkFrom, time.Now())
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot open the session file: %w", err)
 	}
 	defer rollout.Close()
+	transcript := rollout.Path
+	if cfg.Ephemeral {
+		transcript = "" // no transcript: the payloads say null
+	}
 	out := cfg.Stdout
 	if !cfg.JSON {
 		out = io.Discard
@@ -90,7 +109,7 @@ func Run(ctx context.Context, cfg Config) error {
 		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
-		Common: hooks.Common{SessionID: id, TranscriptPath: rollout.Path, Cwd: cfg.Cwd, Model: cfg.Model,
+		Common: hooks.Common{SessionID: id, TranscriptPath: transcript, Cwd: cfg.Cwd, Model: cfg.Model,
 			PermissionMode: "bypassPermissions"}, Later: &corehooks.Later{}, Step: s.prog.Started}
 	if !cfg.JSON {
 		s.events.Progress(cfg.Stderr, events.Header{Version: childenv.Version, Cwd: cfg.Cwd, Model: cfg.Model, Prompt: cfg.Prompt})

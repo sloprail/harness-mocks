@@ -115,3 +115,45 @@ func TestEveryEventNamesTheSameExistingTranscript(t *testing.T) {
 		assert.Equal(t, got.rollout(t), readFile(t, p), "and it is the session's transcript")
 	}
 }
+
+// With --ephemeral a session keeps nothing, so every hook payload names no transcript: transcript_path
+// is null on each event (the docs type it string | null, "if any"), and no session file is left under
+// the configuration directory (recorded: runs/ephemeral-no-transcript). The mock does the same, and
+// the script still reads the session so far.
+// sr:proves hook-common-payload/codex
+// sr:proves session-transcript-file/codex
+func TestAnEphemeralSessionHasNoTranscriptAndItsHooksSayNull(t *testing.T) {
+	rec := loadRecording(t, "ephemeral-no-transcript")
+	nulls := func(log []map[string]any) (events []string) {
+		for _, l := range log {
+			if ev, ok := l["hook_event_name"].(string); ok {
+				assert.Contains(t, l, "transcript_path", ev)
+				assert.Nil(t, l["transcript_path"], ev)
+				events = append(events, ev)
+			}
+		}
+		return
+	}
+	want := nulls(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
+	assert.Equal(t, []string{"SessionStart", "PreToolUse", "PostToolUse", "Stop", "SessionEnd"}, want, "recorded")
+	kept, _ := filepath.Glob(filepath.Join(rec.sample, "transcript", "*"))
+	assert.Empty(t, kept, "recorded: no rollout is kept")
+
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files:     map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh"))},
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "echo one"), Args: []string{"--ephemeral"},
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, want, nulls(got.hookLog()), "the mock's")
+	var files []string
+	_ = filepath.Walk(filepath.Join(got.Home, "sessions"), func(p string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			files = append(files, p)
+		}
+		return nil
+	})
+	assert.Empty(t, files, "the mock keeps no session file")
+	cmds, _ := got.commands()
+	assert.Equal(t, []string{"echo one"}, cmds, "the script read the session so far and went on")
+}

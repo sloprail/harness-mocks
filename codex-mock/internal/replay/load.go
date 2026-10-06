@@ -16,15 +16,12 @@ type Unbuildable = core.Unbuildable
 
 func unbuildable(err error) error { return &core.Unbuildable{Reason: err.Error()} }
 
-// the command line every replayable recording was made with: the mock is run
-// with the equivalent flags, and a recording made another way (a -c override,
-// an output schema) is not replayed by this adapter.
+// the command line every replayable recording was made with; one made another way is not replayed.
 const standardCommand = "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna"
 
-// Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the
-// unified form: the main agent's calls with the sub-agents it spawned attached,
-// in the order they were spawned. An *Unbuildable says what the adapter cannot
-// reproduce.
+// Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the unified form: the
+// main agent's calls with the sub-agents it spawned attached. An *Unbuildable says what the
+// adapter cannot reproduce.
 func (Adapter) Load(runDir string) (core.Recording, error) {
 	if fi, err := os.Stat(runDir); err != nil || !fi.IsDir() {
 		return core.Recording{}, fmt.Errorf("%s is not a recorded run", runDir)
@@ -47,6 +44,9 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		return core.Recording{}, unbuildable(fmt.Errorf("no sample was recorded"))
 	}
 	paths, _ := filepath.Glob(filepath.Join(sample, "transcript", "*.jsonl"))
+	if ephemeral(setup) { // no rollout is kept: the turns are read off the stream
+		return loadEphemeral(runDir, setup, sample)
+	}
 	if len(paths) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout was recorded: the model's turns are unknown"))
 	}

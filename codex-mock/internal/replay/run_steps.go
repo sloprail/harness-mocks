@@ -37,6 +37,9 @@ func runSteps(ctx context.Context, mock string, s Scenario, repo, root, scriptsA
 			return "", err
 		}
 		argv := []string{mock, "exec", "--dangerously-bypass-hook-trust", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model"}
+		if i == 0 {
+			argv = append(argv, s.Flags...)
+		}
 		for _, a := range r.args {
 			if a == "<SESSION>" {
 				a = firstThread(stdout.String())

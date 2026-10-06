@@ -43,7 +43,8 @@ func stepSpecs(setup string) []stepSpec {
 // has no tokens, so the script compacts where the harness did (the rollout's compacted records).
 func setupFileOK(setup, name string) bool {
 	if name == "args" {
-		return strings.TrimSpace(readFile(filepath.Join(setup, name))) == "-c\nmodel_auto_compact_token_limit=3000"
+		a := strings.TrimSpace(readFile(filepath.Join(setup, name)))
+		return a == "-c\nmodel_auto_compact_token_limit=3000" || a == ephemeralFlag
 	}
 	// interrupt-after: the run was sent SIGINT; the replay sends it when the command has started (interrupt.go)
 	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || name == "interrupt-after" || stepFile.MatchString(name)
