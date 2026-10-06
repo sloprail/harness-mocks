@@ -102,7 +102,7 @@ func TestAHookCommandRunsThroughTheShellInTheProjectRootWithThePayloadOnStdin(t 
 // runs/shell-exit-status, runs/hook-json-nonzero), and the mock names it there.
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *testing.T) {
-	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"preToolUse":[{"command":"cat > \"$HOOK_LOG.pre\""}],"beforeShellExecution":[{"command":"cat > \"$HOOK_LOG.before\"; p=$(jq -r .transcript_path \"$HOOK_LOG.before\"); [ -f \"$p\" ] && echo exists > \"$HOOK_LOG.exists\""}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
+	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"preToolUse":[{"command":"cat > \"$HOOK_LOG.pre\""}],"beforeShellExecution":[{"command":"cat > \"$HOOK_LOG.before\"; p=$(jq -r .transcript_path \"$HOOK_LOG.before\"); [ -f \"$p\" ] && echo exists > \"$HOOK_LOG.exists\""}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}],"postToolUse":[{"command":"cat > \"$HOOK_LOG.post\""}],"sessionEnd":[{"command":"cat > \"$HOOK_LOG.end\""}]}}`, nil, "echo hi")
 	path, session := c.transcript(t)
 	project := strings.NewReplacer("/", "-", ".", "-", "_", "-").Replace(strings.TrimPrefix(c.ws, "/"))
 	require.Equal(t, filepath.Join(c.home, ".cursor", "projects", project, "agent-transcripts", session, session+".jsonl"), path)
@@ -118,6 +118,10 @@ func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *te
 	exists, _ := os.ReadFile(c.log + ".exists")
 	require.Contains(t, string(exists), "exists", "the file is there when a payload names it, as recorded (transcript_exists is true at the first beforeShellExecution of runs/symlinked-cwd)")
 	require.Contains(t, c.logged(t), `"transcript_path":"`+path+`"`)
+	for _, suffix := range []string{".post", ".end"} { // and the payloads after it, as recorded (runs/symlinked-cwd: postToolUse, sessionEnd)
+		later, _ := os.ReadFile(c.log + suffix)
+		require.Contains(t, string(later), `"transcript_path":"`+path+`"`, "the mock names it on later hooks too: "+suffix)
+	}
 }
 
 // TestWhateverTheSessionEndHookPrintsIsNotInTheTranscript: recorded, the
