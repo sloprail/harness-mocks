@@ -16,7 +16,7 @@ printf 'say hi\n' >claude-mock/snapshots/runs/r/setup/prompt.txt
 printf '#!/bin/sh\nexit 0\n' >claude-mock/snapshots/capture.sh
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m init
 RESULT=$(sr-test agent "$SR_TEST_CASE_DIR/agent.sh" --prompt "write into the snapshots")
-echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only" and .outcome=="refused")] | length==1 and .[0].tool_use_id=="t1" and (.[0].reason | contains("capture.sh"))' >/dev/null ||
+echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only" and .outcome=="refused")] | length==1 and .[0].tool_use_id=="t1" and (.[0].reason | contains("is a snapshot of the real harness: it is captured, not written"))' >/dev/null ||
   { echo "$RESULT" | jq -c .events >&2; echo "the write to a recorded sample was not the one refusal, naming capture.sh" >&2; exit 1; }
 [ "$(cat claude-mock/snapshots/runs/r/samples/20240101-000000/events.jsonl)" = '{"e":1}' ] || { echo "the refused write changed the sample" >&2; exit 1; }
 [ "$(cat claude-mock/snapshots/runs/r/setup/prompt.txt)" = 'say hello' ] || { echo "the write to setup/ did not land" >&2; exit 1; }

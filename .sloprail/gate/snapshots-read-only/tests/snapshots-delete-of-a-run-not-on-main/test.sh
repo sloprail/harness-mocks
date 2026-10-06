@@ -17,7 +17,7 @@ printf '{"e":2}\n' >claude-mock/snapshots/runs/new/samples/20240101-000000/event
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run new is the branch's own"
 RESULT=$(sr-test agent "$SR_TEST_CASE_DIR/agent.sh" --prompt "drop two samples by hand")
 # t1 (the run not on main) is not refused; t2 (the run on main) is, naming capture.sh
-echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only" and .outcome=="refused")] | length==1 and .[0].tool_use_id=="t2" and (.[0].reason | contains("capture.sh"))' >/dev/null ||
+echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only" and .outcome=="refused")] | length==1 and .[0].tool_use_id=="t2" and (.[0].reason | contains("is a snapshot of the real harness: it is captured, not written"))' >/dev/null ||
   { echo "$RESULT" | jq -c .events >&2; echo "the run on main was not the only refusal" >&2; exit 1; }
 # and the gate decided t1 itself: a GateChecked of this rule that permitted it
 echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only" and .tool_use_id=="t1")] | length==1 and .[0].outcome=="permitted"' >/dev/null ||

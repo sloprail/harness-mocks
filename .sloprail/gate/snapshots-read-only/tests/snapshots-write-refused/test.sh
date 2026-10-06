@@ -15,7 +15,7 @@ printf 'say hi\n' >claude-mock/snapshots/runs/r/setup/prompt.txt
 printf '#!/bin/sh\nexit 0\n' >claude-mock/snapshots/capture.sh
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m init
 RESULT=$(sr-test agent "$SR_TEST_CASE_DIR/agent.sh" --prompt "drop the sample by hand")
-echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only")] | length==1 and .[0].outcome=="refused" and .[0].tool_use_id=="t1" and (.[0].reason | contains("capture.sh"))' >/dev/null ||
+echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only")] | length==1 and .[0].outcome=="refused" and .[0].tool_use_id=="t1" and (.[0].reason | contains("is a snapshot of the real harness: it is captured, not written"))' >/dev/null ||
   { echo "$RESULT" | jq -c .events >&2; exit 1; }
 # no event of this rule for t2 (the recovery) or t3 (the boundary), and both calls ran without an error
 # the gate refuses exactly one call, t1: for t2 and t3 it emits no refused GateChecked (the engine emits no event for a call a gate's match leaves alone)
