@@ -3,6 +3,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,4 +83,47 @@ echo '{"type":"result","subtype":"success","result":"LAUNCHED"}'
 		}
 	}
 	assert.Equal(t, []any{float64(0), float64(1)}, indexes)
+}
+
+// tailAfterResult is the frames after the last result frame, as type/subtype with the
+// task_updated patch's status and the notification's status where they have one.
+func tailAfterResult(frames []map[string]any) (out []string) {
+	last := -1
+	for i, f := range frames {
+		if f["type"] == "result" {
+			last = i
+		}
+	}
+	for _, f := range frames[last+1:] {
+		k := f["type"].(string) + "/" + f["subtype"].(string)
+		switch f["subtype"] {
+		case "task_updated":
+			k += ":" + f["patch"].(map[string]any)["status"].(string)
+		case "task_notification":
+			k += ":" + f["status"].(string)
+		case "background_tasks_changed":
+			k += ":" + strconv.Itoa(len(f["tasks"].([]any)))
+		}
+		out = append(out, k)
+	}
+	return out
+}
+
+// TestT017_110_ABackgroundShellKilledAtExitIsReportedAfterTheResult: the result frame comes
+// first; then, for the command the run kills when it ends, the task list now empty, the task
+// updated to killed and its notification, stopped, in that order (recording bgbash).
+// sr:proves background-bash-reaped-at-exit/claude
+// sr:proves task-stream-frames/claude
+func TestT017_110_ABackgroundShellKilledAtExitIsReportedAfterTheResult(t *testing.T) {
+	data, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/bgbash/samples/*/stream.jsonl"))
+	require.NoError(t, err)
+	want := tailAfterResult(streamFrames(t, string(data)))
+	require.Equal(t, []string{"system/background_tasks_changed:0", "system/task_updated:killed", "system/task_notification:stopped"}, want, "recorded")
+
+	dir := t.TempDir()
+	sc := script(t, dir, "s", toolUse("bg1", "Bash", `{"command":"sleep 30","description":"long","run_in_background":true}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bgb-1", "--project-dir", dir,
+		"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, want, tailAfterResult(streamFrames(t, out)))
 }
