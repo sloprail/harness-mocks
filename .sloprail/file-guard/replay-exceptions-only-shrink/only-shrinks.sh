@@ -71,6 +71,36 @@ entries() {
   return "$rc"
 }
 
+# check_ci PATH TEXT — a go test -skip in a workflow or a mock's Makefile hides replays from the run, so the only
+# skip allowed there is the timed pair of replays (all-hooks-close-first and -second: their recordings' own scripts
+# time two hooks, which macOS runners cannot keep), and the same workflow runs them on its own, three times.
+timed='TestGeneratedReplay/all-hooks-close-(first|second)'
+check_ci() {
+  local f="$1" text="$2" vals line v seen=""
+  text="$(grep -v '^[[:space:]]*#' <<<"$text" || true)"   # a comment is prose, not a flag
+  vals="$(grep -oE -- "-skip[ =]+(\"[^\"]*\"|'[^']*'|[^ ]+)" <<<"$text")"
+  case $? in 0 | 1) ;; *) refuse_error "could not search $f for a -skip, so it could not be checked" ;; esac
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    v="${line#-skip}"; v="${v#"${v%%[! =]*}"}"
+    while [[ "$v" == [\"\'\(]* ]]; do v="${v#?}"; done   # the quotes and the paren the value sits in
+    while [[ "$v" == *[\"\'\)] ]]; do v="${v%?}"; done
+    case "$v" in
+      '$TIMED_REPLAYS' | '${TIMED_REPLAYS}')
+        grep -qxE "[[:space:]]*TIMED_REPLAYS:[[:space:]]*'$(printf '%s' "$timed" | sed 's/[][()|.*^$\\]/\\&/g')'[[:space:]]*" <<<"$text" ||
+          refuse "$f: -skip \$TIMED_REPLAYS, but the file does not define TIMED_REPLAYS as exactly '$timed': a replay is skipped that is not the timed pair" ;;
+      "$timed") ;;
+      *) refuse "$f: a go test -skip of '$v': replays of a mock are skipped only for the timed pair '$timed' (and run elsewhere three times); any other skip hides a recording from the replay" ;;
+    esac
+    seen=1
+  done <<<"$vals"
+  case "$f" in
+    .github/workflows/*)
+      [ -z "$seen" ] || grep -F -- "-run '$timed'" <<<"$text" | grep -qF -- '-count=3' ||
+        refuse "$f: it skips the timed replays '$timed' but no step runs them on their own with -count=3 (-run '$timed'): a skipped replay must run somewhere" ;;
+  esac
+}
+
 i=0
 while [ "$i" -lt "$count" ]; do
   path="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].path')" ||
@@ -90,6 +120,14 @@ while [ "$i" -lt "$count" ]; do
         fi ;;
     esac
   done
+  case "$path" in
+    .github/workflows/*.yml | .github/workflows/*.yaml | *-mock/Makefile)
+      [ "$status" = "D" ] && continue
+      ci="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
+        refuse_error "could not read $path from the changeset, so it could not be checked"
+      check_ci "$path" "$ci"
+      continue ;;
+  esac
   # only a list file has a base to compare; the other files are judged by the package check below
   case "$path" in */replay_allowlist_test.go) ;; *) continue ;; esac
   old=""
