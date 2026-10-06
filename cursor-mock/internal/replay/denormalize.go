@@ -19,8 +19,9 @@ type Scenario struct {
 // step is one response of the model in the mock's script vocabulary: what it
 // said, and the calls it made together (none: an answer).
 type step struct {
-	said  *string
-	calls []scriptCall
+	said    *string
+	calls   []scriptCall
+	thought *core.Thinking // what the model thought in the response, when recorded
 }
 
 // lines is how many assistant records the mock writes to the session file for
@@ -56,11 +57,11 @@ func Denormalize(rec core.Recording, dir string, paths *Paths) Scenario {
 			switch {
 			case c.Tool == core.ToolAnswer:
 				text, _ := c.Input["text"].(string)
-				steps = append(steps, step{said: &text})
+				steps = append(steps, step{said: &text, thought: c.Thinking})
 			case c.SameTurn && len(steps) > 0:
 				steps[len(steps)-1].calls = append(steps[len(steps)-1].calls, mockCall(c))
 			default:
-				steps = append(steps, step{said: c.Said, calls: []scriptCall{mockCall(c)}})
+				steps = append(steps, step{said: c.Said, calls: []scriptCall{mockCall(c)}, thought: c.Thinking})
 			}
 			if c.Tool == core.ToolSpawn && c.Sub != nil {
 				name := fmt.Sprintf("sub%d.sh", n)
@@ -72,7 +73,7 @@ func Denormalize(rec core.Recording, dir string, paths *Paths) Scenario {
 			}
 		}
 		if a.Final != "" {
-			steps = append(steps, step{said: &a.Final})
+			steps = append(steps, step{said: &a.Final, thought: a.FinalThinking})
 		}
 		return script(tag, paths.expandSteps(steps))
 	}

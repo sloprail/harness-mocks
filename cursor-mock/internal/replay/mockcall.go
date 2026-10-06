@@ -66,10 +66,17 @@ func script(tag string, steps []step) string {
 	return b.String()
 }
 
-// stepLine is the assistant line the script prints for a step: the text the
-// model said, then its calls, as the blocks of one record.
+// stepLine is the assistant line the script prints for a step: what the model
+// thought, the text it said, then its calls, as the blocks of one record.
 func stepLine(id string, s step) string {
 	var blocks []any
+	if s.thought != nil {
+		block := map[string]any{"type": "thinking", "thinking": s.thought.Text}
+		for k, v := range s.thought.Fields {
+			block[k] = v
+		}
+		blocks = append(blocks, block)
+	}
 	if s.said != nil {
 		blocks = append(blocks, map[string]any{"type": "text", "text": *s.said})
 	}

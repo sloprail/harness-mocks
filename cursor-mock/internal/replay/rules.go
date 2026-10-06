@@ -23,6 +23,9 @@ func Rules(repo, work string) rp.Rules {
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(work)), With: "<TMP>"},
 			{Re: re(regexp.QuoteMeta(encode(repo))), With: "<RUN_DIRNAME>"},
+			// a response's number and four characters after the request's id name it (the
+			// generation of a thought): the run's own, not behaviour
+			{Re: re(`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-[0-9]+-[a-z0-9]{4}\b`), With: "$1-<n>-<name>"},
 			// what an invalid model is answered with lists the models the account has: the
 			// real service's catalogue, which the mock has none of
 			{Re: re(`(?s)(Allowed model slugs:).*`), With: "$1 <the models available>"},
