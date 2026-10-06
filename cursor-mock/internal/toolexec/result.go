@@ -1,6 +1,19 @@
 package toolexec
 
-import "time"
+import (
+	"strings"
+	"time"
+)
+
+// NotModeledPrefix starts the message of a call the mock refuses because no
+// recording shows what the harness does with it.
+const NotModeledPrefix = "cursor-mock: "
+
+// NotModeled is the message of a failed call that is a refusal of something the
+// mock does not model, and whether it is one.
+func (r Result) NotModeled() (string, bool) {
+	return r.ErrorMessage, r.Failed && strings.HasPrefix(r.ErrorMessage, NotModeledPrefix)
+}
 
 // Result is what a tool call came to.
 type Result struct {

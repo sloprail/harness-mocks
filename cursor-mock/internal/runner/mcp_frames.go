@@ -19,7 +19,7 @@ func (s *session) readsMcpTool(ctx context.Context, tu scenario.ToolUse, c toole
 	tool, _ := c.Args["toolName"].(string)
 	content, err := toolexec.MCPDescribe(ctx, s.cfg.Dir, server, tool, s.cfg.Environ)
 	if err != nil {
-		s.forward(errorFrame(s.id, id, g, err.Error(), nil))
+		s.forward(errorFrame(s.id, id, g, s.refuseMsg(err.Error()), nil))
 		return
 	}
 	s.forward(completedFrame(s.id, id, g, map[string]any{"success": map[string]any{"content": content}}, nil))

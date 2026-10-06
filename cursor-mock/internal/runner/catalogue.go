@@ -10,6 +10,9 @@ import (
 	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
+// emptySearches are the catalogue searches a recording shows finding nothing.
+var emptySearches = map[string]bool{"subscribe_timer|cursor-subscriptions": true} // runs/schedule-wakeup-ask
+
 // startsHookless starts the calls the harness answers itself, which no hook
 // sees: a search of its tool catalogue (GetDynamicTools) and a wait on a
 // background task (AwaitShell). It returns the second half of the call, and
@@ -23,9 +26,6 @@ import (
 // was told to (recorded: runs/nested-subagents-background, a wait of 60000 ms
 // that ran 60000 ms with a sub-agent still running); a wait on a named task is
 // not modeled, as the task's id is the harness's.
-// emptySearches are the catalogue searches a recording shows finding nothing.
-var emptySearches = map[string]bool{"subscribe_timer|cursor-subscriptions": true} // runs/schedule-wakeup-ask
-
 func (s *session) startsHookless(ctx context.Context, tu scenario.ToolUse) (func(), bool) {
 	var in map[string]any
 	_ = json.Unmarshal(tu.Input, &in)
@@ -38,7 +38,7 @@ func (s *session) startsHookless(ctx context.Context, tu scenario.ToolUse) (func
 		return func() {
 			s.named = true // the transcript is named once a call, hooks or not, is past (recorded: runs/nested-subagents-depth)
 			if !emptySearches[pattern] {
-				s.forward(errorFrame(s.id, tu.ID, c, "cursor-mock: a search of the tool catalogue for "+strconv.Quote(pattern)+" is not modeled: only a search a recording shows finding nothing is answered", nil))
+				s.forward(errorFrame(s.id, tu.ID, c, s.refuseMsg("cursor-mock: a search of the tool catalogue for "+strconv.Quote(pattern)+" is not modeled: only a search a recording shows finding nothing is answered"), nil))
 				return
 			}
 			body, _ := json.MarshalIndent(struct {
@@ -57,7 +57,7 @@ func (s *session) startsHookless(ctx context.Context, tu scenario.ToolUse) (func
 			s.named = true
 			if id, named := in["shell_id"]; named {
 				msg := "cursor-mock: a wait on the task " + strconv.Quote(toString(id)) + " is not modeled: only a wait with no task named is recorded"
-				s.forward(errorFrame(s.id, tu.ID, c, msg, nil))
+				s.forward(errorFrame(s.id, tu.ID, c, s.refuseMsg(msg), nil))
 				return
 			}
 			select {

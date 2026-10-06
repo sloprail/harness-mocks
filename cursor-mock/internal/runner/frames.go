@@ -59,17 +59,6 @@ func (s *session) forward(line []byte) {
 		s.modelN++ // a new call is a new model response
 		s.flushText(true)
 	}
-	if i := bytes.Index(line, []byte(`:"cursor-mock: `)); i >= 0 { // the mock's own refusal of a call it does not model, in any frame it prints
-		var msg string
-		if json.Unmarshal(line[i+1:], &msg) != nil { // the string, which the rest of the line follows
-			dec := json.NewDecoder(bytes.NewReader(line[i+1:]))
-			_ = dec.Decode(&msg)
-		}
-		if msg == "" {
-			msg = "cursor-mock: a call it does not model"
-		}
-		s.refusal.refuse(msg)
-	}
 	fmt.Fprintf(s.cfg.Stdout, "%s\n", s.stamp(line))
 }
 
