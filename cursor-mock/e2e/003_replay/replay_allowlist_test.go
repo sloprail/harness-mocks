@@ -4,7 +4,9 @@ package e2e
 // The list only shrinks: an entry whose run is gone, or whose run now replays
 // green, fails TestGeneratedReplay. "adapter:" is something of the recording
 // the cursor adapter cannot reproduce yet; "mock gap:" is what the mock does not
-// produce that the recording shows (each gap is a PR of its own).
+// produce that the recording shows (each gap is a PR of its own). The list as it
+// first stood was accepted as it stands, and from then on it may only shrink: no
+// entry is added, and no entry is reworded to cover another difference.
 var notReplaying = map[string]string{
 	"additional-context":                           "mock gap: shellToolCall frames lack adminCommandDenylist, closeStdin, conversationId, description, executableCommands.fullText, executableCommands.name, executableCommands.type, executableCommands.value, fileOutputThresholdBytes, hardTimeout, hasInputRedirect, hasOutputRedirect, isBackground, localExecutionTimeMs, parsingResult.hasCommandSubstitution, parsingResult.hasRedirects, parsingResult.parsingFailed, parsingResult.redirects, requestId, simpleCommands, skipApproval, timeout, timeoutBehavior, toolCallId, workingDirectory; differ in toolCallId; tool_use_id and call_id numbers differ only because the recording's extra id fields shift the numbering",
 	"agent-input-validation":                       "mock gap: assistant text frames: Cursor emits what the model said before a call when the call starts, and the rest as one frame at the end, the mock one per message; event stream has 5 lines, the mock's 7",
