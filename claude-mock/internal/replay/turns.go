@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -52,6 +53,12 @@ func modelTurns(records []map[string]any) (turns, error) {
 			said = nil
 			continue
 		}
+		if rec["type"] == "user" && isNudge(rec) && said == nil {
+			// the model's response had no visible output (only thinking): the harness nudged it to go on
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, At: stampOf(rec), Input: map[string]any{"text": "", "silent": true}})
+			t.ids = append(t.ids, "")
+			continue
+		}
 		if rec["type"] != "assistant" {
 			continue
 		}
@@ -74,6 +81,11 @@ func modelTurns(records []map[string]any) (turns, error) {
 				call.Said, call.At = said, stampOf(rec)
 				said = nil
 				id, _ := block["id"].(string)
+				if n := len(t.ids); n > 0 && t.ids[n-1] != "" {
+					if _, answered := done[t.ids[n-1]]; !answered {
+						t.agent.Calls[n-1].More = true // sent in one message with this one: no result between them
+					}
+				}
 				t.agent.Calls = append(t.agent.Calls, call)
 				t.ids = append(t.ids, id)
 			}
@@ -133,3 +145,13 @@ func attachSubagents(t turns, subs map[string]turns) core.Agent {
 }
 
 // wireInputs are the inputs of the calls the main agent made as the model sent them, by call id, as
+
+// nudge starts the user record the harness leaves when a model's response had no visible output.
+const nudge = "[Your previous response had no visible output."
+
+// isNudge is whether a user record is that nudge.
+func isNudge(rec map[string]any) bool {
+	msg, _ := rec["message"].(map[string]any)
+	s, _ := msg["content"].(string)
+	return strings.HasPrefix(s, nudge)
+}

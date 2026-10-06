@@ -66,6 +66,11 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		if turn.lastText != "" {
 			lastText = turn.lastText
 		}
+		if turn.done && turn.emptyReply && cfg.AgentID == "" && !nested { // nudged, no result, no Stop (nudge.go)
+			writeNoVisibleOutputNudge(cfg, bg, tr)
+			lastSig, repeats = "", 0
+			continue
+		}
 		if turn.done {
 			final.Hold(turn.resultLine)
 			if nested {
@@ -99,21 +104,16 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				stopBlocks++
 				// sr:provides stop-block-cap/claude
 				if turnloop.AfterBlock(stopBlocks, blockCap) {
-					// Re-prompt: the turn goes on, so the script runs again and reacts to the
-					// block. Its result frame is dropped: a continued turn ends with one result,
-					// at its real end (claude 2.1.282 streamed one across 8 continuations).
+					// Re-prompt: the turn goes on and the script runs again; its result frame is dropped.
 					lastSig, repeats = "", 0
 					final.Continue()
 					continue
 				}
-				// The block cap: real Claude Code lets a Stop block the turn
-				// CLAUDE_CODE_STOP_HOOK_BLOCK_CAP (default 8) times in a row;
-				// the next block is overridden and the turn ends, with a
-				// warning record (the 2.1.282 binary: `ve>xe`; a controlled run
-				// fired Stop 9 times). 0 disables the cap.
+				// The block cap: a Stop may block the turn CLAUDE_CODE_STOP_HOOK_BLOCK_CAP (default 8)
+				// times in a row; the next block is overridden and the turn ends with a warning record
+				// (a controlled run fired Stop 9 times). 0 disables the cap.
 				writeCapOverride(tr, stopBlocks)
-				// The overridden turn's result carries no text: claude
-				// 2.1.282 streamed "result":"" after the override.
+				// the overridden turn's result carries no text ("result":"" after the override)
 				final.Hold(withEmptyResult(turn.resultLine))
 			}
 			stopBlocks = 0
