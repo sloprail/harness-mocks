@@ -45,8 +45,6 @@
 #   runs/<name>/setup/no-git           optional: run in a directory that is not a git repository
 #   runs/<name>/setup/schema.json      optional: copied to the run's directory as schema.json
 #                                      (what an `args` line `--output-schema schema.json` names)
-#   runs/<name>/setup/interrupt-after  optional: seconds after which the (first) step is sent SIGINT, as a
-#                                      user's Ctrl-C does a headless run (then-<NN>-interrupt-after for a later step)
 #   runs/<name>/setup/then-<NN>-prompt.txt   optional later steps, run in name order under the
 #                                      same CODEX_HOME, with then-<NN>-args (a line "<SESSION>"
 #                                      is the first step's session id) and then-<NN>-cwd (a
@@ -159,20 +157,12 @@ capture_run() {
       sargs+=("$a")
     done <"$run/setup/${step}args"
     sdir="$work/repo"; [ -f "$run/setup/${step}cwd" ] && sdir="$work/$(cat "$run/setup/${step}cwd")" && mkdir -p "$sdir"
-    # a step with setup/<step>interrupt-after (seconds) is sent SIGINT that long after it starts, as a
-    # user's Ctrl-C does a headless run: what the harness does when interrupted mid-turn is recorded
-    (cd "$sdir" && exec env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+    (cd "$sdir" && env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
       TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
       "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} --dangerously-bypass-hook-trust \
         -m gpt-5.6-luna -c 'model_reasoning_effort="low"' \
-        ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt") &
-    cpid=$!
-    if [ -f "$run/setup/${step}interrupt-after" ]; then
-      ( sleep "$(cat "$run/setup/${step}interrupt-after")"; kill -INT "$cpid" 2>/dev/null ) &
-      kpid=$!
-    else kpid=""; fi
-    wait "$cpid"; echo $? >>"$cap/exit.txt"
-    [ -z "$kpid" ] || { kill "$kpid" 2>/dev/null || true; wait "$kpid" 2>/dev/null || true; }
+        ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt")
+    echo $? >>"$cap/exit.txt"
   done
   set -e
   # a token codex refreshed replaced the link: put it back, so the login stays valid

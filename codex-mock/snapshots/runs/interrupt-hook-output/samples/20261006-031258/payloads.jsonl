@@ -1,8 +1,0 @@
-{"session_id":"01a10f33-3cac-70d1-b09a-500d501ac02d","turn_id":"01a10f33-3f52-77f1-92bd-e3aaf85730f1","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T05-12-59-01a10f33-3cac-70d1-b09a-500d501ac02d.jsonl","cwd":"<RUN>","hook_event_name":"Interrupt","model":"gpt-5.6-luna","permission_mode":"bypassPermissions"}
-{"ran":"plain"}
-{"session_id":"01a10f33-3cac-70d1-b09a-500d501ac02d","turn_id":"01a10f33-3f52-77f1-92bd-e3aaf85730f1","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T05-12-59-01a10f33-3cac-70d1-b09a-500d501ac02d.jsonl","cwd":"<RUN>","hook_event_name":"Interrupt","model":"gpt-5.6-luna","permission_mode":"bypassPermissions"}
-{"ran":"exit2"}
-{"session_id":"01a10f33-3cac-70d1-b09a-500d501ac02d","turn_id":"01a10f33-3f52-77f1-92bd-e3aaf85730f1","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T05-12-59-01a10f33-3cac-70d1-b09a-500d501ac02d.jsonl","cwd":"<RUN>","hook_event_name":"Interrupt","model":"gpt-5.6-luna","permission_mode":"bypassPermissions"}
-{"ran":"json"}
-{"session_id":"01a10f33-3cac-70d1-b09a-500d501ac02d","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T05-12-59-01a10f33-3cac-70d1-b09a-500d501ac02d.jsonl","cwd":"<RUN>","hook_event_name":"SessionEnd","reason":"other"}
-{"ran":"none"}

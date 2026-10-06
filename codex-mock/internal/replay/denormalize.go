@@ -21,8 +21,6 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
-	// Interrupt is a run the user interrupted: the mock is sent SIGINT once its last command has started.
-	Interrupt bool
 	// Then are the later runs of the harness (a resume, a fork), each with its own script.
 	Then []ThenStep
 }
@@ -90,7 +88,6 @@ func Denormalize(rec core.Recording) Scenario {
 		Script:    scriptFor("main", 0, calls, rec.Agent.Final, false, mainGates[len(calls)]),
 		Then:      thenScenario(rec),
 		Prompt:    rec.Prompt,
-		Interrupt: rec.Agent.Interrupted,
 	}
 }
 

@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
@@ -85,9 +84,6 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 	} else {
 		r = tools.BashArgv(ctx, argv, h.cfg.Cwd, h.toolEnv)
 	}
-	if ctx.Err() != nil { // the user interrupted the turn: the command was stopped, and it is not reported as ended
-		return toolcall.Result{Output: fmt.Sprintf("aborted by user after %.1fs", time.Since(began).Seconds())}
-	}
 	r.Output = ttyOutput(c, r.Output)
 	if tooLong(c, r.Output) {
 		return refused("max_output_tokens below the command's output (the output is not truncated)")
@@ -101,7 +97,7 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // gives the agent its feedback in place of the result.
 // sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
-	if ctx.Err() != nil || !tasks.AfterHookFires(h.stillRunning(c.ID)) { // an interrupted call fires no PostToolUse // its PostToolUse comes when it ends, if ever
+	if !tasks.AfterHookFires(h.stillRunning(c.ID)) { // its PostToolUse comes when it ends, if ever
 		return "", false
 	}
 	own := h.payload(c)

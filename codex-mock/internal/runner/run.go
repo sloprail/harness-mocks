@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/childenv"
@@ -116,13 +114,8 @@ func Run(ctx context.Context, cfg Config) error {
 	last, err := "", error(nil)
 	// Codex honours a start hook's `continue: false` (runs/session-start-continue-false).
 	if !corehooks.StartHookEndsTurn(halted, true) {
-		turn, stop := signal.NotifyContext(ctx, os.Interrupt) // a user's Ctrl-C interrupts the turn, not the session
-		last, err = turnloop.Run(turn, turnHost{s}, turnloop.Params{
+		last, err = turnloop.Run(ctx, turnHost{s}, turnloop.Params{
 			Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
-		if turn.Err() != nil && ctx.Err() == nil {
-			err = s.interrupted(ctx)
-		}
-		stop()
 	}
 	s.events.TurnCompleted()
 	s.reapAtExit()

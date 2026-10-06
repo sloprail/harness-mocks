@@ -21,7 +21,6 @@ const (
 	PreCompact       Event = "PreCompact"
 	PostCompact      Event = "PostCompact"
 	SessionEnd       Event = "SessionEnd"
-	Interrupt        Event = "Interrupt"
 )
 
 // Handler is one command hook.

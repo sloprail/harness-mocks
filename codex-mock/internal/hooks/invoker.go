@@ -62,7 +62,7 @@ var toolAliases = map[string][]string{"apply_patch": {"Edit", "Write"}}
 func (iv *Invoker) Fire(ctx context.Context, ev Event, match string, own map[string]any) []corehooks.Outcome {
 	var cmds, later []corehooks.Command
 	for _, g := range iv.Config[ev] {
-		if ev == UserPromptSubmit || ev == Stop || ev == Interrupt || corehooks.Matches(g.Matcher, match, toolAliases[match]...) {
+		if ev == UserPromptSubmit || ev == Stop || corehooks.Matches(g.Matcher, match, toolAliases[match]...) {
 			for _, h := range g.Handlers {
 				c := corehooks.Command{Line: h.Command, Timeout: timeoutFor(ev, time.Duration(h.Timeout)*time.Second)}
 				background := h.Async && ev != SessionEnd && iv.Later != nil // SessionEnd runs async hooks synchronously (warnings.go)

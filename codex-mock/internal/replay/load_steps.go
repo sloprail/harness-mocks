@@ -45,8 +45,7 @@ func setupFileOK(setup, name string) bool {
 	if name == "args" {
 		return strings.TrimSpace(readFile(filepath.Join(setup, name))) == "-c\nmodel_auto_compact_token_limit=3000"
 	}
-	// interrupt-after: the run was sent SIGINT; the replay sends it when the command has started (interrupt.go)
-	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || name == "interrupt-after" || stepFile.MatchString(name)
+	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || stepFile.MatchString(name)
 }
 
 // threadsOf are the threads the stream starts, in order: the thread each run of the harness

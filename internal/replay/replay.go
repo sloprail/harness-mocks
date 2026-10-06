@@ -53,9 +53,6 @@ type Agent struct {
 	Unfinished bool
 	// FinalAt is when the final answer was given, as recorded.
 	FinalAt time.Time
-	// Interrupted is a run the user interrupted while the agent's last call ran (the call's output
-	// says so): a replay interrupts it when that call has started, and the agent has no final answer.
-	Interrupted bool
 }
 
 // Recording is a recorded run in unified form.

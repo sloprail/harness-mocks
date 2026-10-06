@@ -1,1 +1,0 @@
-Run exactly this shell command, once, as its own tool call: sleep 25. Then reply only DONE.

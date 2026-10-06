@@ -2,7 +2,6 @@ package replay
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -17,7 +16,7 @@ import (
 func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, err error) {
 	var calls []core.Call
 	var said *string
-	sawFinal, interrupted := false, false
+	sawFinal := false
 	js := newJSRun()
 	var told []string        // the ids of the sub-agents the model was told of (spawn answers), in order
 	var spawns []int         // the numbers of the spawn calls among the rollout's calls, in order
@@ -51,7 +50,6 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 			}
 		case p["type"] == "custom_tool_call_output":
 			told = append(told, agentIDs(p["output"])...)
-			interrupted = interrupted || strings.HasPrefix(outputText(p["output"]), "aborted by user after")
 			if err := checkOutput(p, derived); err != nil {
 				return core.Agent{}, err
 			}
@@ -94,5 +92,5 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 		final, finalAt = calls[n-1].Input["text"].(string), calls[n-1].At
 		calls = calls[:n-1]
 	}
-	return core.Agent{Calls: calls, Final: final, FinalAt: finalAt, Unfinished: unfinished, Interrupted: interrupted}, nil
+	return core.Agent{Calls: calls, Final: final, FinalAt: finalAt, Unfinished: unfinished}, nil
 }
