@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,4 +70,20 @@ func TestShellResultIsOutputAndItsStructuredForm(t *testing.T) {
 	rollout := got.rollout(t)
 	assert.True(t, resultTold(t, rollout, "MORE-OUTPUT\nERR-OUTPUT", "xit code"), "the output of a failed command, and no exit code")
 	assert.True(t, resultTold(t, rollout, "FINE", "xit code"))
+
+	// what the agent is told, command by command: the output alone, so a command that printed nothing
+	// (grep finding nothing, exit 1; sh -c 'exit 3') is told an empty output, and no exit code
+	printed := func(rollout string) (out []string) {
+		for _, o := range toolOutputs(t, rollout) {
+			if _, after, found := strings.Cut(o, "Output:\n"); found { // the real harness frames the output
+				o = after
+			}
+			out = append(out, o)
+			assert.NotContains(t, o, "xit code")
+		}
+		return
+	}
+	wantTold := printed(recordedRollout(t, rec))
+	assert.Equal(t, []string{"", "SOME-OUTPUT\n", "MORE-OUTPUT\nERR-OUTPUT\n", "", "FINE\n"}, wantTold, "recorded")
+	assert.Equal(t, wantTold, printed(rollout), "the mock's")
 }
