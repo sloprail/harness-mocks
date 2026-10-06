@@ -1,6 +1,7 @@
 package replay
 
 import (
+	"os/user"
 	"regexp"
 	"strconv"
 
@@ -14,6 +15,10 @@ import (
 // <RUN_DIRNAME>.
 func Rules(repo, work string) rp.Rules {
 	re := regexp.MustCompile
+	scrubs := []rp.Scrub{}
+	if u, err := user.Current(); err == nil && u.HomeDir != "" && u.HomeDir != "/" { // where the harness is installed: the account's home, which the capture wrote as <HOME>
+		scrubs = append(scrubs, rp.Scrub{Re: re(regexp.QuoteMeta(u.HomeDir) + `(/\.local/share/cursor-agent/)`), With: "<HOME>$1"})
+	}
 	return rp.Rules{
 		DropKeys: dropKeys,
 		Measured: measured,
@@ -23,7 +28,7 @@ func Rules(repo, work string) rp.Rules {
 			"model_call_id": masked("<model call>"), "request_id": masked("<request>"), // the service's ids of its own calls: that they are named
 		},
 		// the order the capture sanitised in: the repository first, as it holds the temp root
-		Scrub: []rp.Scrub{
+		Scrub: append([]rp.Scrub{
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(work)), With: "<TMP>"},
 			{Re: re(regexp.QuoteMeta(encode(repo))), With: "<RUN_DIRNAME>"},
@@ -33,7 +38,7 @@ func Rules(repo, work string) rp.Rules {
 			// what an invalid model is answered with lists the models the account has: the
 			// real service's catalogue, which the mock has none of
 			{Re: re(`(?s)(Allowed model slugs:).*`), With: "$1 <the models available>"},
-		},
+		}, scrubs...),
 		IDs: []*regexp.Regexp{
 			re(`call-[0-9a-f-]{36}-[0-9]+\nfc_[A-Za-z0-9_-]+`),                 // a real call's id: before the uuid it holds
 			re(`toolu_[A-Za-z0-9_]+`),                                          // a scripted call's id

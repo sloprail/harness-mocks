@@ -26,7 +26,7 @@ func (h *bgToolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Resu
 	if !h.s.cfg.Force { // not approved: rejected, and not started, as any other command
 		return h.toolHost.Execute(ctx, c)
 	}
-	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id), childenv.Defaults())
+	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id, h.s.requestID, h.s.cfg.Version), childenv.Defaults())
 	h.res = h.s.launch(h.call, h.tool.UseID, env)
 	return toolcall.Result{Failed: h.res.Failed}
 }

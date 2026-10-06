@@ -136,7 +136,7 @@ func Run(ctx context.Context, cfg Config) error {
 // runs/nested-session-env).
 func (s *session) hookEnv() []string {
 	return procexec.Env(s.cfg.Environ,
-		childenv.HookIdentity(s.cfg.Dir, s.common().TranscriptPath), childenv.HookDefaults(s.cfg.Dir, s.cfg.Version))
+		childenv.HookIdentity(s.cfg.Dir, s.common().TranscriptPath, s.cfg.Version), childenv.HookDefaults(s.cfg.Dir, s.cfg.Version))
 }
 
 // common is what every hook payload carries now: the transcript path only once
