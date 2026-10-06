@@ -124,6 +124,7 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 			"cwd":           first.cwd,
 			"symlink":       first.symlink,
 			"steps":         stepFilesJSON(specs[1:]),
+			"files":         filesJSON(changedSetupFiles(setup, sample)),
 			"earlier":       earlierJSON(earlier),
 			"exit":          code,
 			"result":        failedResult(stream),
