@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,4 +102,46 @@ printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext
 	recorded := readRecs(t, recordedFile(t, "../../snapshots/runs/resume-session-start-ctx/samples/*/transcript/*.jsonl"))
 	assert.Equal(t, want, contextKinds(t, recorded), "recorded")
 	assert.Equal(t, want, contextKinds(t, readRecs(t, transcriptPath(t, cfg, dir, "rs-1"))))
+}
+
+// TestT017_114_ContextIsRecordedAsTheAgentReceivesIt: each hook_additional_context record also
+// holds the text wrapped in a system reminder that names the hook, as rendered with role system
+// (recordings ctxmulti, hookmix, stops, subagent-post-ctx: SessionStart, UserPromptSubmit and
+// PostToolUse context alike).
+// sr:proves hook-additional-context/claude
+func TestT017_114_ContextIsRecordedAsTheAgentReceivesIt(t *testing.T) {
+	rendered := func(recs []rec) (out []string) {
+		for _, r := range recs {
+			if r.Attachment["type"] != "hook_additional_context" {
+				continue
+			}
+			var m struct {
+				Rendered     []map[string]string `json:"rendered"`
+				RenderedRole string              `json:"renderedRole"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(r.Raw), &m))
+			require.Len(t, m.Rendered, 1)
+			assert.Equal(t, "system", m.RenderedRole)
+			out = append(out, m.Rendered[0]["content"])
+		}
+		return out
+	}
+	recorded := rendered(readRecs(t, recordedFile(t, "../../snapshots/runs/ctxmulti/samples/*/transcript/*.jsonl")))
+	require.Contains(t, recorded, "<system-reminder>\nUserPromptSubmit hook additional context: UserPromptSubmit-CTX-ONE\n</system-reminder>")
+	require.Contains(t, recorded, "<system-reminder>\nPostToolUse:Bash hook additional context: PostToolUse-CTX-ONE\n</system-reminder>")
+
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	mk := func(name, event string) string {
+		return write(t, filepath.Join(dir, name), "#!/bin/sh\ncat >/dev/null\necho '{\"hookSpecificOutput\":{\"hookEventName\":\""+event+"\",\"additionalContext\":\""+event+"-CTX\"}}'\n", 0o755)
+	}
+	settings(t, dir, map[string]string{"SessionStart": mk("ss.sh", "SessionStart"), "UserPromptSubmit": mk("up.sh", "UserPromptSubmit"), "PostToolUse": mk("pt.sh", "PostToolUse")})
+	sc := script(t, dir, "s", toolUse("b1", "Bash", `{"command":"true"}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "rd-1", "--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, []string{
+		"<system-reminder>\nSessionStart hook additional context: SessionStart-CTX\n</system-reminder>",
+		"<system-reminder>\nUserPromptSubmit hook additional context: UserPromptSubmit-CTX\n</system-reminder>",
+		"<system-reminder>\nPostToolUse:Bash hook additional context: PostToolUse-CTX\n</system-reminder>",
+	}, rendered(readRecs(t, transcriptPath(t, cfg, dir, "rd-1"))))
 }

@@ -69,10 +69,12 @@ func (t *transcript) additionalContext(in hooks.Input, hookName, toolUseID, ac s
 	if in.HookEventName == hooks.EventSessionStart {
 		hookName, toolUseID = string(hooks.EventSessionStart), string(hooks.EventSessionStart)
 	}
+	// the record also holds the text as the agent receives it: wrapped in a system reminder that
+	// names the hook (recorded: ctxmulti, hookmix, stops, subagent-post-ctx)
 	t.persistMap(map[string]any{"type": "attachment", "attachment": map[string]any{
 		"type": "hook_additional_context", "content": []string{ac},
 		"hookName": hookName, "toolUseID": toolUseID, "hookEvent": string(in.HookEventName),
-	}})
+	}, "rendered": []map[string]any{{"content": "<system-reminder>\n" + hookName + " hook additional context: " + ac + "\n</system-reminder>"}}, "renderedRole": "system"})
 }
 
 // isDeny reports a PreToolUse JSON refusal: permissionDecision deny, or the

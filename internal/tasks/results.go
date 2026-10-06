@@ -11,8 +11,6 @@ type Results struct {
 
 // Offer takes the result of a turn that has ended and returns the frames to write now: none while a
 // background agent works, else the results held, in order, then this one.
-//
-// sr:capability print-waits-for-background-agents
 func (r *Results) Offer(line []byte, agentsRunning bool) [][]byte {
 	if agentsRunning {
 		r.held = append(r.held, line)
