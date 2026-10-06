@@ -109,6 +109,7 @@ type Prompting struct {
 // beside the tasks: recorded in snapshots/runs/nested-session-env).
 func (cfg Config) configureInvoker(inv *hooks.Invoker) {
 	inv.SetPermissionMode(cfg.PermissionMode)
+	inv.SetConfigDir(cfg.ConfigDir)
 	if cfg.Scratchpad {
 		inv.SetScratchpadDir(filepath.Join(filepath.Dir(tasksDir(cfg.Cwd, cfg.SessionID)), "scratchpad"))
 	}

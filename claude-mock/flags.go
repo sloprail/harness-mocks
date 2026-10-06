@@ -41,6 +41,10 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 			return fmt.Errorf("claude-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
 		}
 	}
+	// --name names a session this run starts; naming a resumed one (a rename) is not recorded
+	if cmd.Flags().Changed("name") && (cmd.Flags().Changed(flagResume) || cmd.Flags().Changed(flagContinue)) {
+		return fmt.Errorf("claude-mock: --name with --resume or --continue is not implemented by the mock: it is refused rather than ignored")
+	}
 	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0) {
 		return fmt.Errorf("claude-mock: a piped stdin is not implemented by the mock: it is refused rather than ignored")
 	}

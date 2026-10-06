@@ -75,7 +75,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	frames := frameObserver{cfg}
 	if err := b.StartCommand(task, tasks.CommandSpec{
 		Argv: []string{"/bin/sh", "-c", in.Command}, Dir: cfg.Cwd,
-		Env: procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID), childenv.Defaults()),
+		Env: procexec.Env(os.Environ(), childenv.Tool(cfg.SessionID), childenv.Defaults()),
 		Out: out, Trailer: exitTrailer,
 		Started: func(t *tasks.Task) { tasks.Announce(b.Registry, t, frames) },
 		Ended:   func(t *tasks.Task) { tasks.Conclude(b.Registry, t, frames) },

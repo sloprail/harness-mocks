@@ -23,6 +23,8 @@ type Config struct {
 	IsResume bool
 	// ResumeLookup: --resume named its session by a name or path, or --continue chose it.
 	ResumeLookup bool
+	// Name is --name: the name the session is given, which a later --resume finds it by.
+	Name string
 	// Prompt is the user prompt forwarded to the script via the A10N_MOCK_PROMPT env var.
 	Prompt string
 	// AdditionalContext is populated from a UserPromptSubmit hook's additionalContext

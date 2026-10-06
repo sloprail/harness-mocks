@@ -36,6 +36,9 @@ func (inv *Invoker) FireRuns(ctx context.Context, input Input) (Output, []Handle
 	input.TranscriptPath, input.Cwd = common.TranscriptPath, common.Cwd
 	input.AgentID, input.AgentType = common.Agent.ID, common.Agent.Type
 	input.ScratchpadDir = inv.scratchpadDir
+	if input.HookEventName == EventUserPromptSubmit {
+		input.PromptTitle = inv.sessionTitle
+	}
 	input.PromptID, input.PermissionMode = corehooks.PromptFields(inv.turn, session.NewID, promptEvent(input), inv.permissionMode)
 	handlers := inv.settings.EntriesFor(input.HookEventName, matcherSubject(input))
 	if len(handlers) == 0 {

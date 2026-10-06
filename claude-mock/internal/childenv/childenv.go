@@ -3,8 +3,12 @@
 package childenv
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 )
 
 // Identity is what every child process of a Claude Code session sees, whatever
@@ -23,7 +27,42 @@ func Identity(sessionID string) map[string]string {
 		"CLAUDE_CODE_SESSION_ATTENDED": "0",
 		"CLAUDE_PID":                   strconv.Itoa(os.Getpid()),
 		"CLAUDE_CODE_SESSION_ID":       sessionID,
+		"CLAUDE_CODE_MESSAGING_SOCKET": filepath.Join(tempRoot(), "cc-socks", strconv.Itoa(os.Getpid())+".sock"),
+		"CLAUDE_CODE_MESSAGING_TOKEN":  token(),
 	}
+}
+
+// Tool is what a Bash tool command sees: Identity, and CLAUDE_CODE_EXECPATH, the
+// harness's own executable (a hook does not get it; recorded: runs/subprocess-session-env).
+func Tool(sessionID string) map[string]string {
+	ident := Identity(sessionID)
+	if exe, err := os.Executable(); err == nil {
+		ident["CLAUDE_CODE_EXECPATH"] = exe
+	}
+	return ident
+}
+
+// tempRoot is the harness's temp root: CLAUDE_CODE_TMPDIR when it was given one.
+func tempRoot() string {
+	if dir := os.Getenv("CLAUDE_CODE_TMPDIR"); dir != "" {
+		return dir
+	}
+	return filepath.Join(os.TempDir(), "claude-"+strconv.Itoa(os.Getuid()))
+}
+
+var (
+	tokenOnce  sync.Once
+	tokenValue string
+)
+
+// token is the run's messaging secret, made once.
+func token() string {
+	tokenOnce.Do(func() {
+		b := make([]byte, 32)
+		_, _ = rand.Read(b)
+		tokenValue = hex.EncodeToString(b)
+	})
+	return tokenValue
 }
 
 // Defaults are what a child sees only when Claude Code inherited none:

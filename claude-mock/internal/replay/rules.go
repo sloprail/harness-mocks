@@ -35,13 +35,20 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		},
 		// a sub-agent's spend and the model id its alias resolved to: there in both, their values the run's own
 		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
-		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
+		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd",
+			// the harness's pid and its messaging secret, as a child's environment names them (a hook's payload): the run's own
+			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN"},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{
 			// a sub-agent trailer's usage line is compared; its counts are the model's spend
 			{Re: re(`subagent_tokens: \d+`), With: "subagent_tokens: <MASKED>"},
 			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
+			// the same, as a command prints its environment: the pid, the socket named for it, the secret (the capture redacts it), the executable's path
+			{Re: re(`CLAUDE_PID=\d+`), With: "CLAUDE_PID=<MASKED>"},
+			{Re: re(`cc-socks/\d+\.sock`), With: "cc-socks/<MASKED>.sock"},
+			{Re: re(`CLAUDE_CODE_MESSAGING_TOKEN=\S+`), With: "CLAUDE_CODE_MESSAGING_TOKEN=<MASKED>"},
+			{Re: re(`CLAUDE_CODE_EXECPATH=\S+`), With: "CLAUDE_CODE_EXECPATH=<MASKED>"},
 			// the per-user folder of the temp root, named for the uid the capture and the replay ran under
 			{Re: re(`claude-\d+`), With: "claude-<UID>"},
 			// the order the capture sanitised in: the repository first, as it holds the temp root

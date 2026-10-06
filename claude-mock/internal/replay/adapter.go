@@ -123,7 +123,7 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 		if err := os.WriteFile(filepath.Join(work, "prepare.sh"), []byte(prep), 0o644); err != nil {
 			return nil, nil, "", "", err
 		}
-		shims, err := pluginShim(work)
+		shims, err := prepareShim(work, append([]string{mock}, mockFlags(work)...), s.Earlier, scripts)
 		if err != nil {
 			return nil, nil, "", "", err
 		}

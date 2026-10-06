@@ -17,6 +17,9 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
+	// Earlier are the runs the setup's preparation makes before the run itself, each as its prompt
+	// and the script file (by name, in Scripts) that makes its calls.
+	Earlier []ScenarioEarlier
 	// Then are the later runs of claude, each with its own script and the flags to run the mock with.
 	Then []ScenarioStep
 }
@@ -27,6 +30,9 @@ type ScenarioStep struct {
 	Script, Prompt string
 	Args           []string
 }
+
+// ScenarioEarlier is an earlier run: the prompt it is given (how the replay's claude knows it) and its script's file name.
+type ScenarioEarlier struct{ Prompt, Script string }
 
 // scriptCall is one tool call the model made, in the mock's script vocabulary.
 type scriptCall struct {
@@ -61,11 +67,23 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 		}
 		return script(tag, calls, a.Final, extra, skip)
 	}
-	main := scriptFor("main", rec.Agent, 0)
-	var then []ScenarioStep
+	var earlier []ScenarioEarlier
+	before := 0
+	for i, e := range earlierOf(rec) {
+		name := fmt.Sprintf("pre%d.sh", i)
+		scripts[name] = scriptFor(fmt.Sprintf("pre%d", i), e.Agent, 0)
+		earlier = append(earlier, ScenarioEarlier{Prompt: e.Prompt, Script: name})
+		before += len(e.Agent.Calls)
+	}
 	// a run that resumes a session finds the earlier runs' tool results in its file: the script
 	// skips as many calls as they made. (A run of a session of its own skips none.)
-	done := len(rec.Agent.Calls)
+	skipMain := 0
+	if resumes(strings.Fields(rec.Setup["args"])) {
+		skipMain = before
+	}
+	main := scriptFor("main", rec.Agent, skipMain)
+	var then []ScenarioStep
+	done := before + len(rec.Agent.Calls)
 	for i, st := range rec.Then {
 		skip := 0
 		if !startsOwnSession(st.Args) {
@@ -78,6 +96,7 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 		Settings: rec.Setup["settings.json"],
 		Hook:     rec.Setup["hook.sh"],
 		Scripts:  scripts,
+		Earlier:  earlier,
 		Script:   main,
 		Prompt:   rec.Prompt,
 		Then:     then,
@@ -123,11 +142,18 @@ CALLS_EOF
 `, skip, strings.Join(lines, "\n"))
 }
 
-// startsOwnSession is whether a later run's flags start a session of its own (--session-id), not
-// the earlier one.
+// resumes is whether a run's flags resume, continue or fork an earlier session.
+func resumes(args []string) bool { return hasFlag(args, "--resume") || hasFlag(args, "--continue") }
+
+// startsOwnSession is whether a later run's flags start a session of its own (--session-id, with
+// nothing resumed or forked), not the earlier one.
 func startsOwnSession(args []string) bool {
+	return hasFlag(args, "--session-id") && !resumes(args)
+}
+
+func hasFlag(args []string, flag string) bool {
 	for _, a := range args {
-		if a == "--session-id" {
+		if a == flag {
 			return true
 		}
 	}

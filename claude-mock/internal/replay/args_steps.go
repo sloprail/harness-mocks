@@ -13,11 +13,10 @@ type stepSpec struct {
 	// how the run starts its session: resume names a session, cont is --continue, newID is
 	// --session-id (a run with none starts the replay's own session)
 	resume, newID string
-	cont          bool
+	cont, fork    bool
 }
 
 // parseStepArgs reads a later run's args: the session flags are its own, the rest are parseArgs's.
-// --fork-session is not replayed yet.
 func parseStepArgs(text string) (stepSpec, error) {
 	var s stepSpec
 	var rest []string
@@ -37,7 +36,7 @@ func parseStepArgs(text string) (stepSpec, error) {
 			}
 			i++
 		case "--fork-session":
-			return s, unbuildable(fmt.Errorf("a later run forks a session: not replayed yet"))
+			s.fork = true
 		default:
 			rest = append(rest, f[i])
 		}
