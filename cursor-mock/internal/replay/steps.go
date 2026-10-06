@@ -51,20 +51,29 @@ func exitsOf(text string) ([]int, error) {
 	return out, nil
 }
 
-// segments cut a session's transcript into the records of each step: a step begins
-// at the user record that asks its prompt, and a step cursor-agent refused (a status
-// that is not 0) has none. The first step begins at the first record.
-func segments(records []map[string]any, prompts []string, exits []int) ([][]map[string]any, error) {
+// segments cut a session's transcripts into the records of each step. A transcript is
+// kept per project directory (the one the step ran from): a step begins at the user
+// record that asks its prompt, among the steps of its directory, the first at the
+// transcript's start, and a step cursor-agent refused (a status that is not 0) has none.
+func segments(files map[string][]map[string]any, dirs []string, prompts []string, exits []int) ([][]map[string]any, error) {
 	segs := make([][]map[string]any, len(prompts))
-	cur, next := 0, 1
-	for _, rec := range records {
-		for next < len(prompts) && exits[next] != 0 {
-			next++
+	for dir, records := range files {
+		var mine []int // the steps that ran from this directory and ended well, in order
+		for i := range prompts {
+			if dirs[i] == dir && exits[i] == 0 {
+				mine = append(mine, i)
+			}
 		}
-		if rec["role"] == "user" && next < len(prompts) && firstQuery([]map[string]any{rec}) == prompts[next] {
-			cur, next = next, next+1
+		if len(mine) == 0 {
+			return nil, unbuildable("a transcript is kept for the directory %q, which no step ran from", dir)
 		}
-		segs[cur] = append(segs[cur], rec)
+		cur, next := mine[0], 1
+		for _, rec := range records {
+			if rec["role"] == "user" && next < len(mine) && firstQuery([]map[string]any{rec}) == prompts[mine[next]] {
+				cur, next = mine[next], next+1
+			}
+			segs[cur] = append(segs[cur], rec)
+		}
 	}
 	for i, s := range segs {
 		if len(s) == 0 && exits[i] == 0 {

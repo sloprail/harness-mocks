@@ -31,6 +31,9 @@ func conversations(dir, session string, thoughts map[string][]thoughtAt) ([]conv
 		if !e.IsDir() || e.Name() == session {
 			continue
 		}
+		if _, project := os.Stat(filepath.Join(dir, e.Name(), session)); project == nil {
+			continue // a project directory holding the session's transcript, not a conversation of a sub-agent
+		}
 		records, err := readJSONL(filepath.Join(dir, e.Name(), e.Name()+".jsonl"))
 		if err != nil {
 			return nil, err

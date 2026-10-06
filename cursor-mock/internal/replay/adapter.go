@@ -60,10 +60,11 @@ func (Adapter) Script(rec core.Recording) (string, error) {
 	for name, body := range s.Scripts {
 		scripts[name] = body
 	}
-	lines := s.Lines
+	lines := map[string]int{"repo": s.Lines}
 	for i, st := range rec.Later {
-		sc := DenormalizeStep(st, i+1, "<scripts>", nil, lines)
-		lines += sc.Lines
+		project := stepProject(rec.Setup, stepNames(rec.Setup)[i])
+		sc := DenormalizeStep(st, i+1, "<scripts>", nil, lines[project])
+		lines[project] += sc.Lines
 		scripts[fmt.Sprintf("main%d.sh", i+1)] = sc.Script
 		for name, body := range sc.Scripts {
 			scripts[name] = body

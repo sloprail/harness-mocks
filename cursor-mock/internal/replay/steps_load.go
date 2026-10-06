@@ -29,8 +29,12 @@ func stepsOf(rec *core.Recording, sample string) (prompts []string, exits []int,
 
 // modelSteps are the model's turns in each step of the transcript; a step that
 // ended with a status other than 0 has none.
-func modelSteps(records []map[string]any, prompts []string, exits []int, heard []thoughtAt) ([]core.Agent, error) {
-	segs, err := segments(records, prompts, exits)
+func modelSteps(files map[string][]map[string]any, setup map[string]string, prompts []string, exits []int, heard []thoughtAt) ([]core.Agent, error) {
+	dirs := []string{stepProject(setup, "")}
+	for _, n := range stepNames(setup) {
+		dirs = append(dirs, stepProject(setup, n))
+	}
+	segs, err := segments(files, dirs, prompts, exits)
 	if err != nil {
 		return nil, err
 	}
@@ -61,4 +65,41 @@ func addLater(rec *core.Recording, prompts []string, agents []core.Agent) error 
 		rec.Later = append(rec.Later, core.Step{Prompt: prompts[i], Agent: agents[i]})
 	}
 	return nil
+}
+
+// stepProject is the project directory a step ran from, by the name its transcripts
+// are kept under: "repo" for the workspace, else the directory its then-<NN>-cwd names;
+// "" stands for the first step.
+func stepProject(setup map[string]string, name string) string {
+	if cwd := strings.TrimSpace(setup["then-"+name+"-cwd"]); name != "" && cwd != "" {
+		return cwd
+	}
+	return "repo"
+}
+
+// transcriptsOf are the main session's transcripts by the directory each step ran
+// from: with several directories the harness keeps each under a folder of its own
+// (<project>/<session>/<session>.jsonl), with one the session's folder is the
+// transcript's own.
+func transcriptsOf(dir, session string) (map[string][]map[string]any, error) {
+	own, err := readJSONL(filepath.Join(dir, session, session+".jsonl"))
+	if err != nil {
+		return nil, err
+	}
+	if len(own) > 0 {
+		return map[string][]map[string]any{"repo": own}, nil
+	}
+	found, _ := filepath.Glob(filepath.Join(dir, "*", session, session+".jsonl"))
+	out := map[string][]map[string]any{}
+	for _, f := range found {
+		records, err := readJSONL(f)
+		if err != nil {
+			return nil, err
+		}
+		out[filepath.Base(filepath.Dir(filepath.Dir(f)))] = records
+	}
+	if len(out) == 0 {
+		return nil, unbuildable("no transcript of the main session was recorded: the model's turns are unknown")
+	}
+	return out, nil
 }
