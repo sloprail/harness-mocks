@@ -3,11 +3,10 @@ package replay
 import (
 	"time"
 
-	core "github.com/sloprail/harness-mocks/internal/replay"
 	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
-// gatesOf are the gates the script puts on each step of an agent (its calls and
+// Gates are the gates the script puts on each step of an agent (its calls and
 // answers in order, then its final answer): what must have happened before the mock
 // takes the step, as the recording's times show it happened. The order of the agents'
 // steps is the script's then, and no delay decides it.
@@ -16,7 +15,7 @@ import (
 //     and after the step before it: the first step taken after a sub-agent's final answer.
 //   - A step of a sub-agent waits for the agent that started it to have started and
 //     finished as many calls as the recording shows it had by then.
-func gatesOf(a core.Agent, parent *core.Agent) []scenario.Gate {
+func Gates(a Agent, parent *Agent) []scenario.Gate {
 	steps := len(a.Calls) + 1
 	out := make([]scenario.Gate, steps)
 	at := func(j int) time.Time {
@@ -27,7 +26,7 @@ func gatesOf(a core.Agent, parent *core.Agent) []scenario.Gate {
 	}
 	k := 0
 	for i, c := range a.Calls {
-		if c.Tool != core.ToolSpawn || c.Sub == nil {
+		if c.Tool != ToolSpawn || c.Sub == nil {
 			continue
 		}
 		if end := c.Sub.FinalAt; !c.Sub.Unfinished && !end.IsZero() {
@@ -60,9 +59,9 @@ func gatesOf(a core.Agent, parent *core.Agent) []scenario.Gate {
 }
 
 // progressBy is how many calls of the agent had been started, and how many finished, before t.
-func progressBy(a core.Agent, t time.Time) (started, done int) {
+func progressBy(a Agent, t time.Time) (started, done int) {
 	for _, c := range a.Calls {
-		if c.Tool == core.ToolAnswer {
+		if c.Tool == ToolAnswer {
 			continue
 		}
 		if !c.At.IsZero() && c.At.Before(t) {

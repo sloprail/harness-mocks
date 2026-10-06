@@ -19,7 +19,7 @@ func thenScenario(rec core.Recording) []ThenStep {
 			consumed[thread] = consumed["first"]
 		}
 		calls := make([]modelCall, len(st.Agent.Calls))
-		gates := gatesOf(st.Agent, nil)
+		gates := core.Gates(st.Agent, nil)
 		for j, c := range st.Agent.Calls {
 			calls[j] = mockCall(c)
 			calls[j].Gate = gates[j]
