@@ -3,7 +3,8 @@
 # are compared with what the real harness actually did: the recorded runs the
 # capability cites (their normalized events, inlined) and its cited doc
 # sections. The tests must drive the mock into the recorded situation and
-# assert what the real harness produced (or a declared deviation). This is
+# assert what the real harness produced (or a declared deviation). The judge holds the tests to the capability's
+# STATEMENT (its scope), not to every behaviour its cited docs mention; a green replay of a recorded run proves what it recorded. This is
 # the real-vs-mock comparison: the mock is proven by e2e tests, and the tests
 # are held to the recordings. One subject per capability touched (subjects.sh; its
 # (capability × harness) pairs are judged together), so a change to one capability
