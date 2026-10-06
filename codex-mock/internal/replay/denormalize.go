@@ -99,6 +99,9 @@ func mockCall(c core.Call) modelCall {
 		return modelCall{Final: &text}
 	}
 	name := c.Tool
+	if c.Tool == core.ToolCompact {
+		return modelCall{Name: core.ToolCompact, Input: map[string]any{"trigger": c.Input["trigger"]}}
+	}
 	if c.Tool == core.ToolShell {
 		name = "Bash"
 	}

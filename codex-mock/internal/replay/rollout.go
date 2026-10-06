@@ -23,6 +23,10 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 	derived := map[any]int{} // how many tool calls each script (by call id) was read to make, until its output is seen
 	ran := map[any][]int{}   // the calls each script made, by their place among the rollout's calls
 	for _, rec := range records {
+		if rec["type"] == "compacted" { // the harness compacted the session (a token limit the run set, the only way a setup makes it: see setupFileOK): the mock is asked to at the same place
+			calls = append(calls, core.Call{Tool: core.ToolCompact, At: stampOf(rec), Input: map[string]any{"trigger": "auto"}})
+			continue
+		}
 		p, _ := rec["payload"].(map[string]any)
 		if rec["type"] != "response_item" || p == nil {
 			continue

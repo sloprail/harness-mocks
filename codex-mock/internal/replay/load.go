@@ -39,7 +39,7 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	}
 	entries, _ := os.ReadDir(setup)
 	for _, e := range entries {
-		if n := e.Name(); !setupFileOK(n) {
+		if n := e.Name(); !setupFileOK(setup, n) {
 			return core.Recording{}, unbuildable(fmt.Errorf("the setup has %s, which the adapter does not install", n))
 		}
 	}

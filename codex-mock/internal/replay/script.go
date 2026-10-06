@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	core "github.com/sloprail/harness-mocks/internal/replay"
 	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
@@ -30,6 +31,10 @@ func scriptFor(tag string, base int, steps []modelCall, final string, unfinished
 			lines = append(lines, string(b))
 			continue
 		}
+		if c.Name == core.ToolCompact {
+			lines = append(lines, fmt.Sprintf(`{"type":"compact","trigger":%q}`, c.Input["trigger"]))
+			continue
+		}
 		content := []any{}
 		if c.Text != nil {
 			content = append(content, map[string]any{"type": "text", "text": *c.Text})
@@ -44,7 +49,7 @@ func scriptFor(tag string, base int, steps []modelCall, final string, unfinished
 	}
 	return fmt.Sprintf(`#!/bin/sh
 n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
-k=$(( $(grep -c '<hook_prompt' "$A10N_MOCK_SESSION_FILE") + $(jq -s '[.[]|select(.type=="response_item")|.payload] as $p | [range(1;($p|length)) | select($p[.].role=="user" and ($p[.].content|tostring|test("subagent_notification")) and $p[.-1].role=="assistant")] | length' "$A10N_MOCK_SESSION_FILE") ))
+k=$(( $(grep -c '"type":"compacted"' "$A10N_MOCK_SESSION_FILE") + $(grep -c '<hook_prompt' "$A10N_MOCK_SESSION_FILE") + $(jq -s '[.[]|select(.type=="response_item")|.payload] as $p | [range(1;($p|length)) | select($p[.].role=="user" and ($p[.].content|tostring|test("subagent_notification")) and $p[.-1].role=="assistant")] | length' "$A10N_MOCK_SESSION_FILE") ))
 steps=$(cat <<'STEPS_EOF'
 %s
 STEPS_EOF
@@ -53,6 +58,7 @@ step=$(printf '%%s\n' "$steps" | sed -n "$((n+k+1-%d))p")
 [ -n "$step" ] || step=$(printf '%%s\n' "$steps" | tail -1)
 case "$step" in
 '{"hang":true}') exec sleep 86400 ;;
+'{"type":"compact"'*) printf '%%s\n' "$step" ;;
 '{"final":'*)
   text=$(printf '%%s' "$step" | jq -c .final)
   gate=$(printf '%%s' "$step" | jq -c '.gate // {}')

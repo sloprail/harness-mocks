@@ -39,7 +39,12 @@ func stepSpecs(setup string) []stepSpec {
 }
 
 // setupFileOK is whether the adapter installs the setup file.
-func setupFileOK(name string) bool {
+// The one run option installed is a token limit that makes the harness compact the session: the mock
+// has no tokens, so the script compacts where the harness did (the rollout's compacted records).
+func setupFileOK(setup, name string) bool {
+	if name == "args" {
+		return strings.TrimSpace(readFile(filepath.Join(setup, name))) == "-c\nmodel_auto_compact_token_limit=3000"
+	}
 	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || stepFile.MatchString(name)
 }
 
