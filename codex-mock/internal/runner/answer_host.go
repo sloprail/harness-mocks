@@ -31,9 +31,12 @@ func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 			fmt.Fprintf(h.cfg.Stderr, "ERROR codex_core::tools::router: error=%s\n", text)
 		}
 	}
-	if a.Kind == toolcall.Done && a.Result.Ended && !a.Replaced {
+	switch {
+	case a.Kind == toolcall.Done && a.Result.Ended && !a.Replaced:
 		h.rollout.ToolOutputParts(c.ID, completedFrame(a.Result.Wall), text) // as the harness tells the agent a command that ran to its end
-	} else {
+	case a.Kind == toolcall.Refused || a.Replaced:
+		h.rollout.ToolOutputParts(c.ID, failedFrame(a.Result.Wall), "Script error:\n"+text) // a hook rejected the call: the script's tool call throws the hook's reason
+	default:
 		h.rollout.ToolOutput(c.ID, text)
 	}
 	h.prog.Move(0, 1) // finished: what another agent's gate may wait for
