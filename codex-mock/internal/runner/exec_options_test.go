@@ -23,6 +23,9 @@ func TestATtyEndsLinesWithCRLF(t *testing.T) {
 }
 
 func TestUnimplementedNamesAnotherDirectory(t *testing.T) {
+	old := zsh
+	defer func() { zsh = old }()
+	zsh = func() string { return "/usr/bin/zsh" } // the test is about what is refused, not about this machine having zsh
 	h := toolHost{state: &state{cfg: Config{Cwd: t.TempDir()}}}
 	assert.Equal(t, "", h.unimplemented(call(`{"command":"x","shell":"zsh","login":true,"max_output_tokens":9}`)))
 	assert.Equal(t, "", h.unimplemented(call(`{"command":"x","workdir":"`+h.cfg.Cwd+`"}`)))
