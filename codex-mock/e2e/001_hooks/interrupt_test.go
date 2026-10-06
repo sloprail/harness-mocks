@@ -145,3 +145,31 @@ func TestWhatAnInterruptHookAnswersCannotPreventTheInterruption(t *testing.T) {
 	assert.NotContains(t, got.Stderr, "INT-")
 	assert.NotContains(t, got.rollout(t), "INT-")
 }
+
+// An Interrupt hook is not cut short by the SessionEnd limit of one second by default and three at
+// most: of three hooks waiting 2 seconds with no timeout set, 2 under a configured 3, and 5 under a
+// configured 10, all finish, and the run waits for them (recorded: runs/interrupt-hook-timeout, which
+// differs from the docs' "Interrupt use 1 second by default and support up to 3"). The mock gives
+// Interrupt hooks the ordinary default and no cap.
+// sr:proves hook-timeout/codex
+func TestInterruptHooksAreNotCutShortByTheSessionEndLimit(t *testing.T) {
+	rec := loadRecording(t, "interrupt-hook-timeout")
+	done := func(log []map[string]any) (out []string) {
+		for _, l := range log {
+			if d, ok := l["done"].(string); ok {
+				out = append(out, d)
+			}
+		}
+		sort.Strings(out)
+		return
+	}
+	want := []string{"capped", "default", "limit3"}
+	assert.Equal(t, want, done(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))), "recorded")
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files:     map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh"))},
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "sleep 30"), InterruptOnCommand: true,
+	})
+	assert.Equal(t, 1, got.Code)
+	assert.Equal(t, want, done(got.hookLog()), "the mock's")
+}

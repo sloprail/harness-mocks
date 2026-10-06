@@ -67,7 +67,7 @@ func (h toolHost) runSpawned(ctx context.Context, subID string, subRollout *sess
 				"agent_transcript_path": subRollout.Path, "stop_hook_active": active, "last_assistant_message": message}
 			outs := h.hooks.Fire(ctx, hooks.SubagentStop, agentType, own)
 			for _, o := range outs {
-				if stopsFor(o.Stdout) { // continue:false outranks any block (hooks#subagentstop)
+				if hooks.Interpret(hooks.SubagentStop, o).Halt { // continue:false outranks any block (hooks#subagentstop)
 					return false, ""
 				}
 			}

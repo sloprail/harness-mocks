@@ -104,6 +104,9 @@ func Run(ctx context.Context, cfg Config) error {
 	for _, f := range hooks.AsyncSessionEndFiles(cfg.CodexHome, cfg.Cwd) {
 		s.events.Warning("running async SessionEnd hook synchronously in " + f)
 	}
+	for _, w := range hooks.InterruptClampWarnings(cfg.CodexHome, cfg.Cwd) {
+		s.events.Warning(w)
+	}
 	halted := false
 	for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, start.Source, map[string]any{"source": start.Source}) {
 		d := hooks.Interpret(hooks.SessionStart, o)
