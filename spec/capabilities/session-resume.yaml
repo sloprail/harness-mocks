@@ -44,9 +44,10 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock models --name only on a session it starts, which then carries
-          the name as its title and an agent-name record (recorded: runs/resume-name).
-          --name with --resume or --continue, which renames a session, is refused.
+          The mock models --name only on a session it starts, which then
+          carries the name as its title and an agent-name record (recorded:
+          runs/resume-name). --name with --resume or --continue, which renames
+          a session, is refused.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#resume-a-non-interactive-session
