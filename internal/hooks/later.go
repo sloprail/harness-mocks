@@ -12,10 +12,9 @@ import (
 // agent has gone through the call after it (Due), or when its turn would end, whichever comes
 // first. Delivery waits for the hook to have finished: an event, not a time.
 //
-// This is the delivery half of the hook-additional-context capability, whose one marker is at
-// the context the hooks add (lifecycle.go): which hooks run in the background, and which events
-// run theirs synchronously all the same, is the harness's and is passed in (Start is given only
-// the hooks to run in the background).
+// When a hook's context is due is ContextDue's (lifecycle.go), asked here and by the harness that
+// starts the hook; which hooks run in the background, and which events run theirs
+// synchronously all the same, is the harness's and is passed in.
 type Later struct {
 	mu   sync.Mutex
 	last chan struct{} // closed when the run started last has finished
@@ -59,7 +58,7 @@ func (l *Later) Due(step int, endOfTurn bool) (out []Delivered) {
 	l.mu.Lock()
 	var due, keep []*laterRun
 	for _, r := range l.runs {
-		if endOfTurn || r.step < step {
+		if ContextDue(true, r.step, step, endOfTurn) {
 			due = append(due, r)
 		} else {
 			keep = append(keep, r)

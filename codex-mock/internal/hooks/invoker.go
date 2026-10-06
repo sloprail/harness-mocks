@@ -65,7 +65,8 @@ func (iv *Invoker) Fire(ctx context.Context, ev Event, match string, own map[str
 		if ev == UserPromptSubmit || ev == Stop || corehooks.Matches(g.Matcher, match, toolAliases[match]...) {
 			for _, h := range g.Handlers {
 				c := corehooks.Command{Line: h.Command, Timeout: timeoutFor(ev, time.Duration(h.Timeout)*time.Second)}
-				if h.Async && ev != SessionEnd && iv.Later != nil { // SessionEnd runs async hooks synchronously (warnings.go)
+				background := h.Async && ev != SessionEnd && iv.Later != nil // SessionEnd runs async hooks synchronously (warnings.go)
+				if !corehooks.ContextDue(background, 0, 0, false) {
 					later = append(later, c)
 				} else {
 					cmds = append(cmds, c)

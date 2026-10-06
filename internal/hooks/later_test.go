@@ -39,3 +39,13 @@ func TestBackgroundHooksAreDeliveredAtTheNextSafePoint(t *testing.T) {
 	b, _ := os.ReadFile(log)
 	assert.Equal(t, "a\nb\nc\n", string(b), "run one after another, in the order started")
 }
+
+// The context a hook the agent waited for adds is due at once; one a background hook adds is not,
+// until the agent has gone through a later call, or its turn ends.
+func TestContextDue(t *testing.T) {
+	assert.True(t, ContextDue(false, 0, 0, false), "waited for: at once")
+	assert.False(t, ContextDue(true, 0, 0, false), "background: not yet")
+	assert.False(t, ContextDue(true, 1, 1, false), "started during the call just taken")
+	assert.True(t, ContextDue(true, 0, 1, false), "started before the call just taken")
+	assert.True(t, ContextDue(true, 3, 3, true), "the turn ends")
+}
