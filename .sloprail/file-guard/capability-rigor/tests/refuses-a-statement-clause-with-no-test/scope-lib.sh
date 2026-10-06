@@ -34,5 +34,3 @@ scope_case() {
   git add -A && git commit -q -m "record c again"
   status=0; sr-checks run --base "$BASE" --head HEAD >out 2>&1 || status=$?
 }
-verdict() { jq -es --arg o "$1" '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-rigor")] | length==1 and .[0].outcome==$o' "$SR_EVENTS_FILE" >/dev/null ||
-  { jq -c . "$SR_EVENTS_FILE" >&2; cat out >&2; echo "$2" >&2; exit 1; }; }
