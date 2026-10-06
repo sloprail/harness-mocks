@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only
-# this rule's outcome is asserted. Proves the generated replay test is read from its syntax tree: shadowing flakyRuns, a dropped retry, wiring only in comments, or a write to the list from inside it are refused, and a good one passes.
+# this rule's outcome is asserted. Proves the generated replay test is pinned: replayUntilGreen and TestGeneratedReplay must equal their canonical copies (comments aside), so a changed loop, a changed case, a stub or a shadowed flakyRuns is refused, and so is a write to the list; an unchanged file, a commented one, passes.
 git init -q .
 . "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
 install_checker || exit 1
@@ -49,49 +49,33 @@ PY
 gen_with 'const flakyRuns = 3' 'const flakyRuns = 1' "run flaky once"
 refuses "a flaky: entry run once" "flakyRuns must be 3"
 
-gen_with 'diff, err = replayUntilGreen(run, flakyRuns)' 'diff, err = run()' "no retry"
-refuses "a flaky: entry with no retry" "must run a flaky: entry through replayUntilGreen"
+gen_with 'i < attempts &&' 'i < 1 &&' "a changed loop"
+refuses "a changed loop" "replayUntilGreen differs from the canonical copy"
 
-gen_with 'diff, err = replayUntilGreen(run, flakyRuns)' 'diff, err = run() // replayUntilGreen(run, flakyRuns)' "the retry only in a comment"
-refuses "the retry only in a comment" "must run a flaky: entry through replayUntilGreen"
-
-gen_with 'diff, err = replayUntilGreen(run, flakyRuns)' 'func(flakyRuns int) { diff, err = replayUntilGreen(run, flakyRuns) }(0)' "a closure shadows flakyRuns"
-refuses "a closure shadowing flakyRuns" "must be the package-level const flakyRuns"
-
-gen_with 'diff, err = replayUntilGreen(run, flakyRuns)' 'var flakyRuns int; diff, err = replayUntilGreen(run, flakyRuns)' "a local var shadows flakyRuns"
-refuses "a local var shadowing flakyRuns" "is declared again here"
-
-gen_with 'case flaky && (err != nil || diff != ""):' 'case false:' "the failing case is gone"
-refuses "no failing case" "fail a flaky: entry that is never green"
-
-gen_with 't.Errorf("never green in %d runs, see notReplaying", flakyRuns)' 't.Errorf("x", func() int { notReplaying["z"] = "flaky: z"; return 0 }())' "a write inside a t.Errorf call"
-refuses "a write inside a t.Errorf call" "the generated test may only read notReplaying"
-
-gen_with 't.Errorf("never green in %d runs, see notReplaying", flakyRuns)' 't.Errorf("x", flakyRuns); notReplaying["z"] = "y"' "a write after a t.Errorf"
-refuses "a write after a t.Errorf" "the generated test may only read notReplaying"
-
-gen_with 'for name := range notReplaying {' 'delete(notReplaying, "a"); for name := range notReplaying {' "a delete"
-refuses "a delete" "the generated test may only read notReplaying"
-
-gen_with '_ = name' '(notReplaying["z"]) = "flaky:y"' "a parenthesised write"
-refuses "a parenthesised write to the list" "the generated test may only read notReplaying"
-
-gen_with $'\tdiff, err := run()\n\tfor i := 1; i < attempts && (err != nil || diff != "");' $'\tdiff, err := run()\n\tfor i := 1; i < 1 && (err != nil || diff != "");' "a loop not bounded by attempts"
-refuses "a loop that ignores attempts" "must loop up to its attempts parameter"
+gen_with $'\t\tdiff, err = run()\n' $'\t\t_, _ = run()\n' "the loop discards run()'s result"
+refuses "a loop discarding run()'s result" "replayUntilGreen differs from the canonical copy"
 
 gen_with $'\tdiff, err := run()\n\tfor i := 1; i < attempts && (err != nil || diff != ""); i++ {\n\t\tdiff, err = run()\n\t}\n\treturn diff, err' $'\treturn run()' "a stub replayUntilGreen"
-refuses "a stub replayUntilGreen" "must loop up to its attempts parameter"
+refuses "a stub replayUntilGreen" "replayUntilGreen differs from the canonical copy"
 
-gen_with $'\tswitch {\n' $'\tif false {\n\tswitch {\n' "the failing case under a constant false"
-python3 - "$gen" <<'PY'
-import sys
-p = sys.argv[1]; s = open(p).read()
-i = s.rindex("\t}\n}\n")
-open(p, 'w').write(s[:i] + "\t}\n\t}\n}\n")
-PY
-git add -A && git -c user.name=t -c user.email=t@t commit -q -m "close the dead block"
-refuses "the failing case under a constant false" "fail a flaky: entry that is never green"
+gen_with 'case flaky && (err != nil || diff != ""):' 'case flaky && false:' "a changed case"
+refuses "a changed case" "TestGeneratedReplay differs from the canonical copy"
 
-# recovery: the good test again, with one more read of the list, and the same range passes
-gen_with '_ = name' '_, _ = name, notReplaying["a"]' "another read"
-passes "a generated test that only reads the list"
+gen_with $'\t\t\tswitch {\n' $'\t\t\tswitch {\n\t\t\tcase true:\n' "an always-true case first"
+refuses "an always-true case first" "TestGeneratedReplay differs from the canonical copy"
+
+gen_with 'diff, err = replayUntilGreen(run, flakyRuns)' 'func(flakyRuns int) { diff, err = replayUntilGreen(run, flakyRuns) }(0)' "a closure shadows flakyRuns"
+refuses "a closure shadowing flakyRuns" "TestGeneratedReplay differs from the canonical copy"
+
+gen_with 'flaky := listed && strings.HasPrefix(reason, "flaky:")' 'flaky := false' "an always-false flaky define"
+refuses "an always-false flaky define" "TestGeneratedReplay differs from the canonical copy"
+
+gen_with 'func TestGeneratedReplay(' $'func init() { notReplaying["z"] = "flaky: z" }\n\nfunc TestGeneratedReplay(' "an init writing to the list"
+refuses "an init in the generated test" "the generated test may only read notReplaying"
+
+gen_with 'func TestGeneratedReplay(' $'func init() { (notReplaying["z"]) = "flaky:y" }\n\nfunc TestGeneratedReplay(' "a parenthesised write"
+refuses "a parenthesised write to the list" "the generated test may only read notReplaying"
+
+# recovery: the canonical code again, with comments and one more read of the list, and the same range passes
+gen_with 'func TestGeneratedReplay(' $'// a comment does not change the code\nfunc readOne() string { return notReplaying["a"] }\n\nfunc TestGeneratedReplay(' "comments and a read"
+passes "the canonical generated test, commented, with a read of the list"

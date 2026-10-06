@@ -7,8 +7,11 @@
 #
 # The Go is read from its syntax tree and its type information by tools/replaycheck, never from its
 # text: the map is read as the declaration it is (an escape, a raw string, a one-line map or a comment
-# cannot hide an entry), the generated replay test may only read the list and must run a flaky: entry
-# flakyRuns (3) times through replayUntilGreen, and no other file of the package may name the list.
+# cannot hide an entry), the generated replay test may only read the list, flakyRuns is the one
+# package-level const 3, and no other file of the package may name the list. replayUntilGreen and
+# TestGeneratedReplay, which repeat a flaky: entry and fail it when it is never green, are pinned: printed
+# without comments they must equal the canonical copies in canonical/ byte for byte. Changing a canonical
+# copy changes the rule, and needs the user's citation.
 # Deleting a list file outright is not judged: removing the whole list only shrinks it, provided
 # nothing that still reads notReplaying is left without its list file (replaycheck check).
 # Anything the checker cannot do (a failed build, a failed run) is refuse_error, not a verdict.
@@ -39,6 +42,8 @@ case "$count" in '' | *[!0-9]*) refuse_error "the changeset's files could not be
   refuse_error "tools/replaycheck is not in the committed tree, so the replay exception lists cannot be checked"
 work="$(mktemp -d)" || refuse_error "could not make a directory for the replay checker"
 bin="$work/replaycheck"
+canon="$(cd "${SR_GUARDRAIL_DIR:-.}" && pwd)/canonical"
+[ -d "$canon" ] || refuse_error "the canonical copies are not in the rule's folder ($canon), so the generated replay tests cannot be checked"
 build="$(cd "$SR_TREE" && go build -o "$bin" ./tools/replaycheck 2>&1)" ||
   refuse_error "could not build tools/replaycheck, so the replay exception lists cannot be checked: $build"
 
@@ -112,7 +117,7 @@ rc=$?
 dirs="$(printf '%s\n%s\n' "$files" "$mentions" | grep -v '^$' | while IFS= read -r f; do dirname "$f"; done | LC_ALL=C sort -u)"
 bad=""
 for d in $dirs; do
-  checker check "$SR_TREE/$d"
+  checker check "$SR_TREE/$d" "$canon"
   [ "$rc" -eq 0 ] || bad="$bad$out"$'\n'
 done
 [ -z "$bad" ] || refuse "the replay exception list and the generated replay test are not as adr/replay-exceptions-only-shrink needs:

@@ -28,41 +28,11 @@ install_checker() {
   mkdir -p "$GOCACHE" "$GOPATH"
 }
 
-# good_gen — a generated replay test the rule accepts (the shape of the real ones, reduced)
+# good_gen — a generated replay test the rule accepts: the canonical copies of the rule's folder
 good_gen() {
-  printf '%s\n' \
-    'package e2e' \
-    '' \
-    'import (' \
-    '	"strings"' \
-    '	"testing"' \
-    ')' \
-    '' \
-    'const flakyRuns = 3' \
-    '' \
-    'func replayUntilGreen(run func() (string, error), attempts int) (string, error) {' \
-    '	diff, err := run()' \
-    '	for i := 1; i < attempts && (err != nil || diff != ""); i++ {' \
-    '		diff, err = run()' \
-    '	}' \
-    '	return diff, err' \
-    '}' \
-    '' \
-    'func TestGeneratedReplay(t *testing.T) {' \
-    '	for name := range notReplaying {' \
-    '		_ = name' \
-    '	}' \
-    '	reason, listed := notReplaying["x"]' \
-    '	flaky := listed && strings.HasPrefix(reason, "flaky:")' \
-    '	var diff string' \
-    '	var err error' \
-    '	run := func() (string, error) { return "", nil }' \
-    '	if flaky {' \
-    '		diff, err = replayUntilGreen(run, flakyRuns)' \
-    '	}' \
-    '	switch {' \
-    '	case flaky && (err != nil || diff != ""):' \
-    '		t.Errorf("never green in %d runs, see notReplaying", flakyRuns)' \
-    '	}' \
-    '}'
+  local canon="$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/canonical"
+  printf 'package e2e\n\nconst flakyRuns = 3\n\n'
+  cat "$canon/replay_until_green.go.txt"
+  printf '\n'
+  cat "$canon/test_generated_replay.claude.go.txt"
 }

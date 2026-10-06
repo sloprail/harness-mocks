@@ -31,7 +31,7 @@ var _ types.Importer = fakeImporter{}
 //	(b) the generated test only reads it: an index expression that is not assigned, or a range
 //	(c) flakyRuns is the package-level const 3 where replayUntilGreen is called, which is declared once
 //	(d) no other file of the package names notReplaying
-func checkDir(dir string) ([]string, error) {
+func checkDir(dir, canon string) ([]string, error) {
 	names, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func checkDir(dir string) ([]string, error) {
 	}
 	sort.Strings(pkgs)
 	for _, p := range pkgs {
-		c := &pkgCheck{fset: fset, files: groups[p]}
+		c := &pkgCheck{fset: fset, files: groups[p], canon: canon}
 		if err := c.run(p); err != nil {
 			return nil, err
 		}
@@ -70,6 +70,7 @@ func checkDir(dir string) ([]string, error) {
 // pkgCheck is the judgement of one package of the directory.
 type pkgCheck struct {
 	fset      *token.FileSet
+	canon     string // the folder of the canonical copies
 	files     []*ast.File
 	list, gen *ast.File // the list file and the generated test, nil when the package has none
 	info      *types.Info
@@ -110,7 +111,7 @@ func (c *pkgCheck) run(pkgName string) error {
 		return fmt.Errorf("type-checking %s produced no package", pkgName)
 	}
 	if c.checkReads() {
-		c.checkFlaky()
+		return c.checkFlaky()
 	}
 	return nil
 }
