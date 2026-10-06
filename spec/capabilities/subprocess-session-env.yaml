@@ -2,12 +2,12 @@ statement: >-
   Processes the harness spawns to run tool commands see environment variables
   that identify the harness and the current session: that they run under the
   harness, how the harness was started, and the session's id. When the harness
-  itself runs inside another session, the session's id is this run's. A SessionStart hook can write exports to
-  CLAUDE_ENV_FILE, and the session's later Bash commands run with that file
-  sourced first. (Other
-  variables the harness hands children, such as the project dir, its temp dir
-  or the path of its own executable, and the environment of the long-lived
-  servers it starts (MCP servers), are other capabilities'.)
+  itself runs inside another session, the session's id is this run's. A
+  SessionStart hook can write exports to CLAUDE_ENV_FILE, and the session's
+  later Bash commands run with that file sourced first. (Other variables the
+  harness hands children, such as the project dir, its temp dir or the path of
+  its own executable, and the environment of the long-lived servers it starts
+  (MCP servers), are other capabilities'.)
 providers:
   claude:
     docs:
