@@ -1,6 +1,9 @@
 package replay
 
 import (
+	"strconv"
+	"strings"
+
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
@@ -17,11 +20,11 @@ var (
 )
 
 // thoughtsOf are the thoughts the recording's hook log holds, by the conversation
-// that had them, in the order they were had. A key of a payload that is neither
+// that had them and the response that had each. A key of a payload that is neither
 // one the adapter reads nor one every payload carries is something of the
 // recording it cannot reproduce.
-func thoughtsOf(payloads []map[string]any) (map[string][]*core.Thinking, error) {
-	out := map[string][]*core.Thinking{}
+func thoughtsOf(payloads []map[string]any) (map[string]map[int]*core.Thinking, error) {
+	out := map[string]map[int]*core.Thinking{}
 	for _, p := range payloads {
 		if p["hook_event_name"] != "afterAgentThought" {
 			continue
@@ -37,7 +40,30 @@ func thoughtsOf(payloads []map[string]any) (map[string][]*core.Thinking, error) 
 			}
 		}
 		id, _ := p["session_id"].(string)
-		out[id] = append(out[id], th)
+		if out[id] == nil {
+			out[id] = map[int]*core.Thinking{}
+		}
+		// the thought names the response that had it: its generation is the model
+		// call, <request>-<response number>-<four characters>
+		n, err := responseOf(p["generation_id"])
+		if err != nil {
+			return nil, err
+		}
+		out[id][n] = th
 	}
 	return out, nil
+}
+
+// responseOf is the number of the model response a thought's generation names.
+func responseOf(generation any) (int, error) {
+	g, _ := generation.(string)
+	parts := strings.Split(g, "-")
+	if len(parts) < 2 {
+		return 0, unbuildable("a thought's generation %q does not name its response", g)
+	}
+	n, err := strconv.Atoi(parts[len(parts)-2])
+	if err != nil {
+		return 0, unbuildable("a thought's generation %q does not name its response", g)
+	}
+	return n, nil
 }
