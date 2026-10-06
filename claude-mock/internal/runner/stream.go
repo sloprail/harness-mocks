@@ -3,8 +3,10 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"os"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // streamAndHook runs the scenario script in a turn-based loop, reads its JSONL
@@ -93,10 +95,11 @@ type pendingToolUse struct {
 // scanResult is what one script invocation's output amounted to.
 type scanResult struct {
 	pending    pendingToolUse
-	done       bool   // a result frame was seen
-	compactSig string // a compaction happened (and what it was)
-	lastText   string // text of the last assistant record
-	resultLine []byte // the result frame, not yet streamed
+	done       bool           // a result frame was seen
+	compactSig string         // a compaction happened (and what it was)
+	lastText   string         // text of the last assistant record
+	resultLine []byte         // the result frame, not yet streamed
+	execGate   *scenario.Gate // what the step's call waits for before it is carried out (script's gate)
 }
 
 // buildEnv constructs the environment for a script invocation.

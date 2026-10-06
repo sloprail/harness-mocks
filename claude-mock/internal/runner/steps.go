@@ -27,6 +27,34 @@ func newAgentSteps(parent *agentSteps) *agentSteps {
 	return s
 }
 
+// child records the steps of a sub-agent this agent started, once it has begun to run.
+func (s *agentSteps) child(id string, c *agentSteps) {
+	if s != nil && c != nil {
+		s.spawned.SetProgress(id, c.prog)
+	}
+}
+
+// end says the agent has ended: what a gate of a sub-agent's script may wait for.
+func (s *agentSteps) end() {
+	if s != nil {
+		s.prog.End()
+	}
+}
+
+// answered counts an answer the agent has given: a step another agent's gate may wait for.
+func (s *agentSteps) answered() {
+	if s != nil {
+		s.prog.Answered()
+	}
+}
+
+// holdExec holds the carrying out of the agent's call until what the script's gate names for it has happened.
+func (s *agentSteps) holdExec(ctx context.Context, g *scenario.Gate) {
+	if s != nil && g != nil {
+		subagents.HoldExec(ctx, *g, s.parent)
+	}
+}
+
 // started counts a call the agent has begun, finished one it has given the result of.
 func (s *agentSteps) started() {
 	if s != nil {

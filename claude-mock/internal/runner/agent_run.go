@@ -42,6 +42,8 @@ type subagentRun struct {
 	startAnnounced bool
 	// startFrames is the SubagentStart hook's frames that are still to be written (hook_frames).
 	startFrames *pendingFrames
+	// steps are how far the sub-agent's run has got, which a gate of another agent's script may wait on.
+	steps *agentSteps
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -81,6 +83,7 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 	task.Result, task.Failure = final, out.Failure
 	task.ToolUses, task.DurationMs = out.ToolUses, time.Since(started).Milliseconds()
 	tasks.Conclude(bg.Registry, task, frames)
+	s.steps.end() // its end is announced: what a sub-agent's gate may wait for
 	return subagentOutcome{finalText: final, failure: out.Failure, toolUses: out.ToolUses}
 }
 

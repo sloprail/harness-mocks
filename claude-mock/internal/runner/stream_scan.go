@@ -30,6 +30,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 
 		if rec.Type == "gate" { // the step that follows waits for what the gate names: the script orders the agents
 			cfg.steps.hold(ctx, cfg, rec.Gate)
+			out.execGate = rec.Gate
 			continue
 		}
 
@@ -71,9 +72,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				line, streamed, toolInput := withToolDefaults(cfg, line)
 				writeToolUse(cfg, streamed, toolName, toolInput)
 				tr.persist(line)
-				cfg.steps.started() // what another agent's gate may wait for
 				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
+					cfg.steps.started()
 					return out, nil
 				}
 				pre := hooks.Input{
@@ -91,6 +92,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				if err := decidePreTool(cfg, &out.pending, hookOut, hookErr); err != nil {
 					return scanResult{}, err
 				}
+				cfg.steps.started() // once its PreToolUse hooks have run: what another agent's gate may wait for
 				return out, nil
 			}
 		}
@@ -100,6 +102,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		// lets the turn end (see streamAndHook).
 		if rec.Type == "result" {
 			out.resultLine = append([]byte(nil), line...)
+			cfg.steps.answered()
 		} else {
 			writeStreamLine(cfg, line)
 		}
