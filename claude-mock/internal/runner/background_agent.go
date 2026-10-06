@@ -54,7 +54,11 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 	}
 	// The sub-agent is begun with the launch, ahead of the call's PostToolUse
 	// (recorded: snapshots/runs/bgagent); its run starts after the answer.
-	sub.begun = subagents.Begin(sub.hooks(b.Context(), inv, b))
+	// One launched by a sub-agent is begun after the call's PostToolUse, with its run (recorded: runs/
+	// bgagent-nested-launcher, the same order in every sample).
+	if cfg.AgentID == "" {
+		sub.begun = subagents.Begin(sub.hooks(b.Context(), inv, b))
+	}
 	// The launch is announced (the running set, task_started) ahead of the call's result, as recorded
 	// (runs/bgagent, bgagent-concurrent-limit, nested-fork-limit); the sub-agent's run waits for the answer.
 	start := func(answered <-chan struct{}) {
