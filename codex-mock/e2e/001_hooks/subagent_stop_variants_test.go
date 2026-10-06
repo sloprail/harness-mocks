@@ -187,3 +187,15 @@ func TestASubagentStopMatcherThatMatchesTheTypeRuns(t *testing.T) {
 		})
 	}
 }
+
+// A SubagentStop hook that exits 2 and also prints continue:false blocks: the exit status wins over
+// the JSON, so the sub-agent is run again with the stderr reason, as it is for a block decision
+// (recorded: runs/subagent-stop-exit2-continue-false: three stops, the first two blocked).
+// sr:proves hook-exit-code-semantics/codex
+// sr:proves subagent-lifecycle-hooks/codex
+func TestASubagentStopExit2BeatsContinueFalse(t *testing.T) {
+	recorded, got := runSubagentStop(t, "subagent-stop-exit2-continue-false")
+	assert.Equal(t, hookLabels(recorded), hookLabels(got))
+	assert.Equal(t, 2, countLabel(hookLabels(got), "SubagentStop active=true"), "the sub-agent was run again twice")
+	assert.Equal(t, 1, countLabel(hookLabels(got), "SubagentStop active=false"))
+}
