@@ -77,3 +77,34 @@ func TestLoginFalseWithNoShellRunsTheDefaultShell(t *testing.T) {
 	assert.Contains(t, readFile(t, filepath.Join(rec.sample, "stream.jsonl")), `"aggregated_output":"one\n"`)
 	assert.Contains(t, got.Stdout, `"aggregated_output":"one\n"`)
 }
+
+// A PreToolUse hook refuses an exec_command (the shell tool, which hooks name Bash) however it was
+// asked for, with the options the mock implements (a shell, a login flag, a yield time): the command
+// does not run, by a deny or by exit 2 (hooks#tool-coverage, unified exec).
+// sr:proves hook-matcher-filter/codex
+func TestAPreToolUseHookRefusesAnExecCommandWithItsOptions(t *testing.T) {
+	for name, hook := range map[string]string{
+		"deny by JSON": `cat >/dev/null; echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"no exec"}}'`,
+		"exit 2":       `cat >/dev/null; echo "no exec" >&2; exit 2`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "ran")
+			r := execMock(t, scenario{
+				HooksJSON: `{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"sh hook.sh"}]}]}}`,
+				Files:     map[string]string{"hook.sh": hook},
+				Script: `#!/bin/sh
+n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
+if [ "$n" = 0 ]; then
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c0","name":"Bash","input":{"command":"touch ` + marker + `","shell":"zsh","login":false,"yield_time_ms":10000}}]}}'
+  exit 0
+fi
+printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' '{"type":"result","subtype":"success","result":"done"}'
+`, Prompt: "go"})
+			require.Equal(t, 0, r.Code, r.Stderr)
+			assert.NoFileExists(t, marker, "the refused command ran")
+			cmds, _ := r.commands()
+			assert.Empty(t, cmds)
+			assert.Contains(t, r.rollout(t), "Command blocked by PreToolUse hook: no exec.")
+		})
+	}
+}
