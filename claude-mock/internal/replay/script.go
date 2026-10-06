@@ -47,7 +47,8 @@ func script(tag string, calls []scriptCall, final, extra string, skip int) strin
 	return fmt.Sprintf(`#!/bin/sh
 n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
 f=$(grep -c '"content":"Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
-n=$((n+f))
+t=$(grep -c '"turnOrigin":"task_notification"' "$A10N_MOCK_SESSION_FILE")
+n=$((n+f+t))
 sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
 %s
 CALLS_EOF
