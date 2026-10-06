@@ -43,6 +43,14 @@ func runSteps(ctx context.Context, mock string, s Scenario, repo, root, scriptsA
 			}
 			argv = append(argv, a)
 		}
+		if i == 0 && s.Interrupt {
+			out, err := runInterrupted(append(argv, r.prompt), r.cwd, env)
+			if err != nil {
+				return "", err
+			}
+			stdout.WriteString(out)
+			continue
+		}
 		res, err := procexec.Run(ctx, procexec.Spec{Argv: append(argv, r.prompt), Dir: r.cwd, Env: env})
 		if err != nil || res.ExitCode != 0 {
 			return "", &core.MockFailure{Detail: fmt.Sprintf("run %d: %v (exit %d): %s", i, err, res.ExitCode, res.Stderr)}

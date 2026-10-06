@@ -9,6 +9,12 @@ import (
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 )
 
+// UserInterrupted records, as a user message, what the agent is told of a turn the user
+// interrupted (recorded: runs/interrupt-hook).
+func (s *File) UserInterrupted() {
+	s.User("<turn_aborted>\nThe user interrupted the previous turn on purpose. Any running unified exec processes may still be running in the background. If any tools/commands were aborted, they may have partially executed.\n</turn_aborted>")
+}
+
 // TurnAborted records that the turn was interrupted.
 func (s *File) TurnAborted(turnID string) {
 	s.append("event_msg", map[string]any{"type": "turn_aborted", "turn_id": turnID, "reason": "interrupted"})
