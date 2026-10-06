@@ -201,3 +201,16 @@ func TestChangedSetupFiles(t *testing.T) {
 		t.Fatalf("%v", got)
 	}
 }
+
+// The model's words name the recording's agent id; in the mock's output it stands for the mock's own, by order.
+func TestRecordedAgentIDsStandForTheMocks(t *testing.T) {
+	rec := []map[string]any{{"agent_id": "a1"}, {"agent_id": "a2"}}
+	mock := []map[string]any{{"agent_id": "m1", "text": "path/agent-a1 and agent-a2"}, {"agent_id": "m2"}}
+	got := withRecordedAgentIDs(mock, agentIDs(rec), agentIDs(mock))
+	if got[0]["text"] != "path/agent-m1 and agent-m2" || mock[0]["text"] != "path/agent-a1 and agent-a2" {
+		t.Fatalf("%v", got)
+	}
+	if same := withRecordedAgentIDs(mock, []string{"a1"}, agentIDs(mock)); same[0]["text"] != mock[0]["text"] {
+		t.Fatal("a different number of agents is left as it is")
+	}
+}

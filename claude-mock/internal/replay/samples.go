@@ -51,6 +51,8 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		if err != nil {
 			return want, got, err
 		}
+		recorded, own := agentIDs(recStream, recHooks), agentIDs(mockStream, mockHooks)
+		mockStream, mockHooks = withRecordedAgentIDs(mockStream, recorded, own), withRecordedAgentIDs(mockHooks, recorded, own)
 		w, g := observe(Rules(repo, work, RunIDs(recStream, mockStream, recHooks, mockHooks)), recStream, recHooks, mockStream, mockHooks)
 		wants, gots = append(wants, w), append(gots, g)
 	}

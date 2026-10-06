@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
@@ -23,6 +24,9 @@ type backgroundTasks struct {
 	// refused is the first call a scenario script asked for that the mock does not
 	// implement, in any run of the session, a sub-agent's too: it fails the run.
 	refused toolspec.Refusals
+	// endedAtLaunch holds the commands that ended before their own receipt was written: told of at the
+	// next tool, not the launching one.
+	endedAtLaunch sync.Map
 }
 
 func newBackgroundTasks() *backgroundTasks {

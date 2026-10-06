@@ -31,7 +31,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 	// the command with one combined stream, so stdout carries it all.
 	// sr:provides bash-tool-result/claude
 	structured := map[string]any{
-		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
+		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": text == "" && !failedRun && silentCommand(inp.Command),
 	}
 	if failedRun {
 		// A command that exits non-zero is answered the way claude 2.1.28x

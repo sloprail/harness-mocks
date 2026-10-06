@@ -83,6 +83,9 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 		return toolexec.Result{Output: fmt.Sprintf("Bash: %v", err), IsError: true}
 	}
 
+	if awaitReceipt(task) {
+		b.endedAtLaunch.Store(task, true)
+	}
 	endsWithFinal := cfg.SyncSubagent
 	parts := []string{"Command running in background with ID: " + id + ". Output is being written to: " + outFile + "."}
 	if endsWithFinal {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // foregroundTaskAfter is how long a foreground Bash command of the main agent runs before real Claude
@@ -50,5 +51,21 @@ func slowBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
 		if started {
 			writeTaskNotification(cfg, taskNote{ID: id, ToolUseID: call.ToolUseID, Status: map[bool]string{false: "completed", true: "failed"}[res.IsError], Summary: desc})
 		}
+	}
+}
+
+// receiptGrace is how long the receipt of a background command waits for it to end: one that ends within
+// it (an echo) has its frames streamed ahead of the receipt, one that outlasts it (even a `sleep 0.05`)
+// after it. Recorded: runs/midturn (an echo ended first), against 0.05 s, 0.1 s, 0.2 s, 0.5 s and 1 s
+// sleeps, which did not.
+const receiptGrace = 30 * time.Millisecond
+
+// awaitReceipt waits for the task to end, for as long as receiptGrace, and reports whether it did.
+func awaitReceipt(t *tasks.Task) bool {
+	select {
+	case <-t.Done():
+		return true
+	case <-time.After(receiptGrace):
+		return false
 	}
 }
