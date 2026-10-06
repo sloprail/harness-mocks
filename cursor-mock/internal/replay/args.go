@@ -12,6 +12,7 @@ var modelledFlags = map[string]bool{
 	"--print":        false,
 	"--plugin-dir":   true,
 	"--resume":       true,
+	"--model":        true,
 }
 
 // flagWords is the command-line words of a setup/args file, one word per line: each

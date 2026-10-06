@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "workspaceOpen": [
+      { "command": ".cursor/hooks/ran.sh open-match", "matcher": "workspaceOpen" },
+      { "command": ".cursor/hooks/ran.sh open-other", "matcher": "zzz-never" }
+    ],
+    "afterAgentThought": [
+      { "command": ".cursor/hooks/ran.sh thought-AgentThought", "matcher": "AgentThought" },
+      { "command": ".cursor/hooks/ran.sh thought-other", "matcher": "zzz-never" },
+      { "command": ".cursor/hooks/ran.sh thought-none" }
+    ],
+    "sessionEnd": [
+      { "command": ".cursor/hooks/ran.sh end-match", "matcher": "sessionEnd" },
+      { "command": ".cursor/hooks/ran.sh end-other", "matcher": "zzz-never" },
+      { "command": ".cursor/hooks/ran.sh end-none" }
+    ]
+  }
+}

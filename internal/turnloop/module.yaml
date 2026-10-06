@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
 # No core yet (internal/turnloop): the code lives in the claude-mock files below, until it moves.
 concern: "the turn: running the agent, the end-of-turn hook, re-prompting on a block, and the block cap"
-home: ["internal/turnloop/**", "claude-mock/internal/runner/stream.go", "claude-mock/internal/runner/stream_hook.go", "claude-mock/internal/runner/stream_turn.go", "codex-mock/internal/runner/turn_host.go", "cursor-mock/internal/runner/run.go", "cursor-mock/internal/runner/host.go"]   # everything about the concern lives here
+home: ["internal/turnloop/**", "cursor-mock/internal/runner/think.go", "claude-mock/internal/runner/stream.go", "claude-mock/internal/runner/stream_hook.go", "claude-mock/internal/runner/stream_turn.go", "codex-mock/internal/runner/turn_host.go", "cursor-mock/internal/runner/run.go", "cursor-mock/internal/runner/host.go"]   # everything about the concern lives here
 api: ["internal/turnloop"]       # the only packages others may import

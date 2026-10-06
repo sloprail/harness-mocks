@@ -1,0 +1,1 @@
+Read the file note.txt with your Read tool, then reply only DONE.
