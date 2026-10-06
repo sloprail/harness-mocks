@@ -34,7 +34,8 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			"first_content_frame_ms", "ttft_ms", "ttft_stream_ms", "time_to_request_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
 		},
 		// a sub-agent's spend and the model id its alias resolved to: there in both, their values the run's own
-		MaskKeys: []string{"totalTokens", "totalDurationMs", "resolvedModel"},
+		// and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
+		MaskKeys: []string{"totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{

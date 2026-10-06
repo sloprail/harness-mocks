@@ -68,11 +68,8 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 	if errors.As(ferr, &blockErr) && corehooks.BlocksSessionStart(corehooks.Blocked) {
 		return "", ferr
 	}
-	ac := promptContextFrom(ssOut)
-	if ac != "" {
-		emitSystemContext(cfg, "session_start", ac)
-	}
-	return ac, nil
+	// the context reaches the model and the transcript, never the stream (recorded: snapshots/runs/resume-session-start-ctx)
+	return promptContextFrom(ssOut), nil
 }
 
 // additionalContextFrom extracts the additionalContext a hook returned, if any.
@@ -92,21 +89,6 @@ func additionalContextFrom(out hooks.Output) string {
 		return out.HookSpecificOutput.AdditionalContext
 	}
 	return ""
-}
-
-// emitSystemContext writes a JSONL system record carrying additionalContext to the
-// output stream, mirroring how real Claude Code surfaces a hook's injected context
-// (e.g. a SessionStart compact re-seed). source identifies the originating hook.
-func emitSystemContext(cfg Config, source, additionalContext string) {
-	rec := map[string]any{
-		"type":              "system",
-		"subtype":           "hook_additional_context",
-		"source":            source,
-		"additionalContext": additionalContext,
-	}
-	if b, err := json.Marshal(rec); err == nil {
-		writeStreamLine(cfg, b)
-	}
 }
 
 // promptBlocked is what real Claude Code leaves behind when a UserPromptSubmit

@@ -1,7 +1,7 @@
 pin: 2.1.285
 docs:
   https://code.claude.com/docs/en/env-vars:
-    sha256: 961e45fd25bc97f386ccab9c41d1b9950c4ab072d0f1a3a7ca4f8c50744b4760
+    sha256: 2af05ab61b572507726c30a9529d51f445cb314659e16ed481b54fe1bfbcb36e
     fetched: "2026-10-06"
   https://code.claude.com/docs/en/hooks:
     sha256: 4fb83742d4267c6159a578a95fe3e1c5097b7366ecfda8e7320303e6d8068719

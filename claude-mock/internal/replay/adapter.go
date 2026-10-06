@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -129,16 +128,13 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 			return nil, nil, "", "", fmt.Errorf("prepare.sh: %v %s", err, res.Stderr)
 		}
 	}
-	res, err := procexec.Run(ctx, procexec.Spec{
-		Argv: append([]string{mock, "-p", "--model", "haiku", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
-			"--script", filepath.Join(work, "main.sh"), "--session-id", sessionID}, append(strings.Fields(rec.Setup["args"]), s.Prompt)...),
-		Dir: repo, Env: env, Timeout: 3 * time.Minute})
-	if err != nil || res.ExitCode != wantExit(rec) || res.TimedOut {
-		return nil, nil, "", "", &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
+	stdout, err := runSteps(ctx, mock, s, rec, work, repo, env)
+	if err != nil {
+		return nil, nil, "", "", err
 	}
 	hookLog, _ := os.ReadFile(filepath.Join(work, "hook.log"))
 
-	mockStream, err := parseJSONL(string(res.Stdout), false)
+	mockStream, err := parseJSONL(stdout, false)
 	if err != nil {
 		return nil, nil, "", "", fmt.Errorf("the mock's stream: %w", err)
 	}

@@ -1,0 +1,2 @@
+{"session_id":"3cc2a5cf-db09-4636-8444-89124fadd288","transcript_path":"<TMP>/home/.claude/projects/<RUN_DIRNAME>/3cc2a5cf-db09-4636-8444-89124fadd288.jsonl","cwd":"<RUN>","hook_event_name":"SessionStart","source":"startup"}
+{"session_id":"3cc2a5cf-db09-4636-8444-89124fadd288","transcript_path":"<TMP>/home/.claude/projects/<RUN_DIRNAME>/3cc2a5cf-db09-4636-8444-89124fadd288.jsonl","cwd":"<RUN>","hook_event_name":"SessionStart","source":"resume","seconds_since_last_response":2,"context_tokens":22396,"prompt_cache_likely_expired":false,"estimated_cache_write_usd":0.0448}

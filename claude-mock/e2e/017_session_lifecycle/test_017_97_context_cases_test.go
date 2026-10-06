@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,7 +31,7 @@ func contextKinds(t *testing.T, recs []rec) (out [][3]string) {
 // sub-agent called is added to the sub-agent's own transcript (its records marked
 // isSidechain, with the sub-agent's agentId), after the hook_success for that
 // call and under that call's name; the main thread's transcript holds the context
-// for the Agent call alone (recording subagent-post-ctx).
+// for the Agent call alone (recording subagent-post-ctx, which the test reads).
 // sr:proves hook-additional-context/claude
 func TestT017_98_SubagentPostToolUseContext(t *testing.T) {
 	dir := t.TempDir()
@@ -57,6 +56,23 @@ printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext"
 	recs := readRecs(t, files[0])
 	agentID := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(files[0]), "agent-"), ".jsonl")
 	assert.Equal(t, [][3]string{{agentID, "PostToolUse:Bash", "POST-CTX-sub"}}, contextKinds(t, recs))
+	// as recorded: the same two places, the same hook names, the sub-agent's own records marked
+	runs := "../../snapshots/runs/subagent-post-ctx/samples/*/transcript/"
+	recMain := readRecs(t, recordedFile(t, runs+"*.jsonl"))
+	recSub := readRecs(t, recordedFile(t, runs+"*/subagents/agent-*.jsonl"))
+	names := func(kinds [][3]string) (out []string) {
+		for _, k := range kinds {
+			out = append(out, k[1])
+		}
+		return
+	}
+	assert.Equal(t, names(contextKinds(t, recMain)), names(got))
+	assert.Equal(t, names(contextKinds(t, recSub)), names(contextKinds(t, recs)))
+	for _, r := range recSub {
+		if r.Attachment["type"] == "hook_additional_context" {
+			assert.True(t, r.IsSidechain)
+		}
+	}
 	for _, r := range recs {
 		if r.Attachment["type"] == "hook_additional_context" {
 			assert.True(t, r.IsSidechain, "the sub-agent's own record")
@@ -67,7 +83,7 @@ printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext"
 
 // TestT017_99_SessionStartContextOnResume: a SessionStart hook's context is added again
 // when a session is resumed: the transcript holds one for the first start (source
-// startup) and one for the resume, in order.
+// startup) and one for the resume, in order, as the recording resume-session-start-ctx shows.
 // sr:proves hook-additional-context/claude
 func TestT017_99_SessionStartContextOnResume(t *testing.T) {
 	dir := t.TempDir()
@@ -81,10 +97,8 @@ printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext
 		out, code := runInDir(t, dir, nil, append([]string{"--script", script(t, dir, "s"), "--project-dir", dir, "--config-dir", cfg}, args...)...)
 		require.Equal(t, 0, code, out)
 	}
-	_, err := os.Stat(transcriptPath(t, cfg, dir, "rs-1"))
-	require.NoError(t, err)
-	assert.Equal(t, [][3]string{
-		{"", "SessionStart", "START-CTX-startup"},
-		{"", "SessionStart", "START-CTX-resume"},
-	}, contextKinds(t, readRecs(t, transcriptPath(t, cfg, dir, "rs-1"))))
+	want := [][3]string{{"", "SessionStart", "START-CTX-startup"}, {"", "SessionStart", "START-CTX-resume"}}
+	recorded := readRecs(t, recordedFile(t, "../../snapshots/runs/resume-session-start-ctx/samples/*/transcript/*.jsonl"))
+	assert.Equal(t, want, contextKinds(t, recorded), "recorded")
+	assert.Equal(t, want, contextKinds(t, readRecs(t, transcriptPath(t, cfg, dir, "rs-1"))))
 }
