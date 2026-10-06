@@ -40,7 +40,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// STDOUT stream is written directly with cfg.Out and is NOT chained (it must
 	// stay the mock's claude stream).
 	if cfg.bg == nil {
-		cfg.bg = newBackgroundTasks()
+		cfg.bg, cfg.steps = newBackgroundTasks(), newAgentSteps(nil)
 		defer cfg.bg.Shutdown()
 	}
 	if cfg.wake == nil {

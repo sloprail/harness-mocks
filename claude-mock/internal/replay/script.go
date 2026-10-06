@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // mockCall is Claude's name for a unified call; the input is copied, as the
@@ -43,12 +44,12 @@ func mockCall(c core.Call) scriptCall {
 // file of its own. The mock runs the script once per tool call and the session
 // file holds the results so far, so the script's n-th run makes the n-th call.
 // Call ids are unique across the run's scripts (tag), as the real ones are.
-func script(tag string, calls []scriptCall, final, extra string, skip int) string {
+func script(tag string, calls []scriptCall, final, extra string, skip int, finalGate scenario.Gate) string {
 	lines := make([]string, 0, len(calls)+1)
 	for i, c := range calls {
 		lines = append(lines, callLine(fmt.Sprintf("toolu_%s%d", tag, i), c))
 	}
-	lines = append(lines, finalLines(final, extra))
+	lines = append(lines, gateLine(finalGate)+finalLines(final, extra))
 	return fmt.Sprintf(`#!/bin/sh
 n=$(grep -c -e '"type":"tool_result"' -e '"turnOrigin":"task_notification"' -e '"isCompactSummary":true' -e '"content":"Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
 sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'

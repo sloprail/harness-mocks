@@ -7,9 +7,7 @@ package e2e
 // the recording shows (each gap is a PR of its own).
 var notReplaying = map[string]string{
 	"bgagent":                  "adapter: the model said two things before one call: the adapter keeps one",
-	"bgagent-concurrent-limit": "adapter: the setup has env, which the adapter does not install",
-	"bgagent-definition":       "adapter: the model said two things before one call: the adapter keeps one",
+	"bgagent-concurrent-limit": "mock gap: the sub-agent's Bash starts (task_started) before the main agent's next answer streams, where the recording has it after; SubagentStart's hook line precedes the launch's PostToolUse, where the recording (a race between two concurrent hooks) has it after",
 	"bgagent-nested-launcher":  "adapter: the model said two things before one call: the adapter keeps one",
 	"fgsub-maxturns":           "adapter: the model called SendMessage: the adapter maps Bash and Agent",
-	"nested-fork-limit":        "adapter: the setup has env, which the adapter does not install",
 }

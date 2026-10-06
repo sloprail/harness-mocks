@@ -86,7 +86,7 @@ func writeStreamLine(cfg Config, line []byte) {
 	buf = append(append(buf, line...), '\n')
 	cfg.Out.Write(buf) //nolint:errcheck
 	// a sub-agent's own messages also stream, to the session's stream, where the run's output is captured
-	if cfg.AgentID != "" && cfg.stream != nil && isMessageFrame(line) {
+	if cfg.AgentID != "" && cfg.stream != nil && isMessageFrame(line, cfg.background) {
 		cfg.stream.Write(buf) //nolint:errcheck
 	}
 }

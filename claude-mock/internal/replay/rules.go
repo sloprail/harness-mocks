@@ -51,6 +51,9 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
 			// when a scheduled wakeup falls: the wall clock and the seconds to the next minute's boundary
 			{Re: re(`scheduled for \d\d:\d\d:\d\d \(in \d+s\)`), With: "scheduled for <TIME> (in <N>s)"},
+			// the same in a task notification's <usage> element
+			{Re: re(`<subagent_tokens>\d+</subagent_tokens>`), With: "<subagent_tokens><MASKED></subagent_tokens>"},
+			{Re: re(`<duration_ms>\d+</duration_ms>`), With: "<duration_ms><MASKED></duration_ms>"},
 			// the same, as a command prints its environment: the pid, the socket named for it, the secret (the capture redacts it), the executable's path
 			{Re: re(`CLAUDE_PID=\d+`), With: "CLAUDE_PID=<MASKED>"},
 			{Re: re(`cc-socks/\d+\.sock`), With: "cc-socks/<MASKED>.sock"},

@@ -45,6 +45,8 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SidechainPath:           s.sidechain,
 		ParentTranscriptPath:    s.parentReported,
 		bg:                      bg,
+		steps:                   newAgentSteps(s.parent.steps),
+		background:              s.background,
 		wake:                    s.parent.wake,
 		stream:                  s.parent.stream,
 		sessionFile:             s.sessionFile,
@@ -55,8 +57,8 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 	}
 	if !s.announced && !s.background && s.spawnDepth <= 1 { // no prompt frame for a re-run after a blocking SubagentStop (hookmix), a background sub-agent (bgagent) or a nested one (meta)
 		subCfg.announce(subCfg, prompt)
-		s.announced = true
 	}
+	s.announced = true
 	s.startFrames.finish(s.parent)
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {

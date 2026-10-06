@@ -1,5 +1,7 @@
 package replay
 
+import "github.com/sloprail/harness-mocks/internal/scenario"
+
 // Scenario is what the mock is given to replay a recording: the run's own
 // setup (its settings, its hook command, its prompt) and the scenario script
 // that makes the model's calls, in the format the mock takes of any scenario.
@@ -39,4 +41,6 @@ type scriptCall struct {
 	Early   []string       `json:"-"` // what the model said before Text
 	Control bool           `json:"-"` // a control record of the mock (a compaction): Input is the record
 	Input   map[string]any `json:"input"`
+	// Gate is what must have happened before the step is taken (core.Gates).
+	Gate scenario.Gate `json:"-"`
 }

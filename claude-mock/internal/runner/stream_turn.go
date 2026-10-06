@@ -40,40 +40,23 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{}, waitErr
 	}
 	pending := sc.pending
+	if pending.ToolName != "" { // the call's result is given when this turn is over: what another agent's gate may wait for
+		defer cfg.steps.finished()
+	}
 	if cfg.AgentID == "" && (pending.ToolName != "" || sc.lastText != "") {
 		bg.run.turn()
 	}
 	if pending.ToolName == "" {
 		if sc.done || sc.compactSig == "" {
-			return turnResult{done: true, lastText: sc.lastText, resultLine: withSubagentStats(sc.resultLine, bg)}, nil
+			return turnResult{done: true, lastText: sc.lastText, resultLine: sc.resultLine}, nil
 		}
 		// The invocation compacted the context and stopped: the turn goes on
 		// after a compaction, so the script runs again.
 		return turnResult{sig: sc.compactSig, lastText: sc.lastText}, nil
 	}
 
-	// Input the tool cannot take: its tool_use_error is the result, and the
-	// turn goes on; no hook fires (recorded: runs/tool-invalid-input).
-	if pending.Invalid != nil {
-		if err := emitToolResult(cfg, pending, *pending.Invalid, tr); err != nil {
-			return turnResult{}, err
-		}
-		return turnResult{sig: "invalid:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
-	}
-	// PreToolUse REFUSED this tool call — an exit-0 permissionDecision deny, or an exit 2. The
-	// tool does not run and no PostToolUse fires; the refusal is the tool_result, "PreToolUse:<Tool>
-	// hook error: <reason>" (an exit 2's reason is "[<command>]: <stderr>"), and the turn goes on
-	// (claude 2.1.282). The loop guard signature is the blocked tool_use, so a re-emitted call is bounded.
-	// sr:docs https://code.claude.com/docs/en/hooks#pretooluse
-	if pending.Blocked {
-		text := "PreToolUse:" + pending.ToolName + " hook error: " + pending.BlockReason
-		blockRes := toolexec.Result{Output: text, IsError: true, ToolUseResult: "Error: " + text, NonExecution: "permission-rule"}
-		if err := emitToolResult(cfg, pending, blockRes, tr); err != nil {
-			return turnResult{}, err
-		}
-		bg.run.deny(pending)
-		bg.deliverMidTurn(ctx, cfg, inv, tr)
-		return turnResult{sig: "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
+	if res, refused, err := answerRefusedCall(ctx, cfg, inv, tr, bg, sc); refused || err != nil {
+		return res, err
 	}
 
 	if err := refuseBackgroundHookFrames(cfg, inv, pending); err != nil {

@@ -24,6 +24,10 @@ type cliRecord struct {
 	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	IsCompactSummary bool `json:"isCompactSummary,omitempty"`
 
+	// Gate, on a mock-only {"type":"gate","gate":{…}} control record, is what must have happened before
+	// the step the record leads is taken (scenario.Gate); never forwarded.
+	Gate *scenario.Gate `json:"gate,omitempty"`
+
 	// result frame fields
 	Result string   `json:"result,omitempty"`
 	Errors []string `json:"errors,omitempty"`
@@ -97,6 +101,7 @@ var knownTypes = map[string]bool{
 	"worktree_remove": true,
 	"subagent_start":  true,
 	"compact":         true,
+	"gate":            true,
 }
 
 // validateRecord ensures the JSONL line is parseable JSON with a non-empty "type"

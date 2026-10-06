@@ -3,6 +3,8 @@ package replay
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // finalLines is what the script prints to end: the answer and the result, which
@@ -60,7 +62,7 @@ func callLine(id string, c scriptCall) string {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": e}))
 	}
 	if c.Name == "" { // an answer that ends a turn the harness goes on from: the text and the result that ends the turn
-		return strings.Join(append(parts, finalLines(c.Reply, "")), "\x01")
+		return gateLine(c.Gate) + strings.Join(append(parts, finalLines(c.Reply, "")), "\x01")
 	}
 	if c.Text != nil {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": *c.Text}))
@@ -70,5 +72,15 @@ func callLine(id string, c scriptCall) string {
 		frame = append(frame, map[string]any{"mock_gate": map[string]any{"receipt_after_end": true}})
 	}
 	parts = append(parts, assistantFrame(map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}, frame...))
-	return strings.Join(parts, "\x01")
+	return gateLine(c.Gate) + strings.Join(parts, "\x01")
+}
+
+// gateLine is the control line that holds the step back until what its gate names has happened
+// (scenario.Gate), with the byte that joins the step's lines after it; empty when the step waits for nothing.
+func gateLine(g scenario.Gate) string {
+	if g.None() {
+		return ""
+	}
+	b, _ := json.Marshal(map[string]any{"type": "gate", "gate": g})
+	return string(b) + "\x01"
 }

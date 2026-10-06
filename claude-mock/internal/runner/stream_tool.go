@@ -92,7 +92,7 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 	for k, v := range record {
 		frame[k] = v
 	}
-	if res.ToolUseResult != nil && cfg.AgentID == "" { // a sub-agent's result frames carry none (recorded: runs/isolated-worktree)
+	if res.ToolUseResult != nil && (cfg.AgentID == "" || res.IsError) { // a sub-agent's result frames carry none, unless it is an error (recorded: runs/isolated-worktree, nested-fork-limit)
 		frame["tool_use_result"] = res.ToolUseResult
 	}
 	if res.NonExecution != "" {
