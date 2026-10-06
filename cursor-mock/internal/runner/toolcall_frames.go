@@ -30,7 +30,9 @@ func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]a
 		}
 	}
 	body := map[string]any{"args": args}
-	if _, rejected := result["rejected"]; rejected && c.Kind == "shellToolCall" {
+	if _, failed := result["error"]; failed && (c.Kind == "readToolCall" || c.Kind == "editToolCall") {
+		body = map[string]any{} // a file call that failed or was refused is reported by its result alone (recorded: runs/tool-failure, runs/pretool-refusal-file-tools, runs/before-read-refusal)
+	} else if _, rejected := result["rejected"]; rejected && c.Kind == "shellToolCall" {
 		body = map[string]any{} // a command a hook refused is reported by its result alone (recorded: runs/pretool-refusal)
 	} else if c.Kind == "shellToolCall" && c.Described != "" { // the model's description sits beside the args too
 		body["description"] = c.Described
@@ -81,12 +83,7 @@ func rejectedFrame(session, id string, c toolexec.Call, reason string, contexts 
 		return toolFrame(session, id, "completed", c, map[string]any{
 			"error": map[string]any{"path": "", "error": reason, "modelVisibleError": reason}}, contexts)
 	case "readToolCall":
-		// a blocked read's completed frame carries no args, only the error
-		// (recorded: runs/before-read-refusal, runs/before-read-timeout)
-		return jsonLine(map[string]any{
-			"type": "tool_call", "subtype": "completed", "call_id": id, "session_id": session,
-			"tool_call": envelope(map[string]any{c.Kind: map[string]any{"result": map[string]any{"error": map[string]any{"errorMessage": reason}}}}, id, contexts),
-		})
+		return errorFrame(session, id, c, reason, contexts)
 	}
 	rejected := map[string]any{"reason": reason, "isReadonly": false}
 	if c.Kind == "shellToolCall" {
