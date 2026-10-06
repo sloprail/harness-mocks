@@ -7,20 +7,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sloprail/harness-mocks/codex-mock/internal/unimplemented"
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
-
-// refusedFlags are the flags of `codex exec` that the mock takes only to refuse (codex-mock/unimplemented.go).
-var refusedFlags = map[string]bool{"--enable": true, "--disable": true, "--output-last-message": true, "-o": true,
-	"--output-schema": true, "--thread-source": true, "--sandbox": true, "-s": true, "--profile": true, "-p": true,
-	"--color": true, "--ignore-user-config": true, "--ignore-rules": true, "--strict-config": true, "--approve-for-me": true}
 
 // refusedFlagIn is the first flag of a recorded run's args that the mock refuses, and the args as words.
 func refusedFlagIn(args string) (flag string, words []string) {
 	words = strings.Fields(args)
 	for _, w := range words {
-		if refusedFlags[w] {
+		if unimplemented.Is(w) {
 			return w, words
 		}
 	}
