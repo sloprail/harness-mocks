@@ -2,8 +2,10 @@ package toolexec
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -83,7 +85,7 @@ func TestAScriptsToolCallBecomesACursorCall(t *testing.T) {
 	}
 }
 
-func TestAGrepOfAPatternAloneRuns(t *testing.T) {
+func TestAGrepWithAnyParameterButThePatternFails(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("NEEDLE\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -91,6 +93,10 @@ func TestAGrepOfAPatternAloneRuns(t *testing.T) {
 	ok := Execute(context.Background(), FromScript("Grep", []byte(`{"pattern":"NEEDLE"}`)), dir, nil)
 	if ok.Failed {
 		t.Fatalf("a Grep of a pattern alone failed: %s", ok.ErrorMessage)
+	}
+	r := Execute(context.Background(), FromScript("Grep", []byte(`{"pattern":"NEEDLE","path":"sub","-i":true}`)), dir, nil)
+	if !r.Failed || !strings.Contains(r.ErrorMessage, "-i, path is not modeled") {
+		t.Fatalf("a Grep with a path and -i: failed %v, %q", r.Failed, r.ErrorMessage)
 	}
 }
 
@@ -119,5 +125,35 @@ func TestAStrReplaceEditsTheFileAndTheHooksSeeTheWholeFile(t *testing.T) {
 	again := Execute(context.Background(), FromScript("Edit", []byte(`{"file_path":"note.txt","old_string":"zzz","new_string":"x"}`)), dir, nil)
 	if !again.Failed {
 		t.Fatal("an old text that is not in the file must fail the call")
+	}
+}
+
+// A read reports content_length in characters the way the harness does (UTF-16
+// units), not in bytes: a file with a non-ASCII character is shorter by the
+// difference (recorded: runs/schedule-wakeup-ask).
+func TestReadContentLengthCountsCharacters(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "f.txt"), []byte("a—b\n"), 0o644); err != nil { // an em dash is 3 bytes, 1 character
+		t.Fatal(err)
+	}
+	r := Execute(context.Background(), FromScript("Read", json.RawMessage(`{"file_path":"f.txt"}`)), dir, nil)
+	var out struct {
+		ContentLength int `json:"content_length"`
+	}
+	if err := json.Unmarshal([]byte(r.ToolOutput), &out); err != nil || out.ContentLength != 4 {
+		t.Fatalf("content_length = %d (%v), want 4 characters", out.ContentLength, err)
+	}
+}
+
+func TestACommandUsingTheHarnessRipgrepIsRefused(t *testing.T) {
+	for _, cmd := range []string{`"$CURSOR_RIPGREP_PATH" foo .`, `~/.local/share/cursor-agent/versions/1/rg foo`} {
+		r := Execute(context.Background(), Call{Kind: "shellToolCall", Args: map[string]any{"command": cmd}}, t.TempDir(), nil)
+		if _, ok := r.NotModeled(); !ok {
+			t.Errorf("%q was not refused: %+v", cmd, r)
+		}
+	}
+	r := Execute(context.Background(), Call{Kind: "shellToolCall", Args: map[string]any{"command": "echo CURSOR_AGENT"}}, t.TempDir(), nil)
+	if _, ok := r.NotModeled(); ok {
+		t.Errorf("an ordinary command was refused")
 	}
 }

@@ -54,6 +54,8 @@ type Task struct {
 	Result, Failure string
 	ToolUses        int
 	DurationMs      int64
+	// StoppedAtTurns is the turn limit an Agent stopped at, 0 when it did not.
+	StoppedAtTurns int
 
 	done      chan struct{}
 	killed    atomic.Bool

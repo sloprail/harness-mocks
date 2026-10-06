@@ -5,6 +5,26 @@ import (
 	"strings"
 )
 
+// promptAt is where, from `from` on, the transcript holds this prompt: the user message of it. A
+// slash command is recorded as a <command-name> message after what the command did, so a compaction
+// (/compact) is found from its compact_boundary, one record ahead of which the run's records begin.
+func promptAt(recs []map[string]any, from int, prompt string) int {
+	for j := from; j < len(recs); j++ {
+		if !isPrompt(recs[j], prompt) {
+			continue
+		}
+		if strings.HasPrefix(prompt, "/") {
+			for k := j; k >= from; k-- {
+				if recs[k]["type"] == "system" && recs[k]["subtype"] == "compact_boundary" {
+					return k - 1
+				}
+			}
+		}
+		return j
+	}
+	return -1
+}
+
 // isPrompt is whether a transcript record is the user's message of this prompt.
 func isPrompt(rec map[string]any, prompt string) bool {
 	if rec["type"] != "user" {
@@ -12,6 +32,9 @@ func isPrompt(rec map[string]any, prompt string) bool {
 	}
 	msg, _ := rec["message"].(map[string]any)
 	if s, ok := msg["content"].(string); ok {
+		if strings.HasPrefix(prompt, "/") {
+			return strings.Contains(s, "<command-name>"+strings.Fields(prompt)[0]+"</command-name>")
+		}
 		return strings.TrimSpace(s) == prompt
 	}
 	blocks, _ := msg["content"].([]any)
@@ -33,12 +56,7 @@ func stepRecords(specs []stepSpec, threads []string, sessions map[string][]map[s
 		if l, seen := last[threads[i]]; seen {
 			from = l + 1
 		}
-		at[i] = -1
-		for j := from; j < len(recs) && at[i] < 0; j++ {
-			if isPrompt(recs[j], sp.prompt) {
-				at[i] = j
-			}
-		}
+		at[i] = promptAt(recs, from, sp.prompt)
 		if at[i] < 0 {
 			return nil, unbuildable(fmt.Errorf("run %d: its prompt is not in the transcript of session %s", i, threads[i]))
 		}

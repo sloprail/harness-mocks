@@ -18,6 +18,9 @@ import (
 // sr:provides bash-tool-result/cursor
 // sr:docs https://cursor.com/docs/hooks#aftershellexecution
 func shell(ctx context.Context, c Call, dir string, env []string) Result {
+	if r, refused := RefusesRipgrep(c); refused {
+		return r
+	}
 	cwd := dir
 	if wd := c.str("workingDirectory"); wd != "" {
 		cwd = wd
@@ -27,7 +30,7 @@ func shell(ctx context.Context, c Call, dir string, env []string) Result {
 	took := time.Since(start)
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": c.str("workingDirectory"), "exitCode": res.ExitCode, "signal": "",
-		"stdout": res.Stdout, "stderr": res.Stderr, "executionTime": took.Milliseconds(), "interleavedOutput": res.Output,
+		"stdout": res.Stdout, "stderr": res.Stderr, "executionTime": max(took.Milliseconds(), 1), "localExecutionTimeMs": max(took.Milliseconds(), 1), "interleavedOutput": res.Output,
 	}
 	r := Result{Output: res.Output, Took: took, ToolOutput: jsonString(struct {
 		Output   string `json:"output"`
@@ -44,4 +47,17 @@ func shell(ctx context.Context, c Call, dir string, env []string) Result {
 		r.ErrorMessage = fmt.Sprintf("Command failed with exit code %d", res.ExitCode)
 	}
 	return r
+}
+
+// RefusesRipgrep refuses a command that names the harness's ripgrep: the
+// shell sees CURSOR_RIPGREP_PATH as recorded, but the mock has no ripgrep at
+// that path, so a command that uses it is not run (fail fast, not a missing
+// binary run silently).
+func RefusesRipgrep(c Call) (Result, bool) {
+	cmd := c.Command()
+	if !strings.Contains(cmd, "CURSOR_RIPGREP_PATH") && !strings.Contains(cmd, "/.local/share/cursor-agent/") {
+		return Result{}, false
+	}
+	msg := NotModeledPrefix + "the harness's ripgrep (CURSOR_RIPGREP_PATH) is not modeled: a command that uses it is refused"
+	return failed(msg, msg), true
 }

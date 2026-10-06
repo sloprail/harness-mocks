@@ -1,6 +1,7 @@
 package toolexec
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/sloprail/harness-mocks/internal/tools"
@@ -21,7 +22,7 @@ type writeInput struct {
 // an overwrite (recorded: snapshots/runs/file-tools).
 //
 // sr:provides file-tools/claude
-func executeWrite(raw json.RawMessage, cwd string) Result {
+func executeWrite(ctx context.Context, raw json.RawMessage, cwd, sessionID string) Result {
 	var inp writeInput
 	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
 		return Result{Output: "Write: missing or invalid 'file_path' field", IsError: true}
@@ -38,6 +39,7 @@ func executeWrite(raw json.RawMessage, cwd string) Result {
 		structured["type"], structured["originalFile"], structured["structuredPatch"] = "update", old, patchOf(old, inp.Content)
 		text = "The file " + path + " has been updated successfully."
 	}
+	setKnown(ctx, sessionID, path, true)
 	return Result{Output: text + fileStateNote, ToolUseResult: structured}
 }
 

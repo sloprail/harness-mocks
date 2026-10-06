@@ -46,9 +46,11 @@ func (Adapter) Script(rec core.Recording) (string, error) {
 	return out, nil
 }
 
-// Replay runs the mock on rec's scenario in a hermetic repository, and returns
-// the recording's event stream and hook payloads with the mock's, normalised.
+// Replay runs the mock on rec's scenario in a hermetic repository and returns the recording's output and the mock's.
 func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed, err error) {
+	if rec.Setup["refused-flag"] != "" { // a flag the mock refuses: replayed as the check that it does
+		return core.Observed{Checked: true}, core.Observed{Checked: true}, checkRefusal(mock, rec, a.Environ)
+	}
 	s := Denormalize(rec)
 	root, err := os.MkdirTemp("", "codex-replay-*")
 	if err != nil {
@@ -62,16 +64,17 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 	}
-	// hermetic but for the tools (sh, git, jq) the hooks use: no CODEX_* or CLAUDE* variable of ours reaches the mock
-	env := []string{"CODEX_HOME=" + home, "TMPDIR=" + tmp, "HOOK_LOG=" + filepath.Join(tmp, "hook.log")}
+	// hermetic as a capture is (env -i PATH HOME CODEX_HOME USER LANG TERM TMPDIR HOOK_LOG): nothing else of ours reaches the mock
+	env := []string{"HOME=" + filepath.Dir(home), "CODEX_HOME=" + home, "TMPDIR=" + tmp, "HOOK_LOG=" + filepath.Join(tmp, "hook.log")}
 	for _, kv := range a.Environ {
-		if !strings.HasPrefix(kv, "CODEX") && !strings.HasPrefix(kv, "CLAUDE") && !strings.HasPrefix(kv, "TMPDIR=") {
+		if k, _, _ := strings.Cut(kv, "="); k == "PATH" || k == "USER" || k == "LANG" || k == "TERM" {
 			env = append(env, kv)
 		}
 	}
+	env = append(env, s.Env...) // what the recorded run was also given (setup/env)
 	ctx := context.Background()
 	// the scratch repository a recording was made in: branch main, one empty commit, "init" (capture.sh; the host's default branch name is not behaviour)
-	for _, argv := range [][]string{{"init", "-q", "-b", "main"}, {"-c", "user.name=replay", "-c", "user.email=replay@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "init"}} {
+	for _, argv := range gitSetup(s.NoGit) {
 		if res, err := procexec.Run(ctx, procexec.Spec{Argv: append([]string{"git", "-C", repo}, argv...), Env: env}); err != nil || res.ExitCode != 0 {
 			return want, got, fmt.Errorf("git %s: %v %s", argv[len(argv)-1], err, res.Stderr)
 		}
@@ -81,8 +84,16 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 	}
+	if err := writeProjectHooks(repo, s.ProjectHooksJSON); err != nil {
+		return want, got, err
+	}
 	for name, body := range s.Files {
 		if err := os.WriteFile(filepath.Join(repo, name), []byte(inRepo(name, body, repo)), 0o755); err != nil {
+			return want, got, err
+		}
+	}
+	if s.Prepare != "" {
+		if err := prepare(ctx, s.Prepare, root, repo, home, env); err != nil {
 			return want, got, err
 		}
 	}
@@ -102,20 +113,20 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	hookLog, _ := os.ReadFile(filepath.Join(tmp, "hook.log"))
 
 	// the mock's output is compared with every sample of the recording, each under a header
-	mockStream, err := parseJSONL(stdout)
+	mockStream, err := parseStream(stdout, s.CmdFlags)
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's stream: %w", err)
 	}
-	mockHooks, err := parseJSONL(string(hookLog))
+	mockHooks, err := parseHooks(string(hookLog))
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's hook log: %w", err)
 	}
 	for _, sample := range sampleDirs(rec.Dir) {
-		recStream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
+		recStream, err := eventStream(sample, s.CmdFlags)
 		if err != nil {
 			return want, got, err
 		}
-		recHooks, err := readJSONL(filepath.Join(sample, "payloads.jsonl"))
+		recHooks, err := parseHooks(readFile(filepath.Join(sample, "payloads.jsonl")))
 		if err != nil {
 			return want, got, err
 		}
@@ -125,17 +136,4 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		want.Hooks, got.Hooks = append(append(want.Hooks, header), w.Hooks...), append(append(got.Hooks, header), g.Hooks...)
 	}
 	return want, got, nil
-}
-
-// observe is a recording's event stream and hook payloads with the mock's, each
-// side canonicalised under rules, the event stream first: it names the ids in a fixed order.
-func observe(rules core.Rules, async map[string]bool, recStream, recHooks, mockStream, mockHooks []map[string]any) (want, got core.Observed) {
-	wantC, gotC := core.New(rules), core.New(rules)
-	want.Events, got.Events = wantC.Lines(recStream), gotC.Lines(mockStream)
-	want.Hooks, got.Hooks = wantC.Lines(recHooks), gotC.Lines(mockHooks)
-	// hooks of one event run at the same time, so the order they log in is not the behaviour:
-	// the order of the groups of hooks that run together is (hookorder.go)
-	want.Hooks = sortWithinGroups(want.Hooks, concurrentGroups(recHooks, async))
-	got.Hooks = sortWithinGroups(got.Hooks, concurrentGroups(mockHooks, async))
-	return want, got
 }

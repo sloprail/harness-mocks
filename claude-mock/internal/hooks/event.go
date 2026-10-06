@@ -70,13 +70,15 @@ type Input struct {
 	AgentID       string    `json:"agent_id,omitempty"`
 	AgentType     string    `json:"agent_type,omitempty"`
 	HookEventName EventName `json:"hook_event_name"`
-	SessionTitle  string    `json:"session_title,omitempty"` // a named session's resume start (snapshots/runs/resume-name)
 
 	// SessionStart: Source is "startup" | "resume" | "clear" | "compact" |
 	// "fork". Verified against claude 2.1.282: a `--resume <id> --fork-session`
 	// run fires SessionStart with source "fork" (docs: SessionStart input).
 	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	Source string `json:"source,omitempty"`
+	// SessionTitle is a named session's resume start (recorded: snapshots/runs/resume-name), written
+	// after source and before the resume fields.
+	SessionTitle string `json:"session_title,omitempty"`
 	// ResumeFields are a resumed session's: what the resume costs and how stale it is.
 	*ResumeFields
 	Model string `json:"model,omitempty"`
@@ -91,6 +93,8 @@ type Input struct {
 	// Code payload names this field "prompt" (NOT "user_prompt").
 	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
 	Prompt string `json:"prompt,omitempty"`
+	// PromptTitle is the title of a named session a prompt is submitted to, written last (see MarshalJSON).
+	PromptTitle string `json:"-"`
 
 	// Stop / SubagentStop. Real Claude Code sends stop_hook_active (false
 	// included), last_assistant_message, background_tasks and session_crons on

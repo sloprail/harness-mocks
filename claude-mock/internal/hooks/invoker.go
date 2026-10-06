@@ -38,6 +38,10 @@ type Invoker struct {
 	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
 	transcriptPath string
 	scratchpadDir  string
+	// configDir is the harness's config directory, which holds the session's env files (CLAUDE_ENV_FILE).
+	configDir string
+	// sessionTitle is the name of the session a resume found by its name; a UserPromptSubmit carries it.
+	sessionTitle string
 
 	// recorder, when set, is handed every handler's run — what the harness then
 	// writes into the transcript as a hook attachment record.
@@ -85,6 +89,13 @@ func (inv *Invoker) Denied(tool string, input json.RawMessage) (string, bool) {
 
 // SetScratchpadDir sets the scratchpad_dir every payload carries ("" for a session that has none).
 func (inv *Invoker) SetScratchpadDir(dir string) { inv.scratchpadDir = dir }
+
+// SetConfigDir sets the config directory a SessionStart hook's CLAUDE_ENV_FILE is under.
+func (inv *Invoker) SetConfigDir(dir string) { inv.configDir = dir }
+
+// SetSessionTitle sets the title of the named session this run resumed, which its prompts carry
+// (recorded: snapshots/runs/resume-name).
+func (inv *Invoker) SetSessionTitle(title string) { inv.sessionTitle = title }
 
 // TranscriptPath is the transcript_path payloads carry by default.
 func (inv *Invoker) TranscriptPath() string { return inv.transcriptPath }

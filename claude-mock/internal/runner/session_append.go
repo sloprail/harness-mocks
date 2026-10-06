@@ -62,7 +62,11 @@ func openRunTranscript(cfg Config) (*transcript, error) {
 			return openTranscript(r.Path, r.Reported, stamp)
 		}
 	}
-	return openTranscript(here, here, stamp)
+	tr, err := openTranscript(here, here, stamp)
+	if tr != nil {
+		tr.name = cfg.Name
+	}
+	return tr, err
 }
 
 // writeRootPrompt writes a FRESH session's prompt as the human turn it is,
@@ -80,7 +84,7 @@ func writeRootPrompt(tr *transcript, sessionID, cwd, prompt string) {
 	}
 	rootID := "e2e-root-" + sessionID
 	if tr.exists() && fileHasUUID(tr.path, rootID) {
-		seedPreamble(tr.file(), sessionID)
+		seedPreamble(tr.file(), sessionID, tr.name)
 		return
 	}
 	rec := map[string]any{

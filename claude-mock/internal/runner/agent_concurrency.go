@@ -16,7 +16,7 @@ import (
 //
 // sr:provides background-agent/claude
 func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
-	limit := subagents.DefaultConcurrentLimit
+	limit := concurrentLimit(cfg)
 	running := 0
 	if cfg.bg != nil {
 		for _, t := range cfg.bg.Running() {
@@ -31,4 +31,12 @@ func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
 	cfg.bg.stats.RefuseConcurrent()
 	msg := fmt.Sprintf("Concurrent subagent limit reached. You can run %d subagents at once. Do not retry. If the user wants more concurrent subagents, ask them to increase CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS.", limit)
 	return toolexec.Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}, true
+}
+
+// concurrentLimit is how many sub-agents may run at once: the configured limit, else the default.
+func concurrentLimit(cfg Config) int {
+	if cfg.ConcurrentLimit > 0 {
+		return cfg.ConcurrentLimit
+	}
+	return subagents.DefaultConcurrentLimit
 }

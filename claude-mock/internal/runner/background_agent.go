@@ -20,7 +20,7 @@ import (
 // SubagentStart has fired by then, with the launch.
 //
 // sr:provides background-agent/claude
-func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func()) {
+func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID string, raw json.RawMessage, tr *transcript) (toolexec.Result, func(answered <-chan struct{}) <-chan struct{}) {
 	sub, in, errRes := prepareSubagent(b.Context(), cfg, inv, toolUseID, raw, tr, true)
 	if sub == nil {
 		return errRes, nil
@@ -54,18 +54,32 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 	}
 	// The sub-agent is begun with the launch, ahead of the call's PostToolUse
 	// (recorded: snapshots/runs/bgagent); its run starts after the answer.
-	sub.begun = subagents.Begin(sub.hooks(b.Context(), inv, b))
-	start := func() {
+	// One launched by a sub-agent is begun after the call's PostToolUse, with its run (recorded: runs/
+	// bgagent-nested-launcher, the same order in every sample).
+	if cfg.AgentID == "" && !in.StartAfterPost {
+		sub.begun = subagents.Begin(sub.hooks(b.Context(), inv, b))
+	} else if in.StartAfterPost {
+		sub.began = make(chan struct{})
+	}
+	// The launch is announced (the running set, task_started) ahead of the call's result, as recorded
+	// (runs/bgagent, bgagent-concurrent-limit, nested-fork-limit); the sub-agent's run waits for the answer.
+	start := func(answered <-chan struct{}) <-chan struct{} {
+		defer sub.announce(b, in.Prompt) // after the task is registered: the running set names it
 		b.StartAgent(task, func(ctx context.Context) {
+			<-answered
 			out := sub.execute(ctx, inv, b, in.Prompt)
 			b.stats.End(out.failure != "")
 			sub.cleanupWorktree(ctx)
 			task.Result, task.Failure = out.finalText, out.failure
+			if sub.limit.Reached() {
+				task.StoppedAtTurns = sub.limit.Max
+			}
 			task.ToolUses, task.DurationMs = out.toolUses, time.Since(task.Started).Milliseconds()
 			if out.failure != "" {
 				task.ExitCode = 1
 			}
 		})
+		return sub.began
 	}
 	return res, start
 }
@@ -82,7 +96,7 @@ func writeStreamLine(cfg Config, line []byte) {
 	buf = append(append(buf, line...), '\n')
 	cfg.Out.Write(buf) //nolint:errcheck
 	// a sub-agent's own messages also stream, to the session's stream, where the run's output is captured
-	if cfg.AgentID != "" && cfg.stream != nil && isMessageFrame(line) {
+	if cfg.AgentID != "" && cfg.stream != nil && isMessageFrame(line, cfg.background) {
 		cfg.stream.Write(buf) //nolint:errcheck
 	}
 }

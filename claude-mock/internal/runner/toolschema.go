@@ -17,6 +17,7 @@ var agentParams = []toolspec.Param{
 	{Name: "isolation", Type: toolspec.String, Values: []any{"worktree"}},
 	{Name: "run_in_background", Type: toolspec.Boolean},
 	{Name: "script", Type: toolspec.String, MockOnly: true},
+	{Name: "mock_start_after_post", Type: toolspec.Boolean, MockOnly: true},
 }
 
 // answers is the one kind Claude Code answers itself, a call missing a required
@@ -29,12 +30,13 @@ func answers(run string) map[toolspec.Kind]string {
 
 // schema is the tools claude-mock implements, as a script names them: each
 // parameter is one the recordings show the model pass. A tool the real claude has
-// and the mock does not (SendMessage, ...) is refused.
+// and the mock does not (Monitor, ...) is refused.
 var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 	{Name: "Bash", Params: []toolspec.Param{
 		{Name: "command", Type: toolspec.String, Required: true},
 		{Name: "description", Type: toolspec.String},
 		{Name: "run_in_background", Type: toolspec.Boolean},
+		{Name: "task_frames", Type: toolspec.Boolean, MockOnly: true},
 	}},
 	{Name: "Read", Params: []toolspec.Param{
 		{Name: "file_path", Type: toolspec.String, Required: true},
@@ -63,6 +65,14 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 	}},
 	{Name: "Agent", Params: agentParams, Answers: answers("agent-invalid-input")},
 	{Name: "Task", Recorded: "Agent", Params: agentParams, Answers: answers("agent-invalid-input")},
+	// the harness fills type, recipient and content beside to and message (recorded: runs/fgsub-maxturns)
+	{Name: "SendMessage", Params: []toolspec.Param{
+		{Name: "to", Type: toolspec.String, Required: true},
+		{Name: "message", Type: toolspec.String},
+		{Name: "type", Type: toolspec.String},
+		{Name: "recipient", Type: toolspec.String},
+		{Name: "content", Type: toolspec.String},
+	}},
 	{Name: "ScheduleWakeup", Params: []toolspec.Param{
 		{Name: "delaySeconds", Type: toolspec.Integer},
 		{Name: "prompt", Type: toolspec.String},

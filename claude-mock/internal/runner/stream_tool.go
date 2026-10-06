@@ -14,24 +14,26 @@ import (
 // foreground Bash run by a BACKGROUND sub-agent: task_started {owned_by_subagent,
 // is_backgrounded:false, task_type:"local_bash"} before it runs and
 // task_notification {status, output_file:"", summary:<description>} after
-// (F:bgagent). It returns the function that writes the second; for any other
-// call both are no-ops. A failed command's frame reads "failed": that status is
-// not measured.
+// (F:bgagent). It returns the function that writes the second; the main agent's
+// Bash has frames only when it runs long (slowBashFrames), any other call none. A failed command's frame reads "failed": that status is
+// not measured. A script may say per call whether it leaves frames (its mock-only task_frames: a
+// replay reads it from the recording, runs/fgsub-maxturns, whose resumed agent's echoes leave none).
 func ownedBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
-	if call.ToolName != "Bash" || !cfg.SuppressSubagentHooks || cfg.SyncSubagent {
+	if call.ToolName != "Bash" {
 		return func(toolexec.Result) {}
 	}
 	var in struct {
-		Command     string `json:"command"`
-		Description string `json:"description"`
+		TaskFrames *bool `json:"task_frames"`
 	}
 	_ = json.Unmarshal(call.ToolInput, &in)
-	desc := in.Description
-	if desc == "" {
-		desc = in.Command
+	if in.TaskFrames != nil && !*in.TaskFrames {
+		return func(toolexec.Result) {}
 	}
-	id := "b" + randomID(8)
-	writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: call.ToolUseID, Description: desc, TaskType: "local_bash", OwnedBySubagent: true})
+	if in.TaskFrames == nil && (!cfg.SuppressSubagentHooks || cfg.SyncSubagent) { // the main agent's: a task only once it has run long
+		return slowBashFrames(cfg, call)
+	}
+	id, desc := "b"+randomID(8), bashDescription(call)
+	writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: call.ToolUseID, Description: desc, TaskType: "local_bash", OwnedBySubagent: cfg.AgentID != ""})
 	return func(res toolexec.Result) {
 		status := "completed"
 		if res.IsError {
@@ -98,7 +100,7 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 	for k, v := range record {
 		frame[k] = v
 	}
-	if res.ToolUseResult != nil && cfg.AgentID == "" { // a sub-agent's result frames carry none (recorded: runs/isolated-worktree)
+	if res.ToolUseResult != nil && (cfg.AgentID == "" || res.IsError) { // a sub-agent's result frames carry none, unless it is an error (recorded: runs/isolated-worktree, nested-fork-limit)
 		frame["tool_use_result"] = res.ToolUseResult
 	}
 	if res.NonExecution != "" {

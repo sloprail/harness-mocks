@@ -1,6 +1,7 @@
 package toolexec
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,7 +25,7 @@ type readInput struct {
 // lines they are.
 //
 // sr:provides file-tools/claude
-func executeRead(raw json.RawMessage, cwd string) Result {
+func executeRead(ctx context.Context, raw json.RawMessage, cwd, sessionID string) Result {
 	var inp readInput
 	if err := json.Unmarshal(raw, &inp); err != nil || inp.FilePath == "" {
 		return Result{Output: "Read: missing or invalid 'file_path' field", IsError: true}
@@ -41,6 +42,7 @@ func executeRead(raw json.RawMessage, cwd string) Result {
 		return failed(err.Error())
 	}
 	v := tools.Read(content, inp.Offset, inp.Limit)
+	setKnown(ctx, sessionID, path, inp.Offset == 0 && inp.Limit == 0) // all of it, or only part
 	structured := map[string]any{"type": "text", "file": map[string]any{
 		"filePath": path, "content": v.Content, "numLines": v.NumLines, "startLine": v.StartLine, "totalLines": v.TotalLines,
 	}}

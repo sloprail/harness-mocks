@@ -116,12 +116,13 @@ func Run(ctx context.Context, cfg Config) error {
 	// Claude Code contract the hook CANNOT replace the prompt — it may only append
 	// additionalContext (exposed to the script via A10N_MOCK_ADDITIONAL_CONTEXT)
 	// or block the prompt (decision=block / exit 2 → Fire returns an error). Not
-	// for a nested sub-agent run: the sub-agent's prompt is its dispatcher's
-	// tool input, not something a user submitted.
+	// for a nested sub-agent run: its prompt is its dispatcher's tool input.
 	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
 	src := corehooks.PromptFromUser
 	if nested {
 		src = corehooks.PromptSubagentDispatch
+	} else if isLocalCommand(cfg.Prompt) {
+		src = corehooks.PromptLocalCommand
 	}
 	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, src, true)
 	if refused {

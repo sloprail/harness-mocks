@@ -16,6 +16,22 @@ type Call struct {
 	// Replace is a StrReplace's old and new text: the call edits the file by it
 	// and the hooks see the whole file it makes (recorded: runs/file-tools).
 	Replace *[2]string
+	// Unmodeled are the keys of a script's input the mock does not take for the
+	// tool (a Grep's path, glob and the rest): the call fails rather than ignore them.
+	Unmodeled []string
+	// BlockMs is the shell call's block_until_ms, when it gave one, and Described
+	// its description: what the frames show of it (shellargs.go).
+	BlockMs   *int
+	Described string
+	// HookID is the id the call's hooks name it by when it is not the call's own (a
+	// mock-only input of the script, hook_tool_use_id): Cursor's hooks were recorded
+	// naming a call by an id of their own in some runs and by the call's id in others.
+	HookID string
+	// ShellID is the id a background shell is to have (a mock-only input of the script,
+	// task_id): the harness numbers its shells itself, and a later wait names the one it means.
+	ShellID string
+	// Request is the id of the model request the call was made in (the frames' requestId).
+	Request string
 }
 
 func (c Call) str(key string) string { s, _ := c.Args[key].(string); return s }
@@ -38,59 +54,21 @@ func (c Call) Description() string { return c.str("description") }
 // Command is the shell line of a Shell call.
 func (c Call) Command() string { return c.str("command") }
 
-// FromScript is the Cursor call a scenario script's tool call stands for.
-func FromScript(name string, input json.RawMessage) Call {
-	var in map[string]any
-	_ = json.Unmarshal(input, &in)
-	str := func(k string) string { s, _ := in[k].(string); return s }
-	kind, _, _, _ := lookup(name)
-	c := Call{Kind: kind, Args: map[string]any{}}
-	switch c.Kind {
-	case "shellToolCall":
-		c.Args["command"] = str("command")
-		// block_until_ms 0 (or run_in_background) is a shell left running in the
-		// background (recorded: runs/task-notifications-bg).
-		if v, ok := in["block_until_ms"].(float64); (ok && v == 0) || in["run_in_background"] == true {
-			c.Args["isBackground"], c.Args["timeout"] = true, 0
-			if d := str("description"); d != "" {
-				c.Args["description"] = d
-			}
-		}
-	case "readToolCall":
-		c.Args["path"] = str("file_path")
-	case "editToolCall":
-		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
-		if name == "Edit" { // a StrReplace: its stream content is the new text only
-			c.Args["streamContent"] = str("new_string")
-			c.Replace = &[2]string{str("old_string"), str("new_string")}
-		}
-	case "grepToolCall":
-		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
-	case "deleteToolCall":
-		c.Args["path"] = str("file_path")
-	case "mcpToolCall":
-		server, tool, _ := mcpName(name)
-		args := in
-		if args == nil {
-			args = map[string]any{}
-		}
-		if d, ok := args["__description"]; ok { // the model's description of the call: the frame carries it beside the args
-			c.Args["__description"] = d
-			delete(args, "__description")
-		}
-		c.Args["name"], c.Args["args"], c.Args["providerIdentifier"], c.Args["toolName"] = server+"-"+tool, args, server, tool
-		c.Args["smartModeApprovalOnly"], c.Args["skipApproval"], c.Args["serverIdentifier"] = false, false, server
-	case "taskToolCall":
-		c.Args["description"], c.Args["prompt"] = str("description"), str("prompt")
-	}
-	return c
-}
-
 // HookInput is the call's input as hooks see it.
 func (c Call) HookInput(dir string) map[string]any {
 	switch c.Kind {
 	case "shellToolCall":
-		return map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory"), "timeout": 30000}
+		// a command left in the background has no timeout; any other has the one
+		// the model gave (block_until_ms), or the default (recorded:
+		// runs/task-notifications-inturn, runs/task-notifications-bg)
+		in := map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory")}
+		if !c.Background() {
+			in["timeout"] = 30000
+			if c.BlockMs != nil {
+				in["timeout"] = *c.BlockMs
+			}
+		}
+		return in
 	case "readToolCall":
 		return map[string]any{"file_path": c.Path(dir)}
 	case "taskToolCall":

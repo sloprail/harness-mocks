@@ -204,3 +204,65 @@ func TestT017_112_AFailedBackgroundShellIsReportedFailed(t *testing.T) {
 	require.Equal(t, 0, code, out)
 	assert.Equal(t, want, summaries(streamFrames(t, out)))
 }
+
+// startedOwnedBySubagent is the owned_by_subagent flag of each local_bash task_started frame, in order.
+func startedOwnedBySubagent(frames []map[string]any) (out []any) {
+	for _, f := range frames {
+		if f["subtype"] == "task_started" && f["task_type"] == "local_bash" {
+			out = append(out, f["owned_by_subagent"])
+		}
+	}
+	return out
+}
+
+// TestT017_117_ABackgroundShellOfASubagentIsMarkedOwned: the task_started of a background Bash that a
+// sub-agent launched says owned_by_subagent, which the main thread's own does not (recording
+// fg-subagent-bash).
+// sr:proves task-stream-frames/claude
+func TestT017_117_ABackgroundShellOfASubagentIsMarkedOwned(t *testing.T) {
+	data, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/fg-subagent-bash/samples/*/stream.jsonl"))
+	require.NoError(t, err)
+	require.Equal(t, []any{true}, startedOwnedBySubagent(streamFrames(t, string(data))), "recorded")
+
+	dir := t.TempDir()
+	sub := script(t, dir, "sub", toolUse("bg1", "Bash", `{"command":"sleep 30","description":"bgsleep","run_in_background":true}`))
+	orch := script(t, dir, "orch", toolUse("ag1", "Agent", `{"prompt":"p","description":"d","script":"`+sub+`"}`))
+	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "os-1", "--project-dir", dir,
+		"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "go")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, []any{true}, startedOwnedBySubagent(streamFrames(t, out)))
+}
+
+// promptFrames are the task_description of each sub-agent's prompt frame: a user frame of text under a
+// parent call, in order.
+func promptFrames(frames []map[string]any) (out []string) {
+	for _, f := range frames {
+		if f["type"] != "user" || f["parent_tool_use_id"] == nil {
+			continue
+		}
+		if c, ok := f["message"].(map[string]any)["content"].([]any); ok && len(c) > 0 && c[0].(map[string]any)["type"] == "text" {
+			out = append(out, f["task_description"].(string))
+		}
+	}
+	return out
+}
+
+// TestT017_118_OnlyAFirstLevelSubagentStreamsItsPrompt: a foreground sub-agent's prompt is a frame of
+// the stream, a sub-agent nested inside it has none (recording meta: outer and iso, not inner).
+// sr:proves nested-subagents/claude
+func TestT017_118_OnlyAFirstLevelSubagentStreamsItsPrompt(t *testing.T) {
+	data, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/meta/samples/*/stream.jsonl"))
+	require.NoError(t, err)
+	require.Equal(t, []string{"outer", "iso"}, promptFrames(streamFrames(t, string(data))), "recorded")
+
+	dir := t.TempDir()
+	inner := script(t, dir, "inner")
+	outer := script(t, dir, "outer", toolUse("in1", "Agent", `{"prompt":"p","description":"inner","script":"`+inner+`"}`))
+	iso := script(t, dir, "iso")
+	orch := script(t, dir, "orch", toolUse("ou1", "Agent", `{"prompt":"p","description":"outer","script":"`+outer+`"}`),
+		toolUse("is1", "Agent", `{"prompt":"p","description":"iso","script":"`+iso+`"}`))
+	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "np-1", "--project-dir", dir,
+		"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "go")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, []string{"outer", "iso"}, promptFrames(streamFrames(t, out)))
+}

@@ -1,14 +1,13 @@
 package replay
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
-	"time"
 
-	"github.com/sloprail/harness-mocks/internal/procexec"
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
@@ -26,8 +25,13 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	if len(recStream) == 0 {
 		return want, got, &Unbuildable{Reason: "the recording has no stream to compare"}
 	}
-	if _, err := os.Stat(filepath.Join(sample, "payloads.jsonl")); err != nil {
-		return want, got, &Unbuildable{Reason: "the recording has no hook log to compare"}
+	// No hook log at all is a recording whose hooks never ran (the hook script is what
+	// writes it): the mock must run none either. That proves something only when hooks
+	// were configured, and the stream compared is not empty (checked above).
+	_, statErr := os.Stat(filepath.Join(sample, "payloads.jsonl"))
+	noHooksRan := statErr != nil
+	if noHooksRan && !hooksConfigured(rec.Setup) {
+		return want, got, &Unbuildable{Reason: "the recording has no hook log and configures no hooks: nothing says hooks were left unfired"}
 	}
 	recHooks, err := readJSONL(filepath.Join(sample, "payloads.jsonl"))
 	if err != nil {
@@ -45,22 +49,16 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	if err != nil {
 		return want, got, err
 	}
-	argv := []string{mock, "-p"}
-	if _, noForce := rec.Setup["no-force"]; !noForce {
-		argv = append(argv, "--force")
-	}
-	extra, err := flagWords(rec.Setup["args"]) // checked at Load
+	extra, err := flagWords(rec.Setup["args"], false) // checked at Load
 	if err != nil {
 		return want, got, err
 	}
-	argv = append(append(argv, "--trust", "--model", "auto", "--output-format", "stream-json"), extra...)
-	argv = append(argv, "--script", l.main, rec.Prompt)
-	res, err := procexec.Run(context.Background(), procexec.Spec{Argv: argv, Dir: l.cwd, Env: l.env, Timeout: 2 * time.Minute})
-	if err != nil || res.ExitCode != 0 || res.TimedOut {
-		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
+	stdout, exits, err := a.runSteps(mock, rec, l, extra)
+	if err != nil {
+		return want, got, err
 	}
 	hookLog, _ := os.ReadFile(l.hookLog)
-	mockStream, err := parseJSONL(string(res.Stdout))
+	mockStream, err := parseJSONL(stdout)
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's stream: %w", err)
 	}
@@ -71,10 +69,25 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 
 	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
 	rules := Rules(l.repo, work)
+	for _, name := range stepNames(rec.Setup) { // a later step's directory is named in its project folder by the capture's own temp directory
+		if cwd := strings.TrimSpace(rec.Setup["then-"+name+"-cwd"]); cwd != "" {
+			rules.Scrub = append([]core.Scrub{{Re: regexp.MustCompile(`projects/[A-Za-z0-9-]*-` + regexp.QuoteMeta(cwd) + `/`), With: "projects/<PROJECT>-" + cwd + "/"}}, rules.Scrub...)
+		}
+	}
 	wantC, gotC := core.New(rules), core.New(rules)
 	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
+	recExits, _ := exitsOf(rec.Setup["exit"])
+	for _, c := range recExits {
+		want.Exits = append(want.Exits, "exit "+strconv.Itoa(c))
+	}
+	for _, c := range exits {
+		got.Exits = append(got.Exits, "exit "+strconv.Itoa(c))
+	}
+	recHooks, mockHooks = inOrder(recHooks), inOrder(mockHooks)
+	unsettled(recHooks)
+	unsettled(mockHooks)
 	want.Hooks, got.Hooks = concurrent(recHooks, wantC.Lines(recHooks)), concurrent(mockHooks, gotC.Lines(mockHooks))
-	if len(want.Hooks) == 0 && len(got.Hooks) == 0 {
+	if len(want.Hooks) == 0 && len(got.Hooks) == 0 && !noHooksRan {
 		return want, got, &Unbuildable{Reason: "the recording's hook log holds no line the mock models: nothing to compare"}
 	}
 	return want, got, nil

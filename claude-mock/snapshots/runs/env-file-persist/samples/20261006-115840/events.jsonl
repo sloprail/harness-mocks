@@ -1,0 +1,15 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","source":"startup"}}
+{"event":"hook","hook":null,"payload":{"env_file_event":"SessionStart","env_file_set":"yes"}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo \"A=$FROM_ENV_FILE B=$PATH_EXTRA\""}}}
+{"event":"hook","hook":null,"payload":{"env_file_event":"PreToolUse","env_file_set":""}}
+{"event":"stream","type":"system","subtype":"hook_started"}
+{"event":"stream","type":"system","subtype":"hook_response"}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"result","subtype":"success"}

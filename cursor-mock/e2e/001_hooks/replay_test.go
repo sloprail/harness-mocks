@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -68,26 +69,6 @@ func normalize(v any, sid, ws string) any {
 		return out
 	case string:
 		return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(x, sid, "<SESSION_ID>"), ws, "<RUN>"), filepath.Dir(ws), "<TMP>")
-	}
-	return v
-}
-
-// unmodeledEnv drops from a recorded payload the two variables a shell
-// command saw that the mock does not set (CURSOR_REQUEST_ID and
-// CURSOR_RIPGREP_PATH: adr/modeled-surface).
-func unmodeledEnv(v any) any {
-	switch x := v.(type) {
-	case map[string]any:
-		out := map[string]any{}
-		for k, e := range x {
-			out[k] = unmodeledEnv(e)
-		}
-		return out
-	case string:
-		for _, name := range []string{"CURSOR_REQUEST_ID", "CURSOR_RIPGREP_PATH"} {
-			x = strings.ReplaceAll(strings.ReplaceAll(x, name+"\n", ""), name+`\n`, "")
-		}
-		return x
 	}
 	return v
 }
@@ -181,7 +162,7 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 		case e["hook"] == "afterAgentThought":
 			// an event the mock does not fire (adr/modeled-surface)
 		case e["hook"] != nil:
-			rec.hooks = append(rec.hooks, unmodeledEnv(p).(map[string]any))
+			rec.hooks = append(rec.hooks, p)
 		case p["hook_env"] != nil:
 			rec.envs = append(rec.envs, hookEnv(p["hook_env"], ""))
 		case p["hook_result"] != nil || p["hook_ran"] != nil:
@@ -239,8 +220,7 @@ func replay(t *testing.T, run string) (got, want observed) {
 func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	t.Helper()
 	setup, want, calls, prompt := recording(t, run)
-	ws, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	ws := shortTempDir(t)
 	scratch := t.TempDir()
 	copyFile(t, filepath.Join(setup, "hooks.json"), filepath.Join(ws, ".cursor", "hooks.json"), 0o644)
 	home := t.TempDir()
@@ -332,21 +312,22 @@ func writtenContents(rec observed) (out []string) {
 }
 
 // hookEnv is what a hook logged of its environment, as the recording shows it:
-// the workspace as <RUN>, without the path of cursor-agent's ripgrep, which the
-// mock does not set, and without the transcript path, which cursor-agent hands
-// a hook or not depending on a race (the last hook always has it).
+// the workspace as <RUN>, the account's home as the capture wrote it (<HOME>:
+// where cursor-agent keeps its ripgrep), and without the transcript path, which
+// cursor-agent hands a hook or not depending on a race (the last hook always has it).
 func hookEnv(v any, ws string) map[string]any {
 	out := map[string]any{}
 	for k, e := range v.(map[string]any) {
 		s, _ := e.(string)
 		switch k {
-		case "CURSOR_RIPGREP_PATH":
-			continue
 		case "CURSOR_TRANSCRIPT_PATH":
 			continue // whether the file is named yet when a hook starts is a race in cursor-agent
 		default:
 			if ws != "" {
 				s = strings.ReplaceAll(strings.ReplaceAll(s, ws, "<RUN>"), filepath.Dir(ws), "<TMP>")
+				if u, err := user.Current(); err == nil && k == "CURSOR_RIPGREP_PATH" {
+					s = strings.Replace(s, u.HomeDir, "<HOME>", 1)
+				}
 			}
 		}
 		out[k] = s
@@ -355,3 +336,19 @@ func hookEnv(v any, ws string) map[string]any {
 }
 
 func itoa(i int) string { return strings.TrimSpace(jsonString(i)) }
+
+// shortTempDir is a workspace whose path is short. The recorded hook scripts
+// log each payload with one printf to a file every hook of an event appends to
+// at once, and macOS's sh writes what is over 1 KiB in more than one write: two
+// hooks' payloads then interleave and neither can be read back. A payload
+// carries the workspace's path several times, so a long path (t.TempDir's, under
+// macOS's /var/folders) takes the longer payloads over that size.
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "hm")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	dir, err = filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	return dir
+}

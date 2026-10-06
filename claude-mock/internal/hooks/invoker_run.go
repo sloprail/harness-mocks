@@ -2,8 +2,10 @@ package hooks
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -28,7 +30,7 @@ func (inv *Invoker) runHandlers(ctx context.Context, handlers []HandlerSpec, ev 
 				continue
 			}
 			// sr:provides hook-command-handler/claude
-			cmds = append(cmds, corehooks.Command{Line: strings.TrimSpace(h.Command), Args: h.Args.List(), Timeout: commandTimeout(h, ev), Env: h.env()})
+			cmds = append(cmds, corehooks.Command{Line: strings.TrimSpace(h.Command), Args: h.Args.List(), Timeout: commandTimeout(h, ev), Env: h.env(inv.envFile(ev, len(cmds)))})
 			at = append(at, i)
 		case "http":
 			wg.Add(1)
@@ -64,11 +66,28 @@ func commandTimeout(h HandlerSpec, ev EventName) time.Duration {
 
 // env is what only a plugin's hook is told: where the plugin is installed and
 // where its persistent data lives (docs, Reference scripts by path).
-func (h HandlerSpec) env() []string {
-	if h.PluginRoot == "" {
-		return nil
+func (h HandlerSpec) env(envFile string) []string {
+	var env []string
+	if envFile != "" {
+		env = append(env, "CLAUDE_ENV_FILE="+envFile)
 	}
-	return []string{"CLAUDE_PLUGIN_ROOT=" + h.PluginRoot, "CLAUDE_PLUGIN_DATA=" + h.PluginData}
+	if h.PluginRoot == "" {
+		return env
+	}
+	return append(env, "CLAUDE_PLUGIN_ROOT="+h.PluginRoot, "CLAUDE_PLUGIN_DATA="+h.PluginData)
+}
+
+// envFile is the path a SessionStart hook is told as CLAUDE_ENV_FILE, where the real harness lets it
+// persist environment variables for the session: <config dir>/session-env/<session>/sessionstart-hook-<index>.sh
+// (recorded: runs/subprocess-session-env). Only that event's hooks have one; what a hook writes there reaches
+// the session's later Bash commands (toolexec.WithSessionEnv; recorded: runs/env-file-persist).
+func (inv *Invoker) envFile(ev EventName, index int) string {
+	if ev != EventSessionStart || inv.configDir == "" || inv.sessionID == "" {
+		return ""
+	}
+	dir := filepath.Join(inv.configDir, "session-env", inv.sessionID)
+	_ = os.MkdirAll(dir, 0o755) // the hook appends to the file: its folder is there
+	return filepath.Join(dir, fmt.Sprintf("sessionstart-hook-%d.sh", index))
 }
 
 // hookDir is where a command hook runs. Claude's order of candidates is the

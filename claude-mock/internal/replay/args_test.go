@@ -22,6 +22,9 @@ func TestParseArgs(t *testing.T) {
 	if _, err = parseArgs("--system-prompt\nx\n"); !errors.As(err, &u) || strings.HasPrefix(u.Reason, RefusedPrefix) {
 		t.Fatalf("unmodelled: %v", err)
 	}
+	if got, err = parseArgs("--tools=Read,Write\n--max-turns\n2\n"); err != nil || !reflect.DeepEqual(got, []string{"--tools=Read,Write", "--max-turns", "2"}) {
+		t.Fatalf("tools: %v %v", got, err)
+	}
 	if _, err = parseArgs("--max-turns\n"); err == nil {
 		t.Fatal("a flag short of its value")
 	}

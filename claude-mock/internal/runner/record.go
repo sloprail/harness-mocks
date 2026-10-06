@@ -24,6 +24,10 @@ type cliRecord struct {
 	// sr:docs https://code.claude.com/docs/en/hooks#sessionstart
 	IsCompactSummary bool `json:"isCompactSummary,omitempty"`
 
+	// Gate, on a mock-only {"type":"gate","gate":{…}} control record, is what must have happened before
+	// the step the record leads is taken (scenario.Gate); never forwarded.
+	Gate *scenario.Gate `json:"gate,omitempty"`
+
 	// result frame fields
 	Result string   `json:"result,omitempty"`
 	Errors []string `json:"errors,omitempty"`
@@ -68,6 +72,10 @@ type cliRecord struct {
 	Trigger   string `json:"trigger,omitempty"`
 	Preserve  *int   `json:"preserve,omitempty"`
 	PreTokens int    `json:"pre_tokens,omitempty"`
+	// ModelOutput is what the summarizing model wrote, which the summarizer's SubagentStop and
+	// PostCompact are told, where the summary record keeps it in the form the agent reads
+	// (default: the summary itself; recorded: runs/compact).
+	ModelOutput string `json:"model_output,omitempty"`
 	// PostTokens is compactMetadata.postTokens (0 unless the scenario says).
 	PostTokens int `json:"post_tokens,omitempty"`
 	// PreservedSegment false writes the second shape real compactions left:
@@ -93,6 +101,7 @@ var knownTypes = map[string]bool{
 	"worktree_remove": true,
 	"subagent_start":  true,
 	"compact":         true,
+	"gate":            true,
 }
 
 // validateRecord ensures the JSONL line is parseable JSON with a non-empty "type"

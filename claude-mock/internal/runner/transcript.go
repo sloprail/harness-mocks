@@ -39,6 +39,7 @@ type transcript struct {
 	f        *os.File
 	sw       *sessionWriter
 	stamp    recordStamp
+	name     string // --name: the session's name, for the preamble of a file this run creates
 
 	// held is hook runs recorded but not written yet (holdHookRuns).
 	held []heldRun
@@ -68,7 +69,7 @@ func (t *transcript) attach() {
 		if t.stamp.IsSidechain {
 			return nil
 		}
-		return mockPreambleRecords(t.stamp.SessionID)
+		return mockPreambleRecords(t.stamp.SessionID, t.name)
 	})
 	if t.f == nil {
 		return

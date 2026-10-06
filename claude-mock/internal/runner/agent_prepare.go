@@ -130,10 +130,16 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 	_ = os.Symlink(sidechain, outFile)
 
 	cfg.bg.stats.Spawn(askOf(rawInput), background, meta.SpawnDepth, cfg.AgentID != "", agentType)
-	return &subagentRun{
+	script := resolveSubagentScript(in.Script)
+	if script != "" { // the position a script's gate names it by
+		cfg.steps.spawn(agentID, !background)
+	}
+	sub := &subagentRun{
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
 		toolUseID: toolUseID, description: in.Description, outputFile: outFile,
-		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup, branch: branch, limit: definitionTurnLimit(cfg, in.SubagentType),
-	}, in, toolexec.Result{}
+		script: script, prompt: in.Prompt, background: background, cleanup: cleanup, branch: branch, limit: definitionTurnLimit(cfg, in.SubagentType),
+	}
+	cfg.bg.agents.remember(sub)
+	return sub, in, toolexec.Result{}
 }

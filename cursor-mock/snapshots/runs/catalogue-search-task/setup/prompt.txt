@@ -1,0 +1,1 @@
+Search your tool catalogue exactly once, with the GetDynamicTools tool, using the pattern "Task|task|subagent|sub-agent". Call nothing else. Then reply only DONE.

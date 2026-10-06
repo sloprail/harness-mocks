@@ -77,3 +77,38 @@ func eventOf(o map[string]any) string {
 	r, _ := o["hook_result"].(map[string]any)
 	return str(r, "event")
 }
+
+// inOrder is the payloads with each concurrent group put in one order (by event,
+// the order within an event kept), before the ids are numbered, so that two runs
+// that differ only in which of two concurrent events came first name their ids alike.
+func inOrder(objs []map[string]any) []map[string]any {
+	events := groups(objs)
+	out := append([]map[string]any(nil), objs...)
+	for i := 0; i < len(out); {
+		j := i + 1
+		for j < len(out) && events[j] == events[i] {
+			j++
+		}
+		for k := j; k < len(out) && concurrentWith(events[k-1], events[k]); {
+			e := events[k]
+			for k < len(out) && events[k] == e {
+				k++
+			}
+			j = k
+		}
+		seg := out[i:j]
+		names := append([]string(nil), events[i:j]...)
+		idx := make([]int, len(seg))
+		for n := range idx {
+			idx[n] = n
+		}
+		sort.SliceStable(idx, func(a, b int) bool { return names[idx[a]] < names[idx[b]] })
+		sorted := make([]map[string]any, len(seg))
+		for n, from := range idx {
+			sorted[n] = seg[from]
+		}
+		copy(seg, sorted)
+		i = j
+	}
+	return out
+}

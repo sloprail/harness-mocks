@@ -16,6 +16,9 @@ providers:
       - claude-mock/snapshots/runs/meta
       - claude-mock/snapshots/runs/hookerrors
       - claude-mock/snapshots/runs/cap-sub
+      - claude-mock/snapshots/runs/bash-long-foreground
+      - claude-mock/snapshots/runs/bash-short-foreground
+      - claude-mock/snapshots/runs/hook-timeout
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#make-output-machine-readable

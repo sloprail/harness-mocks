@@ -23,34 +23,30 @@ import (
 // thoughts are what the model thought, by the number of the response that had
 // it: a response with no thought is not in them (recorded: runs/symlinked-cwd,
 // the first response thought and the second did not).
-func modelTurns(records []map[string]any, thoughts map[int]*core.Thinking) (core.Agent, error) {
+func modelTurns(records []map[string]any, heard []thoughtAt) (core.Agent, error) {
 	var agent core.Agent
-	responses := 0
-	for _, rec := range records {
-		if rec["role"] == "assistant" {
-			responses++
-		}
-	}
-	for n := range thoughts {
-		if n < 0 || n >= responses {
-			return core.Agent{}, fmt.Errorf("a thought names response %d of a conversation of %d", n, responses)
-		}
+	thoughts, err := placeThoughts(records, heard)
+	if err != nil {
+		return core.Agent{}, err
 	}
 	thought := func(i int) *core.Thinking { return thoughts[i] }
 	var said *string
-	var saidThought *core.Thinking // the thought of the text-only response said holds
-	ri, lookupRI := -1, -1         // the response that looked a tool up
-	var lookup map[string]any      // a GetDynamicTools of one named tool, which the call that follows needs
-	flush := func() {              // an answer: the text no call followed
+	var saidThought *core.Thinking          // the thought of the text-only response said holds
+	var pending, saidCompact map[string]any // a compaction the harness made, not yet put on the response that follows it
+	ri, lookupRI := -1, -1                  // the response that looked a tool up
+	var lookup map[string]any               // a GetDynamicTools of one named tool, which the call that follows needs
+	flush := func() {                       // an answer: the text no call followed
 		if said != nil {
-			agent.Calls = append(agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}, Thinking: saidThought})
-			said, saidThought = nil, nil
+			agent.Calls = append(agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}, Thinking: saidThought, Compact: saidCompact})
+			said, saidThought, saidCompact = nil, nil, nil
 		}
 	}
 	for _, rec := range records {
 		switch rec["role"] {
 		case "user":
 			flush()
+		case compactionMarker:
+			pending, _ = rec["fields"].(map[string]any)
 		case "assistant":
 			ri++
 			var calls []core.Call
@@ -107,37 +103,39 @@ func modelTurns(records []map[string]any, thoughts map[int]*core.Thinking) (core
 					calls[0].Thinking = thought(lookupRI)
 				}
 				lookupRI = -1
-				said, saidThought = nil, nil
+				if pending != nil && saidCompact != nil {
+					return core.Agent{}, fmt.Errorf("the harness compacted twice before one response")
+				}
+				calls[0].Compact = pending
+				if calls[0].Compact == nil {
+					calls[0].Compact = saidCompact
+				}
+				pending, said, saidThought, saidCompact = nil, nil, nil, nil
 				calls[0].Said = text
 				agent.Calls = append(agent.Calls, calls...)
+			case text != nil && said != nil:
+				// a second text-only response with no user turn between is one more thing
+				// the model said in the same turn (it ended with its end-of-stream token, recorded:
+				// runs/nested-subagents-background): the stream joins what was said, so it is one
+				// answer here too
+				if saidThought != nil && thought(ri) != nil {
+					return core.Agent{}, fmt.Errorf("the model thought in two text responses of one turn: the mock plays them as one")
+				}
+				joined := *said + *text
+				said = &joined
+				if saidThought == nil {
+					saidThought = thought(ri)
+				}
 			case text != nil:
-				flush()
 				said, saidThought = text, thought(ri)
 			}
 		}
+	}
+	if pending != nil || saidCompact != nil {
+		return core.Agent{}, fmt.Errorf("the harness compacted before the final answer: the compaction is not put on an answer")
 	}
 	if said != nil {
 		agent.Final, agent.FinalThinking = *said, saidThought
 	}
 	return agent, nil
-}
-
-// lookupOf is what a GetDynamicTools block asks for when it names one tool of
-// one server (namespace and toolName), which the mock does on its own before it
-// calls an MCP tool; nil for any other block, GetDynamicTools searching by a
-// pattern included, which the mock has no such tool for.
-func lookupOf(block map[string]any) map[string]any {
-	if name, _ := block["name"].(string); name != "GetDynamicTools" {
-		return nil
-	}
-	input, _ := block["input"].(map[string]any)
-	if input["namespace"] == nil || input["toolName"] == nil {
-		return nil
-	}
-	return input
-}
-
-// sameTool reports whether the lookup named the tool the call is of.
-func sameTool(lookup, call map[string]any) bool {
-	return lookup != nil && lookup["namespace"] == call["server"] && lookup["toolName"] == call["tool"]
 }

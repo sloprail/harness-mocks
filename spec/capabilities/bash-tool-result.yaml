@@ -27,3 +27,4 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/shell-exit-status
       - cursor-mock/snapshots/runs/tool-failure
+      - cursor-mock/snapshots/runs/shell-syntax

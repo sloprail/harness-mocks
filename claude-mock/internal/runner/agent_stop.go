@@ -37,7 +37,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		PluginCacheDir:          s.parent.PluginCacheDir,
 		Model:                   s.parent.Model,
 		Prompting:               s.parent.Prompting,
-		SubFrames:               &SubFrames{ParentToolUseID: s.toolUseID, TaskDescription: s.description},
+		SubFrames:               &SubFrames{ParentToolUseID: s.frameParent(), TaskToolUseID: s.toolUseID, TaskDescription: s.description},
 		Stderr:                  s.parent.Stderr,
 		Out:                     &buf,
 		SuppressSubagentHooks:   true,
@@ -45,15 +45,24 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SidechainPath:           s.sidechain,
 		ParentTranscriptPath:    s.parentReported,
 		bg:                      bg,
+		steps:                   s.agentSteps(),
+		background:              s.background,
 		wake:                    s.parent.wake,
 		stream:                  s.parent.stream,
 		sessionFile:             s.sessionFile,
 		spawnDepth:              s.spawnDepth,
 		SpawnLimit:              s.parent.SpawnLimit,
+		ConcurrentLimit:         s.parent.ConcurrentLimit,
+		Invocation:              Invocation{Tools: s.parent.Tools, RestrictTools: s.parent.RestrictTools},
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
-	subCfg.announce(subCfg, prompt)
+	if !s.announced && !s.background && s.spawnDepth <= 1 { // no prompt frame for a re-run after a blocking SubagentStop (hookmix), a background sub-agent (bgagent) or a nested one (meta)
+		subCfg.announce(subCfg, prompt)
+	}
+	s.announced = true
 	s.startFrames.finish(s.parent)
+	s.steps = subCfg.steps
+	s.parent.steps.child(s.agentID, subCfg.steps) // a gate of the parent's script may wait on how far it has got
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)

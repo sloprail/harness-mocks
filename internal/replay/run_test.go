@@ -20,3 +20,12 @@ func TestNothingComparedIsNotGreen(t *testing.T) {
 	diff, _ = Run(stubAdapter{want: Observed{Events: []string{"a"}}, got: Observed{Events: []string{"a"}}}, "", "")
 	assert.Empty(t, diff)
 }
+
+// A replay that was a check the adapter made itself (a refused flag) and passed is green with nothing compared;
+// one side alone saying so is not.
+func TestACheckThatPassedIsGreenWithNothingCompared(t *testing.T) {
+	diff, _ := Run(stubAdapter{want: Observed{Checked: true}, got: Observed{Checked: true}}, "", "")
+	assert.Empty(t, diff)
+	diff, _ = Run(stubAdapter{want: Observed{Checked: true}}, "", "")
+	assert.Contains(t, diff, "nothing was compared")
+}

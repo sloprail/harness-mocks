@@ -14,6 +14,9 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
+	// Lines is how many assistant records the main script adds to the session's
+	// file: a later step that resumes the session starts after them.
+	Lines int
 }
 
 // step is one response of the model in the mock's script vocabulary: what it
@@ -22,6 +25,7 @@ type step struct {
 	said    *string
 	calls   []scriptCall
 	thought *core.Thinking // what the model thought in the response, when recorded
+	compact map[string]any // the compaction the harness made just before the response, when it did
 }
 
 // lines is how many assistant records the mock writes to the session file for
@@ -52,34 +56,57 @@ type scriptCall struct {
 // <RUN_DIRNAME> (rules.go); paths says what they stand for in this replay, and a
 // nil paths leaves them as recorded.
 func Denormalize(rec core.Recording, dir string, paths *Paths) Scenario {
+	return denormalize(rec.Agent, rec.Prompt, dir, paths, "", 0)
+}
+
+// DenormalizeStep is the scenario of the i-th later step of a run (1 is the first
+// after the opening one): its scripts and the ids of its calls are named apart from
+// the other steps'.
+// after is how many assistant records the session's file already holds when it
+// begins (the earlier steps', when it resumes their session).
+func DenormalizeStep(st core.Step, i int, dir string, paths *Paths, after int) Scenario {
+	return denormalize(st.Agent, st.Prompt, dir, paths, fmt.Sprintf("s%d_", i), after)
+}
+
+func denormalize(root core.Agent, prompt, dir string, paths *Paths, prefix string, after int) Scenario {
 	scripts := map[string]string{}
 	n := 0
-	var scriptFor func(tag string, a core.Agent) string
-	scriptFor = func(tag string, a core.Agent) string {
+	lines := 0
+	var scriptFor func(tag string, a core.Agent, after int) string
+	scriptFor = func(tag string, a core.Agent, after int) string {
 		var steps []step
 		for _, c := range a.Calls {
 			switch {
 			case c.Tool == core.ToolAnswer:
 				text, _ := c.Input["text"].(string)
-				steps = append(steps, step{said: &text, thought: c.Thinking})
+				steps = append(steps, step{said: &text, thought: c.Thinking, compact: c.Compact})
 			case c.SameTurn && len(steps) > 0:
 				steps[len(steps)-1].calls = append(steps[len(steps)-1].calls, mockCall(c))
 			default:
-				steps = append(steps, step{said: c.Said, calls: []scriptCall{mockCall(c)}, thought: c.Thinking})
+				steps = append(steps, step{said: c.Said, calls: []scriptCall{mockCall(c)}, thought: c.Thinking, compact: c.Compact})
 			}
 			if c.Tool == core.ToolSpawn && c.Sub != nil {
-				name := fmt.Sprintf("sub%d.sh", n)
-				subTag := fmt.Sprintf("sub%d", n)
+				name := fmt.Sprintf("%ssub%d.sh", prefix, n)
+				subTag := fmt.Sprintf("%ssub%d", prefix, n)
 				n++
-				scripts[name] = scriptFor(subTag, *c.Sub)
+				scripts[name] = scriptFor(subTag, *c.Sub, 0)
 				last := steps[len(steps)-1]
 				last.calls[len(last.calls)-1].Input["script"] = dir + "/" + name
+				if c.Sub.ID != "" { // a reply may quote the sub-agent's id: it takes the recorded one
+					last.calls[len(last.calls)-1].Input["agent_id"] = c.Sub.ID
+				}
 			}
 		}
 		if a.Final != "" {
 			steps = append(steps, step{said: &a.Final, thought: a.FinalThinking})
 		}
-		return script(tag, paths.expandSteps(steps))
+		if tag == prefix+"main" {
+			for _, st := range steps {
+				lines += st.lines()
+			}
+		}
+		return script(tag, paths.expandSteps(steps), after)
 	}
-	return Scenario{Scripts: scripts, Script: scriptFor("main", rec.Agent), Prompt: rec.Prompt}
+	main := scriptFor(prefix+"main", root, after)
+	return Scenario{Scripts: scripts, Script: main, Prompt: prompt, Lines: lines}
 }

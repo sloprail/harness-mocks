@@ -20,14 +20,11 @@ import (
 // AGENTS, and each finished task starts a new turn with its notification (and
 // Stop fires again at that turn's end); a background command still running
 // when nothing else is left is killed. See background.go.
-//
 // A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
 // the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
 // own background commands end with its final response.
-// The run streams one result, at its real end (internal/scenario's Result). Once
-// the turn is over a `claude -p` session waits for its background agents, each
-// finished task starting a further turn (tasks.NextTurn) until the idle ceiling,
-// and ends the background shells that are left after a grace (tasks.ReapAtExit).
+// The run streams one result, at its real end (internal/scenario's Result); each
+// finished task starts a further turn (tasks.NextTurn) until the idle ceiling.
 //
 // sr:provides noninteractive-run/claude
 // sr:provides print-waits-for-background-agents/claude
@@ -40,7 +37,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// STDOUT stream is written directly with cfg.Out and is NOT chained (it must
 	// stay the mock's claude stream).
 	if cfg.bg == nil {
-		cfg.bg = newBackgroundTasks()
+		cfg.bg, cfg.steps = newBackgroundTasks(), newAgentSteps(nil)
 		defer cfg.bg.Shutdown()
 	}
 	if cfg.wake == nil {
@@ -66,9 +63,14 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		if turn.lastText != "" {
 			lastText = turn.lastText
 		}
+		if turn.done && turn.emptyReply && cfg.AgentID == "" && !nested { // nudged, no result, no Stop (nudge.go)
+			writeNoVisibleOutputNudge(cfg, bg, tr)
+			lastSig, repeats = "", 0
+			continue
+		}
 		if turn.done {
 			final.Hold(turn.resultLine)
-			if nested {
+			if nested || bg.run.isLocal() { // a sub-agent's run, or a command the harness carried out itself: no Stop
 				finish()
 				return nil
 			}
@@ -91,18 +93,15 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				SessionCrons:         &crons,
 			})
 			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
-			writeStopHookError(cfg, stopRuns)
+			blocked := turnloop.Continues(stopErr != nil, stopOut.Decision == "block")
+			writeStopHookFrames(cfg, stopRuns, blocked, &bg.run.stopErrorShown)
 			// Its feedback, attachment and stop_hook_summary: transcript.recordHookRuns.
 			// sr:provides stop-block-continuation/claude
-			if turnloop.Continues(stopErr != nil, stopOut.Decision == "block") {
+			if blocked {
 				stopBlocks++
 				// sr:provides stop-block-cap/claude
 				if turnloop.AfterBlock(stopBlocks, blockCap) {
-					// Re-prompt: the turn goes on, so the script runs again and
-					// reacts to the block. Its result frame is dropped — a
-					// continued turn ends with one result, at its real end
-					// (claude 2.1.282 streamed a single result across 8
-					// continuations).
+					// Re-prompt: the turn goes on and the script runs again; its result frame is dropped.
 					lastSig, repeats = "", 0
 					final.Continue()
 					continue
@@ -112,7 +111,8 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				// the next block is overridden and the turn ends, with a
 				// warning record (the 2.1.282 binary: `ve>xe`; a controlled run
 				// fired Stop 9 times). 0 disables the cap.
-				writeCapOverride(tr, stopBlocks)
+				writeCapOverride(cfg, tr, stopBlocks)
+				bg.run.turn() // the override counts as a turn (runs/cap: num_turns 10)
 				// The overridden turn's result carries no text: claude
 				// 2.1.282 streamed "result":"" after the override.
 				final.Hold(withEmptyResult(turn.resultLine))

@@ -1,0 +1,7 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"b2ebecff-47ce-4e33-86ae-939b3aede1eb","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Reply with exactly the word FIRSTDONE and nothing else. Do not call any tool, answer from your own words."}]},"session_id":"b2ebecff-47ce-4e33-86ae-939b3aede1eb"}
+{"type":"thinking","subtype":"delta","text":"The response will be","session_id":"b2ebecff-47ce-4e33-86ae-939b3aede1eb","timestamp_ms":1791285399422}
+{"type":"thinking","subtype":"delta","text":" exactly the word \"FIRSTDONE\".","session_id":"b2ebecff-47ce-4e33-86ae-939b3aede1eb","timestamp_ms":1791285399434}
+{"type":"thinking","subtype":"completed","session_id":"b2ebecff-47ce-4e33-86ae-939b3aede1eb","timestamp_ms":1791285399434}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"FIRSTDONE"}]},"session_id":"b2ebecff-47ce-4e33-86ae-939b3aede1eb"}
+{"type":"result","subtype":"success","duration_ms":6532,"duration_api_ms":6532,"is_error":false,"result":"FIRSTDONE","session_id":"b2ebecff-47ce-4e33-86ae-939b3aede1eb","request_id":"372038cd-bcbe-4d26-a52d-ce3852da0adc","usage":{"inputTokens":11966,"outputTokens":36,"cacheReadTokens":2176,"cacheWriteTokens":0}}

@@ -130,10 +130,10 @@ func TestMergeEntriesRunsTheSameHandlerOnce(t *testing.T) {
 // lives; a project hook is told neither (docs, Reference scripts by path).
 // sr:proves plugin-hooks/claude
 func TestPluginHookEnvironment(t *testing.T) {
-	assert.Nil(t, handler("A").env())
+	assert.Nil(t, handler("A").env(""))
 	h := handler("A")
 	h.PluginRoot, h.PluginData = "/p/root", "/p/data"
-	assert.Equal(t, []string{"CLAUDE_PLUGIN_ROOT=/p/root", "CLAUDE_PLUGIN_DATA=/p/data"}, h.env())
+	assert.Equal(t, []string{"CLAUDE_PLUGIN_ROOT=/p/root", "CLAUDE_PLUGIN_DATA=/p/data"}, h.env(""))
 }
 
 // A command hook runs in the event's working directory; when that is gone it
@@ -167,4 +167,14 @@ func TestLoadSettingsDedupesTheSameHandlerAcrossFiles(t *testing.T) {
 		cmds = append(cmds, h.Type+":"+h.Command+h.URL)
 	}
 	assert.Equal(t, []string{"command:SAME", "http:http://x", "command:OTHER"}, cmds)
+}
+
+// A SessionStart hook is told CLAUDE_ENV_FILE, under the config dir's session-env folder of the
+// session, one file per hook; no other event's hook is.
+// (recorded: runs/subprocess-session-env)
+func TestSessionStartHookIsToldItsEnvFile(t *testing.T) {
+	inv := &Invoker{sessionID: "s1", configDir: "/cfg"}
+	assert.Equal(t, "/cfg/session-env/s1/sessionstart-hook-1.sh", inv.envFile(EventSessionStart, 1))
+	assert.Empty(t, inv.envFile(EventPreToolUse, 0))
+	assert.Equal(t, []string{"CLAUDE_ENV_FILE=/f"}, handler("A").env("/f"))
 }

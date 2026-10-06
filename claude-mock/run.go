@@ -109,6 +109,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		IsResume:                isResume,
 		ResumeLookup:            lookedUp(cmd),
 		ForkFrom:                forkFrom,
+		Invocation:              invocation(cmd),
 		Prompt:                  prompt,
 		Cwd:                     cwd,
 		ProjectDir:              projectDir,
@@ -119,6 +120,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		Prompting:               runner.Prompting{PermissionMode: permissionMode(cmd), MaxTurns: maxTurns(cmd), HookEvents: hookEvents(cmd), Scratchpad: hasScratchpad()},
 		BgWaitCeiling:           printWaitCeiling(),
 		SpawnLimit:              spawnLimit(),
+		ConcurrentLimit:         concurrentLimit(),
 		BackgroundTasksDisabled: backgroundTasksDisabled(),
 		Stderr:                  os.Stderr,
 		Out:                     os.Stdout,
@@ -140,10 +142,7 @@ func noConversation(cmd *cobra.Command, noConv *runner.ErrNoConversation) {
 	sessionID, msg := noConv.SessionID, noConv.Error()
 	fmt.Fprintln(os.Stderr, msg)
 	if format, _ := cmd.Flags().GetString(flagOutputFormat); format == "stream-json" {
-		frame, _ := json.Marshal(map[string]any{
-			"type": "result", "subtype": "error_during_execution", "is_error": true,
-			"num_turns": 0, "session_id": sessionID, "errors": []string{msg},
-		})
+		frame, _ := json.Marshal(noConversationResult(sessionID, msg))
 		fmt.Println(string(frame))
 	}
 	os.Exit(1)

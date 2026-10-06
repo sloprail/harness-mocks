@@ -36,6 +36,9 @@ type ToolUse struct {
 // triggered it ("manual" or "auto"; empty when it names none).
 type Compact struct {
 	Trigger string
+	// Fields are the other keys of the compact line: what the harness says of the
+	// compaction (token counts, say), which the core leaves to the harness.
+	Fields map[string]json.RawMessage
 }
 
 // Thought is a thinking block of a script: the text, and the other keys the block
@@ -66,28 +69,6 @@ type Turn struct {
 	// how long anything takes.
 	Gate Gate
 }
-
-// Gate is a condition on other agents' progress, stated by the script on an assistant
-// line (as "gate": {...}) and held by the host before it takes the line's calls and
-// messages. Ended are the positions (in the order this agent started them) of the
-// sub-agents that must have ended; ParentStarted and ParentDone are how many calls
-// the agent that started this one must have started and have finished.
-type Gate struct {
-	Ended         []int `json:"ended,omitempty"`
-	ParentStarted int   `json:"parent_started,omitempty"`
-	ParentDone    int   `json:"parent_done,omitempty"`
-}
-
-// UnmarshalJSON reads a gate and refuses a field it does not have: a script's mistake is never ignored.
-func (g *Gate) UnmarshalJSON(b []byte) error {
-	type plain Gate
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	return dec.Decode((*plain)(g))
-}
-
-// None reports whether the gate holds nothing back.
-func (g Gate) None() bool { return len(g.Ended) == 0 && g.ParentStarted == 0 && g.ParentDone == 0 }
 
 // Idents are the variables a script is given.
 //

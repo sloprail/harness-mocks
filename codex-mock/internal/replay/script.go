@@ -66,7 +66,8 @@ case "$step" in
   ;;
 *)
   ids=$(jq -cs '[.[]|select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)]' "$A10N_MOCK_SESSION_FILE")
-  printf '%%s\n' "$step" | jq -c --argjson ids "$ids" --arg id "call_%s_$n" '.message.content |= map(if .type=="tool_use" then .id = $id | (if .input.targets then .input.targets |= map(if type=="object" then ($ids[.spawned] // error("no spawn receipt at position \(.spawned)")) else . end) else . end) else . end)'
+  sess=$(jq -cs '[.[]|select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.session_id) catch empty|select(.!=null)]|reduce .[] as $x ([]; if index($x) != null then . else . + [$x] end)' "$A10N_MOCK_SESSION_FILE")
+  printf '%%s\n' "$step" | jq -c --argjson ids "$ids" --argjson sess "$sess" --arg id "call_%s_$n" '.message.content |= map(if .type=="tool_use" then .id = $id | (if (.input.session_id|type) == "object" then .input.session_id |= ($sess[.session] // error("no session receipt at position \(.session)")) else . end) | (if .input.targets then .input.targets |= map(if type=="object" then ($ids[.spawned] // error("no spawn receipt at position \(.spawned)")) else . end) else . end) else . end)'
   ;;
 esac
 `, strings.Join(lines, "\n"), base, tag)

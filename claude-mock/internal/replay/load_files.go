@@ -43,6 +43,7 @@ func subagentTurns(dir string) (map[string]turns, error) {
 		if err != nil {
 			return nil, unbuildable(fmt.Errorf("sub-agent: %w", err))
 		}
+		sub.agentID = strings.TrimPrefix(filepath.Base(strings.TrimSuffix(m, ".meta.json")), "agent-")
 		out[meta.ToolUseID] = sub
 	}
 	return out, nil
