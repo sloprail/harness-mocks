@@ -134,3 +134,47 @@ func TestAClearPromptDoesNotStartTheSessionAgain(t *testing.T) {
 	assert.Equal(t, []any{"startup"}, sources(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))), "recorded")
 	assert.Equal(t, []any{"startup"}, sources(got.hookLog()), "the mock's")
 }
+
+// asyncSequence is the order, in a rollout, of the agent's call and its result, its answers, and the
+// context the hooks added, the first two kinds of context (the start's) sorted: they come from two
+// hooks started one after the other and the real harness delivers either first (recorded twice, in
+// both orders).
+func asyncSequence(rollout string) (out []string) {
+	for _, l := range jsonLines(rollout) {
+		p, _ := l["payload"].(map[string]any)
+		if l["type"] != "response_item" {
+			continue
+		}
+		switch {
+		case p["type"] == "function_call" || p["type"] == "custom_tool_call":
+			out = append(out, "call")
+		case p["type"] == "function_call_output" || p["type"] == "custom_tool_call_output":
+			out = append(out, "output")
+		case p["type"] == "message" && p["role"] == "assistant":
+			out = append(out, "answer")
+		case p["type"] == "message" && p["role"] == "developer" && strings.Contains(fmt.Sprint(p["content"]), "CTX-"):
+			out = append(out, strings.TrimSuffix(strings.TrimPrefix(fmt.Sprint(p["content"]), "[map[text:"), " type:input_text]]"))
+		}
+	}
+	if len(out) > 3 && out[2] > out[3] && strings.HasPrefix(out[2], "CTX-") && strings.HasPrefix(out[3], "CTX-") {
+		out[2], out[3] = out[3], out[2]
+	}
+	return out
+}
+
+// A hook marked async does not hold the agent: the context it adds is delivered at the next safe
+// point, not when it ran. SessionStart's and UserPromptSubmit's land after the agent's first call has
+// been answered, and PostToolUse's, which started during that call, after the agent's next answer,
+// which the agent then follows with another (recorded: runs/hook-async-context). The mock does
+// the same, ordering the hooks it starts by the order of the events and delivering each when it has
+// finished, not after a delay.
+// sr:proves hook-additional-context/codex
+func TestContextOfAsyncHooksIsDeliveredAtTheNextSafePoint(t *testing.T) {
+	rec := loadRecording(t, "hook-async-context")
+	want := []string{"call", "output", "CTX-SessionStart", "CTX-UserPromptSubmit", "answer", "CTX-PostToolUse", "answer"}
+	assert.Equal(t, want, asyncSequence(recordedRollout(t, rec)), "recorded")
+	got := replay(t, rec)
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, want, asyncSequence(got.rollout(t)), "the mock's")
+	assert.Equal(t, 2, strings.Count(got.Stdout, `"agent_message"`), "the second answer follows the late context")
+}

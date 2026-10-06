@@ -26,6 +26,7 @@ providers:
       - codex-mock/snapshots/runs/session-resume-context
       - codex-mock/snapshots/runs/manual-compaction-auto-context
       - codex-mock/snapshots/runs/session-start-clear-prompt
+      - codex-mock/snapshots/runs/hook-async-context
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
