@@ -78,6 +78,8 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	rules := Rules(l.repo, work)
 	wantC, gotC := core.New(rules), core.New(rules)
 	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
+	unsettled(recHooks)
+	unsettled(mockHooks)
 	want.Hooks, got.Hooks = concurrent(recHooks, wantC.Lines(recHooks)), concurrent(mockHooks, gotC.Lines(mockHooks))
 	if len(want.Hooks) == 0 && len(got.Hooks) == 0 && !noHooksRan {
 		return want, got, &Unbuildable{Reason: "the recording's hook log holds no line the mock models: nothing to compare"}
