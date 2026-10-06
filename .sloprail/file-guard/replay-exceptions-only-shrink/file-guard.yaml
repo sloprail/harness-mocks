@@ -1,6 +1,6 @@
 # Enforces adr/replay-exceptions-only-shrink: every mock's notReplaying map may lose keys, never gain
 # one (whatever file of a mock's e2e packages names the list), and no entry's reason may move to a weaker category.
-match: path matches "^[a-z0-9]+-mock/e2e/.*\\.go$"
+match: path matches "^[^/]+-mock/e2e/.*\\.go$"
 deletions: include
 checks:
   - script: ./only-shrinks.sh

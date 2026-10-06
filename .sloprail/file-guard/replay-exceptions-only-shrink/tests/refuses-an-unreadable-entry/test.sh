@@ -52,6 +52,12 @@ printf "$head"'\t"run-a": "adapter: x",\n}\n\nfunc init() { notReplaying["run-e"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "init adds an entry"
 refuses "an init adding an entry" "notReplaying may appear only on its declaration line"
 
+# a key with a tab in it would break the key and rank columns the rule compares by: refused
+git checkout -q -b tabkey "$BASE"
+printf "$head"'\t"run\ta": "adapter: x",\n\t"run-b": "untriaged: y",\n}\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "a key with a tab"
+refuses "a key with a tab" "is not one \"run\": \"reason\", entry"
+
 # recovery: one entry per line, and the list only shrank
 printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b replays"

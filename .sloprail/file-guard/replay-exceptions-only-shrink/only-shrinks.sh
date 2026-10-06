@@ -60,6 +60,8 @@ entries() {
 malformed() {
   printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{$/,/^}$/p' | sed '1d;$d' |
     grep -vE '^[[:space:]]*($|//|"[^"]*":[[:space:]]*"([^"\\]|\\.)*",$)'
+  # a key with a tab would break the key/rank columns this rule compares by: refused like any line it cannot read
+  printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{$/,/^}$/p' | grep -E '^[[:space:]]*"[^"]*'"$(printf '\t')"'[^"]*":'
   # the category a reason starts with is read from the source text, so an escape inside it
   # ("\u0066laky:") would be read by Go as another category
   printf '%s\n' "$1" | grep -E '^[[:space:]]*"[^"]*":[[:space:]]*"[^"\\]{0,11}\\'
@@ -77,7 +79,23 @@ while [ "$i" -lt "$count" ]; do
   # the list: a list moved to a file of another name, or an init() in any other file, would hide entries.
   case "$path" in
     */replay_allowlist_test.go) ;;
-    */generated_replay_test.go) continue ;;
+    */generated_replay_test.go)
+      # the generated test may keep reading the list, never gain a line that names it: such a line could be a
+      # write (an init() adding an entry, a delete(, a maps.Copy(), so each line naming it must already be in the old file
+      [ "$status" = "D" ] && continue
+      gnew="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
+        refuse_error "could not read $path from the changeset, so it could not be checked"
+      gold=""
+      if [ "$status" != "A" ]; then
+        gold="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
+          refuse_error "could not read the base of $path from the changeset, so it could not be checked"
+      fi
+      gnew_lines="$(grep -v '^[[:space:]]*//' <<<"$gnew" | grep -w notReplaying | sed 's/^[[:space:]]*//' | LC_ALL=C sort -u)"
+      gold_lines="$(grep -v '^[[:space:]]*//' <<<"$gold" | grep -w notReplaying | sed 's/^[[:space:]]*//' | LC_ALL=C sort -u)"
+      gadded="$(LC_ALL=C comm -23 <(printf '%s\n' "$gnew_lines") <(printf '%s\n' "$gold_lines") | grep -v '^$')"
+      [ -z "$gadded" ] ||
+        refuse "$path: the generated test names notReplaying in a line that was not there before (a write, a delete( or a maps.Copy( would add an entry unseen): $(printf '%s' "$gadded" | head -n 1)"
+      continue ;;
     *.go)
       [ "$status" = "D" ] && continue
       other="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
