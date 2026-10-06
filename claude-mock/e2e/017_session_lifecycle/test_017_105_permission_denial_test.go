@@ -136,3 +136,16 @@ func TestT017_108_APIRetryEventIsRefused(t *testing.T) {
 	assert.Contains(t, out, "system/api_retry event is not implemented by the mock")
 	assert.NotContains(t, out, `"attempt"`)
 }
+
+// TestT017_113_MonitorAndWorkflowToolsAreRefused: a scenario that calls the Monitor or the
+// Workflow tool is refused by name before the tool runs, rather than answered as an unknown tool.
+// sr:proves print-waits-for-background-agents/claude
+func TestT017_113_MonitorAndWorkflowToolsAreRefused(t *testing.T) {
+	for _, tool := range []string{"Monitor", "Workflow"} {
+		dir := t.TempDir()
+		sc := script(t, dir, "s", toolUse("m1", tool, `{"command":"true"}`))
+		out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "mw-1", "--project-dir", dir, "--config-dir", filepath.Join(dir, "config"), "-p", "hello")
+		assert.NotEqual(t, 0, code, tool)
+		assert.Contains(t, out, "the "+tool+" tool is not implemented by the mock", tool)
+	}
+}

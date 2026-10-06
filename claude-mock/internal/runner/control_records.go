@@ -36,3 +36,9 @@ func preservedUUIDs(boundary map[string]any) []string {
 // brought about on demand, so none is recorded (adr/fail-fast-unimplemented).
 // sr:docs https://code.claude.com/docs/en/headless#handle-api-retries
 var errAPIRetry = errors.New("claude-mock: the system/api_retry event is not implemented by the mock (it has no model API to retry): it is refused rather than ignored")
+
+// refusedTools are the tools the mock does not implement and refuses by name when a scenario calls
+// them: Monitor (watches a background process) and Workflow (runs a background workflow), which
+// keep a `claude -p` run open (adr/fail-fast-unimplemented).
+// sr:docs https://code.claude.com/docs/en/headless#background-tasks-at-exit
+var refusedTools = map[string]bool{"Monitor": true, "Workflow": true}
