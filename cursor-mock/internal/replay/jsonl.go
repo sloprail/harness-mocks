@@ -24,7 +24,7 @@ func readJSONL(path string) ([]map[string]any, error) {
 	return out, nil
 }
 
-// parseJSONL parses text as JSON objects, one per line.
+// parseJSONL parses text as JSON objects, one per line (or several run together on one).
 func parseJSONL(text string) ([]map[string]any, error) {
 	var out []map[string]any
 	for i, l := range strings.Split(text, "\n") {
@@ -33,10 +33,25 @@ func parseJSONL(text string) ([]map[string]any, error) {
 			continue
 		}
 		var m map[string]any
-		if err := json.Unmarshal([]byte(l), &m); err != nil || m == nil {
+		if err := json.Unmarshal([]byte(l), &m); err == nil && m != nil {
+			out = append(out, m)
+			continue
+		}
+		// hooks that run side by side append to one log, and what they write can
+		// run together on a line: several objects, nothing else, is still the log
+		dec := json.NewDecoder(strings.NewReader(l))
+		var run []map[string]any
+		for dec.More() {
+			var o map[string]any
+			if err := dec.Decode(&o); err != nil || o == nil {
+				return nil, fmt.Errorf("line %d is not a JSON object: %.80s", i+1, l)
+			}
+			run = append(run, o)
+		}
+		if len(run) == 0 {
 			return nil, fmt.Errorf("line %d is not a JSON object: %.80s", i+1, l)
 		}
-		out = append(out, m)
+		out = append(out, run...)
 	}
 	return out, nil
 }
