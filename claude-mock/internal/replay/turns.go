@@ -11,8 +11,9 @@ import (
 // turns are what an agent did, with the id each of its calls had, so that the
 // agent a call started can be attached to it.
 type turns struct {
-	agent core.Agent
-	ids   []string // the id of each of agent.Calls
+	agent   core.Agent
+	ids     []string // the id of each of agent.Calls
+	agentID string   // for a sub-agent: its own id, as its file names it
 }
 
 // modelTurns are the calls the model made in one recorded transcript, in
@@ -127,9 +128,13 @@ func unify(block map[string]any) (core.Call, error) {
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,
 // and theirs in turn, found by the id of the call that started them. A spawn
 // with no recorded sub-agent keeps none: the call itself was refused.
-func attachSubagents(t turns, subs map[string]turns) core.Agent {
+func attachSubagents(t turns, subs map[string]turns, early, late map[string]bool) core.Agent {
 	agent := core.Agent{Calls: append([]core.Call(nil), t.agent.Calls...), Final: t.agent.Final, FinalAt: t.agent.FinalAt}
 	for i, c := range agent.Calls {
+		agent.Calls[i].ExecEarly = early[t.ids[i]]
+		if late[t.ids[i]] { // the harness started the sub-agent after the call's PostToolUse, in this sample
+			agent.Calls[i].Input = withKey(agent.Calls[i].Input, "mock_start_after_post", true)
+		}
 		if c.Tool != core.ToolSpawn {
 			continue
 		}
@@ -138,7 +143,7 @@ func attachSubagents(t turns, subs map[string]turns) core.Agent {
 			continue
 		}
 		delete(subs, t.ids[i]) // a sub-agent is attached once
-		a := attachSubagents(sub, subs)
+		a := attachSubagents(sub, subs, early, late)
 		agent.Calls[i].Sub = &a
 	}
 	return agent
@@ -154,4 +159,14 @@ func isNudge(rec map[string]any) bool {
 	msg, _ := rec["message"].(map[string]any)
 	s, _ := msg["content"].(string)
 	return strings.HasPrefix(s, nudge)
+}
+
+// withKey is the input with one more key, a copy.
+func withKey(in map[string]any, k string, v any) map[string]any {
+	out := make(map[string]any, len(in)+1)
+	for key, val := range in {
+		out[key] = val
+	}
+	out[k] = v
+	return out
 }

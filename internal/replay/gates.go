@@ -68,7 +68,7 @@ func Gates(a Agent, parent *Agent, ancestors ...*Agent) []scenario.Gate {
 		// A call of this agent that ran a while waits, before it is carried out, for the steps of the agent
 		// that started it that came before the call's output was given back: they came while it ran.
 		for j, c := range a.Calls {
-			if c.Done.IsZero() || c.At.IsZero() {
+			if c.Done.IsZero() || c.At.IsZero() || c.ExecEarly {
 				continue
 			}
 			if n := stepsBy(*parent, c.Done); n > stepsBy(*parent, c.At) {
@@ -77,7 +77,7 @@ func Gates(a Agent, parent *Agent, ancestors ...*Agent) []scenario.Gate {
 		}
 		for i, anc := range ancestors { // and for the agents above that one
 			for j, c := range a.Calls {
-				if c.Done.IsZero() || c.At.IsZero() {
+				if c.Done.IsZero() || c.At.IsZero() || c.ExecEarly {
 					continue
 				}
 				n := stepsBy(*anc, c.Done)

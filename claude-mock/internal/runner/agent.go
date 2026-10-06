@@ -77,6 +77,10 @@ type agentToolInput struct {
 	Model string `json:"model,omitempty"`
 	// Script is the absolute path to the subagent's scenario script (mock-only).
 	Script string `json:"script,omitempty"`
+	// StartAfterPost makes a background sub-agent's SubagentStart fire after the launching call's
+	// PostToolUse, not at the launch: the real harness races, and a recording shows the order it took
+	// (mock-only; recorded: runs/bgagent-concurrent-limit, whose samples differ).
+	StartAfterPost bool `json:"mock_start_after_post,omitempty"`
 }
 
 // runAgentTool runs a foreground Agent (alias Task) call, the way the real

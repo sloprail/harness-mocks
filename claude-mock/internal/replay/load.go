@@ -96,10 +96,11 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, err
 	}
-	if _, err := readJSONL(filepath.Join(sample, "payloads.jsonl")); err != nil {
+	payloads, err := readJSONL(filepath.Join(sample, "payloads.jsonl"))
+	if err != nil {
 		return core.Recording{}, err
 	}
-	agent, then, earlier, err := agentsOf(setup, sample, stream)
+	agent, then, earlier, err := agentsOf(setup, sample, stream, payloads)
 	if err != nil {
 		return core.Recording{}, err
 	}
