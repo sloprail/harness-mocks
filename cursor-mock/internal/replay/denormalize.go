@@ -25,13 +25,17 @@ type step struct {
 }
 
 // lines is how many assistant records the mock writes to the session file for
-// the step: one for the text, one for each call.
+// the step: one for each call, the text before the first being in its record
+// (recorded: a step's text and its call are one record), and one for the text of
+// a step that makes no call.
 func (s step) lines() int {
-	n := len(s.calls)
-	if s.said != nil {
-		n++
+	if len(s.calls) > 0 {
+		return len(s.calls)
 	}
-	return n
+	if s.said != nil {
+		return 1
+	}
+	return 0
 }
 
 // scriptCall is one tool call in the mock's script vocabulary.

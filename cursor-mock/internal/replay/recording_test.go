@@ -58,14 +58,14 @@ func TestLoadRefusesASetupItDoesNotInstall(t *testing.T) {
 }
 
 // The script plays each step where the session file stands: a response of text
-// and two calls adds three records.
+// and two calls adds two records (the text is in the first call's).
 func TestScriptStepsAdvanceByTheRecordsTheyAdd(t *testing.T) {
 	said := "go"
 	s := script("t", []step{
 		{said: &said, calls: []scriptCall{{Name: "Shell", Input: map[string]any{"command": "a"}}, {Name: "Shell", Input: map[string]any{"command": "b"}}}},
 		{said: &said},
 	})
-	if !strings.Contains(s, "\n0) printf") || !strings.Contains(s, "\n3) printf") {
+	if !strings.Contains(s, "\n0) printf") || !strings.Contains(s, "\n2) printf") {
 		t.Fatalf("script:\n%s", s)
 	}
 }
