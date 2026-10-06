@@ -67,7 +67,7 @@ func Denormalize(rec core.Recording) Scenario {
 	files := map[string]string{"hook.sh": rec.Setup["hook.sh"]}
 	scripts := map[string]string{}
 	calls := make([]modelCall, len(rec.Agent.Calls))
-	mainGates := gatesOf(rec.Agent, nil)
+	mainGates := core.Gates(rec.Agent, nil)
 	n := 0
 	for i, c := range rec.Agent.Calls {
 		calls[i] = mockCall(c)
@@ -75,7 +75,7 @@ func Denormalize(rec core.Recording) Scenario {
 		if c.Tool == core.ToolSpawn && c.Sub != nil {
 			name := fmt.Sprintf("sub%d.sh", n)
 			subCalls := make([]modelCall, len(c.Sub.Calls))
-			subGates := gatesOf(*c.Sub, &rec.Agent)
+			subGates := core.Gates(*c.Sub, &rec.Agent)
 			for j, sc := range c.Sub.Calls {
 				subCalls[j] = mockCall(sc)
 				subCalls[j].Gate = subGates[j]
