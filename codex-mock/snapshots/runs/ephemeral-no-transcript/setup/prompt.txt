@@ -1,1 +1,0 @@
-Run exactly this shell command, once, as its own tool call: echo one. Then reply only DONE.
