@@ -141,7 +141,7 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"ty
 	// the sub-agent's call: the same hooks, in the same order, as recorded, and
 	// the receipt carries the shell and its process
 	gotEvents, gotReceipt, subSession := backgroundOf(got, command)
-	wantEvents, wantReceipt, _ := backgroundOf(want, "sleep 47; echo SUBBG")
+	wantEvents, wantReceipt, _ := backgroundOf(want, "sh -c 'echo $$ > bgpid; exec sleep 47'")
 	require.Equal(t, []string{"preToolUse", "beforeShellExecution", "postToolUse"}, wantEvents)
 	require.Equal(t, wantEvents, gotEvents)
 	var receipt struct {
@@ -209,7 +209,7 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"ty
 	recNotes := notifications(jsonLines(t, filepath.Join(sample, "stream.jsonl")))
 	require.Len(t, recNotes, 1)
 	require.Equal(t, "aborted", recNotes[0]["status"])
-	require.Equal(t, "sleep 47; echo SUBBG", recNotes[0]["title"])
+	require.Equal(t, "sh -c 'echo $$ > bgpid; exec sleep 47'", recNotes[0]["title"])
 }
 
 // streamOrder is the tool calls, task notices and result of a stream, in order
