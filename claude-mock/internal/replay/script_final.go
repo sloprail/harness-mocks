@@ -47,7 +47,17 @@ func assistantFrame(block map[string]any, extra ...any) string {
 // it (a frame of its own, as the real stream has it) and the call, joined by
 // the byte \001, which JSON never holds raw; the script splits them again.
 func callLine(id string, c scriptCall) string {
+	if c.Answer { // what it said before, then the answer and the result that ends the turn
+		var early []string
+		for _, e := range c.Early {
+			early = append(early, assistantFrame(map[string]any{"type": "text", "text": e}))
+		}
+		return strings.Join(append(early, finalLines(*c.Text, "")), "\x01")
+	}
 	var parts []string
+	for _, e := range c.Early {
+		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": e}))
+	}
 	if c.Text != nil {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": *c.Text}))
 	}

@@ -65,7 +65,9 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
 		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
 	}
-	tasks.Announce(bg.Registry, task, frames)
+	if !(s.background && s.begun != nil) { // a background sub-agent was announced with its launch
+		tasks.Announce(bg.Registry, task, frames)
+	}
 	begin := s.begun
 	if begin == nil {
 		begin = subagents.Begin(s.hooks(ctx, inv, bg))

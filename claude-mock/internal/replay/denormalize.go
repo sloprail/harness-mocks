@@ -30,9 +30,11 @@ type ScenarioStep struct {
 
 // scriptCall is one tool call the model made, in the mock's script vocabulary.
 type scriptCall struct {
-	Text  *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
-	Name  string         `json:"name"`
-	Input map[string]any `json:"input"`
+	Text   *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
+	Early  []string       `json:"-"`              // and what it said before that
+	Answer bool           `json:"-"`              // the call is an answer that ends a turn: Text is it
+	Name   string         `json:"name"`
+	Input  map[string]any `json:"input"`
 }
 
 // Denormalize turns the unified recording into the mock's scenario: the
@@ -90,6 +92,9 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 func mockCall(c core.Call) scriptCall {
 	name := "Bash"
 	switch c.Tool {
+	case core.ToolAnswer:
+		text, _ := c.Input["text"].(string)
+		return scriptCall{Text: &text, Early: c.SaidBefore, Answer: true}
 	case core.ToolSpawn:
 		name = "Agent"
 	case toolRead:
@@ -101,7 +106,7 @@ func mockCall(c core.Call) scriptCall {
 			in[k] = v
 		}
 	}
-	return scriptCall{Text: c.Said, Name: name, Input: in}
+	return scriptCall{Text: c.Said, Early: c.SaidBefore, Name: name, Input: in}
 }
 
 // script is the mock script that makes the given calls, one per turn, then
@@ -116,7 +121,7 @@ func script(tag string, calls []scriptCall, final, extra string, skip int) strin
 	}
 	lines = append(lines, finalLines(final, extra))
 	return fmt.Sprintf(`#!/bin/sh
-n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
+n=$(grep -c -e '"type":"tool_result"' -e '"turnOrigin":"task_notification"' -e 'Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
 sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
 %s
 CALLS_EOF

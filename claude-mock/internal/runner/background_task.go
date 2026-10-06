@@ -19,6 +19,8 @@ type backgroundTasks struct {
 	run runState
 	// results holds the result frames of turns that ended while a background agent worked.
 	results tasks.Results
+	// stopErrorShown: the Stop hook error notification has been streamed in this run.
+	stopErrorShown bool
 }
 
 func newBackgroundTasks() *backgroundTasks {

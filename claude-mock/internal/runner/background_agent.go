@@ -55,6 +55,14 @@ func (b *backgroundTasks) launchAgent(cfg Config, inv *hooks.Invoker, toolUseID 
 	// The sub-agent is begun with the launch, ahead of the call's PostToolUse
 	// (recorded: snapshots/runs/bgagent); its run starts after the answer.
 	sub.begun = subagents.Begin(sub.hooks(b.Context(), inv, b))
+	// the task is announced with the launch, ahead of the call's answer (recorded: runs/bgagent, bgagent-definition)
+	task.Kind = tasks.Agent
+	task.Meta = taskStart{
+		ID: sub.agentID, ToolUseID: toolUseID, Description: in.Description, TaskType: "local_agent",
+		Backgrounded: true, SubagentType: sub.agentType, SpawnDepth: sub.spawnDepth, Prompt: in.Prompt,
+	}
+	b.Add(task)
+	tasks.Announce(b.Registry, task, frameObserver{cfg})
 	start := func() {
 		b.StartAgent(task, func(ctx context.Context) {
 			out := sub.execute(ctx, inv, b, in.Prompt)

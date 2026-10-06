@@ -54,6 +54,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var lastText string
 	var final scenario.Result // the run's one result frame, held until its turn really ends
 	finish := finisher(cfg, bg, &final)
+	streamFeedback(cfg, tr)
 	blockCap := stopHookBlockCap()
 	for {
 		if maxTurnsReached(cfg, bg) {
@@ -91,18 +92,15 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				SessionCrons:         &crons,
 			})
 			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
-			writeStopHookError(cfg, stopRuns)
+			writeStopHookError(cfg, bg, stopRuns)
 			// Its feedback, attachment and stop_hook_summary: transcript.recordHookRuns.
 			// sr:provides stop-block-continuation/claude
 			if turnloop.Continues(stopErr != nil, stopOut.Decision == "block") {
 				stopBlocks++
 				// sr:provides stop-block-cap/claude
 				if turnloop.AfterBlock(stopBlocks, blockCap) {
-					// Re-prompt: the turn goes on, so the script runs again and
-					// reacts to the block. Its result frame is dropped — a
-					// continued turn ends with one result, at its real end
-					// (claude 2.1.282 streamed a single result across 8
-					// continuations).
+					// Re-prompt: the turn goes on and the script runs again. Its result
+					// frame is dropped: a continued turn ends with one result, at its end.
 					lastSig, repeats = "", 0
 					final.Continue()
 					continue
@@ -112,7 +110,8 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				// the next block is overridden and the turn ends, with a
 				// warning record (the 2.1.282 binary: `ve>xe`; a controlled run
 				// fired Stop 9 times). 0 disables the cap.
-				writeCapOverride(tr, stopBlocks)
+				writeCapOverride(cfg, tr, stopBlocks)
+				bg.run.turn() // the override counts as a turn (runs/cap: num_turns 10)
 				// The overridden turn's result carries no text: claude
 				// 2.1.282 streamed "result":"" after the override.
 				final.Hold(withEmptyResult(turn.resultLine))

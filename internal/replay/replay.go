@@ -16,14 +16,20 @@ const (
 	ToolShell = "shell"
 	// ToolSpawn starts a sub-agent: Input "message" (string), and Call.Sub is the sub-agent's turns.
 	ToolSpawn = "spawn_agent"
+	// ToolAnswer is the end of a turn that the harness goes on from (a task's notification, a
+	// hook's feedback): the model's answer, with no call: Input "text" (string). The agent's Final is
+	// the last answer; the ones before it sit among the calls.
+	ToolAnswer = "answer"
 )
 
 // Call is one tool call the model made.
 type Call struct {
-	Said  *string // what the model said just before the call, if it said anything
-	Tool  string
-	Input map[string]any
-	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
+	Said *string // what the model said just before the call, if it said anything
+	// SaidBefore is what it said earlier still, in order, when it said several things ahead of the call.
+	SaidBefore []string
+	Tool       string
+	Input      map[string]any
+	Sub        *Agent // the turns of the agent a ToolSpawn started, when they were recorded
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in

@@ -42,6 +42,9 @@ type transcript struct {
 
 	// held is hook runs recorded but not written yet (holdHookRuns).
 	held []heldRun
+	// onFeedback is told the reason of each Stop hook feedback record written: the main thread's
+	// stream carries it as a frame too (recorded: runs/cap).
+	onFeedback func(reason string)
 }
 
 // openTranscript returns a handle on path. The file is opened now when it

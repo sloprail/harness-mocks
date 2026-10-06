@@ -52,7 +52,9 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SpawnLimit:              s.parent.SpawnLimit,
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
-	subCfg.announce(subCfg, prompt)
+	if !s.background { // a background sub-agent's prompt is no frame (recorded: runs/bgagent)
+		subCfg.announce(subCfg, prompt)
+	}
 	s.startFrames.finish(s.parent)
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {

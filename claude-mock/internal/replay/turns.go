@@ -23,7 +23,13 @@ type turns struct {
 func modelTurns(records []map[string]any) (turns, error) {
 	var t turns
 	var said *string
+	var before []string
 	for _, rec := range records {
+		if endsTurn(rec) && said != nil { // a new turn begins: what was said last was the answer that ended the one before
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}, SaidBefore: before})
+			t.ids = append(t.ids, "")
+			said, before = nil, nil
+		}
 		if rec["type"] != "assistant" {
 			continue
 		}
@@ -34,7 +40,7 @@ func modelTurns(records []map[string]any) (turns, error) {
 			switch block["type"] {
 			case "text":
 				if said != nil {
-					return turns{}, fmt.Errorf("the model said two things before one call: the adapter keeps one")
+					before = append(before, *said)
 				}
 				text, _ := block["text"].(string)
 				said = &text
@@ -43,8 +49,8 @@ func modelTurns(records []map[string]any) (turns, error) {
 				if err != nil {
 					return turns{}, err
 				}
-				call.Said = said
-				said = nil
+				call.Said, call.SaidBefore = said, before
+				said, before = nil, nil
 				id, _ := block["id"].(string)
 				t.agent.Calls = append(t.agent.Calls, call)
 				t.ids = append(t.ids, id)
@@ -101,4 +107,15 @@ func attachSubagents(t turns, subs map[string]turns) core.Agent {
 		agent.Calls[i].Sub = &a
 	}
 	return agent
+}
+
+// endsTurn is whether a record opens a turn of the model's own accord: a user record whose content is
+// text (a task's notification, a hook's feedback), not a tool's result.
+func endsTurn(rec map[string]any) bool {
+	if rec["type"] != "user" {
+		return false
+	}
+	msg, _ := rec["message"].(map[string]any)
+	_, text := msg["content"].(string)
+	return text
 }

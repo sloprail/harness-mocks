@@ -16,13 +16,17 @@ import (
 // the number of failing handlers (recorded: snapshots/runs/hook-exit-codes,
 // exit 2; hook-exit-json, exit 1). A Stop whose handlers all succeeded leaves
 // none.
-func writeStopHookError(cfg Config, runs []hooks.HandlerRun) {
+func writeStopHookError(cfg Config, bg *backgroundTasks, runs []hooks.HandlerRun) {
+	if bg.stopErrorShown { // the notification is keyed: shown once, however many blocks follow (recorded: runs/cap, stops)
+		return
+	}
 	for _, r := range runs {
-		if r.Blocked || r.JSONError != "" || (r.ExitCode != 0 && !r.JSONParsed) {
+		if r.Blocked || r.Output.Decision == "block" || r.JSONError != "" || (r.ExitCode != 0 && !r.JSONParsed) {
 			writeFrame(cfg, map[string]any{
 				"type": "system", "subtype": "notification", "key": "stop-hook-error",
 				"text": "Stop hook error occurred · ctrl+o to see", "priority": "immediate",
 			})
+			bg.stopErrorShown = true
 			return
 		}
 	}
@@ -111,5 +115,24 @@ func (cfg Config) configureInvoker(inv *hooks.Invoker) {
 	inv.SetPermissionMode(cfg.PermissionMode)
 	if cfg.Scratchpad {
 		inv.SetScratchpadDir(filepath.Join(filepath.Dir(tasksDir(cfg.Cwd, cfg.SessionID)), "scratchpad"))
+	}
+}
+
+// writeFeedbackFrame streams a Stop hook's feedback to the agent as the synthetic user message the
+// record holds (recorded: runs/cap, stops).
+func writeFeedbackFrame(cfg Config, reason string) {
+	line, err := marshalRecord(map[string]any{
+		"type": "user", "isSynthetic": true, "parent_tool_use_id": nil,
+		"message": map[string]any{"role": "user", "content": []any{map[string]any{"type": "text", "text": "Stop hook feedback:\n" + reason}}},
+	})
+	if err == nil {
+		writeStreamLine(cfg, line)
+	}
+}
+
+// streamFeedback makes the main thread's Stop feedback records stream as frames too.
+func streamFeedback(cfg Config, tr *transcript) {
+	if cfg.AgentID == "" {
+		tr.onFeedback = func(reason string) { writeFeedbackFrame(cfg, reason) }
 	}
 }

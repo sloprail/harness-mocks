@@ -33,7 +33,7 @@ func Diff(what string, want, got []string) string {
 		}
 		if w != g {
 			fmt.Fprintf(&b, "line %d differs\n  recording: %s\n  mock:      %s\n", i+1, clip(w), clip(g))
-			if shown++; shown == 3 {
+			if shown++; shown == 30 {
 				break
 			}
 		}
@@ -42,8 +42,8 @@ func Diff(what string, want, got []string) string {
 }
 
 func clip(s string) string {
-	if len(s) > 600 {
-		return s[:600] + "…"
+	if len(s) > 110 {
+		return s[:110] + "…"
 	}
 	if s == "" {
 		return "(none)"

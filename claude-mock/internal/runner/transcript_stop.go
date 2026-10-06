@@ -51,4 +51,7 @@ func (t *transcript) stopHookFeedback(reason string) {
 		"isMeta":  true,
 		"message": map[string]any{"role": "user", "content": "Stop hook feedback:\n" + reason},
 	})
+	if t.onFeedback != nil {
+		t.onFeedback(reason)
+	}
 }
