@@ -45,6 +45,8 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		SidechainPath:           s.sidechain,
 		ParentTranscriptPath:    s.parentReported,
 		bg:                      bg,
+		steps:                   newAgentSteps(s.parent.steps),
+		background:              s.background,
 		wake:                    s.parent.wake,
 		stream:                  s.parent.stream,
 		sessionFile:             s.sessionFile,
@@ -53,10 +55,13 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		Invocation:              Invocation{Tools: s.parent.Tools, RestrictTools: s.parent.RestrictTools},
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
-	if !s.announced { // a re-run after a blocking SubagentStop streams no prompt of its own (recorded: snapshots/runs/hookmix)
+	// A background sub-agent's prompt is not in the stream (recorded: runs/bgagent, bgagent-concurrent-limit,
+	// nested-fork-limit). A re-run after a blocking SubagentStop streams no prompt of its own (recorded:
+	// snapshots/runs/hookmix).
+	if !s.announced && !s.background {
 		subCfg.announce(subCfg, prompt)
-		s.announced = true
 	}
+	s.announced = true
 	s.startFrames.finish(s.parent)
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {

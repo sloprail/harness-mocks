@@ -63,35 +63,6 @@ func (p *Progress) Wait(ctx context.Context, started, done int) {
 	}
 }
 
-// SpawnLog is the ids of the sub-agents an agent has started, in order: the position
-// a script's gate names a sub-agent by.
-type SpawnLog struct {
-	mu  sync.Mutex
-	ids []string
-}
-
-// Add records a sub-agent the agent has started. A nil SpawnLog records nothing.
-func (l *SpawnLog) Add(id string) {
-	if l == nil {
-		return
-	}
-	l.mu.Lock()
-	l.ids = append(l.ids, id)
-	l.mu.Unlock()
-}
-
-func (l *SpawnLog) at(k int) (string, bool) {
-	if l == nil {
-		return "", false
-	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if k < 0 || k >= len(l.ids) {
-		return "", false
-	}
-	return l.ids[k], true
-}
-
 // Hold holds an agent's step back until what its script's gate names has happened: the
 // sub-agents it started (spawned) that must have ended, and how far the agent that
 // started it (parent, nil for the session's own) must have got. A gate that names what
@@ -111,7 +82,9 @@ func Hold(ctx context.Context, g scenario.Gate, reg *tasks.Registry, spawned *Sp
 			problems = append(problems, fmt.Sprintf("a gate waits for sub-agent %d, which this agent has not started", k))
 			continue
 		}
-		awaitEnd(ctx, reg, id)
+		if !spawned.isSettled(id) {
+			awaitEnd(ctx, reg, id)
+		}
 	}
 	return problems
 }

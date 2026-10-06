@@ -27,8 +27,7 @@ func askOf(input json.RawMessage) subagents.Ask {
 // spawned, what their calls requested and how many started in the background,
 // the deepest, those spawned by sub-agents, how many completed or failed, the
 // spawns refused for the concurrent limit, and the count by type. What the mock
-// has no case of stays 0: sub-agents killed, and spawns refused for depth or
-// budget.
+// has no case of stays 0: sub-agents killed, and spawns refused for budget.
 //
 // sr:provides background-agent/claude
 func withSubagentStats(line []byte, bg *backgroundTasks) []byte {
@@ -46,7 +45,7 @@ func withSubagentStats(line []byte, bg *backgroundTasks) []byte {
 		"spawned_by_subagents": t.SpawnedBySubagents, "completed": t.Completed, "failed": t.Failed,
 		"requested": map[string]any{"background": t.Requested[subagents.AskedBackground], "foreground": t.Requested[subagents.AskedForeground], "unset": t.Requested[subagents.Unset]},
 		"killed":    map[string]any{"parent": 0, "user": 0, "system": 0},
-		"refused":   map[string]any{"depth_limit": 0, "concurrency_limit": t.RefusedConcurrency, "budget": 0},
+		"refused":   map[string]any{"depth_limit": t.RefusedDepth, "concurrency_limit": t.RefusedConcurrency, "budget": 0},
 		"by_type":   byType,
 	})
 	if err != nil {
