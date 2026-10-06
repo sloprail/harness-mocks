@@ -36,6 +36,13 @@ func parseArgs(text string) ([]string, error) {
 		if refused[flag] {
 			return nil, unbuildable(fmt.Errorf("%s%s", RefusedPrefix, flag))
 		}
+		if flag == "--session-id" { // the replay gives the mock a session id of its own (sessionID)
+			if i+1 >= len(f) {
+				return nil, unbuildable(fmt.Errorf("the setup's args end after %s, short of its value", flag))
+			}
+			i += 2
+			continue
+		}
 		n, ok := modelled[flag]
 		if !ok {
 			return nil, unbuildable(fmt.Errorf("the setup's args have %s, which the adapter does not map to a mock flag", flag))

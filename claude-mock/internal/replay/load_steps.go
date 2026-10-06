@@ -73,7 +73,7 @@ func stepThreads(specs []stepSpec, first string) ([]string, error) {
 // and each later one as a core.Step, with the sub-agents they started attached. A run alone is
 // the whole transcript of its session; runs share a session's transcript, so each is what
 // follows its prompt there.
-func agentsOf(setup, sample string, stream []map[string]any) (core.Agent, []core.Step, error) {
+func agentsOf(setup, sample string, stream, payloads []map[string]any) (core.Agent, []core.Step, error) {
 	specs, err := stepSpecs(setup)
 	if err != nil {
 		return core.Agent{}, nil, err
@@ -126,6 +126,10 @@ func agentsOf(setup, sample string, stream []map[string]any) (core.Agent, []core
 	if len(subs) > 0 {
 		return core.Agent{}, nil, unbuildable(fmt.Errorf("a sub-agent whose starting call is in no transcript"))
 	}
+	attachSummarizerOutput(&agents[0], payloads)
+	for i := 1; i < len(agents); i++ {
+		attachSummarizerOutput(&agents[i], payloads)
+	}
 	var then []core.Step
 	for i, s := range specs[1:] {
 		then = append(then, core.Step{Prompt: s.prompt, Args: stepMockArgs(s), Agent: agents[i+1]})
@@ -146,4 +150,23 @@ func stepMockArgs(s stepSpec) []string {
 		out = append(out, "--session-id", s.newID)
 	}
 	return append(out, s.args...)
+}
+
+// attachSummarizerOutput gives each manual compaction of the agent what the summarizer wrote: the
+// last_assistant_message of the SubagentStop the compaction fired (agent_type "", the summarizer), in
+// order. The summary record keeps it in the form the agent reads; the hooks are told this.
+func attachSummarizerOutput(a *core.Agent, payloads []map[string]any) {
+	var outputs []string
+	for _, p := range payloads {
+		if p["hook_event_name"] == "SubagentStop" && p["agent_type"] == "" {
+			text, _ := p["last_assistant_message"].(string)
+			outputs = append(outputs, text)
+		}
+	}
+	for i := range a.Calls {
+		if c := &a.Calls[i]; c.Tool == core.ToolCompact && c.Input["trigger"] == "manual" && len(outputs) > 0 {
+			c.Input["model_output"] = outputs[0]
+			outputs = outputs[1:]
+		}
+	}
 }

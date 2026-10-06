@@ -69,7 +69,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		}
 		if turn.done {
 			final.Hold(turn.resultLine)
-			if nested {
+			if nested || bg.run.isLocal() { // a sub-agent's run, or a command the harness carried out itself: no Stop
 				finish()
 				return nil
 			}

@@ -64,8 +64,8 @@ func TestT013_01_CompactionRecordFiresSessionStartCompact(t *testing.T) {
 	require.Equal(t, 0, code, "compaction-record run must succeed\noutput:\n%s", out)
 
 	// The compaction record was forwarded to the output stream (part of history).
-	assert.Contains(t, out, `"isCompactSummary":true`,
-		"the compaction record must be forwarded to the output stream\noutput:\n%s", out)
+	assert.Contains(t, out, `"isSynthetic":true`,
+		"the compaction summary must reach the output stream as a synthetic user frame\noutput:\n%s", out)
 
 	// SessionStart fired at startup AND on compact.
 	data, err := os.ReadFile(logFile)

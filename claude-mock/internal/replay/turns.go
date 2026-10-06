@@ -24,11 +24,37 @@ func modelTurns(records []map[string]any) (turns, error) {
 	var t turns
 	var said *string
 	var before []string
+	trigger := "manual" // of the compaction whose summary comes next: its boundary says
+	preserved := 0      // and how many of the last messages it kept
+	logical := ""       // and whether its logical parent was a record the file holds
+	segment := true     // and whether it names a preserved segment
+	written := map[string]bool{}
+	for _, r := range records {
+		if id, _ := r["uuid"].(string); id != "" {
+			written[id] = true
+		}
+	}
 	for _, rec := range records {
 		if endsTurn(rec) && said != nil { // a new turn begins: what was said last was the answer that ended the one before
 			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}, SaidBefore: before})
 			t.ids = append(t.ids, "")
 			said, before = nil, nil
+		}
+		if c, ok := compaction(rec, trigger, preserved, logical, segment); ok {
+			t.agent.Calls = append(t.agent.Calls, c)
+			t.ids = append(t.ids, "")
+		}
+		if meta, _ := rec["compactMetadata"].(map[string]any); rec["subtype"] == "compact_boundary" && meta != nil {
+			trigger, _ = meta["trigger"].(string)
+			preserved, logical = 0, ""
+			_, segment = meta["preservedSegment"]
+			if lp, _ := rec["logicalParentUuid"].(string); lp != "" && !written[lp] {
+				logical = "unwritten"
+			}
+			if pm, _ := meta["preservedMessages"].(map[string]any); pm != nil {
+				uuids, _ := pm["uuids"].([]any)
+				preserved = len(uuids)
+			}
 		}
 		if rec["type"] != "assistant" {
 			continue
@@ -118,4 +144,25 @@ func endsTurn(rec map[string]any) bool {
 	msg, _ := rec["message"].(map[string]any)
 	_, text := msg["content"].(string)
 	return text
+}
+
+// compaction is the compaction a record is the summary of: the user record the harness writes with
+// isCompactSummary, whose text is what the agent is given in place of what was compacted.
+func compaction(rec map[string]any, trigger string, preserved int, logical string, segment bool) (core.Call, bool) {
+	if rec["type"] != "user" || rec["isCompactSummary"] != true {
+		return core.Call{}, false
+	}
+	msg, _ := rec["message"].(map[string]any)
+	text, ok := msg["content"].(string)
+	in := map[string]any{"summary": text, "trigger": trigger}
+	if preserved > 0 {
+		in["preserve"] = preserved
+	}
+	if logical != "" {
+		in["logical_parent"] = logical
+	}
+	if !segment {
+		in["preserved_segment"] = false
+	}
+	return core.Call{Tool: core.ToolCompact, Input: in}, ok
 }

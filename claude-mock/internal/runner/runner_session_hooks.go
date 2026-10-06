@@ -50,6 +50,9 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 	if kind == corehooks.StartResumed || kind == corehooks.StartForked {
 		in.ResumeFields = resumeFields(cfg.sessionFile)
 	}
+	if kind == corehooks.StartCompacted { // the model the session goes on with (recorded: runs/compact)
+		in.Model = modelID(cfg.Model)
+	}
 	if kind == corehooks.StartResumed {
 		in.SessionTitle = sessionTitleOf(cfg.sessionFile)
 	}
@@ -121,4 +124,16 @@ func promptBlocked(cfg Config, tr *transcript, err error) error {
 		writeStreamLine(cfg, withResultFields(withSubagentStats(line, newBackgroundTasks()), &runState{}, cfg.SessionID))
 	}
 	return nil
+}
+
+// modelID is the id of the model an alias names, as claude reports it (recorded: haiku, runs/compact);
+// any other name is its own.
+func modelID(name string) string {
+	if name == "haiku" {
+		return "claude-haiku-4-5-20251001"
+	}
+	if name == "" {
+		return "default"
+	}
+	return name
 }

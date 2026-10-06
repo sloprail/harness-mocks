@@ -16,6 +16,31 @@ type runState struct {
 	turns   int
 	denials []map[string]any
 	results int
+	// local is the slash command the run was (its result says so), "" for a prompt for the model.
+	local string
+}
+
+// runLocal notes that the run is a slash command the harness carried out itself.
+func (r *runState) runLocal(command string) {
+	r.mu.Lock()
+	r.local = command
+	r.mu.Unlock()
+}
+
+// isLocal is whether the run is a slash command of the harness's own.
+func (r *runState) isLocal() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.local != ""
+}
+
+// takeLocal is the slash command the result is of, and forgets it.
+func (r *runState) takeLocal() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	local := r.local
+	r.local = ""
+	return local
 }
 
 // turn counts a turn the model took: it called a tool or answered.
@@ -83,6 +108,11 @@ func withResultFields(line []byte, st *runState, sessionID string) []byte {
 		"is_error": false, "num_turns": turns, "stop_reason": stop, "terminal_reason": terminal,
 		"permission_denials": list, "queued_turn_count": 0, "result_index": index, "api_error_status": nil,
 		"session_id": sessionID,
+	}
+	if local := st.takeLocal(); local != "" { // a slash command's result names it and has no model turn to report (recorded: runs/compact)
+		frame["local_command"] = local
+		delete(fields, "api_error_status")
+		delete(fields, "terminal_reason")
 	}
 	for k, v := range fields {
 		if _, ok := frame[k]; !ok {

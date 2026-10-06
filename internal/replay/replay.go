@@ -20,6 +20,8 @@ const (
 	// hook's feedback): the model's answer, with no call: Input "text" (string). The agent's Final is
 	// the last answer; the ones before it sit among the calls.
 	ToolAnswer = "answer"
+	// ToolCompact is a compaction of the session: Input "summary" (string) and "trigger" ("manual" or "auto").
+	ToolCompact = "compact"
 )
 
 // Call is one tool call the model made.

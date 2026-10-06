@@ -47,6 +47,14 @@ func assistantFrame(block map[string]any, extra ...any) string {
 // it (a frame of its own, as the real stream has it) and the call, joined by
 // the byte \001, which JSON never holds raw; the script splits them again.
 func callLine(id string, c scriptCall) string {
+	if c.Control { // a control record the mock reads: {"type":"compact","summary":…,"trigger":…}
+		rec := map[string]any{"type": c.Name}
+		for k, v := range c.Input {
+			rec[k] = v
+		}
+		b, _ := json.Marshal(rec)
+		return string(b)
+	}
 	if c.Answer { // what it said before, then the answer and the result that ends the turn
 		var early []string
 		for _, e := range c.Early {
