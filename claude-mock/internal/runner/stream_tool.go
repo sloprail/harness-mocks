@@ -14,19 +14,26 @@ import (
 // foreground Bash run by a BACKGROUND sub-agent: task_started {owned_by_subagent,
 // is_backgrounded:false, task_type:"local_bash"} before it runs and
 // task_notification {status, output_file:"", summary:<description>} after
-// (F:bgagent). It returns the function that writes the second. The main agent's
-// Bash has frames only when it runs long (slowBashFrames), any other call none; so has a sub-agent's
-// that a message resumed (recorded: runs/fgsub-maxturns, whose echoes leave none). A failed command's
-// frame reads "failed": that status is not measured.
+// (F:bgagent). It returns the function that writes the second; the main agent's
+// Bash has frames only when it runs long (slowBashFrames), any other call none. A failed command's frame reads "failed": that status is
+// not measured. A script may say per call whether it leaves frames (its mock-only task_frames: a
+// replay reads it from the recording, runs/fgsub-maxturns, whose resumed agent's echoes leave none).
 func ownedBashFrames(cfg Config, call pendingToolUse) func(toolexec.Result) {
 	if call.ToolName != "Bash" {
 		return func(toolexec.Result) {}
 	}
-	if !cfg.SuppressSubagentHooks || cfg.SyncSubagent || cfg.resumed {
+	var in struct {
+		TaskFrames *bool `json:"task_frames"`
+	}
+	_ = json.Unmarshal(call.ToolInput, &in)
+	if in.TaskFrames != nil && !*in.TaskFrames {
+		return func(toolexec.Result) {}
+	}
+	if in.TaskFrames == nil && (!cfg.SuppressSubagentHooks || cfg.SyncSubagent) { // the main agent's: a task only once it has run long
 		return slowBashFrames(cfg, call)
 	}
 	id, desc := "b"+randomID(8), bashDescription(call)
-	writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: call.ToolUseID, Description: desc, TaskType: "local_bash", OwnedBySubagent: true})
+	writeTaskStarted(cfg, taskStart{ID: id, ToolUseID: call.ToolUseID, Description: desc, TaskType: "local_bash", OwnedBySubagent: cfg.AgentID != ""})
 	return func(res toolexec.Result) {
 		status := "completed"
 		if res.IsError {

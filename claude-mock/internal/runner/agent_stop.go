@@ -47,7 +47,6 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		bg:                      bg,
 		steps:                   s.agentSteps(),
 		background:              s.background,
-		resumed:                 s.launchedBy != "",
 		wake:                    s.parent.wake,
 		stream:                  s.parent.stream,
 		sessionFile:             s.sessionFile,

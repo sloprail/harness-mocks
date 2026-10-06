@@ -125,7 +125,6 @@ type Config struct {
 	steps *agentSteps
 	// background marks a background sub-agent (its frames differ: writeToolUse in steps.go).
 	background bool
-	resumed    bool // a sub-agent a message resumed (agent_resume.go)
 
 	// wake is the session's pending ScheduleWakeup, shared by the root run and
 	// every nested run like bg. Nil for the root run, which creates it.
