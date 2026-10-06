@@ -1,3 +1,7 @@
 # Rules switched off for now, with why. A rule here stays in its folder,
 # loaded and reviewable; it is just not run.
 disabled: []
+# Rules that ship off, switched on here. no-subagent-check-runs: only the main
+# session runs sr-checks run (every run starts paid judges).
+enabled:
+  - sloprail/gate/no-subagent-check-runs
