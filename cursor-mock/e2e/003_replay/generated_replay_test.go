@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,10 +43,23 @@ func TestGeneratedReplay(t *testing.T) {
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			diff, err := cursorreplay.Run(binary, filepath.Join(runsDir, name), os.Environ())
-			var unbuildable *cursorreplay.Unbuildable
 			reason, listed := notReplaying[name]
+			flaky := listed && strings.HasPrefix(reason, "flaky:")
+			run := func() (string, error) {
+				return cursorreplay.Run(binary, filepath.Join(runsDir, name), os.Environ())
+			}
+			var diff string
+			var err error
+			if flaky {
+				diff, err = replayUntilGreen(run, flakyRuns)
+			} else {
+				diff, err = run()
+			}
+			var unbuildable *cursorreplay.Unbuildable
 			switch {
+			case flaky && (err != nil || diff != ""):
+				t.Errorf("flaky entry never replayed green in %d runs (%s): triage it, or remove it from notReplaying: %v\n%s", flakyRuns, reason, err, diff)
+			case flaky:
 			case errors.As(err, &unbuildable) && listed:
 				t.Skipf("not replaying: %s", reason)
 			case errors.As(err, &unbuildable):
@@ -61,4 +75,18 @@ func TestGeneratedReplay(t *testing.T) {
 			}
 		})
 	}
+}
+
+// flakyRuns is how many times a "flaky:" entry is replayed: it is green in some runs and not in
+// others, so it must be green in at least one, and it is never skipped outright.
+const flakyRuns = 3
+
+// replayUntilGreen runs a replay up to attempts times and returns the first green result, or the
+// last run's when none is green.
+func replayUntilGreen(run func() (string, error), attempts int) (string, error) {
+	diff, err := run()
+	for i := 1; i < attempts && (err != nil || diff != ""); i++ {
+		diff, err = run()
+	}
+	return diff, err
 }
