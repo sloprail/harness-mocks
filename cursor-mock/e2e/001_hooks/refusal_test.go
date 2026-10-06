@@ -47,15 +47,14 @@ func TestAnUnrecordedSubAgentModelIsRefused(t *testing.T) {
 func TestAGrepWithKeysBeyondThePatternFailsTheRun(t *testing.T) {
 	out, err := runOneCall(t, `Grep","input":{"pattern":"hi","glob":"*.txt","-i":true}`, map[string]string{"a.txt": "hi\n"}, "--force")
 	require.Error(t, err, out)
-	require.Contains(t, out, "Grep takes only a pattern")
-	require.Contains(t, out, "is not modeled")
+	require.Contains(t, out, `Grep: unknown parameter "glob"`, "the schema names the key the mock does not implement")
 }
 
 // What a file holds or a hook prints is not the mock's own refusal: a Read of a
 // file that says "cursor-mock: " in a JSON string does not fail the run.
 // sr:proves file-tools/cursor
 func TestAFileThatQuotesTheMocksRefusalWordingIsNotARefusal(t *testing.T) {
-	out, err := runOneCall(t, `Read","input":{"path":"a.txt"}`, map[string]string{"a.txt": "x\":\"cursor-mock: nothing\"\n"}, "--force")
+	out, err := runOneCall(t, `Read","input":{"file_path":"a.txt"}`, map[string]string{"a.txt": "x\":\"cursor-mock: nothing\"\n"}, "--force")
 	require.NoError(t, err, out)
 	require.Contains(t, out, `"success"`, "the read succeeded")
 }
@@ -64,7 +63,7 @@ func TestAFileThatQuotesTheMocksRefusalWordingIsNotARefusal(t *testing.T) {
 // it covers, the mock refuses it rather than guess.
 // sr:proves noninteractive-run/cursor
 func TestAddDirIsRefusedWithYolo(t *testing.T) {
-	out, err := runOneCall(t, `Read","input":{"path":"a.txt"}`, map[string]string{"a.txt": "hi\n"}, "--yolo", "--add-dir", t.TempDir())
+	out, err := runOneCall(t, `Read","input":{"file_path":"a.txt"}`, map[string]string{"a.txt": "hi\n"}, "--yolo", "--add-dir", t.TempDir())
 	require.Error(t, err, out)
 	require.Contains(t, out, "--add-dir is modeled only with --force")
 }
