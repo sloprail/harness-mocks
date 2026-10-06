@@ -102,18 +102,19 @@ providers:
       - cursor-mock/snapshots/runs/hook-fail-closed
       - cursor-mock/snapshots/runs/hook-json-nonzero
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/nested-subagents
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
           The mock fires workspaceOpen, sessionStart, sessionEnd, preToolUse, postToolUse,
           postToolUseFailure, beforeShellExecution, afterShellExecution,
-          afterFileEdit and beforeReadFile, and no others. The docs' exit-code rules for the other
+          afterFileEdit, beforeReadFile and afterAgentThought, and no others. The docs' exit-code rules for the other
           permission hooks (beforeMCPExecution,
           beforeTabFileRead, subagentStart) and for afterMCPExecution,
           subagentStop, beforeSubmitPrompt, preCompact, stop,
-          afterAgentResponse, afterAgentThought and the Tab hooks, and the
-          exit-code rules of workspaceOpen (its output is not read), are not modeled; the recordings show cursor-agent in
+          afterAgentResponse and the Tab hooks, and the exit-code rules of
+          workspaceOpen and afterAgentThought (their output is not read), are not modeled; the recordings show cursor-agent in
           print mode firing none of beforeSubmitPrompt, afterAgentResponse and
           stop.
       - adr: capability-grounding
