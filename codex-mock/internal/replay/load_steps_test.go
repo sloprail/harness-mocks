@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 func user(text string) map[string]any {
@@ -69,4 +70,17 @@ func TestThenScriptsStartAfterTheStepsTheirSessionHolds(t *testing.T) {
 		assert.Contains(t, then[i].Script, `sed -n "$((n+k+1-`+strconv.Itoa(base)+`))p"`, "run %d", i+1)
 	}
 	assert.True(t, strings.Contains(then[0].Script, "call_then1_"))
+}
+
+// A compaction the harness made is a step of the model's turns the script repeats at the same place,
+// and the script counts the compactions among the steps it has taken.
+func TestACompactedRecordIsACompactStepOfTheScript(t *testing.T) {
+	agent, err := modelTurns([]map[string]any{{"type": "compacted", "payload": map[string]any{}}}, nil)
+	require.NoError(t, err)
+	require.Len(t, agent.Calls, 1)
+	assert.Equal(t, core.ToolCompact, agent.Calls[0].Tool)
+
+	script := scriptFor("main", 0, []modelCall{mockCall(agent.Calls[0])}, "DONE", false, scenario.Gate{})
+	assert.Contains(t, script, `{"type":"compact","trigger":"auto"}`)
+	assert.Contains(t, script, `grep -c '"type":"compacted"'`, "a compaction spends a step")
 }

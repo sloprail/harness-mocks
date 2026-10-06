@@ -20,6 +20,9 @@ const (
 	ToolSpawn = "spawn_agent"
 	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".
 	ToolWait = "wait_agent"
+	// ToolCompact is a compaction of the session the harness made on its own (a context limit): Input
+	// "trigger" ("auto").
+	ToolCompact = "compact"
 	// ToolAnswer is the end of a turn: the model's answer, with no call: Input "text" (string).
 	// A turn that a hook continues is followed by more steps, so an agent can hold several.
 	ToolAnswer = "answer"
