@@ -42,6 +42,8 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			// a sub-agent trailer's usage line is compared; its counts are the model's spend
 			{Re: re(`subagent_tokens: \d+`), With: "subagent_tokens: <MASKED>"},
 			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
+			// the per-user folder of the temp root, named for the uid the capture and the replay ran under
+			{Re: re(`claude-\d+`), With: "claude-<UID>"},
 			// the order the capture sanitised in: the repository first, as it holds the temp root
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(work)), With: "<TMP>"},
