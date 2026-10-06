@@ -39,7 +39,10 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			// the harness's pid and its messaging secret, as a child's environment names them (a hook's payload): the run's own
 			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN",
 			// how long a tool took (Glob's durationMs): measured, there in both
-			"durationMs"},
+			"durationMs",
+			// the hash of a sub-agent's report, which names the run's own ids and paths where the replay's words
+			// name the recording's
+			"harnessSectionHash"},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{

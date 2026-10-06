@@ -23,6 +23,13 @@ func (r *Registry) TakeFinished(owner string) []*Task {
 	return out
 }
 
+// Unclaim hands a task claimed by TakeFinished back, to be claimed again at the owner's next point.
+func (r *Registry) Unclaim(t *Task) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	t.delivered = false
+}
+
 // TakeNext claims the first finished task owner launched that has not been
 // handed over yet, nil when there is none: one task at a time, for a harness
 // that tells its agent of one at each point it speaks to it.
