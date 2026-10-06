@@ -15,17 +15,3 @@ func Frames(frames []map[string]any) []map[string]any {
 	}
 	return out
 }
-
-// modelledHooks drops from the recording's hook log what the hooks logged for
-// the events the mock never fires (adr/modeled-surface): the model's thinking, as
-// with the stream. That is the payloads of the event and the lines a hook script
-// wrote for it.
-func modelledHooks(payloads []map[string]any) []map[string]any {
-	var out []map[string]any
-	for _, p := range payloads {
-		if eventOf(p) != "afterAgentThought" {
-			out = append(out, p)
-		}
-	}
-	return out
-}

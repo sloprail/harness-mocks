@@ -72,7 +72,6 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
 	rules := Rules(l.repo, work)
 	wantC, gotC := core.New(rules), core.New(rules)
-	recHooks = modelledHooks(recHooks)
 	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
 	want.Hooks, got.Hooks = concurrent(recHooks, wantC.Lines(recHooks)), concurrent(mockHooks, gotC.Lines(mockHooks))
 	if len(want.Hooks) == 0 && len(got.Hooks) == 0 {

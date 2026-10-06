@@ -86,7 +86,12 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, err
 	}
-	if _, err := readJSONL(filepath.Join(sample, "payloads.jsonl")); err != nil {
+	payloads, err := readJSONL(filepath.Join(sample, "payloads.jsonl"))
+	if err != nil {
+		return core.Recording{}, err
+	}
+	thoughts, err := thoughtsOf(payloads)
+	if err != nil {
 		return core.Recording{}, err
 	}
 	session := sessionOf(stream)
@@ -101,11 +106,12 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if len(records) == 0 {
 		return core.Recording{}, unbuildable("no transcript of the main session was recorded: the model's turns are unknown")
 	}
-	main, err := modelTurns(records)
+	main, err := modelTurns(records, thoughts[session])
 	if err != nil {
 		return core.Recording{}, unbuildable("%v", err)
 	}
-	convs, err := conversations(dir, session)
+	delete(thoughts, session)
+	convs, err := conversations(dir, session, thoughts)
 	if err != nil {
 		return core.Recording{}, err
 	}
@@ -114,6 +120,9 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	}
 	if len(convs) > 0 {
 		return core.Recording{}, unbuildable("a sub-agent whose starting call is in no transcript")
+	}
+	if len(thoughts) > 0 {
+		return core.Recording{}, unbuildable("the model thought in a conversation that has no transcript")
 	}
 	describeMCPCalls(&rec.Agent, stream)
 	return rec, nil

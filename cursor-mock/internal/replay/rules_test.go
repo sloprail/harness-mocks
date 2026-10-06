@@ -19,7 +19,6 @@ func TestNothingDroppedIsWhatACellIsAbout(t *testing.T) {
 	for typ := range unmodelled {
 		dropped = append(dropped, typ)
 	}
-	dropped = append(dropped, "afterAgentThought")
 	about := map[string]string{} // word -> the cell naming it
 	cells, err := filepath.Glob(filepath.Join("..", "..", "..", "spec", "capabilities", "*.yaml"))
 	if err != nil || len(cells) == 0 {

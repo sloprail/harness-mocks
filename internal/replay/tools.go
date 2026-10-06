@@ -11,3 +11,11 @@ const (
 	// and "arguments" (an object).
 	ToolMCP = "mcp_call"
 )
+
+// Thinking is what the model thought in one response, when the recording holds it:
+// the text, and what the harness says of the model that thought (opaque to the
+// core). It is put on the first call of the response, or on the answer.
+type Thinking struct {
+	Text   string
+	Fields map[string]any
+}

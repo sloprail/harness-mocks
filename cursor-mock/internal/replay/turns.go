@@ -19,14 +19,35 @@ import (
 // otherwise it is an answer, and the last answer is the agent's final one. The
 // tools are mapped onto the unified ones here; what the adapter cannot map is an
 // error, never a guess.
-func modelTurns(records []map[string]any) (core.Agent, error) {
+//
+// thoughts are what the model thought in each of its responses, in order, or none:
+// the i-th response had the i-th thought. A recording that holds a thought for
+// some responses only is not read, as which responses had one would be a guess.
+func modelTurns(records []map[string]any, thoughts []*core.Thinking) (core.Agent, error) {
 	var agent core.Agent
+	responses := 0
+	for _, rec := range records {
+		if rec["role"] == "assistant" {
+			responses++
+		}
+	}
+	if len(thoughts) > 0 && len(thoughts) != responses {
+		return core.Agent{}, fmt.Errorf("the model thought in %d of its %d responses: which ones is not recorded", len(thoughts), responses)
+	}
+	thought := func(i int) *core.Thinking {
+		if len(thoughts) == 0 {
+			return nil
+		}
+		return thoughts[i]
+	}
 	var said *string
-	var lookup map[string]any // a GetDynamicTools of one named tool, which the call that follows needs
-	flush := func() {         // an answer: the text no call followed
+	var saidThought *core.Thinking // the thought of the text-only response said holds
+	ri, lookupRI := -1, -1         // the response that looked a tool up
+	var lookup map[string]any      // a GetDynamicTools of one named tool, which the call that follows needs
+	flush := func() {              // an answer: the text no call followed
 		if said != nil {
-			agent.Calls = append(agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}})
-			said = nil
+			agent.Calls = append(agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}, Thinking: saidThought})
+			said, saidThought = nil, nil
 		}
 	}
 	for _, rec := range records {
@@ -34,6 +55,7 @@ func modelTurns(records []map[string]any) (core.Agent, error) {
 		case "user":
 			flush()
 		case "assistant":
+			ri++
 			var calls []core.Call
 			var text *string
 			msg, _ := rec["message"].(map[string]any)
@@ -49,7 +71,7 @@ func modelTurns(records []map[string]any) (core.Agent, error) {
 					text = &t
 				case "tool_use":
 					if lookupOf(block) != nil {
-						lookup = lookupOf(block)
+						lookup, lookupRI = lookupOf(block), ri
 						continue
 					}
 					c, err := unify(block)
@@ -74,53 +96,33 @@ func modelTurns(records []map[string]any) (core.Agent, error) {
 				if text == nil {
 					text = said
 				}
-				said = nil
+				if saidThought != nil && thought(ri) != nil {
+					return core.Agent{}, fmt.Errorf("the model thought in two responses before one step: the mock plays them as one")
+				}
+				calls[0].Thinking = thought(ri)
+				if calls[0].Thinking == nil {
+					calls[0].Thinking = saidThought
+				}
+				if lookupRI >= 0 && lookupRI != ri && thought(lookupRI) != nil { // the lookup is the mock's own: its thought joins the call's
+					if calls[0].Thinking != nil {
+						return core.Agent{}, fmt.Errorf("the model thought in the response that looked a tool up and in the one that called it: the mock plays them as one")
+					}
+					calls[0].Thinking = thought(lookupRI)
+				}
+				lookupRI = -1
+				said, saidThought = nil, nil
 				calls[0].Said = text
 				agent.Calls = append(agent.Calls, calls...)
 			case text != nil:
 				flush()
-				said = text
+				said, saidThought = text, thought(ri)
 			}
 		}
 	}
 	if said != nil {
-		agent.Final = *said
+		agent.Final, agent.FinalThinking = *said, saidThought
 	}
 	return agent, nil
-}
-
-// unify maps a tool_use block onto the unified vocabulary: Shell is a shell
-// command, Task a spawn (its prompt is the message), Read and Write file reads
-// and writes. Any other tool is not mapped: the mock has none of them.
-func unify(block map[string]any) (core.Call, error) {
-	name, _ := block["name"].(string)
-	input, _ := block["input"].(map[string]any)
-	in := make(map[string]any, len(input)+1)
-	for k, v := range input {
-		in[k] = v
-	}
-	switch name {
-	case "Grep":
-		return core.Call{Tool: core.ToolSearchFiles, Input: in}, nil
-	case "Delete":
-		return core.Call{Tool: core.ToolDeleteFile, Input: in}, nil
-	case "CallDynamicTool":
-		args, _ := input["arguments"].(map[string]any)
-		return core.Call{Tool: core.ToolMCP, Input: map[string]any{"server": input["namespace"], "tool": input["toolName"], "arguments": args}}, nil
-	case "Shell":
-		return core.Call{Tool: core.ToolShell, Input: in}, nil
-	case "Task":
-		prompt, _ := input["prompt"].(string)
-		in["message"] = prompt
-		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
-	case "Read":
-		return core.Call{Tool: core.ToolReadFile, Input: in}, nil
-	case "Write":
-		in["content"] = in["contents"]
-		delete(in, "contents")
-		return core.Call{Tool: core.ToolWriteFile, Input: in}, nil
-	}
-	return core.Call{}, fmt.Errorf("the model called %s: the mock has no such tool", name)
 }
 
 // lookupOf is what a GetDynamicTools block asks for when it names one tool of

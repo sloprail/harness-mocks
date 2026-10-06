@@ -35,7 +35,7 @@ func (p *Paths) expand(v any) any {
 func (p *Paths) expandSteps(steps []step) []step {
 	out := make([]step, len(steps))
 	for i, s := range steps {
-		out[i] = step{calls: make([]scriptCall, len(s.calls))}
+		out[i] = step{calls: make([]scriptCall, len(s.calls)), thought: s.thought}
 		if s.said != nil {
 			text := p.expand(*s.said).(string)
 			out[i].said = &text
