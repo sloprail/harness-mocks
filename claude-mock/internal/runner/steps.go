@@ -116,3 +116,11 @@ func writeToolUse(cfg Config, frame []byte, tool string, input json.RawMessage) 
 		cfg.progress(cfg, tool, input)
 	}
 }
+
+// spawnID is the id of the sub-agent at position k among those this agent started (steps.spawn).
+func (s *agentSteps) spawnID(k int) (string, bool) {
+	if s == nil {
+		return "", false
+	}
+	return s.spawned.ID(k)
+}

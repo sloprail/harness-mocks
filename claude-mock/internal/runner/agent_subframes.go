@@ -13,8 +13,11 @@ import (
 // snapshots/runs/isolated-worktree, fg-subagent-bash).
 type SubFrames struct {
 	ParentToolUseID, TaskDescription string
-	begun                            time.Time
-	toolUses                         atomic.Int64
+	// TaskToolUseID is the call the task's progress frames name, when not the one that started the
+	// sub-agent: the message that resumed it (recorded: runs/fgsub-maxturns).
+	TaskToolUseID string
+	begun         time.Time
+	toolUses      atomic.Int64
 }
 
 // frameFields adds a sub-agent's frame fields to a stamped assistant or user frame.
@@ -29,7 +32,7 @@ func (s *SubFrames) frameFields(cfg Config, m map[string]any) {
 // mock spends no tokens.
 func (s *SubFrames) progress(cfg Config, tool string, input json.RawMessage) {
 	writeFrame(cfg, map[string]any{
-		"type": "system", "subtype": "task_progress", "task_id": cfg.AgentID, "tool_use_id": s.ParentToolUseID,
+		"type": "system", "subtype": "task_progress", "task_id": cfg.AgentID, "tool_use_id": s.taskToolUseID(),
 		"description": progressWhat(tool, input), "subagent_type": cfg.AgentType, "last_tool_name": tool,
 		"usage": map[string]any{"total_tokens": 0, "tool_uses": s.toolUses.Add(1), "duration_ms": time.Since(s.begun).Milliseconds()},
 	})
@@ -66,4 +69,11 @@ func (s *SubFrames) announce(cfg Config, prompt string) {
 	if err == nil {
 		writeStreamLine(cfg, line)
 	}
+}
+
+func (s *SubFrames) taskToolUseID() string {
+	if s.TaskToolUseID != "" {
+		return s.TaskToolUseID
+	}
+	return s.ParentToolUseID
 }

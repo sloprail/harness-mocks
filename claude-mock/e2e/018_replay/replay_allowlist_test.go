@@ -11,7 +11,6 @@ var notReplaying = map[string]string{
 	"compact":                  "adapter: the setup has then, which the adapter does not install",
 	"compact-nohooks":          "adapter: the setup has then, which the adapter does not install",
 	"fg-subagent-bash":         "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 18 vs 14; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
-	"fgsub-maxturns":           "adapter: the model called SendMessage: the adapter maps Bash and Agent",
 	"fgsub-tool-stats":         "adapter: sub-agent: the model called Write: the adapter maps Bash and Agent",
 	"isolated-worktree":        "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 19 vs 9; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",
 	"meta":                     "mock gap: assistant frames lack parent_tool_use_id, session_id, wire_tool_inputs; event count 22 vs 17; frame order/kind; hook payloads lack prompt_id/permission_mode or differ in key order",

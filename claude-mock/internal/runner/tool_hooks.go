@@ -85,7 +85,7 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 			HookEventName: hooks.EventPostToolUse,
 			ToolName:      pending.ToolName,
 			ToolUseID:     pending.ToolUseID,
-			ToolInput:     n.Input,
+			ToolInput:     hookInput(false, pending.ToolName, n.Input),
 			ToolResponse:  n.Response,
 			DurationMs:    &n.DurationMs,
 		}

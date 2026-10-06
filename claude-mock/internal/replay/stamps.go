@@ -1,6 +1,9 @@
 package replay
 
-import "time"
+import (
+	"regexp"
+	"time"
+)
 
 // stampOf is when a transcript record was written, zero when it carries no time.
 func stampOf(rec map[string]any) time.Time {
@@ -51,4 +54,38 @@ func withoutForkContext(records []map[string]any) []map[string]any {
 		}
 	}
 	return records
+}
+
+var agentIDLine = regexp.MustCompile(`agentId: (\w+)`)
+
+// agentIDs are the ids of the sub-agents the calls started, by the id of the call: a call's result names
+// its agent in a line "agentId: <id>".
+func agentIDs(records []map[string]any) map[string]string {
+	out := map[string]string{}
+	for _, rec := range records {
+		msg, _ := rec["message"].(map[string]any)
+		blocks, _ := msg["content"].([]any)
+		for _, b := range blocks {
+			block, _ := b.(map[string]any)
+			if block["type"] != "tool_result" {
+				continue
+			}
+			id, _ := block["tool_use_id"].(string)
+			var text string
+			switch c := block["content"].(type) {
+			case string:
+				text = c
+			case []any:
+				for _, p := range c {
+					part, _ := p.(map[string]any)
+					t, _ := part["text"].(string)
+					text += t
+				}
+			}
+			if m := agentIDLine.FindStringSubmatch(text); m != nil && id != "" {
+				out[id] = m[1]
+			}
+		}
+	}
+	return out
 }

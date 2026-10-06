@@ -84,6 +84,8 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var startAgent func(answered <-chan struct{})
 	toolStarted := time.Now()
 	switch {
+	case pending.ToolName == "SendMessage":
+		res, startAgent = bg.resumeAgent(cfg, inv, pending.ToolUseID, pending.ToolInput)
 	case isAgentTool(pending.ToolName) && agentRunsInBackground(cfg, pending.ToolInput):
 		res, startAgent = bg.launchAgent(cfg, inv, pending.ToolUseID, pending.ToolInput, tr)
 	case isAgentTool(pending.ToolName):

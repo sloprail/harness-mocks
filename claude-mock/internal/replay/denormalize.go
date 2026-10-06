@@ -19,9 +19,13 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 	scriptFor = func(tag string, a core.Agent, parent *core.Agent, above []*core.Agent, skip int) string {
 		calls := make([]scriptCall, len(a.Calls))
 		gates := core.Gates(a, parent, above...)
+		positions := spawnPositions(a) // a message names its agent by its position among the spawns
 		for i, c := range a.Calls {
 			calls[i] = mockCall(c)
 			calls[i].Gate = gates[i]
+			if c.Tool == toolSend {
+				nameByPosition(calls[i].Input, positions)
+			}
 			if c.Tool == core.ToolSpawn && c.Sub != nil {
 				name := fmt.Sprintf("sub%d.sh", n)
 				subTag := fmt.Sprintf("sub%d", n)
@@ -104,4 +108,32 @@ func aboveOf(parent *core.Agent) []*core.Agent {
 		return nil
 	}
 	return []*core.Agent{parent}
+}
+
+// spawnPositions are the positions, among the spawns of the agent that have a recorded sub-agent (the
+// ones the mock gives a script), of the agents by the id they had.
+func spawnPositions(a core.Agent) map[string]int {
+	out := map[string]int{}
+	k := 0
+	for _, c := range a.Calls {
+		if c.Tool == core.ToolSpawn && c.Sub != nil {
+			if c.Ref != "" {
+				out[c.Ref] = k
+			}
+			k++
+		}
+	}
+	return out
+}
+
+// nameByPosition puts "spawn:<position>" where a message's input has an agent's recorded id (the run
+// mints its own ids: a script names an agent by its position).
+func nameByPosition(in map[string]any, positions map[string]int) {
+	for _, key := range []string{"to", "recipient"} {
+		if id, _ := in[key].(string); id != "" {
+			if k, ok := positions[id]; ok {
+				in[key] = fmt.Sprintf("spawn:%d", k)
+			}
+		}
+	}
 }

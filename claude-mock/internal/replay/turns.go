@@ -26,6 +26,7 @@ func modelTurns(records []map[string]any) (turns, error) {
 	var said *string
 	var saidAt time.Time
 	records = withoutForkContext(records)
+	agents := agentIDs(records)
 	done := map[string]time.Time{} // when each call's result was given back
 	for _, rec := range records {
 		if rec["type"] == "user" {
@@ -72,6 +73,7 @@ func modelTurns(records []map[string]any) (turns, error) {
 					return turns{}, err
 				}
 				call.Said, call.At = said, stampOf(rec)
+				call.Ref = agents[blockID(block)] // the agent a spawn started, as a message to it names it
 				said = nil
 				id, _ := block["id"].(string)
 				t.agent.Calls = append(t.agent.Calls, call)
@@ -88,6 +90,11 @@ func modelTurns(records []map[string]any) (turns, error) {
 	return t, nil
 }
 
+func blockID(block map[string]any) string {
+	id, _ := block["id"].(string)
+	return id
+}
+
 // unify maps a tool_use block onto the unified vocabulary: Bash is a shell
 // command, Agent a spawn (its prompt is the message). Any other tool is not
 // mapped yet.
@@ -102,6 +109,8 @@ func unify(block map[string]any) (core.Call, error) {
 		return core.Call{Tool: tool, Input: in}, nil
 	}
 	switch name {
+	case "SendMessage":
+		return core.Call{Tool: toolSend, Input: in}, nil
 	case "Bash":
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
 	case "Agent", "Task":
@@ -109,7 +118,7 @@ func unify(block map[string]any) (core.Call, error) {
 		in["message"] = prompt
 		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
 	}
-	return core.Call{}, fmt.Errorf("the model called %s: the adapter maps Bash, Read, Write, Edit, Glob and Agent", name)
+	return core.Call{}, fmt.Errorf("the model called %s: the adapter maps Bash, Read, Write, Edit, Glob, Agent and SendMessage", name)
 }
 
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,

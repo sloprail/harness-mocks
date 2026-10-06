@@ -26,3 +26,7 @@ func isStopFeedback(rec map[string]any) bool {
 	s, _ := msg["content"].(string)
 	return strings.HasPrefix(s, stopFeedback)
 }
+
+// toolSend is a message to a sub-agent that goes on from where it stopped: Input is the call's own
+// (to, message, type, recipient, content), with to and recipient the id of the agent the harness minted.
+const toolSend = "send_message"

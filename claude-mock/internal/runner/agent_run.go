@@ -28,15 +28,14 @@ type subagentRun struct {
 	toolUseID      string
 	description    string
 	outputFile     string
+	launchedBy     string // the Agent call a message resumed the sub-agent of (agent_resume.go)
 	// branch is the branch of an isolated sub-agent's git worktree, when it has one.
 	branch string
 	// limit is the sub-agent's turn limit (its definition's maxTurns), nil when none.
 	limit *subagents.TurnLimit
-	// cleanup removes an isolated sub-agent's clean worktree once it has finished
-	// (subagents.Isolation.Cleanup); nil when it has no real worktree.
+	// cleanup removes an isolated sub-agent's clean worktree once it has finished; nil when it has none.
 	cleanup func(context.Context) bool
-	// begun is the sub-agent as begun at its launch (subagents.Begin), when it
-	// was begun before its run; nil begins it with the run.
+	// begun is the sub-agent as begun at its launch (subagents.Begin); nil begins it with the run.
 	begun func(blockCap int, run func() subagents.Outcome) subagents.Outcome
 	// startAnnounced is that the launch's start frames are written already (announce).
 	startAnnounced bool

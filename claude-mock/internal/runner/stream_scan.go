@@ -84,7 +84,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 					HookEventName: hooks.EventPreToolUse,
 					ToolName:      toolName,
 					ToolUseID:     toolUseID,
-					ToolInput:     toolInput,
+					ToolInput:     hookInput(true, toolName, toolInput),
 				}
 				hookOut, preRuns, hookErr := inv.FireRuns(ctx, pre)
 				writeHookEventFrames(cfg, pre, preRuns)
