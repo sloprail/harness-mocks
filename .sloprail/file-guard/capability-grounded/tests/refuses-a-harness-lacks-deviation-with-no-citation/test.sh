@@ -34,7 +34,7 @@ run_rule() {
   sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
 }
 outcome() {   # the outcome capability-grounded reached over the range
-  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-grounded")] | if length == 0 then "none" elif all(.[]; .outcome=="passed") then "passed" else "refused" end' "$SR_EVENTS_FILE" | jq -r .
+  jq -rs '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-grounded")] | if length == 0 then "none" elif all(.[]; .outcome=="passed") then "passed" else "refused" end' "$SR_EVENTS_FILE"
 }
 # harness-lacks-cited.sh judged on the payload the engine hands it (the citation requirement of added-or-removed.sh
 # comes before it in a real run, and needs a user's words a sandbox has none of)
