@@ -1,14 +1,14 @@
 pin: 2.1.285
 docs:
   https://code.claude.com/docs/en/env-vars:
-    sha256: d9fd3c2c1ce0d753f63e9b4bcf67db65a9471387827cf8b49468f41f74dc8e58
-    fetched: "2026-10-05"
+    sha256: 961e45fd25bc97f386ccab9c41d1b9950c4ab072d0f1a3a7ca4f8c50744b4760
+    fetched: "2026-10-06"
   https://code.claude.com/docs/en/hooks:
-    sha256: 9227f741d7a18abe113ad06dea41b79cce1fa0e869226ce62c2ef5e7995e9938
-    fetched: "2026-10-05"
+    sha256: 4fb83742d4267c6159a578a95fe3e1c5097b7366ecfda8e7320303e6d8068719
+    fetched: "2026-10-06"
   https://code.claude.com/docs/en/tools-reference:
-    sha256: ccdce0f1a21c6c3caca2831c36293fdef5a64ec93e4c45740d52a6c5f2d49fc6
-    fetched: "2026-10-05"
+    sha256: 9dff373c68a2072871dc8c4f4155902d5d55e275f79eca082dceaec5b87a2377
+    fetched: "2026-10-06"
   https://code.claude.com/docs/en/hooks-guide:
     sha256: addf370e321f65ba567fee6b002c473d6a4e09e83b0849a706ff464fd2b8e22e
     fetched: "2026-10-05"
@@ -22,8 +22,8 @@ docs:
     sha256: 5b42c5ede87710eb4669b4d722c0f5b72e1bc6493a36c314ef2149e89c9a7ad9
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/cli-reference:
-    sha256: 5c49605ccfb8f46946d8fffd71439b86ff2623f5a0adbed52dd8904e3d9afb28
-    fetched: "2026-10-05"
+    sha256: 482a41a8099236ab99e78d81bb37df1006e3039710f68adcbf790cc86c7a5ff7
+    fetched: "2026-10-06"
   https://code.claude.com/docs/en/headless:
     sha256: e2213e785a9105847e0d2ad006f3885c35ded7b88f0db23ce708ea45c43a7fbc
     fetched: "2026-10-05"
@@ -37,8 +37,8 @@ docs:
     sha256: 8f6eb83c882ae2a2430bc705cfadd1ca94f3d7e4ee3a1afb7f1be1475e242c10
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/interactive-mode:
-    sha256: 60dd86a7895c190244a7b44e4b9c0e867205ad9d5f0e72e743adf877b6ef5e03
-    fetched: "2026-10-05"
+    sha256: 78a71e55efe8b7bf7817a090da951d983d62c4db35ad873de12d9eb5790fd6c0
+    fetched: "2026-10-06"
   https://code.claude.com/docs/en/scheduled-tasks:
     sha256: bd61138121e36e5e0b888c7e2ad15df0d65d735cfcdcc46e35b950b0ce80846e
     fetched: "2026-10-01"

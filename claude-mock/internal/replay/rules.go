@@ -30,13 +30,17 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		DropKeys: []string{
 			"uuid", "request_id", "end_time", // ids and times that differ in every run
 			"usage", "modelUsage", "total_cost_usd", "duration_ms", "duration_api_ms", // the model's cost: the mock has no model
+			"totalTokens", "totalDurationMs", "resolvedModel", // a sub-agent's spend and the model id its alias resolved to: the same
 			"signature",                                                                                                                 // the model's thinking, signed
 			"first_content_frame_ms", "ttft_ms", "ttft_stream_ms", "time_to_request_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
 		},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
-		// the order the capture sanitised in: the repository first, as it holds the temp root
 		Scrub: []rp.Scrub{
+			// a sub-agent trailer's usage line is compared; its counts are the model's spend
+			{Re: re(`subagent_tokens: \d+`), With: "subagent_tokens: <N>"},
+			{Re: re(`duration_ms: \d+`), With: "duration_ms: <N>"},
+			// the order the capture sanitised in: the repository first, as it holds the temp root
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(work)), With: "<TMP>"},
 			{Re: re(regexp.QuoteMeta(enc)), With: "<RUN_DIRNAME>"},

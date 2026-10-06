@@ -1,0 +1,1 @@
+Use the Agent tool (not in background) with subagent_type general-purpose, description 'ctxrunner', prompt: 'Run the Bash command echo SUBCTX , then reply only DONE.' Then reply only FINISHED.
