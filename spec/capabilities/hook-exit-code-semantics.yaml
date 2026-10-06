@@ -68,6 +68,10 @@ providers:
       - codex-mock/snapshots/runs/subagent-stop-block-loop
       - codex-mock/snapshots/runs/subagent-stop-continue-false
       - codex-mock/snapshots/runs/subagent-stop-plain-text
+      - codex-mock/snapshots/runs/subagent-start-refused
+      - codex-mock/snapshots/runs/manual-compaction-auto-blocked
+      - codex-mock/snapshots/runs/manual-compaction-auto-post-stopped
+      - codex-mock/snapshots/runs/session-end-hook-failure
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -81,10 +85,9 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock fires no PermissionRequest event (a non-interactive run has
-          nothing to request) and no Interrupt event (the mock is never
-          interrupted), so the docs' exit-code rows for those two events are
-          not modeled; it fires every other event the docs give a row
+          The mock fires no PermissionRequest and no Interrupt event (a
+          non-interactive run has nothing to request or interrupt), so the
+          docs' exit-code rows for those two events are not modeled; it fires every other event the docs give a row
           (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop,
           PreCompact, PostCompact, SubagentStart, SubagentStop, SessionEnd).
   cursor:
