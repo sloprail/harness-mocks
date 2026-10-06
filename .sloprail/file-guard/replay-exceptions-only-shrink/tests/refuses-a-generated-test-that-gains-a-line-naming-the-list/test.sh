@@ -32,7 +32,13 @@ printf 'package e2e\n\nfunc TestG() {\n\tfor name := range notReplaying {\n\t\t_
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "init adds an entry"
 refuses "an init in the generated test" "the generated test names notReplaying in a line that was not there before"
 
-# a delete( and a maps.Copy( are refused the same way
+# a delete( is refused the same way
+git checkout -q -b del "$BASE"
+printf 'package e2e\n\nfunc TestG() {\n\tfor name := range notReplaying {\n\t\t_ = name\n\t}\n\tdelete(notReplaying, "run-a")\n}\n' > "$gen"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "delete from the list"
+refuses "a delete from the list" "the generated test names notReplaying in a line that was not there before"
+
+# and so is a maps.Copy(
 git checkout -q -b copy "$BASE"
 printf 'package e2e\n\nfunc TestG() {\n\tfor name := range notReplaying {\n\t\t_ = name\n\t}\n\tmaps.Copy(notReplaying, other)\n}\n' > "$gen"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "maps.Copy into the list"
