@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -29,6 +30,10 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	cmdline, err := cmdFlags(run.Command)
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
+	}
+	if flag, _ := refusedFlagIn(readFile(filepath.Join(setup, "args"))); flag != "" { // replayed as a check that the mock refuses it
+		rec := refusedRun(runDir, setup, map[string]string{"refused-flag": flag, "refused-args": readFile(filepath.Join(setup, "args")), "cmdflags": strings.Join(cmdline, " ")})
+		return rec, nil
 	}
 	entries, _ := os.ReadDir(setup)
 	for _, e := range entries {

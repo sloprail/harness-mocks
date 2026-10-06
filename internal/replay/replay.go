@@ -97,6 +97,9 @@ type Step struct {
 type Observed struct {
 	Events []string
 	Hooks  []string
+	// Checked is a replay that was a check the adapter made itself, passed, with nothing to compare (a
+	// recording made with a flag the mock refuses replays as the check that the mock refuses it).
+	Checked bool
 }
 
 // Adapter is everything a harness contributes to a replay.
@@ -124,6 +127,9 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	}
 	if err != nil {
 		return "", err
+	}
+	if want.Checked && got.Checked {
+		return "", nil
 	}
 	if len(want.Events) == 0 && len(got.Events) == 0 {
 		return "event stream: none recorded and none produced: nothing was compared\n", nil

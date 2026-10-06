@@ -7,6 +7,4 @@ package e2e
 // something of the recording the codex adapter cannot reproduce yet;
 // "untriaged:" is a replay that differs and has not been looked at (the mock,
 // the adapter or the recording may be wrong).
-var notReplaying = map[string]string{
-	"noninteractive-run-output-schema": "mock gap: the recording ran with --output-schema, which the mock refuses by design (adr/fail-fast-unimplemented); replaying it needs the decision that a refused-flag recording replays as a check that the mock refuses it",
-}
+var notReplaying = map[string]string{}

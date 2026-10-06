@@ -46,9 +46,11 @@ func (Adapter) Script(rec core.Recording) (string, error) {
 	return out, nil
 }
 
-// Replay runs the mock on rec's scenario in a hermetic repository, and returns
-// the recording's event stream and hook payloads with the mock's, normalised.
+// Replay runs the mock on rec's scenario in a hermetic repository and returns the recording's output and the mock's.
 func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed, err error) {
+	if rec.Setup["refused-flag"] != "" { // a flag the mock refuses: replayed as the check that it does
+		return core.Observed{Checked: true}, core.Observed{Checked: true}, checkRefusal(mock, rec, a.Environ)
+	}
 	s := Denormalize(rec)
 	root, err := os.MkdirTemp("", "codex-replay-*")
 	if err != nil {
