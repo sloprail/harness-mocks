@@ -100,6 +100,10 @@ list="$(jq -c '.[]' <<<"$caps")" || refuse_error "the capability files could not
 while IFS= read -r c; do
   [ -n "$c" ] || continue
   id="$(jq -r '.id' <<<"$c")" || refuse_error "a capability's id could not be read, so it could not be checked"
+  # every pending cell of every capability is listed on each run (adr/capability-once), touched by the change or not
+  pend="$(jq -r '.doc.providers | if type == "object" then to_entries[] | select(.value == "pending") | .key else empty end' <<<"$c")" ||
+    refuse_error "capability '$id': its pending cells could not be listed, so they could not be reported"
+  for h in $pend; do pending="${pending}${id}/${h}"$'\n'; done
   in_scope_cap "$id" "$c" || continue   # this change does not touch the capability
   kebab "$id" || add "spec/capabilities/$id.yaml: the file name must be kebab-case"
   jq -e '(.doc.providers | type) == "object"' <<<"$c" >/dev/null; rc=$?
@@ -117,7 +121,7 @@ while IFS= read -r c; do
     [ "$v" = '"missing"' ] || in_scope_pair "$id" "$h" "$v" || continue
     case "$v" in
       '"missing"') add "capability '$id' has no cell for '$h': set it to {docs, runs}, {supported: false, reason, docs}, or \"pending\"" ;;
-      '"pending"') pending="${pending}${id}/${h}"$'\n' ;;
+      '"pending"') ;;   # listed above, for every capability
       false) add "capability '$id' × '$h' is a bare false: absence needs evidence. Set {supported: false, reason: <one line>, docs: [<URL#anchor showing it absent>] and/or runs: [<recorded run showing it absent>]}, or \"pending\" if it is just not mocked yet" ;;
       *)
         if [ "$(cell_kind "$v")" = unsupported ]; then
