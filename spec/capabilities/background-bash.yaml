@@ -62,13 +62,14 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock does not model polling a running command (write_stdin), the
-          PostToolUse the docs say a later poll delivers when the command
-          finishes, or the /ps and /stop terminal commands: a command still
-          running after its yield time fires no PostToolUse and is only ended
-          with the run. A scenario asks for the yield with a yield_time_ms
-          beside the Bash command; a command that ends within it is answered
-          with its output as any command is.
+          The mock does not model the /ps and /stop terminal commands. It
+          models polling a running command (a write_stdin call reads its output
+          from where the last poll stopped) and the PostToolUse the docs say a
+          later poll delivers when the command finishes; a command still
+          running after its yield time fires no PostToolUse until it ends, and
+          is ended with the run if nothing polls it. A scenario asks for the
+          yield with a yield_time_ms beside the Bash command; a command that
+          ends within it is answered with its output as any command is.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#posttooluse
