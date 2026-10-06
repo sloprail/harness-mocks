@@ -4,6 +4,7 @@ import (
 	"os/user"
 	"regexp"
 	"strconv"
+	"strings"
 
 	rp "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -26,12 +27,21 @@ func Rules(repo, work string) rp.Rules {
 			"durationMs": measuredText, "runtimeMs": measuredText,
 			"startedAtMs": measuredText, "completedAtMs": measuredText, // when a call began and ended: that it says so, not when
 			"model_call_id": masked("<model call>"), "request_id": masked("<request>"), // the service's ids of its own calls: that they are named
+			"task_id": maskedNumber("<shell>"), "taskId": maskedNumber("<shell>"), // a background shell's id is a number of the harness's own
 		},
 		// the order the capture sanitised in: the repository first, as it holds the temp root
 		Scrub: append([]rp.Scrub{
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(work)), With: "<TMP>"},
 			{Re: re(regexp.QuoteMeta(encode(repo))), With: "<RUN_DIRNAME>"},
+			// the shell id and the pid a background command was given, and where its output
+			// is kept (named by the id): the harness's own numbers, that they are there is
+			// what is compared
+			{Re: re(`"shell_id":[0-9]+`), With: `"shell_id":<shell>`},
+			{Re: re(`"pid":[0-9]+`), With: `"pid":<pid>`},
+			{Re: re(`Shell ID: [0-9]+`), With: "Shell ID: <shell>"},
+			{Re: re(`PID: [0-9]+`), With: "PID: <pid>"},
+			{Re: re(`/terminals/[0-9]+\.txt`), With: "/terminals/<shell>.txt"},
 			// a response's number and four characters after the request's id name it (the
 			// generation of a thought): the run's own, not behaviour
 			{Re: re(`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-[0-9]+-[a-z0-9]{4}\b`), With: "$1-<n>-<name>"},
@@ -62,12 +72,23 @@ var dropKeys = []string{
 
 // measured are the numbers that say how long something took: the cells that
 // speak of them ask that they be there and positive, not what they were.
-var measured = []string{"duration", "duration_ms", "duration_api_ms", "executionTime", "localExecutionTimeMs", "timestamp_ms"}
+var measured = []string{"pid", "shellId", "duration", "duration_ms", "duration_api_ms", "executionTime", "localExecutionTimeMs", "timestamp_ms"}
 
 // masked is a rewrite that says a value is there and not what it is.
 func masked(with string) func(string) string {
 	return func(s string) string {
 		if s == "" {
+			return s
+		}
+		return with
+	}
+}
+
+// maskedNumber is a rewrite that says a value made of digits is there and not
+// what it is; any other value is left alone.
+func maskedNumber(with string) func(string) string {
+	return func(s string) string {
+		if s == "" || strings.Trim(s, "0123456789") != "" {
 			return s
 		}
 		return with

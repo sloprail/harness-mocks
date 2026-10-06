@@ -35,6 +35,9 @@ const notificationPrompt = "Briefly inform the user about the task result and pe
 //
 // sr:provides background-bash/cursor
 func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.Result {
+	if r, refused := toolexec.RefusesRipgrep(c); refused {
+		return r
+	}
 	id := strconv.Itoa(100000 + rand.Intn(900000))
 	folder := s.terminalsFolder()
 	_ = os.MkdirAll(folder, 0o755)
@@ -61,10 +64,13 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 	pid := t.Pid
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": "", "exitCode": 0, "signal": "", "stdout": "", "stderr": "",
-		"executionTime": time.Since(start).Milliseconds(), "shellId": shellID, "pid": pid,
+		"executionTime": max(time.Since(start).Milliseconds(), 1), "shellId": shellID, "pid": pid,
 		"backgroundReason": "SHELL_BACKGROUND_REASON_USER_REQUEST",
 	}
-	output, _ := json.Marshal(map[string]any{"shell_id": shellID, "pid": pid})
+	output, _ := json.Marshal(struct { // in the order Cursor words it
+		ShellID int `json:"shell_id"`
+		Pid     int `json:"pid"`
+	}{shellID, pid})
 	return toolexec.Result{
 		Background: true,
 		Frame:      map[string]any{"success": body, "isBackground": true, "terminalsFolder": folder},

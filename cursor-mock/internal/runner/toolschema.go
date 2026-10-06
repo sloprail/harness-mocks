@@ -16,6 +16,7 @@ var taskParams = []toolspec.Param{
 	{Name: "model", Type: toolspec.String},
 	{Name: "run_in_background", Type: toolspec.Boolean},
 	{Name: "script", Type: toolspec.String, MockOnly: true},
+	{Name: "agent_id", Type: toolspec.String, MockOnly: true},
 	{Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true},
 }
 

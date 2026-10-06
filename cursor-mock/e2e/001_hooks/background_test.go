@@ -158,7 +158,8 @@ func TestAShellLeftInTheBackgroundIsAnsweredWithItsIdAndTellsTheAgentWhenItEnds(
 
 	require.Equal(t, "told", strings.Split(got.asked[len(got.asked)-1], "|")[0], "the agent was given the notification's turn: %v", got.asked)
 	require.Equal(t, "result/success", bgKinds(got.frames)[len(bgKinds(got.frames))-1])
-	require.Equal(t, "FINISHED", textOfLast(got.frames), "the agent answered the notification's turn")
+	// what the agent said before and in the notification's turn comes out as one frame at the end (recorded: runs/background-bash-start)
+	require.Equal(t, "LAUNCHEDFINISHED", textOfLast(got.frames), "the agent answered the notification's turn")
 }
 
 // TestAShellEndingWhileTheAgentWorksIsHandedOverOnlyAfterItsTurn: recorded, a

@@ -74,6 +74,9 @@ func Denormalize(rec core.Recording, dir string, paths *Paths) Scenario {
 				scripts[name] = scriptFor(subTag, *c.Sub)
 				last := steps[len(steps)-1]
 				last.calls[len(last.calls)-1].Input["script"] = dir + "/" + name
+				if c.Sub.ID != "" { // a reply may quote the sub-agent's id: it takes the recorded one
+					last.calls[len(last.calls)-1].Input["agent_id"] = c.Sub.ID
+				}
 			}
 		}
 		if a.Final != "" {

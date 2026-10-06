@@ -142,5 +142,16 @@ func TestReadContentLengthCountsCharacters(t *testing.T) {
 	}
 	if err := json.Unmarshal([]byte(r.ToolOutput), &out); err != nil || out.ContentLength != 4 {
 		t.Fatalf("content_length = %d (%v), want 4 characters", out.ContentLength, err)
+
+func TestACommandUsingTheHarnessRipgrepIsRefused(t *testing.T) {
+	for _, cmd := range []string{`"$CURSOR_RIPGREP_PATH" foo .`, `~/.local/share/cursor-agent/versions/1/rg foo`} {
+		r := Execute(context.Background(), Call{Kind: "shellToolCall", Args: map[string]any{"command": cmd}}, t.TempDir(), nil)
+		if _, ok := r.NotModeled(); !ok {
+			t.Errorf("%q was not refused: %+v", cmd, r)
+		}
+	}
+	r := Execute(context.Background(), Call{Kind: "shellToolCall", Args: map[string]any{"command": "echo CURSOR_AGENT"}}, t.TempDir(), nil)
+	if _, ok := r.NotModeled(); ok {
+		t.Errorf("an ordinary command was refused")
 	}
 }
