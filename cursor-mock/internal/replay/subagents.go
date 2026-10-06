@@ -21,7 +21,7 @@ type conversation struct {
 // session's: Cursor keeps a sub-agent's in a directory of its own named by its
 // id, beside the session's (agent-transcripts/<id>/<id>.jsonl), and no file that
 // says which call started it.
-func conversations(dir, session string, thoughts map[string][]*core.Thinking) ([]conversation, error) {
+func conversations(dir, session string, thoughts map[string]map[int]*core.Thinking) ([]conversation, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil
