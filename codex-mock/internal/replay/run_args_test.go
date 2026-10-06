@@ -42,13 +42,13 @@ func TestPrepareRunsTheRecordedScriptWithTheCodexAndSedStubs(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(repo, "mk", ".agents", "plugins"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(repo, "mk", ".agents", "plugins", "marketplace.json"), []byte(`{"name":"mk"}`), 0o644))
 	script := "set -e\ncodex plugin marketplace add \"$PWD/mk\"\ncodex plugin add p1@mk\nsed -i '' 's/true/false/' \"$CODEX_HOME/config.toml\"\n"
-	require.NoError(t, prepare(context.Background(), script, root, repo, home, []string{"CODEX_HOME=" + home}))
+	require.NoError(t, prepare(context.Background(), script, root, repo, home, []string{"CODEX_HOME=" + home, "PATH=" + os.Getenv("PATH")}))
 	b, err := os.ReadFile(filepath.Join(home, "config.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(b), "[marketplaces.mk]\nsource_type = \"local\"\nsource = \""+filepath.Join(repo, "mk")+"\"")
 	assert.Contains(t, string(b), "[plugins.\"p1@mk\"]\nenabled = false", "the sed rewrote it")
 
-	err = prepare(context.Background(), "codex exec x\n", root, repo, home, []string{"CODEX_HOME=" + home})
+	err = prepare(context.Background(), "codex exec x\n", root, repo, home, []string{"CODEX_HOME=" + home, "PATH=" + os.Getenv("PATH")})
 	assert.Error(t, err, "another codex command is an error")
 }
 
