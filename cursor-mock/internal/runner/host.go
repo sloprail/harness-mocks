@@ -95,6 +95,14 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 	}
 	s.forward(startedFrame(s.id, tu.ID, c))
 	s.tr.toolUse(tu.Name, c.Args)
+	if _, several := s.batched.Load(tu.ID); several && c.Kind != "taskToolCall" && c.Kind != "mcpToolCall" {
+		// a response of several calls has every call's preToolUse fired as it starts, in
+		// the order they are taken, before any of them runs (recorded: runs/task-stream-frames)
+		h := &toolHost{s: s}
+		h.prepare(toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input})
+		h.firePre(ctx)
+		s.early.Store(tu.ID, h)
+	}
 	return func() {
 		if c.Kind == "editToolCall" {
 			path := map[string]any{"file_path": c.Args["path"]}
@@ -109,6 +117,9 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 // stream.
 func (s *session) runTool(ctx context.Context, tu scenario.ToolUse, quiet bool) {
 	h := &toolHost{s: s, quiet: quiet}
+	if early, ok := s.early.LoadAndDelete(tu.ID); ok && !quiet {
+		h = early.(*toolHost)
+	}
 	var host toolcall.Host = h
 	if runsInBackground(tu) {
 		host = &bgToolHost{h}
@@ -123,6 +134,9 @@ func (s *session) runTool(ctx context.Context, tu scenario.ToolUse, quiet bool) 
 // a Task and another call whose frame comes first; no other recording has a
 // response of several calls beside them).
 func (s *session) Order(calls []scenario.ToolUse) []scenario.ToolUse {
+	for _, c := range calls {
+		s.batched.Store(c.ID, true)
+	}
 	var tasks, rest []scenario.ToolUse
 	for _, c := range calls {
 		if c.Name == "Task" || c.Name == "Agent" {

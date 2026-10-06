@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // awaitTask is a wait on a named background shell: it returns when the shell has
@@ -42,6 +43,9 @@ func (s *session) awaitTask(ctx context.Context, callID string, c toolexec.Call,
 		refuse("ended without succeeding: only a shell that succeeded is recorded")
 		return
 	}
+	// the wait reads the shell's output file: the Read hooks fire for it, under the wait's
+	// own call id, and its frames are not on the stream (recorded: runs/task-stream-frames)
+	s.runTool(ctx, scenario.ToolUse{ID: callID, Name: "Read", Input: jsonLine(map[string]any{"file_path": path})}, true)
 	s.forward(completedFrame(s.id, callID, c, map[string]any{"success": map[string]any{"complete": map[string]any{
 		"taskId": id, "runtimeMs": strconv.FormatInt(time.Since(t.Started).Milliseconds(), 10), "outputFilePath": path,
 		"outputLength": strconv.Itoa(size), "regexRequested": false, "exitCode": t.ExitCode}}}, nil))

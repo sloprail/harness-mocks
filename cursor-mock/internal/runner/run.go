@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/childenv"
@@ -34,6 +35,10 @@ type session struct {
 	// named: hook payloads carry the transcript path, null until the first tool
 	// call is past its preToolUse hooks (recorded: runs/tool-failure).
 	named bool
+	// batched are the calls of responses of several calls, and early those of them
+	// whose preToolUse has fired at their start (host.go), by call id; both are the run's
+	// (a sub-agent's session shares them).
+	batched, early *sync.Map
 	// added is the context the hooks have handed the agent so far (their
 	// additional_context), in the order their events fired and, within an event,
 	// the order the hooks are configured in.
@@ -88,7 +93,7 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 func Run(ctx context.Context, cfg Config) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID(), refusal: &refusal{cancel: cancel}}
+	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID(), batched: &sync.Map{}, early: &sync.Map{}, refusal: &refusal{cancel: cancel}}
 	first := s.requestID // the result frame names the run's first request, whatever turns follow
 	if s.id == "" {
 		s.id = coresession.NewID()

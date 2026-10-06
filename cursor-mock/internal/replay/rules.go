@@ -24,7 +24,7 @@ func Rules(repo, work string) rp.Rules {
 		DropKeys: dropKeys,
 		Measured: measured,
 		Rewrite: map[string]func(string) string{
-			"durationMs": measuredText, "runtimeMs": measuredText,
+			"durationMs": measuredText, "runtimeMs": measuredText, "outputLength": masked("<length>"),
 			"startedAtMs": measuredText, "completedAtMs": measuredText, // when a call began and ended: that it says so, not when
 			"model_call_id": masked("<model call>"), "request_id": masked("<request>"), // the service's ids of its own calls: that they are named
 			"task_id": maskedNumber("<shell>"), "taskId": maskedNumber("<shell>"), // a background shell's id is a number of the harness's own
@@ -42,6 +42,14 @@ func Rules(repo, work string) rp.Rules {
 			{Re: re(`Shell ID: [0-9]+`), With: "Shell ID: <shell>"},
 			{Re: re(`PID: [0-9]+`), With: "PID: <pid>"},
 			{Re: re(`/terminals/[0-9]+\.txt`), With: "/terminals/<shell>.txt"},
+			// what a background shell's file says of the run (recorded: runs/task-stream-frames):
+			// its pid, when it started and ended, how long it ran, and how long the file is,
+			// which depends on the paths and numbers the run had; that each is there is
+			// compared
+			{Re: re(`(?m)^pid: [0-9]+`), With: "pid: <pid>"},
+			{Re: re(`(?m)^(started_at|ended_at): [0-9T:.Z-]+`), With: "$1: <time>"},
+			{Re: re(`(?m)^(running_for_ms|elapsed_ms): [0-9]+ *`), With: "$1: <ms>"},
+			{Re: re(`"content_length":[0-9]+`), With: `"content_length":<length>`},
 			// a response's number and four characters after the request's id name it (the
 			// generation of a thought): the run's own, not behaviour
 			{Re: re(`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-[0-9]+-[a-z0-9]{4}\b`), With: "$1-<n>-<name>"},
