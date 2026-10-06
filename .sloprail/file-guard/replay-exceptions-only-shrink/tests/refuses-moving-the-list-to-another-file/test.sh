@@ -7,7 +7,7 @@ git init -q .
 mkdir -p codex-mock/e2e/001_hooks
 list=codex-mock/e2e/001_hooks/replay_allowlist_test.go
 head='package e2e\n\nvar notReplaying = map[string]string{\n'
-printf "$head"'\t"run-a": "adapter: x",\n\t"run-b": "untriaged: y",\n\t"run-l": "no prefix at all",\n}\n' > "$list"
+printf "$head"'\t"run-a": "adapter: x",\n\t"run-b": "untriaged: y",\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "list"
 BASE=$(git rev-parse HEAD)
 
@@ -35,7 +35,7 @@ git add -A && git -c user.name=t -c user.email=t@t commit -q -m "init adds an en
 refuses "an init in another file" "notReplaying is named outside replay_allowlist_test.go and generated_replay_test.go"
 
 # recovery: the list stays where it is, one entry shorter
-printf "$head"'\t"run-a": "adapter: x",\n\t"run-l": "no prefix at all",\n}\n' > "$list"
+printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
 git rm -q -f codex-mock/e2e/001_hooks/zz_test.go
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "keep the list, drop an entry"
 passes "the list kept in its file, shrunk"

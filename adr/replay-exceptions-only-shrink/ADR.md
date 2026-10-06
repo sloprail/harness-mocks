@@ -24,8 +24,8 @@ accepted one.
   with one of `adapter:`, `mock gap:`, `untriaged:` or `flaky:`; `flaky:` is the
   weakest, `untriaged:` is weaker than the triaged `adapter:` and `mock gap:`, a
   move between the triaged ones, or from `flaky:` or `untriaged:` to a stronger
-  category, is allowed, and no entry takes a reason that starts with none of
-  the four (a reason that has none today may stay as it is).
+  category, is allowed, and a reason that starts with none of the four is
+  refused.
 
 ## Source
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only
-# this rule's outcome is asserted. Proves a list moved to another replay directory of its mock is compared with its old self: the same entries (a rename), fewer entries (a rewrite, so a delete and an add), and a recovery.
+# this rule's outcome is asserted. Proves a list moved to another replay directory of its mock is compared with its old self: the same entries, and one entry fewer (a rename of a list that only shrank).
 git init -q .
 mkdir -p codex-mock/e2e/001_hooks codex-mock/e2e/002_replay
 old=codex-mock/e2e/001_hooks/replay_allowlist_test.go
@@ -33,11 +33,11 @@ git -c user.name=t -c user.email=t@t commit -q -m "move the list"
 git diff --name-status -M "$BASE" HEAD | grep -q "^R" || { echo "the pure move is not a rename to git" >&2; exit 1; }
 passes "a list moved with the same entries"
 
-# moved and rewritten (too different for git to call it a rename), with an entry fewer: permitted
-git checkout -q -b rewrite "$BASE"
+# moved with an entry fewer: still a rename to git, and permitted
+git checkout -q -b shrink "$BASE"
 mkdir -p codex-mock/e2e/002_replay
-git rm -q "$old"
-printf "// xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n// xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n// xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n// xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n// xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n// xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"'package e2e\n\nvar notReplaying = map[string]string{\n\t"run-a": "adapter: x",\n}\n' > "$new"
+git mv "$old" "$new"
+printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$new"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "move and shrink the list"
-git diff --name-status -M "$BASE" HEAD | grep -q "^D" || { echo "the rewrite is a rename to git, not a delete and an add" >&2; exit 1; }
+git diff --name-status -M "$BASE" HEAD | grep -q "^R" || { echo "the move and shrink is not a rename to git" >&2; exit 1; }
 passes "a list moved and shrunk"

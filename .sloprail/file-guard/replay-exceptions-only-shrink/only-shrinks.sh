@@ -3,8 +3,8 @@
 # (a replay_allowlist_test.go under any <mock>-mock/e2e/): a change may remove entries, never add one, and may
 # not move an existing entry's reason to a weaker category (flaky: is weaker than untriaged:,
 # which is weaker than any triaged reason such as adapter: or mock gap:). A file created by the
-# change has no base, so it may carry no entries: every entry would be an addition, unless the change
-# deletes a list in the same mock (a list moved to another replay directory), whose entries are its base.
+# change has no base, so it may carry no entries: every entry would be an addition. A list moved with
+# git mv, to another replay directory of its mock, is a rename and is compared with the list it was.
 #
 # The rule compares the map's text, so it accepts only forms it can compare (one "run": "reason", per
 # line, no escape inside a reason's category, the map named only by its declaration): these restrictions
@@ -86,16 +86,11 @@ while [ "$i" -lt "$count" ]; do
       continue ;;
     *) continue ;;
   esac
-  # a deleted file has no list. A created one is compared with the lists the change deletes in the same
-  # mock (a list moved to another replay directory is its old self); with none deleted, its base is empty
-  # and each of its entries is an addition.
+  # a deleted file has no list. A created one has an empty base, so each of its entries is an addition
+  # (a list moved with git mv is a rename: its base is the list it was).
   if [ "$status" = "D" ]; then continue; fi
   old=""
-  if [ "$status" = "A" ]; then
-    mock="${path%%/*}"
-    old="$(printf '%s' "$payload" | jq -r --arg m "$mock/" '[.changeset.files[] | select(.status == "D" and (.path | startswith($m)) and (.path | test("(^|/)replay_allowlist_test\\.go$"))) | .oldContent] | join("\n")')" ||
-      refuse_error "could not read the lists deleted beside $path from the changeset, so it could not be checked"
-  else
+  if [ "$status" != "A" ]; then
     old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
       refuse_error "could not read the base of $path from the changeset, so it could not be checked"
   fi
@@ -122,10 +117,9 @@ while [ "$i" -lt "$count" ]; do
   while IFS="$tab" read -r key was was_known now now_known; do
     [ -n "$key" ] || continue
     [ "$now" -ge "$was" ] || weaker="$weaker$key ($(rank_name "$was") -> $(rank_name "$now")); "
-    # an entry whose reason had a known category keeps one (an unprefixed legacy reason may stay as it is)
-    { [ "$was_known" -eq 0 ] || [ "$now_known" -eq 1 ]; } || unknown="$unknown$key; "
+    [ "$now_known" -eq 1 ] || unknown="$unknown$key; "
   done < <(LC_ALL=C join -t "$tab" <(printf '%s\n' "$old_entries") <(printf '%s\n' "$new_entries"))
-  [ -z "$unknown" ] || refuse "$path: the reasons of these entries no longer start with a known category (adapter:, mock gap:, untriaged: or flaky:): ${unknown%; }"
+  [ -z "$unknown" ] || refuse "$path: the reasons of these entries do not start with a known category (adapter:, mock gap:, untriaged: or flaky:): ${unknown%; }"
   [ -z "$weaker" ] || refuse "$path: the replay exception list may only shrink, and these entries' reasons became weaker: ${weaker%; }: triage the entry or make the run replay, a flaky: entry counts as an addition"
 done
 exit 0
