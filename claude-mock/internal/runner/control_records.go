@@ -1,5 +1,7 @@
 package runner
 
+import "errors"
+
 import "github.com/sloprail/harness-mocks/internal/session"
 
 // isCompactBoundary: a compact_boundary system record, where Claude Code's
@@ -28,3 +30,9 @@ func preservedUUIDs(boundary map[string]any) []string {
 	}
 	return out
 }
+
+// errAPIRetry refuses a scenario that streams the system/api_retry event the real run emits when a
+// model API request fails and is retried: the mock has no model API to fail, and a retry cannot be
+// brought about on demand, so none is recorded (adr/fail-fast-unimplemented).
+// sr:docs https://code.claude.com/docs/en/headless#handle-api-retries
+var errAPIRetry = errors.New("claude-mock: the system/api_retry event is not implemented by the mock (it has no model API to retry): it is refused rather than ignored")

@@ -124,3 +124,15 @@ func TestT017_107_AllowManagedHooksOnlyIsRefused(t *testing.T) {
 		assert.Contains(t, out, "not implemented")
 	}
 }
+
+// TestT017_108_APIRetryEventIsRefused: a scenario that streams the system/api_retry event is
+// refused by name, rather than passed on as if the run had retried a model request.
+// sr:proves noninteractive-run/claude
+func TestT017_108_APIRetryEventIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	sc := write(t, filepath.Join(dir, "s.sh"), "#!/bin/sh\necho '{\"type\":\"system\",\"subtype\":\"api_retry\",\"attempt\":1}'\n", 0o755)
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "ar-1", "--project-dir", dir, "--config-dir", filepath.Join(dir, "config"), "-p", "hello")
+	assert.NotEqual(t, 0, code, out)
+	assert.Contains(t, out, "system/api_retry event is not implemented by the mock")
+	assert.NotContains(t, out, `"attempt"`)
+}

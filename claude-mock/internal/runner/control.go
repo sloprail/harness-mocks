@@ -26,6 +26,9 @@ import (
 // sr:provides worktree-hooks/claude
 // sr:invariant control-records
 func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg Config, inv *hooks.Invoker, tr *transcript) (handled bool, err error) {
+	if rec.Type == "system" && rec.Subtype == "api_retry" {
+		return true, errAPIRetry
+	}
 	switch rec.Type {
 	case "worktree_create", "worktree_remove":
 		evt := hooks.EventWorktreeCreate
