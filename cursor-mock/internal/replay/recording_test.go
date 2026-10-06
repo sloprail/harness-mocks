@@ -220,3 +220,16 @@ func TestLoadNamesTheCallsTheHooksNameByIdsOfTheirOwn(t *testing.T) {
 		t.Fatal("an id no call matches must not be replayed")
 	}
 }
+
+// The harness's own bundled skills a run read are laid out from what the
+// recording shows the read returned, so the read the mock plays answers the same.
+func TestLoadLaysOutTheHarnessSkillsTheRunRead(t *testing.T) {
+	rec, err := Adapter{}.Load(runDir("schedule-wakeup-ask"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := rec.Setup[homeFilePrefix+".cursor/skills-cursor/loop/SKILL.md"]
+	if !strings.Contains(body, "# Loop") {
+		t.Fatalf("setup: %v", len(rec.Setup))
+	}
+}

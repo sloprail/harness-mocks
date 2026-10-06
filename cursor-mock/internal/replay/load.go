@@ -122,6 +122,9 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if len(thoughts) > 0 {
 		return core.Recording{}, unbuildable("the model thought in a conversation that has no transcript")
 	}
+	for name, body := range harnessFiles(stream) {
+		rec.Setup[name] = body
+	}
 	if err := nameHookIDs(&rec.Agent, stream, payloads, session); err != nil {
 		return core.Recording{}, err
 	}
