@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "hooks": {
+    "workspaceOpen": [{ "command": ".cursor/hooks/hook.sh" }],
+    "sessionStart": [{ "command": ".cursor/hooks/hook.sh" }],
+    "sessionEnd": [{ "command": ".cursor/hooks/hook.sh" }]
+  }
+}

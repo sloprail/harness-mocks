@@ -29,6 +29,10 @@ type Tool struct {
 // sr:provides hook-common-payload/cursor
 // sr:docs https://cursor.com/docs/hooks#common-schema
 func (c Common) Payload(e Event, own map[string]any) []byte {
+	if e == WorkspaceOpen { // an app event, outside any session: no session, model or transcript
+		b, _ := json.Marshal(map[string]any{"hook_event_name": string(e), "cursor_version": c.Version, "workspace_roots": []string{c.Dir}, "user_email": nil})
+		return b
+	}
 	p := map[string]any{
 		"conversation_id": c.SessionID, "generation_id": c.SessionID, "session_id": c.SessionID,
 		"model": "default", "hook_event_name": string(e), "cursor_version": c.Version,
