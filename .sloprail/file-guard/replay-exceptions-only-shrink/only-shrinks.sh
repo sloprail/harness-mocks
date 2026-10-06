@@ -37,7 +37,7 @@ count="$(printf '%s' "$payload" | jq -r '.changeset.files | length')" || count="
 case "$count" in '' | *[!0-9]*) refuse_error "the changeset's files could not be read, so they could not be checked" ;; esac
 
 tab="$(printf '\t')"
-# the reasons start with one of these categories; a reason that starts with none is of no known category
+# the reasons start with one of these categories (the user's words: a reason with none of them is refused)
 known='^(adapter:|mock gap:|untriaged:|flaky:)'
 
 # entries TEXT — "key<TAB>rank<TAB>known" per entry of the map in TEXT, sorted by key; the rank is how

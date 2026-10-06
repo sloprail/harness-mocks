@@ -32,3 +32,5 @@ accepted one.
 The user's words for the second bullet: "A replay exception's reason may not
 move to a weaker category (flaky < untriaged < triaged), and a flaky entry runs
 3 times and fails if never green; it is never skipped."
+
+The user's words for the categories: "A replay exception's reason must start with one of adapter:, mock gap:, untriaged: or flaky:; a reason with none of these is refused."
