@@ -14,6 +14,9 @@ type stepSpec struct {
 	// --session-id (a run with none starts the replay's own session)
 	resume, newID string
 	cont, fork    bool
+	// where the run starts (a directory of the repository, empty: its root), the symlink made
+	// before it ("<name> <target>"), and the project files of that directory
+	cwd, symlink, settings, hook string
 }
 
 // parseStepArgs reads a later run's args: the session flags are its own, the rest are parseArgs's.

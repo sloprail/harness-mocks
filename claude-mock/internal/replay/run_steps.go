@@ -22,6 +22,7 @@ func runSteps(ctx context.Context, mock string, s Scenario, rec core.Recording, 
 		script string
 		args   []string
 		prompt string
+		step   ScenarioStep // the directory it runs in, and what is made there first
 	}
 	first := strings.Fields(rec.Setup["args"])
 	if !hasFlag(first, "--session-id") && !resumes(first) {
@@ -31,12 +32,8 @@ func runSteps(ctx context.Context, mock string, s Scenario, rec core.Recording, 
 	if id := rec.Setup["session"]; id != "" {
 		main = id
 	}
-	// @TRANSCRIPTS@ is where the sessions' transcripts are (the capture's own placeholder)
-	transcripts := filepath.Join(work, "home", ".claude", "projects", regexp.MustCompile(`[^A-Za-z0-9]`).ReplaceAllString(repo, "-"))
-	for i, a := range first {
-		first[i] = strings.ReplaceAll(a, "@TRANSCRIPTS@", transcripts)
-	}
-	runs := []invocation{{filepath.Join(work, "main.sh"), first, s.Prompt}}
+	runs := []invocation{{filepath.Join(work, "main.sh"), first, s.Prompt,
+		ScenarioStep{Cwd: rec.Setup["cwd"], Symlink: rec.Setup["symlink"], Settings: s.Settings, Hook: s.Hook}}}
 	for i, st := range s.Then {
 		var args []string
 		for _, a := range st.Args {
@@ -49,12 +46,22 @@ func runSteps(ctx context.Context, mock string, s Scenario, rec core.Recording, 
 		if err := os.WriteFile(script, []byte(strings.NewReplacer("<RUN>", repo, "\\u003cRUN\\u003e", repo).Replace(st.Script)), 0o755); err != nil {
 			return "", err
 		}
-		runs = append(runs, invocation{script, args, st.Prompt})
+		runs = append(runs, invocation{script, args, st.Prompt, st})
 	}
 	var out strings.Builder
 	for _, r := range runs {
-		argv := append(append(append([]string{}, base...), "--script", r.script), append(r.args, r.prompt)...)
-		res, err := procexec.Run(ctx, procexec.Spec{Argv: argv, Dir: repo, Env: env, Timeout: 3 * time.Minute})
+		dir, err := prepareDir(repo, r.step)
+		if err != nil {
+			return "", err
+		}
+		// @TRANSCRIPTS@ is where this run's directory keeps its sessions' transcripts (the capture's own placeholder)
+		transcripts := filepath.Join(work, "home", ".claude", "projects", regexp.MustCompile(`[^A-Za-z0-9]`).ReplaceAllString(dir, "-"))
+		args := make([]string, len(r.args))
+		for i, a := range r.args {
+			args[i] = strings.ReplaceAll(a, "@TRANSCRIPTS@", transcripts)
+		}
+		argv := append(append(append([]string{}, base...), "--script", r.script), append(args, r.prompt)...)
+		res, err := procexec.Run(ctx, procexec.Spec{Argv: argv, Dir: dir, Env: env, Timeout: 3 * time.Minute})
 		if err != nil || res.ExitCode != wantExit(rec) || res.TimedOut {
 			return "", &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
 		}
@@ -67,4 +74,46 @@ func runSteps(ctx context.Context, mock string, s Scenario, rec core.Recording, 
 // (under the home a capture gives it, by default, so they are flags here, not environment).
 func mockFlags(work string) []string {
 	return []string{"--config-dir", filepath.Join(work, "home", ".claude"), "--plugin-cache-dir", filepath.Join(work, "plugins")}
+}
+
+// prepareDir is the directory a run starts in, made as a capture makes it: the symlink first
+// ("<name> <target>": <name> of the repository links to <target>, also of it), then the directory (a
+// symlink is not made one), then the project files that directory has of its own.
+func prepareDir(repo string, st ScenarioStep) (string, error) {
+	if st.Symlink != "" {
+		f := strings.Fields(st.Symlink)
+		if len(f) != 2 {
+			return "", fmt.Errorf("the symlink %q is not \"<name> <target>\"", st.Symlink)
+		}
+		if err := os.MkdirAll(filepath.Join(repo, f[1]), 0o755); err != nil {
+			return "", err
+		}
+		_ = os.Remove(filepath.Join(repo, f[0]))
+		if err := os.Symlink(filepath.Join(repo, f[1]), filepath.Join(repo, f[0])); err != nil {
+			return "", err
+		}
+	}
+	dir := repo
+	if st.Cwd != "" {
+		dir = filepath.Join(repo, st.Cwd)
+		if fi, err := os.Lstat(dir); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return "", err
+			}
+		}
+	}
+	if st.Settings != "" {
+		if err := os.MkdirAll(filepath.Join(dir, ".claude"), 0o755); err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".claude", "settings.json"), []byte(st.Settings), 0o644); err != nil {
+			return "", err
+		}
+	}
+	if st.Hook != "" {
+		if err := os.WriteFile(filepath.Join(dir, "hook.sh"), []byte(st.Hook), 0o755); err != nil {
+			return "", err
+		}
+	}
+	return dir, nil
 }

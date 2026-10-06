@@ -1,6 +1,7 @@
 package replay
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -29,6 +30,9 @@ type Scenario struct {
 type ScenarioStep struct {
 	Script, Prompt string
 	Args           []string
+	// Cwd is the directory of the repository the run starts in (empty: its root), Symlink "<name> <target>"
+	// a link made first, Settings and Hook the project files of that directory
+	Cwd, Symlink, Settings, Hook string
 }
 
 // ScenarioEarlier is an earlier run: the prompt it is given (how the replay's claude knows it) and its script's file name.
@@ -85,13 +89,21 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 	main := scriptFor("main", rec.Agent, skipMain)
 	var then []ScenarioStep
 	done := before + len(rec.Agent.Calls)
+	var files []stepFiles
+	if text := rec.Setup["steps"]; text != "" {
+		_ = json.Unmarshal([]byte(text), &files)
+	}
 	for i, st := range rec.Then {
 		skip := 0
 		if !startsOwnSession(st.Args) {
 			skip = done
 		}
 		done += len(st.Agent.Calls)
-		then = append(then, ScenarioStep{Script: scriptFor(fmt.Sprintf("step%d", i+1), st.Agent, skip), Prompt: st.Prompt, Args: st.Args})
+		step := ScenarioStep{Script: scriptFor(fmt.Sprintf("step%d", i+1), st.Agent, skip), Prompt: st.Prompt, Args: st.Args, Cwd: st.Cwd}
+		if i < len(files) {
+			step.Symlink, step.Settings, step.Hook = files[i].Symlink, files[i].Settings, files[i].Hook
+		}
+		then = append(then, step)
 	}
 	return Scenario{
 		Settings: rec.Setup["settings.json"],
