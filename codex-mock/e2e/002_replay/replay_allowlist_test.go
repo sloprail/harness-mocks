@@ -9,8 +9,6 @@ package e2e
 // the adapter or the recording may be wrong).
 var notReplaying = map[string]string{
 	"bg-bash-reaped-at-exit":           "adapter: an exec_command whose cmd is not a string literal",
-	"file-tools":                       "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
-	"file-tools-failure":               "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
 	"noninteractive-run-output-schema": "adapter: the setup has args, which the adapter does not install",
 	"noninteractive-run-text-output":   "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
 	"subagent-stop-block-loop-cap":     "adapter: the model called wait: the adapter maps only exec",

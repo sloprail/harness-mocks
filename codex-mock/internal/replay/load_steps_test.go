@@ -95,3 +95,16 @@ func TestUnifyRefusesAnExecOptionTheMockDoesNotImplement(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "x", c.Input["command"])
 }
+
+// An apply_patch of the model's script is the unified patch call, and the mock's script has it as its
+// apply_patch command with the run's directory in the patch.
+func TestAnApplyPatchCallIsReadAndReplayedAsTheMocksOwn(t *testing.T) {
+	c, err := unify(jsCall{Name: "apply_patch", Args: []any{"*** Begin Patch\n*** Add File: <RUN>/a.txt\n+X\n*** End Patch"}}, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, core.ToolPatch, c.Tool)
+	m := mockCall(c)
+	assert.Equal(t, "apply_patch", m.Name)
+	assert.Contains(t, m.Input["command"], runPlaceholder+"/a.txt")
+	_, err = unify(jsCall{Name: "apply_patch", Args: []any{map[string]any{"patch": "x"}}}, nil, nil)
+	assert.Error(t, err, "not a patch text")
+}

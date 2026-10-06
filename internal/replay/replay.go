@@ -16,6 +16,8 @@ const (
 	// ToolShell runs a command: Input "command" (string), "yield_time_ms" (int) and any other
 	// option of the harness's own tool, as given (a string, number or boolean).
 	ToolShell = "shell"
+	// ToolPatch applies a patch to files: Input "patch" (string), in the harness's own patch format.
+	ToolPatch = "apply_patch"
 	// ToolSpawn starts a sub-agent: Input "message"; Call.Sub is its turns.
 	ToolSpawn = "spawn_agent"
 	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".

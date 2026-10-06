@@ -15,6 +15,13 @@ var execOptions = map[string]bool{"cmd": true, "workdir": true, "yield_time_ms":
 // unify is the unified call of one of codex's tool calls.
 func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 	var arg map[string]any
+	if m.Name == "apply_patch" && len(m.Args) == 1 { // its one argument is the patch text, not an object
+		patch, ok := m.Args[0].(string)
+		if !ok {
+			return core.Call{}, fmt.Errorf("an apply_patch whose argument is not a string")
+		}
+		return core.Call{Tool: core.ToolPatch, Input: map[string]any{"patch": patch}}, nil
+	}
 	if len(m.Args) != 1 {
 		return core.Call{}, fmt.Errorf("the model called tools.%s with %d arguments: the adapter maps one", m.Name, len(m.Args))
 	}
@@ -79,5 +86,5 @@ func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 	case "multi_agent_v1__wait_agent":
 		return unifyWait(arg, spawns, told)
 	}
-	return core.Call{}, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, spawn_agent and wait_agent", m.Name)
+	return core.Call{}, fmt.Errorf("the model called tools.%s: the adapter maps exec_command, spawn_agent, wait_agent and apply_patch", m.Name)
 }

@@ -104,6 +104,9 @@ func mockCall(c core.Call) modelCall {
 		return modelCall{Final: &text}
 	}
 	name := c.Tool
+	if c.Tool == core.ToolPatch { // the mock's apply_patch takes the patch as its command
+		return modelCall{Text: c.Said, Name: "apply_patch", Input: map[string]any{"command": strings.ReplaceAll(fmt.Sprint(c.Input["patch"]), "<RUN>", runPlaceholder)}, More: c.More}
+	}
 	if c.Tool == core.ToolCompact {
 		return modelCall{Name: core.ToolCompact, Input: map[string]any{"trigger": c.Input["trigger"]}}
 	}
