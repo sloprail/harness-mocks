@@ -1,6 +1,6 @@
 ---
 concern: what a Go test does when an external tool it needs is not installed
-sloprails: [file-guard/adr-conformance, file-guard/tests-fail-on-missing-tool]
+sloprails: [file-guard/tests-fail-on-missing-tool]
 ---
 
 # A Go test whose required external tool is missing fails
