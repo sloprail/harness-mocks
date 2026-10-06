@@ -122,6 +122,7 @@ func TestEveryEventNamesTheSameExistingTranscript(t *testing.T) {
 // the script still reads the session so far.
 // sr:proves hook-common-payload/codex
 // sr:proves session-transcript-file/codex
+// sr:proves noninteractive-run/codex
 func TestAnEphemeralSessionHasNoTranscriptAndItsHooksSayNull(t *testing.T) {
 	rec := loadRecording(t, "ephemeral-no-transcript")
 	nulls := func(log []map[string]any) (events []string) {

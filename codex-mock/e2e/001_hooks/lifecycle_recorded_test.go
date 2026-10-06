@@ -283,6 +283,7 @@ func TestWhatARealSessionEndHookPrintsIsNotRecorded(t *testing.T) {
 // and neither the stream, stderr nor the transcript mention a failure
 // (runs/session-end-hook-failure).
 // sr:proves session-end-hook/codex
+// sr:proves hook-timeout/codex
 func TestSessionEndHooksThatFailOrAreAsyncAsRecorded(t *testing.T) {
 	rec := loadRecording(t, "session-end-hook-failure")
 	assert.Equal(t, "0\n", readFile(t, filepath.Join(rec.sample, "exit.txt")))

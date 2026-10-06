@@ -151,6 +151,16 @@ func TestSubagentStartCannotRefuse(t *testing.T) {
 	assert.Equal(t, "SUB-DONE", have["SubagentStop"][0]["last_assistant_message"])
 	assert.Equal(t, want["SubagentStop"][0]["last_assistant_message"], have["SubagentStop"][0]["last_assistant_message"])
 	assert.Contains(t, got.Stdout, `"SUB-DONE"`, "the wait reports what the sub-agent said")
+	// the reason the refusing hook gives on stderr is surfaced nowhere: not in the recorded stream,
+	// stderr or transcripts, and not in the mock's
+	files, _ := filepath.Glob(filepath.Join(rec.sample, "transcript", "*.jsonl"))
+	files = append(files, filepath.Join(rec.sample, "stream.jsonl"), filepath.Join(rec.sample, "stderr.txt"))
+	for _, f := range files {
+		assert.NotContains(t, readFile(t, f), "NO-SUBAGENT-REASON", f)
+	}
+	assert.NotContains(t, got.Stdout, "NO-SUBAGENT-REASON")
+	assert.NotContains(t, got.Stderr, "NO-SUBAGENT-REASON")
+	assert.NotContains(t, got.rollout(t), "NO-SUBAGENT-REASON")
 }
 
 // A sub-agent hook's matcher is applied to the sub-agent's type, and a start
