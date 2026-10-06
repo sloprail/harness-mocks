@@ -28,8 +28,8 @@ visible and deliberate, not a test nobody wrote.
   - the file-system effects a mock's scripted control record only announces
     (for claude-mock, the worktree directory behind `worktree_create` and
     `worktree_remove`: they fire the hooks, and no directory exists);
-  - aborting a running tool: what a harness reports for an abort (an interrupted
-    result, `is_interrupt`) is out;
+  - aborting a running tool, for every mock except codex-mock (below): what a
+    harness reports for an abort (an interrupted result, `is_interrupt`) is out;
   - failures a mock's own runtime cannot produce (for claude-mock, a Bash
     whose shell will not start: it always runs `/bin/sh`);
   - the reference text a harness prints inside its own diagnostics (such as
@@ -39,7 +39,8 @@ visible and deliberate, not a test nobody wrote.
     background.
 - The codex mock models Interrupt: a SIGINT during a turn fires the Interrupt
   hook, aborts the turn and exits 1, as runs/interrupt-hook records; a mock may
-  interrupt a running tool when a recording drives it.
+  interrupt a running tool when a recording drives it. The code is
+  `codex-mock/internal/runner/interrupt.go`.
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.
