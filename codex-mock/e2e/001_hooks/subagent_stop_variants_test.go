@@ -164,3 +164,24 @@ func TestAToolMatcherOnASubagentToolMatchesThatToolsName(t *testing.T) {
 		})
 	}
 }
+
+// A SubagentStop hook with a matcher that matches the sub-agent's type runs (the type is "default"),
+// by the name and by a regex, and one that does not match does not (hooks#subagentstop).
+// sr:proves hook-matcher-filter/codex
+func TestASubagentStopMatcherThatMatchesTheTypeRuns(t *testing.T) {
+	for matcher, runs := range map[string]bool{"default": true, "^def.*": true, "def|other": true, "explorer": false} {
+		t.Run(matcher, func(t *testing.T) {
+			got := execMock(t, scenario{
+				HooksJSON: `{"hooks":{"SubagentStop":[{"matcher":"` + matcher + `","hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}]}}`,
+				Files:     map[string]string{"sub.sh": subScript},
+				Script:    spawnThenResult, Prompt: "go",
+			})
+			require.Equal(t, 0, got.Code, got.Stderr)
+			stops := byEvent(got.hookLog())["SubagentStop"]
+			assert.Equal(t, runs, len(stops) == 1, "matcher %q", matcher)
+			if runs {
+				assert.Equal(t, "default", stops[0]["agent_type"])
+			}
+		})
+	}
+}
