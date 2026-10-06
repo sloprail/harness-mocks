@@ -14,6 +14,7 @@ import (
 type Progress struct {
 	mu            sync.Mutex
 	started, done int
+	executed      int // calls carried out (begun to run, or answered with no run)
 	answers       int
 	ended         bool
 	changed       chan struct{} // closed and replaced when either count moves, or the agent ends
@@ -58,6 +59,16 @@ func HoldExec(ctx context.Context, g scenario.Gate, parent *Progress, ancestors 
 	for i, n := range g.ExecAncestorSteps {
 		if n > 0 && i < len(ancestors) && ancestors[i] != nil {
 			ancestors[i].WaitSteps(ctx, n)
+		}
+	}
+}
+
+// HoldAncestors holds an agent's step back until the agents above the one that started it have finished
+// as many calls as its gate says.
+func HoldAncestors(ctx context.Context, g scenario.Gate, ancestors []*Progress) {
+	for i, n := range g.AncestorDone {
+		if n > 0 && i < len(ancestors) && ancestors[i] != nil {
+			ancestors[i].Wait(ctx, 0, n)
 		}
 	}
 }
@@ -123,6 +134,35 @@ func (p *Progress) Wait(ctx context.Context, started, done int) {
 	for {
 		p.mu.Lock()
 		ok, changed := p.started >= started && p.done >= done, p.changed
+		p.mu.Unlock()
+		if ok {
+			return
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// Executed counts a call the agent has begun to carry out: its own frames are written. A nil Progress counts nothing.
+func (p *Progress) Executed() {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	p.executed++
+	close(p.changed)
+	p.changed = make(chan struct{})
+	p.mu.Unlock()
+}
+
+// WaitExecuted returns when at least n calls of the agent have been carried out, or when ctx ends.
+func (p *Progress) WaitExecuted(ctx context.Context, n int) {
+	for {
+		p.mu.Lock()
+		ok, changed := p.executed >= n, p.changed
 		p.mu.Unlock()
 		if ok {
 			return

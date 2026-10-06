@@ -61,7 +61,7 @@ func messageOfAnotherThread(f map[string]any, thread any) bool {
 	return false
 }
 
-// startAfterPost are the Agent calls whose sub-agent the harness started after the call's PostToolUse
+// startAfterPost are the Agent calls (of the main agent or of a sub-agent) whose sub-agent the harness started after the call's PostToolUse
 // in this sample: the hooks' payloads (in the order they were logged) show it. Another sample may show the
 // other order; each carries its own.
 func startAfterPost(payloads []map[string]any, subs map[string]turns) map[string]bool {
@@ -74,7 +74,7 @@ func startAfterPost(payloads []map[string]any, subs map[string]turns) map[string
 	for _, p := range payloads {
 		switch p["hook_event_name"] {
 		case "PostToolUse":
-			if id, _ := p["tool_use_id"].(string); id != "" && p["agent_id"] == nil {
+			if id, _ := p["tool_use_id"].(string); id != "" {
 				posted[id] = true
 			}
 		case "SubagentStart":

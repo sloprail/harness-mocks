@@ -30,8 +30,23 @@ func Hold(ctx context.Context, g scenario.Gate, reg *tasks.Registry, spawned *Sp
 			problems = append(problems, fmt.Sprintf("a gate waits for sub-agent %d, which this agent has not started", c.Sub))
 			continue
 		}
-		if p := spawned.awaitProgress(ctx, id); p != nil {
+		log := spawned
+		for _, k := range c.Via { // down to a sub-agent that a sub-agent started: it may not have been started yet
+			if log = log.awaitSpawns(ctx, id); log == nil {
+				break
+			}
+			if id, ok = log.awaitSub(ctx, k); !ok {
+				break
+			}
+		}
+		if log == nil || !ok {
+			continue
+		}
+		if p := log.awaitProgress(ctx, id); p != nil {
 			p.Wait(ctx, c.Calls, 0)
+			if c.Executed > 0 {
+				p.WaitExecuted(ctx, c.Executed)
+			}
 		}
 	}
 	for _, k := range g.Ended {

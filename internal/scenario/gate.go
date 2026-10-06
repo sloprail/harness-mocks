@@ -20,14 +20,23 @@ type Gate struct {
 	// steps (calls started, answers given) the agent that started this one must have taken by then.
 	ExecParentSteps int `json:"exec_parent_steps,omitempty"`
 	// ExecAncestorSteps is the same for the agents above that one, nearest first.
-	ExecAncestorSteps []int        `json:"exec_ancestor_steps,omitempty"`
-	ChildStarted      []ChildCalls `json:"child_started,omitempty"`
+	ExecAncestorSteps []int `json:"exec_ancestor_steps,omitempty"`
+	// AncestorDone is held before the step is taken: how many calls the agents above the one that started
+	// this one (nearest first) must have finished, their PostToolUse hooks fired, by then.
+	AncestorDone []int        `json:"ancestor_done,omitempty"`
+	ChildStarted []ChildCalls `json:"child_started,omitempty"`
 }
 
-// ChildCalls is how many calls the sub-agent at position Sub must have started.
+// ChildCalls is how many calls a sub-agent must have started: the one at position Sub among those the
+// agent started, or, when Via is given, the one below it that its sub-agents started in turn, at the
+// positions Via names in order (a sub-agent started by a sub-agent: its frames are ahead of this step too).
 type ChildCalls struct {
-	Sub   int `json:"sub"`
-	Calls int `json:"calls"`
+	Sub   int   `json:"sub"`
+	Via   []int `json:"via,omitempty"`
+	Calls int   `json:"calls"`
+	// Executed is how many of its calls must have been carried out: a call the recording shows run before
+	// the next step of the agents above it.
+	Executed int `json:"executed,omitempty"`
 }
 
 // UnmarshalJSON reads a gate and refuses a field it does not have: a script's mistake is never ignored.
@@ -40,5 +49,5 @@ func (g *Gate) UnmarshalJSON(b []byte) error {
 
 // None reports whether the gate holds nothing back.
 func (g Gate) None() bool {
-	return len(g.Ended) == 0 && g.ParentStarted == 0 && g.ParentDone == 0 && !g.ParentEnded && g.ExecParentSteps == 0 && len(g.ExecAncestorSteps) == 0 && len(g.ChildStarted) == 0
+	return len(g.Ended) == 0 && g.ParentStarted == 0 && g.ParentDone == 0 && !g.ParentEnded && g.ExecParentSteps == 0 && len(g.ExecAncestorSteps) == 0 && len(g.AncestorDone) == 0 && len(g.ChildStarted) == 0
 }
