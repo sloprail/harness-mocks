@@ -23,18 +23,11 @@ import (
 // thoughts are what the model thought, by the number of the response that had
 // it: a response with no thought is not in them (recorded: runs/symlinked-cwd,
 // the first response thought and the second did not).
-func modelTurns(records []map[string]any, thoughts map[int]*core.Thinking) (core.Agent, error) {
+func modelTurns(records []map[string]any, heard []thoughtAt) (core.Agent, error) {
 	var agent core.Agent
-	responses := 0
-	for _, rec := range records {
-		if rec["role"] == "assistant" {
-			responses++
-		}
-	}
-	for n := range thoughts {
-		if n < 0 || n >= responses {
-			return core.Agent{}, fmt.Errorf("a thought names response %d of a conversation of %d", n, responses)
-		}
+	thoughts, err := placeThoughts(records, heard)
+	if err != nil {
+		return core.Agent{}, err
 	}
 	thought := func(i int) *core.Thinking { return thoughts[i] }
 	var said *string
@@ -140,4 +133,43 @@ func lookupOf(block map[string]any) map[string]any {
 // sameTool reports whether the lookup named the tool the call is of.
 func sameTool(lookup, call map[string]any) bool {
 	return lookup != nil && lookup["namespace"] == call["server"] && lookup["toolName"] == call["tool"]
+}
+
+// placeThoughts gives each thought the index of the response, among all the
+// transcript's, that had it. A request is the responses between two user
+// records (the first user record is the prompt), and the requests a conversation
+// thought in are taken in the order of the requests themselves.
+func placeThoughts(records []map[string]any, heard []thoughtAt) (map[int]*core.Thinking, error) {
+	var starts, sizes []int // the first response of each request, and how many it has
+	responses, fresh := 0, true
+	for _, rec := range records {
+		switch rec["role"] {
+		case "user":
+			fresh = true
+		case "assistant":
+			if fresh {
+				starts, sizes, fresh = append(starts, responses), append(sizes, 0), false
+			}
+			sizes[len(sizes)-1]++
+			responses++
+		}
+	}
+	out := map[int]*core.Thinking{}
+	maxRequest := -1
+	for _, h := range heard {
+		maxRequest = max(maxRequest, h.request)
+	}
+	if maxRequest >= len(starts) {
+		return nil, fmt.Errorf("a thought names request %d of a conversation of %d", maxRequest, len(starts))
+	}
+	if maxRequest >= 0 && len(starts) > 1 && maxRequest+1 != len(starts) {
+		return nil, fmt.Errorf("the model thought in %d of a conversation's %d requests: which request a thought belongs to is not told", maxRequest+1, len(starts))
+	}
+	for _, h := range heard {
+		if h.response < 0 || h.response >= sizes[h.request] {
+			return nil, fmt.Errorf("a thought names response %d of a request of %d", h.response, sizes[h.request])
+		}
+		out[starts[h.request]+h.response] = h.thinking
+	}
+	return out, nil
 }
