@@ -109,3 +109,12 @@ providers:
           still named one root in every payload (recorded:
           runs/multiroot-workspace, runs/add-dir-access; --workspace takes a
           directory, not a workspace file). The mock names the one root.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          The workspaceOpen hook's payload does not name a session: it fires
+          outside any session, and carries only the event name, the Cursor
+          version, the workspace roots and the user's email (null), with no
+          conversation id, session id or transcript path (recorded:
+          runs/workspace-open; the docs, #common-schema, say the same). The
+          mock fires it the same.
