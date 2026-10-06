@@ -30,7 +30,9 @@ func (s *session) refusesTaskModel(ctx context.Context, tu scenario.ToolUse) boo
 	s.announceTask(ctx, tu, in)
 	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt})
 	msg := "cursor-mock: sub-agent model " + strconv.Quote(*in.Model) + " is not modeled: the recorded ones are default and inherit, and no-such-model-xyz as the invalid one"
-	if *in.Model == recordedInvalidModel {
+	if *in.Model != recordedInvalidModel {
+		s.refusal.refuse(msg)
+	} else {
 		msg = "Invalid model selection \"" + *in.Model + "\". Model could not be resolved to a valid subagent model.\nAllowed model slugs:\n- default"
 	}
 	// the completed frame carries no args, only the error (recorded)

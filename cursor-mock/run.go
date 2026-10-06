@@ -31,8 +31,8 @@ func run(cmd *cobra.Command, f flags, args []string) error {
 		return errors.New("cursor-mock: --continue is not modeled: pass --resume <session-id>")
 	case f.model != "" && f.model != "auto" && f.model != "cursor-grok-4.5-high":
 		return fmt.Errorf("cursor-mock: model %q is not modeled: only auto and cursor-grok-4.5-high were recorded", f.model)
-	case len(f.addDirs) > 0 && !f.force:
-		return errors.New("cursor-mock: --add-dir is modeled only with --force (the mode its recordings cover): pass --force")
+	case len(f.addDirs) > 0 && !f.force && !f.yolo:
+		return errors.New("cursor-mock: --add-dir is modeled only with --force or --yolo (the mode its recordings cover): pass --force")
 	}
 	script := f.script
 	if script == "" {
