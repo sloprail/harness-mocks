@@ -78,6 +78,7 @@ func shape(stream []map[string]any) (out []string) {
 // while the agent's own command is still running. The main thread's hooks
 // name no agent (runs/background-agent).
 // sr:proves background-agent/codex
+// sr:proves hook-common-payload/codex
 func TestSubAgentSpawnedGivesReceiptAndRunsConcurrently(t *testing.T) {
 	// (loadRecording takes every tool call for a command, which a spawn is not)
 	samples, err := filepath.Glob(filepath.Join(runsDir, "background-agent", "samples", "*"))
@@ -206,6 +207,7 @@ func TestSubAgentSpawnedGivesReceiptAndRunsConcurrently(t *testing.T) {
 			}
 		} else {
 			assert.NotContains(t, l, "agent_id", "the main thread's hooks name no agent")
+			assert.NotContains(t, l, "agent_type", "nor a type")
 		}
 	}
 }
