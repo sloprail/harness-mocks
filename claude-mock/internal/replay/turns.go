@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -24,6 +25,17 @@ func modelTurns(records []map[string]any) (turns, error) {
 	var t turns
 	var said *string
 	for _, rec := range records {
+		if rec["type"] == "user" && isStopFeedback(rec) {
+			// a Stop hook blocked the end of the turn: what the model said before it was a reply of its
+			// own, and the model answers again
+			if said == nil {
+				return turns{}, fmt.Errorf("a Stop hook's feedback came to a model that had said nothing")
+			}
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}})
+			t.ids = append(t.ids, "")
+			said = nil
+			continue
+		}
 		if rec["type"] != "assistant" {
 			continue
 		}
@@ -55,6 +67,20 @@ func modelTurns(records []map[string]any) (turns, error) {
 		t.agent.Final = *said
 	}
 	return t, nil
+}
+
+// toolReply is the adapter's unified name of an answer the model gave that a Stop hook then refused
+// to end the turn on: Input "text". It is not a tool call: the model said it, and was told to go on.
+const toolReply = "reply"
+
+// stopFeedback starts the user record a blocking Stop hook leaves.
+const stopFeedback = "Stop hook feedback:"
+
+// isStopFeedback is whether a user record is a Stop hook's feedback.
+func isStopFeedback(rec map[string]any) bool {
+	msg, _ := rec["message"].(map[string]any)
+	s, _ := msg["content"].(string)
+	return strings.HasPrefix(s, stopFeedback)
 }
 
 // toolRead is the unified name of the Read tool (a file read), which only the claude adapter maps.

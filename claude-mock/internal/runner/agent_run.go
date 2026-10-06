@@ -13,6 +13,7 @@ import (
 // two transcripts involved — its own sidechain file, which its records go to,
 // and the session's, which its hooks are told about.
 type subagentRun struct {
+	announced      bool // the sub-agent's prompt has been streamed: a re-run after a blocked stop does not stream it again
 	parent         Config
 	subCwd         string
 	agentID        string

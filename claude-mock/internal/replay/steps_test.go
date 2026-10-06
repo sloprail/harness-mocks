@@ -93,3 +93,29 @@ func TestResumedScriptSkipsEarlierCalls(t *testing.T) {
 		t.Fatalf("%s\n%s", s.Then[0].Script, s.Then[1].Script)
 	}
 }
+
+func assistantText(text string) map[string]any {
+	return map[string]any{"type": "assistant", "message": map[string]any{"content": []any{map[string]any{"type": "text", "text": text}}}}
+}
+
+// What the model said before a Stop hook sent it on is a reply of its own (a pseudo-call of the
+// adapter's), and its last answer is the final one.
+func TestStopFeedbackIsAReply(t *testing.T) {
+	got, err := modelTurns([]map[string]any{
+		assistantText("DONE"), userRec("Stop hook feedback:\nWHY"), assistantText("DONE2"), userRec("Stop hook feedback:\nAGAIN"), assistantText("LAST"),
+	})
+	if err != nil || len(got.agent.Calls) != 2 || got.agent.Final != "LAST" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if c := got.agent.Calls[1]; c.Tool != toolReply || c.Input["text"] != "DONE2" {
+		t.Fatalf("%+v", c)
+	}
+	if _, err = modelTurns([]map[string]any{userRec("Stop hook feedback:\nWHY")}); err == nil {
+		t.Fatal("feedback to a model that said nothing")
+	}
+	// the script makes the replies after the calls it has made, counting the feedback it was given
+	s := Denormalize(core.Recording{Agent: core.Agent{Calls: got.agent.Calls, Final: got.agent.Final}}, "/d")
+	if !strings.Contains(s.Script, "Stop hook feedback:") || !strings.Contains(s.Script, `"text":"DONE"`) || !strings.Contains(s.Script, `"text":"DONE2"`) {
+		t.Fatal(s.Script)
+	}
+}

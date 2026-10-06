@@ -51,6 +51,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var lastSig string
 	var repeats int
 	var stopBlocks int
+	var stopErrorShown bool // the notice of a Stop hook's error is shown once per run
 	var lastText string
 	var final scenario.Result // the run's one result frame, held until its turn really ends
 	finish := finisher(cfg, bg, &final)
@@ -91,10 +92,14 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				SessionCrons:         &crons,
 			})
 			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
-			writeStopHookError(cfg, stopRuns)
+			blocked := turnloop.Continues(stopErr != nil, stopOut.Decision == "block")
+			if blocked {
+				writeStopFeedbackFrames(cfg, stopRuns)
+			}
+			writeStopHookError(cfg, stopRuns, blocked, &stopErrorShown)
 			// Its feedback, attachment and stop_hook_summary: transcript.recordHookRuns.
 			// sr:provides stop-block-continuation/claude
-			if turnloop.Continues(stopErr != nil, stopOut.Decision == "block") {
+			if blocked {
 				stopBlocks++
 				// sr:provides stop-block-cap/claude
 				if turnloop.AfterBlock(stopBlocks, blockCap) {

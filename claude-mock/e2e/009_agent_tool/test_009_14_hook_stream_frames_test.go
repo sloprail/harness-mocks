@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -135,4 +136,35 @@ func TestT009_14_StopSuccessStreamsNoHookError(t *testing.T) {
 	out := runStopStream(t, func(dir string) string { return hookWithRaw(t, dir, "", "", 0) })
 	assertStopHookError(t, out, 0)
 	assert.Empty(t, systemFrames(out, "hook_started"), "only SessionStart's runs are streamed")
+}
+
+// A Stop hook that blocks hands the agent its feedback as a synthetic user message in the stream,
+// one per block, ahead of the error notice, which is shown once for the run: the second block
+// (exit 2 after a JSON block) streams none (recorded: snapshots/runs/stops).
+// sr:docs https://code.claude.com/docs/en/hooks#stop-decision-control
+// sr:proves stop-block-continuation/claude
+func TestT009_14_StopBlockStreamsItsFeedbackAndOneNotice(t *testing.T) {
+	dir := t.TempDir()
+	n := filepath.Join(dir, "n")
+	hook := writeScript(t, dir, "stop.sh", "#!/bin/sh\ncat >/dev/null\nc=$(cat "+n+" 2>/dev/null || echo 0); c=$((c+1)); echo $c >"+n+"\n"+
+		"[ $c = 1 ] && { echo '{\"decision\":\"block\",\"reason\":\"JSON-WHY\"}'; exit 0; }\n[ $c = 2 ] && { echo EXIT2-WHY >&2; exit 2; }\nexit 0\n")
+	writeSettings(t, dir, map[string]string{"Stop": hook})
+	script := writeScript(t, dir, "s.sh", "#!/bin/sh\nprintf '%s\\n' '"+resultFrame+"'\n")
+	out, rc := runInDir(t, dir, nil, "--script", script, "--session-id", "s-stf2", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, rc, "output:\n%s", out)
+	var seq []string
+	for _, l := range strings.Split(out, "\n") {
+		var f map[string]any
+		if json.Unmarshal([]byte(l), &f) != nil {
+			continue
+		}
+		switch {
+		case f["type"] == "user" && f["isSynthetic"] == true:
+			content := f["message"].(map[string]any)["content"].([]any)[0].(map[string]any)
+			seq = append(seq, "feedback:"+strings.TrimSpace(content["text"].(string)))
+		case f["key"] == "stop-hook-error":
+			seq = append(seq, "notice")
+		}
+	}
+	assert.Equal(t, []string{"feedback:Stop hook feedback:\nJSON-WHY", "notice", "feedback:Stop hook feedback:\n" + "[" + hook + "]: EXIT2-WHY"}, seq, out)
 }
