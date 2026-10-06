@@ -19,6 +19,7 @@ providers:
     runs:
       - codex-mock/snapshots/runs/session-transcript-file
       - codex-mock/snapshots/runs/session-transcript-file-hooks
+      - codex-mock/snapshots/runs/ephemeral-no-transcript
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema

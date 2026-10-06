@@ -16,6 +16,7 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-matchers
       - codex-mock/snapshots/runs/session-end
+      - codex-mock/snapshots/runs/ephemeral-no-transcript
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
