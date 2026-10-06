@@ -20,11 +20,12 @@ accepted one.
   keys and never adds one: adding an entry fails CI (the
   `replay-exceptions-only-shrink` file-guard compares the map's keys at the base
   and at the head). A new `flaky:` entry is an addition.
-- An existing entry's reason never moves to a weaker category: `flaky:` is the
-  weakest, `untriaged:` is weaker than every triaged reason, and a triaged
-  reason is any reason that is neither `flaky:` nor `untriaged:` (`adapter:`,
-  `mock gap:`, ...); a move between triaged reasons, or from `flaky:` or
-  `untriaged:` to a stronger category, is allowed.
+- An existing entry's reason never moves to a weaker category: a reason starts
+  with one of `adapter:`, `mock gap:`, `untriaged:` or `flaky:`; `flaky:` is the
+  weakest, `untriaged:` is weaker than the triaged `adapter:` and `mock gap:`, a
+  move between the triaged ones, or from `flaky:` or `untriaged:` to a stronger
+  category, is allowed, and no entry takes a reason that starts with none of
+  the four (a reason that has none today may stay as it is).
 
 ## Source
 
