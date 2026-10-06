@@ -109,6 +109,8 @@ type Config struct {
 	// SpawnLimit is how many layers of sub-agents nest below the main thread;
 	// 0 is the default.
 	SpawnLimit int
+	// ConcurrentLimit is how many sub-agents may run at once (0: the default).
+	ConcurrentLimit int
 	// BackgroundTasksDisabled turns run_in_background off for Bash: the command
 	// runs in the foreground. The harness's CLAUDE_CODE_DISABLE_BACKGROUND_TASKS.
 	BackgroundTasksDisabled bool

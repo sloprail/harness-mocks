@@ -32,6 +32,16 @@ func spawnLimit() int {
 	return 0
 }
 
+// concurrentLimit is how many sub-agents may run at once: CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS when it is
+// a positive number, else 0 for the default. Read once here, with the rest of the configuration.
+// (recorded: runs/bgagent-concurrent-limit)
+func concurrentLimit() int {
+	if n, err := strconv.Atoi(os.Getenv("CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS")); err == nil && n > 0 {
+		return n
+	}
+	return 0
+}
+
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
 // a10n:blueprint:ignore
 func addRunFlags(cmd *cobra.Command) {

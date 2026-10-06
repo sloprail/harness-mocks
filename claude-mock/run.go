@@ -120,6 +120,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		Prompting:               runner.Prompting{PermissionMode: permissionMode(cmd), MaxTurns: maxTurns(cmd), HookEvents: hookEvents(cmd), Scratchpad: hasScratchpad()},
 		BgWaitCeiling:           printWaitCeiling(),
 		SpawnLimit:              spawnLimit(),
+		ConcurrentLimit:         concurrentLimit(),
 		BackgroundTasksDisabled: backgroundTasksDisabled(),
 		Stderr:                  os.Stderr,
 		Out:                     os.Stdout,

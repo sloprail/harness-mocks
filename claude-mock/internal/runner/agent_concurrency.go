@@ -2,8 +2,6 @@ package runner
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/subagents"
@@ -18,7 +16,7 @@ import (
 //
 // sr:provides background-agent/claude
 func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
-	limit := concurrentLimit()
+	limit := concurrentLimit(cfg)
 	running := 0
 	if cfg.bg != nil {
 		for _, t := range cfg.bg.Running() {
@@ -35,11 +33,10 @@ func concurrentLimitRefusal(cfg Config) (res toolexec.Result, ok bool) {
 	return toolexec.Result{Output: msg, IsError: true, Failed: true, ToolUseResult: "Error: " + msg}, true
 }
 
-// concurrentLimit is how many sub-agents may run at once: CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS when it
-// is a positive number, else the default.
-func concurrentLimit() int {
-	if n, err := strconv.Atoi(os.Getenv("CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS")); err == nil && n > 0 {
-		return n
+// concurrentLimit is how many sub-agents may run at once: the configured limit, else the default.
+func concurrentLimit(cfg Config) int {
+	if cfg.ConcurrentLimit > 0 {
+		return cfg.ConcurrentLimit
 	}
 	return subagents.DefaultConcurrentLimit
 }
