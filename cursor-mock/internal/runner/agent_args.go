@@ -26,7 +26,11 @@ func (s *session) announceTask(ctx context.Context, tu scenario.ToolUse, in task
 	if in.RunInBackground != nil {
 		input["run_in_background"] = *in.RunInBackground
 	}
-	tool := hooks.Tool{Name: "Task", UseID: tu.ID, Input: input}
+	useID := tu.ID
+	if in.HookToolUseID != "" {
+		useID = in.HookToolUseID
+	}
+	tool := hooks.Tool{Name: "Task", UseID: useID, Input: input}
 	own := hooks.ToolFields(tool)
 	own["model"], own["generation_id"] = "", s.requestID
 	s.hooks.Fire(ctx, hooks.PreToolUse, tool.Name, own)

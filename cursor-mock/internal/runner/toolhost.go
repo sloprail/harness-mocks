@@ -47,7 +47,10 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	h.call = toolexec.FromScript(c.Name, c.Input)
 	h.call.Request = h.s.requestID
 	useID := c.ID
-	if h.call.Kind == "mcpToolCall" {
+	if h.call.HookID != "" {
+		useID = h.call.HookID
+	}
+	if h.call.Kind == "mcpToolCall" && h.call.HookID == "" {
 		useID = coresession.NewID() // an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp)
 	}
 	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: useID}

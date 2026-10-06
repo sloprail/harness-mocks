@@ -24,6 +24,10 @@ type Call struct {
 	// its description: what the frames show of it (shellargs.go).
 	BlockMs   *int
 	Described string
+	// HookID is the id the call's hooks name it by when it is not the call's own (a
+	// mock-only input of the script, hook_tool_use_id): Cursor's hooks were recorded
+	// naming a call by an id of their own in some runs and by the call's id in others.
+	HookID string
 	// Request is the id of the model request the call was made in (the frames' requestId).
 	Request string
 }
@@ -54,7 +58,7 @@ func FromScript(name string, input json.RawMessage) Call {
 	_ = json.Unmarshal(input, &in)
 	str := func(k string) string { s, _ := in[k].(string); return s }
 	kind, _, _, _ := lookup(name)
-	c := Call{Kind: kind, Args: map[string]any{}}
+	c := Call{Kind: kind, Args: map[string]any{}, HookID: str("hook_tool_use_id")}
 	switch c.Kind {
 	case "shellToolCall":
 		c.Args["command"] = str("command")
@@ -82,7 +86,7 @@ func FromScript(name string, input json.RawMessage) Call {
 	case "grepToolCall":
 		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
 		for k := range in {
-			if k != "pattern" {
+			if k != "pattern" && k != "hook_tool_use_id" {
 				c.Unmodeled = append(c.Unmodeled, k)
 			}
 		}

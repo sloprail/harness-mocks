@@ -122,6 +122,9 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if len(thoughts) > 0 {
 		return core.Recording{}, unbuildable("the model thought in a conversation that has no transcript")
 	}
+	if err := nameHookIDs(&rec.Agent, stream, payloads, session); err != nil {
+		return core.Recording{}, err
+	}
 	describeMCPCalls(&rec.Agent, stream)
 	return rec, nil
 }
