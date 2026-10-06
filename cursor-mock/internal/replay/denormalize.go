@@ -52,6 +52,17 @@ type scriptCall struct {
 // <RUN_DIRNAME> (rules.go); paths says what they stand for in this replay, and a
 // nil paths leaves them as recorded.
 func Denormalize(rec core.Recording, dir string, paths *Paths) Scenario {
+	return denormalize(rec.Agent, rec.Prompt, dir, paths, "")
+}
+
+// DenormalizeStep is the scenario of the i-th later step of a run (1 is the first
+// after the opening one): its scripts and the ids of its calls are named apart from
+// the other steps'.
+func DenormalizeStep(st core.Step, i int, dir string, paths *Paths) Scenario {
+	return denormalize(st.Agent, st.Prompt, dir, paths, fmt.Sprintf("s%d_", i))
+}
+
+func denormalize(root core.Agent, prompt, dir string, paths *Paths, prefix string) Scenario {
 	scripts := map[string]string{}
 	n := 0
 	var scriptFor func(tag string, a core.Agent) string
@@ -68,8 +79,8 @@ func Denormalize(rec core.Recording, dir string, paths *Paths) Scenario {
 				steps = append(steps, step{said: c.Said, calls: []scriptCall{mockCall(c)}, thought: c.Thinking})
 			}
 			if c.Tool == core.ToolSpawn && c.Sub != nil {
-				name := fmt.Sprintf("sub%d.sh", n)
-				subTag := fmt.Sprintf("sub%d", n)
+				name := fmt.Sprintf("%ssub%d.sh", prefix, n)
+				subTag := fmt.Sprintf("%ssub%d", prefix, n)
 				n++
 				scripts[name] = scriptFor(subTag, *c.Sub)
 				last := steps[len(steps)-1]
@@ -84,5 +95,5 @@ func Denormalize(rec core.Recording, dir string, paths *Paths) Scenario {
 		}
 		return script(tag, paths.expandSteps(steps))
 	}
-	return Scenario{Scripts: scripts, Script: scriptFor("main", rec.Agent), Prompt: rec.Prompt}
+	return Scenario{Scripts: scripts, Script: scriptFor(prefix+"main", root), Prompt: prompt}
 }

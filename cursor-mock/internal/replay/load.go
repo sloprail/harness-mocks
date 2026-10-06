@@ -128,6 +128,9 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if err := nameHookIDs(&rec.Agent, stream, payloads, session); err != nil {
 		return core.Recording{}, err
 	}
+	if err := nameShellIDs(&rec.Agent, stream, session); err != nil {
+		return core.Recording{}, err
+	}
 	describeMCPCalls(&rec.Agent, stream)
 	return rec, nil
 }

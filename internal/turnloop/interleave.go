@@ -15,6 +15,13 @@ type Interleaver interface {
 	Start(ctx context.Context, tu scenario.ToolUse) (finish func())
 }
 
+// Orderer is an Interleaver that starts and completes the calls of a response in an
+// order of its own, not the one the model made them in.
+type Orderer interface {
+	// Order is the calls of one response in the order the harness takes them.
+	Order(calls []scenario.ToolUse) []scenario.ToolUse
+}
+
 // turnCalls is the calls of the turn the host carries out: all of them for an
 // Interleaver, the first otherwise.
 func turnCalls(h Host, t scenario.Turn) []scenario.ToolUse {
@@ -38,6 +45,9 @@ func callsKey(calls []scenario.ToolUse) string {
 // there are several (only an Interleaver is given them), all started in order
 // before any is completed, in the same order.
 func perform(ctx context.Context, h Host, calls []scenario.ToolUse) {
+	if o, ok := h.(Orderer); ok && len(calls) > 1 {
+		calls = o.Order(calls)
+	}
 	if len(calls) == 1 {
 		h.Tool(ctx, calls[0])
 		return
