@@ -79,9 +79,23 @@ echo '{"type":"compact","summary":"s","trigger":"manual"}'
 	background := writeScript(t, `#!/bin/sh
 echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a1","name":"Agent","input":{"prompt":"p","description":"d","run_in_background":true,"script":"`+sub+`"}}]}}'
 `)
+	control := func(rec string) string { return writeScript(t, "#!/bin/sh\necho '"+rec+"'\n") }
+	toolResult := writeScript(t, `#!/bin/sh
+echo '{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"x1","name":"Bash","content":"ok"}]}}'
+`)
+	bgBash := writeScript(t, `#!/bin/sh
+echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b1","name":"Bash","input":{"command":"sleep 1","run_in_background":true}}]}}'
+`)
 	for name, tc := range map[string]struct{ script, event string }{
-		"compaction":       {compact, "PreCompact"},
-		"background agent": {background, "SubagentStart"},
+		"compaction":               {compact, "PreCompact"},
+		"manual compaction's stop": {control(`{"type":"compact","summary":"s","trigger":"manual"}`), "SubagentStop"},
+		"background agent":         {background, "SubagentStart"},
+		"background agent prompt":  {background, "UserPromptSubmit"},
+		"background shell prompt":  {bgBash, "UserPromptSubmit"},
+		"subagent_start record":    {control(`{"type":"subagent_start","agent_type":"x"}`), "SubagentStart"},
+		"worktree_create record":   {control(`{"type":"worktree_create","worktree_name":"w"}`), "WorktreeCreate"},
+		"worktree_remove record":   {control(`{"type":"worktree_remove","worktree_name":"w"}`), "WorktreeRemove"},
+		"scenario tool_result":     {toolResult, "PostToolUse"},
 	} {
 		dir := t.TempDir()
 		writeEventSettings(t, dir, tc.event)
@@ -90,9 +104,13 @@ echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool
 		assert.NotEqual(t, 0, code, name+": "+out)
 		assert.Contains(t, out, "--include-hook-events with a", name)
 		assert.Contains(t, out, tc.event, name)
-		assert.NotContains(t, out, `"subtype":"hook_started"`, name+": nothing unrecorded is streamed")
+		assert.NotContains(t, out, `"hook_name":"`+tc.event+`:`, name+": nothing unrecorded is streamed")
+		if tc.event != "UserPromptSubmit" { // the prompt's own UserPromptSubmit frames are recorded
+			assert.NotContains(t, out, `"hook_event":"`+tc.event+`"`, name)
+		}
 	}
-	// a hook configured for an event that never fires is no matter (the recording's own settings)
+	// a hook configured for an event that never fires is no matter (the recording's own settings);
+	// an auto compaction has no sub-agent that stops, so SubagentStop is no matter there
 	dir := t.TempDir()
 	writeEventSettings(t, dir, "PreCompact", "PostCompact")
 	out, code := e2etest.RunInDir(t, dir, nil, "--script", writeScript(t, "#!/bin/sh\necho '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"x\"}'\n"),

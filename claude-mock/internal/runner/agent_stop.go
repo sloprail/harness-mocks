@@ -19,6 +19,7 @@ import (
 // it called, and why it failed if it did.
 func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt string) subagents.Outcome {
 	if s.script == "" {
+		s.startFrames.finish(s.parent)
 		return subagents.Outcome{FinalText: "no subagent script"}
 	}
 	var buf bytes.Buffer

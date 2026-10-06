@@ -124,6 +124,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				toolName = toolNameInTranscript(tr, toolUseID)
 			}
 			if toolName != "" {
+				if err := refuseUnrecordedHook(cfg, inv, hooks.EventPostToolUse); err != nil {
+					return scanResult{}, err // a scenario-written tool_result: its frames are not recorded
+				}
 				_, _ = inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
 					Cwd:           cfg.Cwd,

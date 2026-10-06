@@ -3,6 +3,7 @@ package runner
 import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 )
 
 // writeHookEventFrames streams the frames of a hook a main-thread event fired
@@ -86,15 +87,21 @@ func (p *pendingFrames) finish(cfg Config) {
 	}
 }
 
-// refuseBackgroundHookFrames refuses a background sub-agent's launch when --include-hook-events is
-// asked for and a SubagentStart or SubagentStop hook is configured: only a foreground sub-agent's
-// hook frames are recorded (adr/fail-fast-unimplemented).
+// refuseBackgroundHookFrames refuses the launch of a background task when --include-hook-events is
+// asked for and the task would fire a hook whose frames are not recorded (adr/fail-fast-unimplemented):
+// its notification starts a turn through UserPromptSubmit, and a background sub-agent's SubagentStart and
+// SubagentStop come with it (only a foreground sub-agent's frames are recorded).
 func refuseBackgroundHookFrames(cfg Config, inv *hooks.Invoker, call pendingToolUse) error {
-	if !cfg.HookEvents || cfg.AgentID != "" || !isAgentTool(call.ToolName) || !agentRunsInBackground(cfg, call.ToolInput) {
+	if !cfg.HookEvents || cfg.AgentID != "" {
 		return nil
 	}
-	if inv.Configured(hooks.EventSubagentStart) || inv.Configured(hooks.EventSubagentStop) {
-		return &hooks.UnimplementedError{What: "--include-hook-events with a SubagentStart or SubagentStop hook for a background sub-agent (only a foreground one's frames are recorded)"}
+	agent := isAgentTool(call.ToolName) && agentRunsInBackground(cfg, call.ToolInput)
+	bash := call.ToolName == "Bash" && tasks.RunsInBackground(runsInBackground(call.ToolInput), cfg.BackgroundTasksDisabled)
+	switch {
+	case agent:
+		return refuseUnrecordedHook(cfg, inv, hooks.EventSubagentStart, hooks.EventSubagentStop, hooks.EventUserPromptSubmit)
+	case bash:
+		return refuseUnrecordedHook(cfg, inv, hooks.EventUserPromptSubmit)
 	}
 	return nil
 }

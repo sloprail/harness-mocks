@@ -42,9 +42,6 @@ import (
 // sr:docs https://code.claude.com/docs/en/hooks#precompact
 // sr:docs https://code.claude.com/docs/en/hooks#postcompact
 func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, rec *cliRecord, line []byte) (bool, error) {
-	if err := refuseUnrecordedHook(cfg, inv, hooks.EventPreCompact, hooks.EventPostCompact, hooks.EventSubagentStop); err != nil {
-		return false, err
-	}
 	// A tail_offset has to leave at least one written record for the segment
 	// to end on; a scenario asking for more is a scenario bug, not something
 	// to fall back from silently.
@@ -62,6 +59,13 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	trigger := rec.Trigger
 	if trigger == "" {
 		trigger = "auto"
+	}
+	events := []hooks.EventName{hooks.EventPreCompact, hooks.EventPostCompact}
+	if trigger == "manual" {
+		events = append(events, hooks.EventSubagentStop) // only a manual compaction's summarizer is a sub-agent that stops
+	}
+	if err := refuseUnrecordedHook(cfg, inv, events...); err != nil {
+		return false, err
 	}
 	preserve := defaultPreserved
 	if rec.Preserve != nil {

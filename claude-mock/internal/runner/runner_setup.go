@@ -24,9 +24,11 @@ func loadRunSettings(cfg Config) (*hooks.Settings, error) {
 
 // refuseUnrecordedHook refuses --include-hook-events when the run reaches a firing of a hook whose
 // frames are not recorded and one is configured (adr/fail-fast-unimplemented). What is recorded
-// (runs/include-hook-events, include-hook-events-more): UserPromptSubmit, PreToolUse, PostToolUse,
-// PostToolUseFailure, Stop, a foreground sub-agent's SubagentStart and SubagentStop, and SessionStart;
-// SessionEnd leaves no frame. A hook configured for an event that does not fire is no matter.
+// (runs/include-hook-events, include-hook-events-more): the UserPromptSubmit of a prompt, PreToolUse,
+// PostToolUse and PostToolUseFailure of the mock's own tool calls, Stop, a foreground sub-agent's
+// SubagentStart and SubagentStop, and SessionStart; SessionEnd leaves no frame. Not recorded, so
+// refused: compaction's, a worktree's, a scenario-written SubagentStart or tool_result's PostToolUse,
+// and a task notification's UserPromptSubmit. A hook configured for an event that does not fire is no matter.
 func refuseUnrecordedHook(cfg Config, inv *hooks.Invoker, events ...hooks.EventName) error {
 	if !cfg.HookEvents {
 		return nil
@@ -46,6 +48,8 @@ func refuseUnrecordedControl(cfg Config, inv *hooks.Invoker, recType string) err
 		return refuseUnrecordedHook(cfg, inv, hooks.EventWorktreeCreate)
 	case "worktree_remove":
 		return refuseUnrecordedHook(cfg, inv, hooks.EventWorktreeRemove)
+	case "subagent_start":
+		return refuseUnrecordedHook(cfg, inv, hooks.EventSubagentStart)
 	}
 	return nil
 }
