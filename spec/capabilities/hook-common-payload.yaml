@@ -112,12 +112,3 @@ providers:
           still named one root in every payload (recorded:
           runs/multiroot-workspace, runs/add-dir-access; --workspace takes a
           directory, not a workspace file). The mock names the one root.
-      - adr: capability-grounding
-        kind: harness-lacks
-        statement: >-
-          Cursor's payloads carry model_id and model_params (the common schema's
-          optional fields) only on one hook that reports what the agent
-          did between calls, which the mock does not fire, and on no other event of any recording: the events the mock
-          fires carry model "default" and neither field (recorded:
-          runs/file-tools, runs/hook-exit-codes, runs/background-agent and the
-          other runs).
