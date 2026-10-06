@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
@@ -121,6 +122,7 @@ type Prompting struct {
 func (cfg Config) configureInvoker(inv *hooks.Invoker) {
 	inv.SetPermissionMode(cfg.PermissionMode)
 	inv.SetConfigDir(cfg.ConfigDir)
+	toolexec.SetConfigDir(cfg.ConfigDir) // the Bash commands source the env files its SessionStart hooks write
 	if cfg.Scratchpad {
 		inv.SetScratchpadDir(filepath.Join(filepath.Dir(tasksDir(cfg.Cwd, cfg.SessionID)), "scratchpad"))
 	}
