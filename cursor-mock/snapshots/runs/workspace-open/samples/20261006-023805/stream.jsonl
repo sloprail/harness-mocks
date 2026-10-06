@@ -1,0 +1,7 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"159afa17-5473-4cd3-9563-555db840394c","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Reply only DONE."}]},"session_id":"159afa17-5473-4cd3-9563-555db840394c"}
+{"type":"thinking","subtype":"delta","text":"The user wants a reply","session_id":"159afa17-5473-4cd3-9563-555db840394c","timestamp_ms":1791254294619}
+{"type":"thinking","subtype":"delta","text":" containing only \"DONE.\"","session_id":"159afa17-5473-4cd3-9563-555db840394c","timestamp_ms":1791254294619}
+{"type":"thinking","subtype":"completed","session_id":"159afa17-5473-4cd3-9563-555db840394c","timestamp_ms":1791254294619}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"DONE."}]},"session_id":"159afa17-5473-4cd3-9563-555db840394c"}
+{"type":"result","subtype":"success","duration_ms":3473,"duration_api_ms":3473,"is_error":false,"result":"DONE.","session_id":"159afa17-5473-4cd3-9563-555db840394c","request_id":"f2467db5-be5a-40dc-9317-0f6189885614","usage":{"inputTokens":14176,"outputTokens":19,"cacheReadTokens":0,"cacheWriteTokens":0}}
