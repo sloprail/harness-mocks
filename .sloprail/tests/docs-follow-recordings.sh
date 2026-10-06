@@ -95,6 +95,7 @@ FROZEN=$'# s\nfrozen text\n'; DRIFTED=$'# s\nthe page moved on\n'
 w claude-mock/snapshots/MANIFEST.yaml <<<$'pin: "1"\ndocs:\n  https://d.example/p:\n    sha256: '"$(sha "$FROZEN")"$'\n    fetched: "2026-10-01"'
 w claude-mock/snapshots/capture.sh <<<'#!/bin/sh'
 w claude-mock/snapshots/runs/r/run.yaml <<<"version: 1"
+w claude-mock/e2e/018_replay/replay_allowlist_test.go <<<$'package e2e\n\nvar notReplaying = map[string]string{\n}'
 w claude-mock/snapshots/runs/r/samples/20240101-000000/events.jsonl <<<'{"e":1}'
 (cd claude-mock/snapshots/runs/r/samples/20240101-000000 && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shasum -a 256 >SEAL)
 w spec/capabilities/c.yaml <<<$'statement: c works\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: [claude-mock/snapshots/runs/r]'
