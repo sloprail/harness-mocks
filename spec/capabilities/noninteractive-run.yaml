@@ -25,6 +25,11 @@ providers:
           stream-json is produced, from the scenario's own script. It does not
           model the SIGTERM exit code 143. All of these stay so until a
           recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock does not model system/api_retry events; it refuses
+          them until a recording drives them.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#basic-usage
