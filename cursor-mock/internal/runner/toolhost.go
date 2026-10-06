@@ -47,8 +47,9 @@ func (h *toolHost) Tool(name string) ([]string, bool) { return toolexec.Required
 func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 	if !h.prepared { // a call of a response of several had its preToolUse fired as it started (startedEarly)
 		h.prepare(c)
-		h.firePre(ctx)
+		h.firePre(ctx, true)
 	}
+	h.s.named = true
 	if h.refused {
 		return true, h.result
 	}
@@ -128,10 +129,13 @@ func (h *toolHost) prepare(c toolcall.Call) {
 }
 
 // firePre fires the call's preToolUse hooks; a refusal is the call's.
-func (h *toolHost) firePre(ctx context.Context) {
+func (h *toolHost) firePre(ctx context.Context, name bool) {
 	h.prepared = true
 	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
 		h.failure, h.result = hooks.PreToolRefusal(msg)
 		h.refused = true
+	}
+	if name { // the transcript is named once a call's preToolUse has fired, however it ended
+		h.s.named = true
 	}
 }

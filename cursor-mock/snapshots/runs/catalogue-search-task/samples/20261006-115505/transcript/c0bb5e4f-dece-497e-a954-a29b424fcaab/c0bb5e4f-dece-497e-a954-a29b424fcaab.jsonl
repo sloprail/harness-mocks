@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nSearch your tool catalogue exactly once, with the GetDynamicTools tool, using the pattern \"Task|task|subagent|sub-agent\". Call nothing else. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"GetDynamicTools","input":{"pattern":"Task|task|subagent|sub-agent"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

@@ -11,7 +11,10 @@ import (
 )
 
 // emptySearches are the catalogue searches a recording shows finding nothing.
-var emptySearches = map[string]bool{"subscribe_timer|cursor-subscriptions": true} // runs/schedule-wakeup-ask
+var emptySearches = map[string]bool{
+	"subscribe_timer|cursor-subscriptions": true, // runs/schedule-wakeup-ask
+	"Task|task|subagent|sub-agent":         true, // runs/catalogue-search-task, the search a sub-agent at the depth limit made (runs/nested-subagents-depth)
+}
 
 // startsHookless starts the calls the harness answers itself, which no hook
 // sees: a search of its tool catalogue (GetDynamicTools) and a wait on a

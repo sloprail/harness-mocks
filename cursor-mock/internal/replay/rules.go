@@ -50,6 +50,14 @@ func Rules(repo, work string) rp.Rules {
 			{Re: re(`(?m)^(started_at|ended_at): [0-9T:.Z-]+`), With: "$1: <time>"},
 			{Re: re(`(?m)^(running_for_ms|elapsed_ms): [0-9]+ *`), With: "$1: <ms>"},
 			{Re: re(`"content_length":[0-9]+`), With: `"content_length":<length>`},
+			// the lines of a process listing (ps ax: pid, terminal, state, time, command) are the
+			// machine's own: what runs beside the harness is not behaviour, and how many
+			// processes match differs by machine. That the command printed a listing is
+			// compared, not which processes (recorded: runs/foreground-subagent-bash-ends-with-response,
+			// where the listing held the capture's own shells). The second form is the
+			// listing inside a JSON string, where a line ends at an escaped newline.
+			{Re: re(`(?m)(^ *[0-9]+ +\S+ +\S+ +[0-9]+:[0-9.]+ .*\n?)+`), With: "<processes of the machine>\n"},
+			{Re: re(`(?:[0-9]+ +\S+ +\S+ +[0-9]+:[0-9.]+ (?:[^\\]|\\[^n])*\\n)+`), With: `<processes of the machine>\n`},
 			// a response's number and four characters after the request's id name it (the
 			// generation of a thought): the run's own, not behaviour
 			{Re: re(`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-[0-9]+-[a-z0-9]{4}\b`), With: "$1-<n>-<name>"},
