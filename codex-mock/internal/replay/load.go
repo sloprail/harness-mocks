@@ -58,7 +58,7 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, err
 	}
-	if _, err := parseHookLog(readFile(filepath.Join(sample, "payloads.jsonl"))); err != nil {
+	if _, err := parseHooks(readFile(filepath.Join(sample, "payloads.jsonl"))); err != nil {
 		return core.Recording{}, err
 	}
 	threads := threadsOf(stream)

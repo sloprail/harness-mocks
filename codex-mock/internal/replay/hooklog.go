@@ -5,14 +5,11 @@ import (
 	"strings"
 )
 
-// parseHookLog is a hook log as objects, one per line. A hook's own line that is not JSON (a hook that
-// printed text of its own, or JSON the shell mangled) is kept as {"raw": line}, in its place: the log is
-// what the hooks wrote, not only what the harness sent them. Consecutive identical raw lines are one
-// (a background job that ticks while the run lasts writes as many as the run was long, which the mock,
-// with no model to wait for, does not reproduce: that it ticks, and stops with the run, is the proof).
+// parseHookLog is a log as objects, one per line. A line that is not JSON (a hook that printed text of
+// its own, JSON the shell mangled, or a text-mode stdout line) is kept as {"raw": line}, in its place.
+// Nothing is collapsed: a line written twice is two.
 func parseHookLog(text string) ([]map[string]any, error) {
 	var out []map[string]any
-	last := ""
 	for _, l := range strings.Split(text, "\n") {
 		l = strings.TrimSpace(l)
 		if l == "" {
@@ -20,15 +17,30 @@ func parseHookLog(text string) ([]map[string]any, error) {
 		}
 		var m map[string]any
 		if json.Unmarshal([]byte(l), &m) != nil || m == nil {
-			if l == last {
-				continue
-			}
-			last = l
 			m = map[string]any{"raw": l}
-		} else {
-			last = ""
 		}
 		out = append(out, m)
 	}
 	return out, nil
+}
+
+// tickLine is the one hook line a background job writes as many times as the run lasted. The mock, with no
+// model to wait for, does not reproduce the count: that it ticks at all, and stops with the run, is the proof.
+const tickLine = "{hook_event_name:BackgroundTick}"
+
+// parseHooks is a hook log (not a stdout) as parseHookLog reads it, a run of consecutive tick lines being
+// one masked line that keeps the key and drops the count.
+func parseHooks(text string) ([]map[string]any, error) {
+	log, err := parseHookLog(text)
+	var out []map[string]any
+	for _, m := range log {
+		if m["raw"] == tickLine {
+			m = map[string]any{"raw": tickLine + " x<N>"}
+			if n := len(out); n > 0 && out[n-1]["raw"] == m["raw"] {
+				continue
+			}
+		}
+		out = append(out, m)
+	}
+	return out, err
 }

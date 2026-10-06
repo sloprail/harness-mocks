@@ -117,7 +117,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's stream: %w", err)
 	}
-	mockHooks, err := parseHookLog(string(hookLog))
+	mockHooks, err := parseHooks(string(hookLog))
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's hook log: %w", err)
 	}
@@ -126,7 +126,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		if err != nil {
 			return want, got, err
 		}
-		recHooks, err := parseHookLog(readFile(filepath.Join(sample, "payloads.jsonl")))
+		recHooks, err := parseHooks(readFile(filepath.Join(sample, "payloads.jsonl")))
 		if err != nil {
 			return want, got, err
 		}
