@@ -85,8 +85,7 @@ func runExec(cmd *cobra.Command, args []string) error {
 		}
 		home = filepath.Join(user, ".codex")
 	}
-	asJSON, _ := f.GetBool("json")
-	bypass, _ := f.GetBool("dangerously-bypass-hook-trust")
+	asJSON, bypass, ephemeral := f.Lookup("json").Value.String() == "true", f.Lookup("dangerously-bypass-hook-trust").Value.String() == "true", f.Lookup("ephemeral").Value.String() == "true"
 	model, _ := f.GetString("model")
 	if resume != "" { // an unknown session fails before anything starts: no hook fires
 		if err := session.ResumeUnknown(home, resume); err != nil {
@@ -101,7 +100,7 @@ func runExec(cmd *cobra.Command, args []string) error {
 		forkFrom, args = args[1], args[2:]
 	}
 	return runner.Run(cmd.Context(), runner.Config{
-		Script: script, Prompt: strings.Join(args, " "), Resume: resume, ForkFrom: forkFrom, Ephemeral: f.Changed("ephemeral"), Cwd: cwd, CodexHome: home, Model: model,
+		Script: script, Prompt: strings.Join(args, " "), Resume: resume, ForkFrom: forkFrom, Ephemeral: ephemeral, Cwd: cwd, CodexHome: home, Model: model,
 		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
 }

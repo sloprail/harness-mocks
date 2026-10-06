@@ -101,7 +101,10 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // gives the agent its feedback in place of the result.
 // sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
-	if ctx.Err() != nil || !tasks.AfterHookFires(h.stillRunning(c.ID)) { // an interrupted call fires no PostToolUse // its PostToolUse comes when it ends, if ever
+	if ctx.Err() != nil { // an interrupted call fires no PostToolUse
+		return "", false
+	}
+	if !tasks.AfterHookFires(h.stillRunning(c.ID)) { // its PostToolUse comes when it ends, if ever
 		return "", false
 	}
 	own := h.payload(c)
