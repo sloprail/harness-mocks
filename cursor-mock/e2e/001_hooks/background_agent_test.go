@@ -89,6 +89,7 @@ if grep -q '"name":"Bash"' "$A10N_MOCK_SESSION_FILE" 2>/dev/null; then
 echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"SUBREPLY"}]}}'
 echo '{"type":"result","subtype":"success","result":"SUBREPLY"}'
 else
+echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Running the command, then replying with SUBREPLY."}]}}'
 echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"s1","name":"Bash","input":{"command":"sleep 1; touch `+done+`; echo SUBDONE"}}]}}'
 fi
 `)
@@ -116,7 +117,8 @@ echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool
 	require.Equal(t, "success", note["status"])
 	require.Equal(t, wantFrames[2]["title"], note["title"], "the title is the prompt cut to 80 characters, as recorded")
 	require.Equal(t, prompt[:80], note["title"])
-	require.Equal(t, "SUBREPLY", note["detail"])
+	require.Equal(t, "Running the command, then replying with SUBREPLY.SUBREPLY", wantFrames[2]["detail"], "recorded: all the sub-agent said, joined, the text before its command too")
+	require.Equal(t, wantFrames[2]["detail"], note["detail"], "the detail is all the sub-agent said, as recorded")
 	require.Equal(t, "LAUNCHEDFOLLOWED-UP", gotFrames[3]["result"], "the further turn's words are in the result")
 	b, err := os.ReadFile(log)
 	require.NoError(t, err)
