@@ -29,7 +29,6 @@ import (
 type observed struct {
 	hooks          []map[string]any
 	results        []string
-	resultsInOrder []string // results as logged, before sorting
 	frames         []string
 	// raw are the payloads as the hooks read them, and ws and home the
 	// workspace and the home the run used (set on the mock's side only).
@@ -171,7 +170,6 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 			}
 		}
 	}
-	rec.resultsInOrder = append([]string(nil), rec.results...)
 	sort.Strings(rec.results)
 	b, err := os.ReadFile(filepath.Join(sample, "stream.jsonl"))
 	require.NoError(t, err)
@@ -285,7 +283,6 @@ func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 			}
 		}
 	}
-	got.resultsInOrder = append([]string(nil), got.results...)
 	sort.Strings(got.results)
 	got.ws, got.home, got.stdout = ws, home, string(out)
 	for _, l := range strings.Split(string(out), "\n") {
