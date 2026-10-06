@@ -1,0 +1,1 @@
+Use the Bash tool with run_in_background true and description 'failing' to run: sleep 1; exit 3. Then use the Bash tool (foreground) to run: sleep 2. Then reply only DONE.

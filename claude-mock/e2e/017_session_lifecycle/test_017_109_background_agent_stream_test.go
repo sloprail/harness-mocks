@@ -170,3 +170,35 @@ func TestT017_111_NestedForegroundAgentsStreamTheirTaskFrames(t *testing.T) {
 	require.Equal(t, 0, code, out)
 	assert.Equal(t, want, taskFrames(streamFrames(t, out)))
 }
+
+// TestT017_112_AFailedBackgroundShellIsReportedFailed: a background command that exits non-zero
+// is reported with task_updated status failed and a task_notification of status failed whose
+// summary names it and its exit code (recording bgbash-failed).
+// sr:proves task-stream-frames/claude
+// sr:proves task-notifications/claude
+func TestT017_112_AFailedBackgroundShellIsReportedFailed(t *testing.T) {
+	summaries := func(frames []map[string]any) (out []string) {
+		for _, f := range frames {
+			switch f["subtype"] {
+			case "task_updated":
+				out = append(out, "updated:"+f["patch"].(map[string]any)["status"].(string))
+			case "task_notification":
+				out = append(out, f["status"].(string)+":"+f["summary"].(string))
+			}
+		}
+		return out
+	}
+	data, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/bgbash-failed/samples/*/stream.jsonl"))
+	require.NoError(t, err)
+	want := summaries(streamFrames(t, string(data)))
+	require.Equal(t, []string{"updated:failed", `failed:Background command "failing" failed with exit code 3`}, want, "recorded")
+
+	dir := t.TempDir()
+	sc := script(t, dir, "s",
+		toolUse("bg1", "Bash", `{"command":"sleep 0.2; exit 3","description":"failing","run_in_background":true}`),
+		toolUse("fg1", "Bash", `{"command":"sleep 1"}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "bf-9", "--project-dir", dir,
+		"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, want, summaries(streamFrames(t, out)))
+}
