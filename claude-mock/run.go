@@ -74,7 +74,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	// that does not exist (see noConversation), whatever is on disk.
 	// sr:invariant no-resume
 	if isResume && os.Getenv("A10N_MOCK_NO_RESUME") == "1" {
-		noConversation(cmd, &runner.ErrNoConversation{SessionID: sessionID})
+		noConversation(cmd, &runner.ErrNoConversation{SessionID: resumeID}) // the session resumed, not the fork's new one
 	}
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
