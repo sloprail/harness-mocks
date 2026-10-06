@@ -116,3 +116,11 @@ func (s *session) runTool(ctx context.Context, tu scenario.ToolUse, quiet bool) 
 	toolcall.Run(ctx, host, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
 		toolcall.Options{SeparateFailureHook: true, FailureOnRefusal: true})
 }
+
+// StartsLate is turnloop.LateStarter: a response's Task calls are started after
+// its other calls, whatever order the model made them in (recorded:
+// runs/nested-subagents-background, a Task and a wait made in that order, the wait
+// started first; runs/task-stream-frames, a Task and a shell).
+func (s *session) StartsLate(tu scenario.ToolUse) bool {
+	return tu.Name == "Task" || tu.Name == "Agent"
+}
