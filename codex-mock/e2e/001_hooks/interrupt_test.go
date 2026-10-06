@@ -1,0 +1,109 @@
+package e2e
+
+import (
+	"bytes"
+	"fmt"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"syscall"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// interruptingWriter is a run's stdout that sends the run SIGINT when a command has started.
+type interruptingWriter struct {
+	out  *bytes.Buffer
+	cmd  *exec.Cmd
+	once sync.Once
+}
+
+func (w *interruptingWriter) Write(p []byte) (int, error) {
+	n, err := w.out.Write(p)
+	if strings.Contains(string(p), `"command_execution"`) && strings.Contains(string(p), `"in_progress"`) {
+		w.once.Do(func() { _ = w.cmd.Process.Signal(syscall.SIGINT) })
+	}
+	return n, err
+}
+
+// interruptShape is, in order, what a rollout holds of an interrupted turn: the call, what the
+// agent was told of it (the time masked), what it was told of the interruption, and the turn's
+// end as aborted.
+func interruptShape(t *testing.T, rollout string) (out []string) {
+	wall := regexp.MustCompile(`after [0-9.]+s`)
+	for _, l := range jsonLines(rollout) {
+		p, _ := l["payload"].(map[string]any)
+		switch {
+		case p["type"] == "function_call" || p["type"] == "custom_tool_call":
+			out = append(out, "call")
+		case strings.HasSuffix(fmt.Sprint(p["type"]), "_call_output"):
+			out = append(out, wall.ReplaceAllString(textOf(p["output"]), "after <T>s"))
+		case p["type"] == "message" && p["role"] == "user" && strings.Contains(fmt.Sprint(p["content"]), "turn_aborted"):
+			out = append(out, "user: turn_aborted")
+		case p["type"] == "turn_aborted":
+			out = append(out, "event: turn_aborted "+fmt.Sprint(p["reason"]))
+		}
+	}
+	return out
+}
+
+// textOf is the text of a tool output, a string or a list of text parts.
+func textOf(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	var b strings.Builder
+	parts, _ := v.([]any)
+	for _, part := range parts {
+		m, _ := part.(map[string]any)
+		s, _ := m["text"].(string)
+		b.WriteString(s)
+	}
+	return b.String()
+}
+
+// A user's Ctrl-C (SIGINT) while the agent's command runs interrupts the turn: the Interrupt hook
+// fires (its matcher, like the prompt's and the stop's, is ignored), the command is stopped and
+// reported to the agent as "aborted by user after <time>", the agent is told the user interrupted,
+// the turn is recorded as aborted, the stream prints nothing more, no PostToolUse and no Stop hook
+// runs, the session still ends, and the run exits 1 (recorded: runs/interrupt-hook).
+// sr:proves hook-matcher-filter/codex
+func TestAnInterruptedTurnFiresTheInterruptHookAndIsAborted(t *testing.T) {
+	rec := loadRecording(t, "interrupt-hook")
+	recorded := func(event string) []map[string]any {
+		var out []map[string]any
+		for _, l := range jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))) {
+			if l["hook_event_name"] == event {
+				out = append(out, l)
+			}
+		}
+		return out
+	}
+	assert.Len(t, recorded("Interrupt"), 1)
+	assert.Empty(t, recorded("PostToolUse"))
+	assert.Empty(t, recorded("Stop"))
+	assert.Len(t, recorded("SessionEnd"), 1)
+	assert.Equal(t, "1\n", readFile(t, filepath.Join(rec.sample, "exit.txt")))
+
+	got := execMock(t, scenario{
+		HooksJSON: `{"hooks":{"Interrupt":[{"matcher":"never","hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}],` +
+			`"PostToolUse":[{"hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}],` +
+			`"Stop":[{"hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}],` +
+			`"SessionEnd":[{"hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}]}}`,
+		Script: callThenResult, Prompt: "go", Env: withCalls(t, "sleep 30"), InterruptOnCommand: true,
+	})
+	assert.Equal(t, 1, got.Code, "an interrupted run exits 1")
+	var names []string
+	for _, l := range got.hookLog() {
+		names = append(names, l["hook_event_name"].(string))
+	}
+	assert.Equal(t, []string{"Interrupt", "SessionEnd"}, names, "the matcher of Interrupt is ignored; no PostToolUse, no Stop")
+	assert.NotContains(t, got.Stdout, `"turn.completed"`)
+	assert.NotContains(t, got.Stdout, `"status":"completed"`, "the interrupted command is not reported as ended")
+	want := []string{"call", "aborted by user after <T>s", "user: turn_aborted", "event: turn_aborted interrupted"}
+	assert.Equal(t, want, interruptShape(t, recordedRollout(t, rec)), "recorded")
+	assert.Equal(t, want, interruptShape(t, got.rollout(t)), "the mock's")
+}

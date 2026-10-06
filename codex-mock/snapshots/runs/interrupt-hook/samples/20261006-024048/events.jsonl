@@ -1,0 +1,9 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"startup"}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PreToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"sleep 25"}}}
+{"event":"hook","hook":"Interrupt","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Interrupt","permission_mode":"bypassPermissions"}}
+{"event":"hook","hook":"SessionEnd","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionEnd","reason":"other"}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
