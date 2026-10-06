@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // checkDir judges the Go packages of dir. A directory that does not exist, or holds no .go file, is an
@@ -25,7 +26,7 @@ func checkDir(fset *token.FileSet, imp types.Importer, dir string) ([]string, er
 		return nil, fmt.Errorf("%s holds no .go file", dir)
 	}
 	sort.Strings(names)
-	groups := map[string][]*ast.File{}
+	groups := map[string]map[string][]*ast.File{} // by the package name with _test stripped
 	var out []string
 	for _, n := range names {
 		f, perr := parser.ParseFile(fset, n, nil, 0)
@@ -33,7 +34,11 @@ func checkDir(fset *token.FileSet, imp types.Importer, dir string) ([]string, er
 			out = append(out, fmt.Sprintf("%s does not parse: %v", n, perr))
 			continue
 		}
-		groups[f.Name.Name] = append(groups[f.Name.Name], f)
+		base := strings.TrimSuffix(f.Name.Name, "_test")
+		if groups[base] == nil {
+			groups[base] = map[string][]*ast.File{}
+		}
+		groups[base][f.Name.Name] = append(groups[base][f.Name.Name], f)
 	}
 	var pkgs []string
 	for p := range groups {
@@ -50,37 +55,68 @@ func checkDir(fset *token.FileSet, imp types.Importer, dir string) ([]string, er
 	return out, nil
 }
 
-// checkPackage: when any code of the package (a function, a variable initializer, TestMain) names
-// os/exec.LookPath, the package looks a tool up, and every Skip, Skipf and SkipNow of the testing package in it
-// (a call, a method value, a generic or interface method) is refused unless it is the opt-in gate.
-func checkPackage(fset *token.FileSet, imp types.Importer, name string, files []*ast.File) ([]string, error) {
-	info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}, Types: map[ast.Expr]types.TypeAndValue{}}
-	conf := types.Config{Importer: imp, Error: func(error) {}, FakeImportC: true}
-	if pkg, _ := conf.Check(name, fset, files, info); pkg == nil {
-		return nil, fmt.Errorf("type-checking %s produced no package", name)
+// pkgUnit is one type-checked package of a directory: foo, or its external test package foo_test.
+type pkgUnit struct {
+	name  string
+	files []*ast.File
+	info  *types.Info
+}
+
+// checkPackage judges foo and foo_test together (the groups of checkDir are keyed by the name with _test
+// stripped, so a skip moved to the external test package cannot escape): when any code of either (a function, a
+// variable initializer, TestMain) names os/exec.LookPath, the package looks a tool up, and then
+//   - every Skip, Skipf and SkipNow (a call, a method value, a generic, interface or type-parameter method,
+//     wherever the interface is declared) is refused unless it is the opt-in gate, and
+//   - os.Setenv, os.Unsetenv and t.Setenv of an A10N_<NAME>_TEST name are refused: the gate is the environment's.
+//
+// Only a lookup inside the test package counts, not one through another package, and only a named
+// os/exec.LookPath counts (an aliased or dot-imported one too); exec.Command is not treated as a lookup.
+func checkPackage(fset *token.FileSet, imp types.Importer, base string, parts map[string][]*ast.File) ([]string, error) {
+	var names []string
+	for n := range parts {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	var units []pkgUnit
+	for _, n := range names {
+		info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}, Types: map[ast.Expr]types.TypeAndValue{}}
+		conf := types.Config{Importer: imp, Error: func(error) {}, FakeImportC: true}
+		if pkg, _ := conf.Check(n, fset, parts[n], info); pkg == nil {
+			return nil, fmt.Errorf("type-checking %s produced no package", n)
+		}
+		units = append(units, pkgUnit{n, parts[n], info})
 	}
 	var lookup token.Pos
-	for id, obj := range info.Uses {
-		if fn, ok := obj.(*types.Func); ok && isLookPath(fn) && (lookup == token.NoPos || id.Pos() < lookup) {
-			lookup = id.Pos()
+	for _, u := range units {
+		for id, obj := range u.info.Uses {
+			if fn, ok := obj.(*types.Func); ok && isLookPath(fn) && (lookup == token.NoPos || id.Pos() < lookup) {
+				lookup = id.Pos()
+			}
 		}
 	}
 	if lookup == token.NoPos {
 		return nil, nil
 	}
 	var out []string
-	for _, f := range files {
-		walk(f, func(n ast.Node, stack []ast.Node) {
-			id, ok := n.(*ast.Ident)
-			if !ok {
-				return
-			}
-			fn, ok := info.Uses[id].(*types.Func)
-			if !ok || !isSkip(fn) || exempt(id, stack, info) {
-				return
-			}
-			out = append(out, fmt.Sprintf("%s: (*testing.T).%s is used in package %s, which reaches os/exec.LookPath (%s): a test whose required tool is missing fails, it never skips", fset.Position(id.Pos()), fn.Name(), name, fset.Position(lookup)))
-		})
+	for _, u := range units {
+		for _, f := range u.files {
+			walk(f, func(n ast.Node, stack []ast.Node) {
+				id, ok := n.(*ast.Ident)
+				if !ok {
+					return
+				}
+				fn, ok := u.info.Uses[id].(*types.Func)
+				if !ok {
+					return
+				}
+				switch {
+				case isSkip(fn) && !exempt(id, stack, u.info):
+					out = append(out, fmt.Sprintf("%s: %s is used in package %s, which reaches os/exec.LookPath (%s): a test whose required tool is missing fails, it never skips", fset.Position(id.Pos()), fn.Name(), base, fset.Position(lookup)))
+				case isGateEnv(fn) && setsGate(id, stack, u.info):
+					out = append(out, fmt.Sprintf("%s: %s sets an A10N_*_TEST name in package %s, which reaches os/exec.LookPath (%s): the opt-in gate is the environment's, a test does not open it", fset.Position(id.Pos()), fn.Name(), base, fset.Position(lookup)))
+				}
+			})
+		}
 	}
 	return out, nil
 }
@@ -89,17 +125,32 @@ func isLookPath(fn *types.Func) bool {
 	return fn.Pkg() != nil && fn.Pkg().Path() == "os/exec" && fn.Name() == "LookPath"
 }
 
-// isSkip: a Skip, Skipf or SkipNow method of the testing package (T, B, F, TB and a generic instance of them).
+// isSkip: a Skip, Skipf or SkipNow method of the testing package (T, B, F, TB and a generic instance of them),
+// or one whose receiver is an interface or a type parameter wherever it is declared (a local interface, a generic
+// constraint): such a method can be (*testing.T).Skip behind the interface, so it counts as one.
 func isSkip(fn *types.Func) bool {
 	fn = fn.Origin()
-	if fn.Pkg() == nil || fn.Pkg().Path() != "testing" {
-		return false
-	}
 	switch fn.Name() {
 	case "Skip", "Skipf", "SkipNow":
-		return fn.Type().(*types.Signature).Recv() != nil
+	default:
+		return false
 	}
-	return false
+	recv := fn.Type().(*types.Signature).Recv()
+	if recv == nil {
+		return false
+	}
+	if fn.Pkg() != nil && fn.Pkg().Path() == "testing" {
+		return true
+	}
+	t := recv.Type()
+	if p, ok := t.(*types.Pointer); ok {
+		t = p.Elem()
+	}
+	if _, ok := t.(*types.TypeParam); ok {
+		return true
+	}
+	_, isIface := t.Underlying().(*types.Interface)
+	return isIface
 }
 
 func walk(root ast.Node, visit func(n ast.Node, stack []ast.Node)) {

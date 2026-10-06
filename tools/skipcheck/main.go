@@ -1,8 +1,14 @@
-// Command skipcheck refuses a Go test that skips because a tool is missing. It type-checks the
-// packages of the directories it is given and reports every use of (*testing.T).Skip, Skipf or SkipNow
-// (a call, a method value, or a call of a package helper that skips) in a function that reaches
-// os/exec.LookPath, resolved by types so an alias or a dot import of os/exec counts. The one exemption is
-// a skip directly under `if os.Getenv("A10N_<NAME>_TEST") <op> <constant>`: an explicit opt-in gate.
+// Command skipcheck refuses a Go test that skips because a tool is missing. It type-checks the packages of
+// the directories it is given (a package and its _test package together) and, when any code of the package
+// (a function, a variable initializer, TestMain) names os/exec.LookPath, resolved by types so an alias or a
+// dot import counts, reports every Skip, Skipf or SkipNow in it: a call, a method value, a generic, interface
+// or type-parameter method. The one exemption is a skip directly under
+// `if os.Getenv("A10N_<NAME>_TEST") <op> <constant>`: an explicit opt-in gate; and a test of such a package
+// may not set an A10N_*_TEST name (os.Setenv, os.Unsetenv, t.Setenv).
+//
+// Only a lookup inside the test package counts, not one through another package (the user's words: "a test
+// package that looks up an external tool"), and only a named os/exec.LookPath counts: exec.Command is not
+// treated as a lookup.
 //
 //	skipcheck DIR...
 //

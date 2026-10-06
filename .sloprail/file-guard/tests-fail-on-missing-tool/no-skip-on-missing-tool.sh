@@ -3,10 +3,14 @@
 # t.Skip for that. Only an explicit opt-in environment gate (A10N_*_TEST) may skip.
 #
 # The Go is read from its types by tools/skipcheck, never from its text: it type-checks each package that
-# has a changed *_test.go (a root-level file's directory is "."), and when any code of the package (a function,
-# a variable initializer, TestMain) names os/exec.LookPath (an alias or a dot import counts) it refuses every
-# call or method value of (*testing.T).Skip, Skipf or SkipNow in the package. A skip directly under
-# `if os.Getenv("A10N_<NAME>_TEST") <op> <constant>` (that condition and nothing else) is the opt-in gate.
+# has a changed *_test.go (a root-level file's directory is "."), a package and its _test package together,
+# and when any code of the package (a function, a variable initializer, TestMain) names os/exec.LookPath
+# (an alias or a dot import counts) it refuses every call or method value of Skip, Skipf or SkipNow in the
+# package, a generic, interface or type-parameter method included. A skip directly under
+# `if os.Getenv("A10N_<NAME>_TEST") <op> <constant>` (that condition and nothing else) is the opt-in gate, and
+# a test of such a package may not set an A10N_*_TEST name (os.Setenv, os.Unsetenv, t.Setenv).
+# Only a lookup inside the test package counts, not one through another package ("a test package that looks up
+# an external tool"), and only a named os/exec.LookPath counts: exec.Command is not treated as a lookup.
 # A checker that cannot build or run is refuse_error, not a verdict.
 set -uo pipefail
 

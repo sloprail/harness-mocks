@@ -56,6 +56,13 @@ branch_with helper "${HEAD_}func need(t *testing.T) {
 func TestTool(t *testing.T) { need(t) }"
 refuses "a helper that skips" "$REASON"
 
+# the skip moved to the external test package of the same directory: still the package that looks the tool up
+git checkout -q -b external "$BASE"
+printf 'package pkg\n\nimport (\n\t"os/exec"\n\t"testing"\n)\n\nfunc TestTool(t *testing.T) {\n\tif _, err := exec.LookPath("zsh"); err != nil {\n\t\tt.Fatalf("install zsh")\n\t}\n}\n' > pkg/tool_test.go
+printf 'package pkg_test\n\nimport "testing"\n\nfunc TestOther(t *testing.T) { t.Skip("no zsh") }\n' > pkg/other_test.go
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "a skip in the external test package"
+refuses "a skip in the external test package" "$REASON"
+
 # recovery: a gate on its own, and a failing lookup, and the same base passes
 branch_with ok "${HEAD_}func TestTool(t *testing.T) {
 	if os.Getenv(\"A10N_X_TEST\") != \"1\" {

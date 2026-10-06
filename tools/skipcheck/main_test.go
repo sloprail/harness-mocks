@@ -47,13 +47,13 @@ func TestSkipAfterAMissingToolIsRefused(t *testing.T) {
 	if _, err := exec.LookPath("zsh"); err != nil {
 		t.Skip("no zsh")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a gate combined with the lookup error", head + `func TestX(t *testing.T) {
 	_, err := exec.LookPath("zsh")
 	if os.Getenv("A10N_X_TEST") != "1" || err != nil {
 		t.Skip("x")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a skip far after the lookup", head + `func TestX(t *testing.T) {
 	_, err := exec.LookPath("zsh")
 	_ = err
@@ -68,7 +68,7 @@ func TestSkipAfterAMissingToolIsRefused(t *testing.T) {
 	if err != nil {
 		t.Skipf("no zsh")
 	}
-}`, "(*testing.T).Skipf"},
+}`, "Skipf is used"},
 		{"an alias of os/exec", `package pkg
 
 import (
@@ -80,7 +80,7 @@ func TestX(t *testing.T) {
 	if _, err := e.LookPath("zsh"); err != nil {
 		t.SkipNow()
 	}
-}`, "(*testing.T).SkipNow"},
+}`, "SkipNow is used"},
 		{"a dot import of os/exec", `package pkg
 
 import (
@@ -92,20 +92,20 @@ func TestX(t *testing.T) {
 	if _, err := LookPath("zsh"); err != nil {
 		t.Skip("x")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a method value", head + `func TestX(t *testing.T) {
 	skip := t.Skip
 	if _, err := exec.LookPath("zsh"); err != nil {
 		skip("no zsh")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a helper that skips", head + `func need(t *testing.T) {
 	if _, err := exec.LookPath("zsh"); err != nil {
 		t.Skip("no zsh")
 	}
 }
 
-func TestX(t *testing.T) { need(t) }`, "(*testing.T).Skip"},
+func TestX(t *testing.T) { need(t) }`, "Skip is used"},
 		{"a skipping helper called where the lookup is a helper's", head + `func has() bool { _, err := exec.LookPath("zsh"); return err == nil }
 
 func skipIt(t *testing.T) { t.Skip("x") }
@@ -114,14 +114,14 @@ func TestX(t *testing.T) {
 	if !has() {
 		skipIt(t)
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a lookup in a package variable, the skip elsewhere", head + `var zsh, zshErr = exec.LookPath("zsh")
 
 func TestX(t *testing.T) {
 	if zshErr != nil || zsh == "" {
 		t.Skip("no zsh")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a lookup in TestMain, the skip in a test", head + `func TestMain(m *testing.M) {
 	_, err := exec.LookPath("zsh")
 	if err != nil {
@@ -134,13 +134,13 @@ func TestX(t *testing.T) {
 	if os.Getenv("NO_ZSH") != "" {
 		t.Skip("no zsh")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"an interface skip on testing.TB", head + `func skipper(tb testing.TB) {
 	_, err := exec.LookPath("zsh")
 	if err != nil {
 		tb.Skip("no zsh")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a gate in an else branch", head + `func TestX(t *testing.T) {
 	_, err := exec.LookPath("zsh")
 	if os.Getenv("A10N_X_TEST") == "" {
@@ -148,14 +148,14 @@ func TestX(t *testing.T) {
 	} else {
 		t.Skip("x")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 		{"a gate that is not an A10N_*_TEST variable", head + `func TestX(t *testing.T) {
 	_, err := exec.LookPath("zsh")
 	_ = err
 	if os.Getenv("SKIP_ZSH") != "" {
 		t.Skip("x")
 	}
-}`, "(*testing.T).Skip"},
+}`, "Skip is used"},
 	}
 	for _, c := range cases {
 		if v := violations(t, c.body, nil); !strings.Contains(v, c.want) {
@@ -200,5 +200,53 @@ func TestADirThatIsMissingOrEmptyIsAnErrorNotAPass(t *testing.T) {
 	}
 	if _, err := checkDir(fset, newImporter(fset), t.TempDir()); err == nil {
 		t.Error("a directory with no .go file passed")
+	}
+}
+
+func TestMoreBypasses(t *testing.T) {
+	cases := []struct {
+		name, body, want string
+		extra            map[string]string
+	}{
+		{"a skip in the external test package", head + `func TestX(t *testing.T) {
+	_, _ = exec.LookPath("zsh")
+}`, "Skip is used in package pkg", map[string]string{"x_test.go": `package pkg_test
+
+import "testing"
+
+func TestY(t *testing.T) { t.Skip("x") }`}},
+		{"a local interface Skip", head + `type skipper interface{ Skip(args ...any) }
+
+func g(s skipper) {
+	_, _ = exec.LookPath("zsh")
+	s.Skip("x")
+}`, "Skip is used", nil},
+		{"a type-parameter Skip", head + `type S interface{ SkipNow() }
+
+func g[T S](s T) {
+	_, _ = exec.LookPath("zsh")
+	s.SkipNow()
+}`, "SkipNow is used", nil},
+		{"os.Setenv of a gate", head + `func TestMain(m *testing.M) {
+	_, _ = exec.LookPath("zsh")
+	os.Setenv("A10N_X_TEST", "1")
+	os.Exit(m.Run())
+}`, "sets an A10N_*_TEST name", nil},
+		{"t.Setenv of a gate", head + `func TestX(t *testing.T) {
+	_, _ = exec.LookPath("zsh")
+	t.Setenv("A10N_X_TEST", "1")
+}`, "sets an A10N_*_TEST name", nil},
+	}
+	for _, c := range cases {
+		if v := violations(t, c.body, c.extra); !strings.Contains(v, c.want) {
+			t.Errorf("%s: wanted %q, got %q", c.name, c.want, v)
+		}
+	}
+	// another package's lookup and exec.Command are not lookups of this package
+	if v := violations(t, head+`func TestX(t *testing.T) {
+	_ = exec.Command("zsh")
+	t.Skip("x")
+}`, nil); v != "" {
+		t.Errorf("exec.Command was taken as a lookup:\n%s", v)
 	}
 }
