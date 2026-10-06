@@ -116,3 +116,36 @@ func completedReads(frames []string) (out []string) {
 	}
 	return out
 }
+
+// TestABeforeReadFileHookThatAllowsByJSONLetsTheReadProceed: the doc says a JSON
+// permission of "allow" lets the read go on; recorded (runs/before-read-refusal),
+// the failClosed hook answers {"permission":"allow"} to every file but e.txt, and
+// d.txt, which the other hook left alone by a crash, is read. The mock's read
+// of a file whose hook allows by JSON has its postToolUse and no failure.
+// sr:proves file-tools/cursor
+func TestABeforeReadFileHookThatAllowsByJSONLetsTheReadProceed(t *testing.T) {
+	_, want := replay(t, "before-read-refusal")
+	var allowedRecorded bool
+	for _, h := range want.hooks {
+		if h["hook_event_name"] == "postToolUse" {
+			in, _ := h["tool_input"].(map[string]any)
+			allowedRecorded = allowedRecorded || in["file_path"] == "<RUN>/d.txt"
+		}
+	}
+	require.True(t, allowedRecorded, "recorded: d.txt, which the allowing hook did not stop, was read")
+
+	r := runTools(t, `{"version":1,"hooks":{"beforeReadFile":[{"command":".cursor/hooks/allow.sh"}]}}`,
+		map[string]string{"allow.sh": "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"allow\"}'\n"},
+		map[string]string{"note.txt": "hi\n"},
+		map[string]any{"name": "Read", "input": map[string]any{"file_path": "note.txt"}})
+	var ok bool
+	for _, f := range r.frames {
+		if tc, _ := f["tool_call"].(map[string]any); tc != nil && f["subtype"] == "completed" {
+			if body, _ := tc["readToolCall"].(map[string]any); body != nil {
+				res, _ := body["result"].(map[string]any)
+				_, ok = res["success"]
+			}
+		}
+	}
+	require.True(t, ok, "the read succeeded")
+}
