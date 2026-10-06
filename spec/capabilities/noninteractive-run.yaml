@@ -70,6 +70,7 @@ providers:
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/noninteractive-no-force
       - cursor-mock/snapshots/runs/noninteractive-force-write
+      - cursor-mock/snapshots/runs/print-long-form
     deviations:
       - adr: capability-grounding
         kind: harness-lacks

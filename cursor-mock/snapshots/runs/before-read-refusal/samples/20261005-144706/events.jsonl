@@ -1,0 +1,58 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionStart","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/a.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeReadFile","payload":{"content":"CONTENT-a\n","file_path":"<RUN>/a.txt","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeReadFile"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeReadFile","exit":2}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"closed","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/a.txt"},"error_message":"File read was blocked by a hook: Hook blocked with message: EXIT2-MSG\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/b.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeReadFile","payload":{"content":"CONTENT-b\n","file_path":"<RUN>/b.txt","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeReadFile"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"closed","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeReadFile","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/b.txt"},"error_message":"File read was blocked by a hook: JSON-DENY-MSG\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/c.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeReadFile","payload":{"content":"CONTENT-c\n","file_path":"<RUN>/c.txt","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeReadFile"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"closed","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeReadFile","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/c.txt"},"error_message":"File read was blocked by a hook: Hook \".cursor/hooks/hook.sh\" returned invalid JSON. The command was blocked for safety.\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/d.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeReadFile","payload":{"content":"CONTENT-d\n","file_path":"<RUN>/d.txt","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeReadFile"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"closed","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeReadFile","exit":1}}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/d.txt"},"tool_output":"{\"file_path\":\"<RUN>/d.txt\",\"content_length\":10}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUse","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/e.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeReadFile","payload":{"content":"CONTENT-e\n","file_path":"<RUN>/e.txt","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeReadFile"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"closed","exit":1}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeReadFile","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/e.txt"},"error_message":"File read was blocked by a hook: Tool blocked because this hook is configured to fail closed (block when it fails). Hook \".cursor/hooks/closed.sh\" failed with exit code 1: CLOSED-CRASH\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/f.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"preToolUse","exit":0}}}
+{"event":"hook","hook":"beforeReadFile","payload":{"content":"CONTENT-f\n","file_path":"<RUN>/f.txt","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeReadFile"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"closed","exit":0}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeReadFile","exit":0}}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/f.txt"},"error_message":"File read was blocked by a hook: Hook \".cursor/hooks/hook.sh\" returned an invalid response for this hook step. The command was blocked for safety.\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool.","failure_type":"permission_denied","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"postToolUseFailure","exit":0}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"readToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"readToolCall","outcome":"error"}
+{"event":"stream","type":"result","subtype":"success"}

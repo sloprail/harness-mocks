@@ -5,6 +5,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
 	"github.com/sloprail/harness-mocks/internal/scenario"
+	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
@@ -16,13 +17,14 @@ func (s *session) SubmitPrompt(context.Context) (string, bool) { return "", fals
 func (s *session) Say(text string) {
 	s.texts = append(s.texts, text)
 	s.tr.text(text)
-	s.forward(assistantFrame(s.id, text))
+	s.pending = append(s.pending, text)
 }
 
 // EndOfTurn fires no hook: cursor-agent in print mode was recorded not firing
 // the stop hook, so nothing blocks the end of the turn. What can continue it is
 // a background shell's end (afterTurn).
 func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
+	s.flushText(false)
 	if s.owner != "" { // a sub-agent ends with its final response: its parent goes on
 		return "", false
 	}
@@ -31,7 +33,10 @@ func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool
 
 // Continue records the turn a finished background shell gives the agent, as the
 // user message it is in the transcript.
-func (s *session) Continue(prompt string) { s.tr.user(prompt) }
+func (s *session) Continue(prompt string) {
+	s.tr.user(prompt)
+	s.requestID, s.modelN = coresession.NewID(), 0 // a turn of its own is a model request of its own
+}
 
 // CapOverridden is never asked for: no end-of-turn hook blocks, so there is no
 // cap to reach.
@@ -52,8 +57,11 @@ func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) { s.Start(ctx, 
 // refused at the depth limit is done at its start; a background Task is
 // launched when it is completed.
 func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
-	if s.refusesTaskAtTheLimit(ctx, tu) {
+	if s.refusesTaskAtTheLimit(ctx, tu) || s.refusesTaskModel(ctx, tu) {
 		return func() {}
+	}
+	if finish, ok := s.startsHookless(ctx, tu); ok {
+		return finish
 	}
 	if in, ok := startsBackgroundSubagent(tu); ok {
 		return func() { s.launchSubagent(ctx, tu, in) }
@@ -62,12 +70,21 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 		return s.startSubagent(ctx, tu, in)
 	}
 	c := toolexec.FromScript(tu.Name, tu.Input)
+	if c.Kind == "mcpToolCall" {
+		if !s.cfg.ApproveMCPs {
+			s.forward(startedFrame(s.id, tu.ID, c))
+			s.tr.toolUse(tu.Name, c.Args)
+			s.forward(errorFrame(s.id, tu.ID, c, s.refuseMsg("cursor-mock: an MCP tool call is modeled only with --approve-mcps (the mode it was recorded in)"), nil))
+			return func() {}
+		}
+		s.readsMcpTool(ctx, tu, c)
+	}
 	s.forward(startedFrame(s.id, tu.ID, c))
 	s.tr.toolUse(tu.Name, c.Args)
 	return func() {
 		if c.Kind == "editToolCall" {
 			path := map[string]any{"file_path": c.Args["path"]}
-			s.runTool(ctx, scenario.ToolUse{ID: tu.ID + "-read", Name: "Read", Input: jsonLine(path)}, true)
+			s.runTool(ctx, scenario.ToolUse{ID: tu.ID, Name: "Read", Input: jsonLine(path)}, true)
 		}
 		s.runTool(ctx, tu, false)
 		s.flushOwed()

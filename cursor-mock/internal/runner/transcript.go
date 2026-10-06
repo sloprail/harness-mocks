@@ -10,10 +10,17 @@ import (
 
 // transcript is the conversation's record file, in the layout Cursor keeps
 // (recorded: runs/*/samples/*/transcript): one JSON line per message, a user
-// message first, assistant messages with their text and tool calls, and a
-// closing turn_ended line. It is what the scenario script reads as
+// message first (opening with the empty <timestamp/> element, then the
+// <user_query> element, as recorded), assistant messages with their text and
+// tool calls, and a closing turn_ended line. It is what the scenario script reads as
 // A10N_MOCK_SESSION_FILE.
-type transcript struct{ path string }
+type transcript struct {
+	path string
+	// said is what the agent said since the last record: a step's text and its
+	// call are one record, and the text of a step that makes no call is a record
+	// of its own at the end of the turn (recorded: runs/tool-failure).
+	said []map[string]any
+}
 
 var nonAlnum = regexp.MustCompile(`[^A-Za-z0-9]`)
 
@@ -46,17 +53,30 @@ func (t *transcript) message(role string, blocks ...map[string]any) {
 }
 
 func (t *transcript) user(prompt string) {
-	t.message("user", map[string]any{"type": "text", "text": "<user_query>\n" + prompt + "\n</user_query>"})
+	t.flushText()
+	t.message("user", map[string]any{"type": "text", "text": "<timestamp/>\n<user_query>\n" + prompt + "\n</user_query>"})
 }
 
 func (t *transcript) text(s string) {
-	t.message("assistant", map[string]any{"type": "text", "text": s})
+	t.said = append(t.said, map[string]any{"type": "text", "text": s})
 }
 
 func (t *transcript) toolUse(name string, input map[string]any) {
-	t.message("assistant", map[string]any{"type": "tool_use", "name": name, "input": input})
+	t.message("assistant", append(t.said, map[string]any{"type": "tool_use", "name": name, "input": input})...)
+	t.said = nil
 }
 
-func (t *transcript) end() { t.add(map[string]any{"type": "turn_ended", "status": "success"}) }
+// flushText writes what the agent said, with no call after it, as a record.
+func (t *transcript) flushText() {
+	if len(t.said) > 0 {
+		t.message("assistant", t.said...)
+		t.said = nil
+	}
+}
+
+func (t *transcript) end() {
+	t.flushText()
+	t.add(map[string]any{"type": "turn_ended", "status": "success"})
+}
 
 func (t *transcript) exists() bool { _, err := os.Stat(t.path); return err == nil }

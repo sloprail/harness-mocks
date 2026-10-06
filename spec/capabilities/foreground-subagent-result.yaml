@@ -65,6 +65,8 @@ providers:
       - https://cursor.com/docs/subagents#foreground-vs-background
     runs:
       - cursor-mock/snapshots/runs/foreground-subagent-result
+      - cursor-mock/snapshots/runs/foreground-subagent-failure
+      - cursor-mock/snapshots/runs/background-agent
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -77,9 +79,10 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock runs only a foreground Task that carries a description, a
-          prompt and the scenario script that plays the sub-agent; a background
-          Task is not modelled. The call's args on the stream carry the sub-agent's
-          description, prompt, type, model and id, not the other fields the
-          recording shows (attachments, mode, environment, machine and the ids of
-          the messages it answers).
+          The mock runs only a Task that carries a description, a prompt and the
+          scenario script that plays the sub-agent.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The cursor mock does not model a sub-agent failing mid-run; no headless
+          run produces one.

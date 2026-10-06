@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -16,16 +17,22 @@ import (
 
 // session is one run's state, and the harness side (turnloop.Host) of its turn.
 type session struct {
+	refusal *refusal // shared by the run's sessions: the first "not modeled" refusal ends the run
 	cfg     Config
 	id      string
 	tr      *transcript
 	hooks   *hooks.Hooks
 	started time.Time
-	texts   []string // what the agent said, in order: the result frame's text
-	// named: hook payloads carry the transcript path. Cursor leaves it null
-	// until the conversation's first tool call is past its preToolUse hooks
-	// (recorded: runs/tool-failure), though the file is there from the first
-	// record.
+	// requestID names the run's model request: the result frame says it, and the
+	// hooks of a Task call name it as their generation.
+	requestID string
+	texts     []string // what the agent said, in order: the result frame's text
+	// pending is what the agent said that the stream has not shown yet: one frame
+	// when the next call starts, or at the end of the turn (runs/foreground-subagent-failure).
+	pending []string
+	modelN  int // the model responses so far: a call's frames and the text before it name theirs
+	// named: hook payloads carry the transcript path, null until the first tool
+	// call is past its preToolUse hooks (recorded: runs/tool-failure).
 	named bool
 	// added is the context the hooks have handed the agent so far (their
 	// additional_context), in the order their events fired and, within an event,
@@ -40,9 +47,6 @@ type session struct {
 	// printed after the next tool call of this session, or at the end of its run.
 	owed tasks.Deferred
 }
-
-// flushOwed prints the frames owed.
-func (s *session) flushOwed() { s.owed.Release(func(f []byte) { s.forward(f) }) }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
 // when several hooks gave some.
@@ -82,7 +86,10 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now()}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID(), refusal: &refusal{cancel: cancel}}
+	first := s.requestID // the result frame names the run's first request, whatever turns follow
 	if s.id == "" {
 		s.id = coresession.NewID()
 	}
@@ -90,7 +97,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
-	conf, err := hooks.Load(cfg.Dir, cfg.PluginDirs...)
+	conf, err := hooks.Load(cfg.Dir, cfg.Home, cfg.PluginDirs...)
 	if err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
@@ -98,13 +105,17 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.Resume != "" { // the workspace holds the session's transcript only if it was begun there
 		_ = coresession.ContinueTranscript(s.tr.path, func(l string) bool { return strings.Contains(l, `"turn_ended"`) })
 	}
-	s.forward(initFrame(s.id, cfg.Dir))
+	s.forward(initFrame(s.id, cfg.Dir, cfg.Model))
 	s.forward(userFrame(s.id, cfg.Prompt))
+	s.hooks.Fire(ctx, hooks.WorkspaceOpen, hooks.NoSubject, nil) // the app opens the workspace before the session starts (recorded: runs/workspace-open)
 	if startHook.For(cfg.Resume != "").Fires {
 		s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	}
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
 	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
+	if msg := s.refusal.message(); msg != "" { // a refusal of something not modeled fails the run, wherever it was made
+		return errors.New(msg)
+	}
 	s.named = true
 	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
@@ -115,7 +126,8 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}
 	s.flushOwed()
-	s.forward(resultFrame(s.id, strings.Join(s.texts, ""), time.Since(s.started)))
+	s.flushText(false)
+	s.forward(resultFrame(s.id, first, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }
 
@@ -130,12 +142,9 @@ func (s *session) hookEnv() []string {
 // common is what every hook payload carries now: the transcript path only once
 // the conversation has a transcript.
 func (s *session) common() hooks.Common {
-	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version}
+	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version, Model: s.cfg.Model}
 	if s.named && s.tr.exists() {
 		c.TranscriptPath = s.tr.path
 	}
 	return c
 }
-
-// forward prints one stream-json line.
-func (s *session) forward(line []byte) { fmt.Fprintf(s.cfg.Stdout, "%s\n", line) }

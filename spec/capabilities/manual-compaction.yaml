@@ -54,8 +54,18 @@ providers:
           never compacts by itself.
   cursor:
     supported: false
-    reason: Cursor's headless agent has no compaction request (/compress is plain prompt text and no hook fires), preCompact is an observational hook that cannot stop a compaction, and no hook fires after one.
+    reason: >-
+      Cursor's headless agent has no compaction request (/compress is plain prompt
+      text and no compaction hook fires: runs/manual-compaction-slash), and the hooks around a
+      compaction are not the statement's: it compacts by itself at its context limit
+      with a preCompact hook (trigger "auto", recorded twice in
+      runs/compaction-transcript-continuity; the hooks doc names "manual" too, which
+      no run shows), but the doc calls preCompact "an observational hook that cannot
+      block or modify the compaction", so nothing stops a compaction, and no hook
+      fires after one: the recorded events after each preCompact go straight on
+      with tool hooks, and the doc lists none.
     runs:
       - cursor-mock/snapshots/runs/manual-compaction-slash
+      - cursor-mock/snapshots/runs/compaction-transcript-continuity
     docs:
       - https://cursor.com/docs/hooks#precompact

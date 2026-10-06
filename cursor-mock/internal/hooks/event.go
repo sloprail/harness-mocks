@@ -7,9 +7,10 @@ package hooks
 type Event string
 
 // The events the mock fires. Cursor's docs name more (beforeSubmitPrompt, stop,
-// afterAgentResponse, subagentStart/Stop, the MCP and Tab hooks, preCompact,
-// beforeReadFile, workspaceOpen); the recordings show cursor-agent in print
-// mode firing none of the first three, and the mock does not model the rest.
+// afterAgentResponse, subagentStart/Stop, the MCP and Tab hooks, preCompact); the
+// recordings show cursor-agent in print mode firing none of the first three, and
+// the mock does not model the rest. afterAgentThought fires only for a thought the
+// script's thinking block gives (runner/think.go).
 const (
 	SessionStart         Event = "sessionStart"
 	SessionEnd           Event = "sessionEnd"
@@ -19,6 +20,11 @@ const (
 	BeforeShellExecution Event = "beforeShellExecution"
 	AfterShellExecution  Event = "afterShellExecution"
 	AfterFileEdit        Event = "afterFileEdit"
+	BeforeReadFile       Event = "beforeReadFile"
+	AfterAgentThought    Event = "afterAgentThought"
+	// WorkspaceOpen fires once as the process starts, before the session's
+	// start hook, with no session: recorded in print mode (runs/workspace-open).
+	WorkspaceOpen Event = "workspaceOpen"
 )
 
 // addsContext reports whether a hook of the event can hand the agent context,
@@ -35,5 +41,5 @@ func (e Event) addsContext() bool {
 //
 // sr:docs https://cursor.com/docs/hooks#command-based-hooks
 func (e Event) permission() bool {
-	return e == PreToolUse || e == BeforeShellExecution
+	return e == PreToolUse || e == BeforeShellExecution || e == BeforeReadFile
 }

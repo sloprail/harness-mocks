@@ -34,10 +34,12 @@ type Config struct {
 // Load reads the hooks of each plugin directory loaded with --plugin-dir
 // (plugin.go), then <dir>/.cursor/hooks.json. No file is no hooks. A hook's
 // command, failClosed, matcher and timeout are modeled; its loop_limit, the prompt type
-// of hook and the user, team and enterprise sources are not.
+// of hook and the team and enterprise sources are not. The user's own
+// ~/.cursor/hooks.json is read after the project's, and a hook in both runs once per
+// source (recorded: runs/hooks-all-matching-run-same-hook-two-sources).
 //
 // sr:docs https://cursor.com/docs/hooks#configuration
-func Load(dir string, pluginDirs ...string) (Config, error) {
+func Load(dir, home string, pluginDirs ...string) (Config, error) {
 	c := Config{entries: map[Event][]Entry{}}
 	// a loaded plugin's hooks are listed, and started, before the project's: the one
 	// recording (runs/plugin-hooks) logs the plugin's first
@@ -48,6 +50,11 @@ func Load(dir string, pluginDirs ...string) (Config, error) {
 	}
 	if err := c.addFile(filepath.Join(dir, ".cursor", "hooks.json")); err != nil {
 		return Config{}, err
+	}
+	if home != "" {
+		if err := c.addFile(filepath.Join(home, ".cursor", "hooks.json")); err != nil {
+			return Config{}, err
+		}
 	}
 	return c, nil
 }

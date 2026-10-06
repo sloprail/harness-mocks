@@ -91,7 +91,7 @@ func TestAForegroundSubAgentBlocksItsParentAndItsReportIsTheCallsResult(t *testi
 sleep 0.4
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"PINEAPPLE-7"}]}}'
 `), 0o755))
-	input, err := json.Marshal(map[string]any{"description": wantArgs["description"], "prompt": wantArgs["prompt"], "script": sub})
+	input, err := json.Marshal(map[string]any{"description": wantArgs["description"], "prompt": wantArgs["prompt"], "run_in_background": false, "script": sub})
 	require.NoError(t, err)
 	task := `{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_1","name":"Task","input":` + string(input) + `}]}}`
 	main := filepath.Join(ws, "main.sh")
@@ -104,7 +104,8 @@ fi
 `), 0o755))
 	log := filepath.Join(ws, "payloads.jsonl")
 	cmd := exec.Command(binary, "-p", "--force", "--trust", "--output-format", "stream-json", "--script", main, "launch one")
-	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "HOOK_LOG=" + log}
+	home := t.TempDir()
+	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + log}
 	out, err := cmd.Output()
 	require.NoError(t, err, "%s", out)
 	got := frames(string(out))
@@ -122,6 +123,30 @@ fi
 	require.NotNil(t, gotHook, "the preToolUse hook ran for the Task call")
 	assert.Equal(t, wantHook, gotHook)
 
+	// the hooks the run's hooks.json registers for the sub-agent's end and the
+	// call's end never fire: only the call's preToolUse does, recorded and mock
+	fired := func(ps []map[string]any) (events []string, sessions map[string]bool) {
+		sessions = map[string]bool{}
+		for _, p := range ps {
+			if e, ok := p["hook_event_name"].(string); ok {
+				events = append(events, e)
+				if s, ok := p["session_id"].(string); ok {
+					sessions[s] = true
+				}
+			}
+		}
+		return
+	}
+	recEvents, recSessions := fired(jsonLines(t, filepath.Join(sample, "payloads.jsonl")))
+	gotEvents, _ := fired(jsonLines(t, log))
+	for name, events := range map[string][]string{"recorded": recEvents, "mock": gotEvents} {
+		for _, e := range []string{"postToolUse", "postToolUseFailure", "subagentStart", "subagentStop"} {
+			assert.NotContains(t, events, e, name+": "+e+" does not fire for a foreground Task call")
+		}
+		assert.Contains(t, events, "preToolUse", name)
+	}
+	assert.Greater(t, len(recSessions), 1, "recorded: the sub-agent's own events carry a session id of their own")
+
 	// the call's args: the values the recording shows for what the mock carries
 	// (the agent id is the call's own, a fresh one)
 	gotArgs := gotTask["started"]["args"].(map[string]any)
@@ -137,6 +162,24 @@ fi
 	assert.Equal(t, wantSuccess["conversationSteps"], gotSuccess["conversationSteps"], "the report is the sub-agent's last words")
 	assert.Contains(t, gotTask["completed"]["result"].(map[string]any)["success"].(map[string]any)["conversationSteps"].([]any)[0].(map[string]any)["assistantMessage"].(map[string]any)["text"], "PINEAPPLE-7")
 	assert.NotEmpty(t, gotSuccess["agentId"])
+	// the result's agent id is the sub-agent's own conversation id, not the id the call's args carry
+	// (recorded: the sub-agent's transcript is named by it, and it differs from args.agentId)
+	recTranscripts, err := filepath.Glob(filepath.Join(sample, "transcript", "*"))
+	require.NoError(t, err)
+	var recIDs []string
+	for _, d := range recTranscripts {
+		recIDs = append(recIDs, filepath.Base(d))
+	}
+	assert.Contains(t, recIDs, wantSuccess["agentId"], "recorded: the result's agentId names the sub-agent's transcript")
+	assert.NotEqual(t, wantArgs["agentId"], wantSuccess["agentId"], "recorded: it differs from the args' agentId")
+	subTranscripts, err := filepath.Glob(filepath.Join(home, ".cursor", "projects", "*", "agent-transcripts", "*"))
+	require.NoError(t, err)
+	var gotIDs []string
+	for _, d := range subTranscripts {
+		gotIDs = append(gotIDs, filepath.Base(d))
+	}
+	assert.Contains(t, gotIDs, gotSuccess["agentId"], "the mock's result agentId names the sub-agent's transcript")
+	assert.NotEqual(t, gotArgs["agentId"], gotSuccess["agentId"], "and differs from the args' agentId")
 	assert.Equal(t, wantSuccess["backgroundReason"], gotSuccess["backgroundReason"])
 	ms, err := strconv.Atoi(gotSuccess["durationMs"].(string))
 	require.NoError(t, err)

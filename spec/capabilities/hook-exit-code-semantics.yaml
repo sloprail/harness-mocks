@@ -102,17 +102,27 @@ providers:
       - cursor-mock/snapshots/runs/hook-fail-closed
       - cursor-mock/snapshots/runs/hook-json-nonzero
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/nested-subagents
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock fires sessionStart, sessionEnd, preToolUse, postToolUse,
-          postToolUseFailure, beforeShellExecution, afterShellExecution and
-          afterFileEdit, and no others. The docs' exit-code rules for the other
-          permission hooks (beforeMCPExecution, beforeReadFile,
+          The mock fires workspaceOpen, sessionStart, sessionEnd, preToolUse, postToolUse,
+          postToolUseFailure, beforeShellExecution, afterShellExecution,
+          afterFileEdit, beforeReadFile and afterAgentThought, and no others. The docs' exit-code rules for the other
+          permission hooks (beforeMCPExecution,
           beforeTabFileRead, subagentStart) and for afterMCPExecution,
           subagentStop, beforeSubmitPrompt, preCompact, stop,
-          afterAgentResponse, afterAgentThought, the Tab hooks and
-          workspaceOpen are not modeled; the recordings show cursor-agent in
+          afterAgentResponse and the Tab hooks, and the exit-code rules of
+          workspaceOpen and afterAgentThought (their output is not read), are not modeled; the recordings show cursor-agent in
           print mode firing none of beforeSubmitPrompt, afterAgentResponse and
           stop.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor does not accept every exit 0: the docs (#command-based-hooks)
+          say "Exit code 0 ... invalid JSON or a response that doesn't match
+          the hook's schema blocks the action", and a permission hook that exits 0
+          with output that is not JSON (recorded: stdout "this is not json",
+          exit 0, runs/hook-exit-codes) blocked the call, rejected with
+          "returned invalid JSON". The mock blocks it the same.

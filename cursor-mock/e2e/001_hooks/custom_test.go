@@ -95,12 +95,14 @@ func TestAHookCommandRunsThroughTheShellInTheProjectRootWithThePayloadOnStdin(t 
 // TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart:
 // recorded, the transcript is .cursor/projects/<workspace path with every
 // non-alphanumeric character as "-">/agent-transcripts/<session>/<session>.jsonl;
-// the start hook's payload has no transcript path, and the payloads from the
-// first command's afterShellExecution on have it (runs/symlinked-cwd: whether
-// the hooks before it do varies from one capture to the next).
+// the start hook's payload and the first preToolUse's have no transcript path,
+// and the payloads from the first command's afterShellExecution on have it; in
+// between, the first beforeShellExecution's varies from one capture to the
+// next (named in runs/tool-failure, runs/symlinked-cwd, null in
+// runs/shell-exit-status, runs/hook-json-nonzero), and the mock names it there.
 // sr:proves session-transcript-file/cursor
 func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *testing.T) {
-	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, nil, "echo hi")
+	c := runCustom(t, `{"version":1,"hooks":{"sessionStart":[{"command":"cat > \"$HOOK_LOG.start\"; ls -R \"$HOME/.cursor/projects\" > \"$HOOK_LOG.tree\" 2>&1"}],"preToolUse":[{"command":"cat > \"$HOOK_LOG.pre\""}],"beforeShellExecution":[{"command":"cat > \"$HOOK_LOG.before\"; p=$(jq -r .transcript_path \"$HOOK_LOG.before\"); [ -f \"$p\" ] && echo exists > \"$HOOK_LOG.exists\""}],"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}],"postToolUse":[{"command":"cat > \"$HOOK_LOG.post\""}],"sessionEnd":[{"command":"cat > \"$HOOK_LOG.end\""}]}}`, nil, "echo hi")
 	path, session := c.transcript(t)
 	project := strings.NewReplacer("/", "-", ".", "-", "_", "-").Replace(strings.TrimPrefix(c.ws, "/"))
 	require.Equal(t, filepath.Join(c.home, ".cursor", "projects", project, "agent-transcripts", session, session+".jsonl"), path)
@@ -109,7 +111,17 @@ func TestTheTranscriptFileIsKeyedByTheProjectAndTheSessionAndAbsentAtStart(t *te
 	require.Contains(t, string(start), `"transcript_path":null`)
 	tree, _ := os.ReadFile(c.log + ".tree")
 	require.NotContains(t, string(tree), session+".jsonl", "the file does not exist yet when the start hook runs")
+	pre, _ := os.ReadFile(c.log + ".pre")
+	require.Contains(t, string(pre), `"transcript_path":null`, "the first preToolUse names no transcript")
+	before, _ := os.ReadFile(c.log + ".before")
+	require.Contains(t, string(before), `"transcript_path":"`+path+`"`, "the mock names it at the first beforeShellExecution")
+	exists, _ := os.ReadFile(c.log + ".exists")
+	require.Contains(t, string(exists), "exists", "the file is there when a payload names it, as recorded (transcript_exists is true at the first beforeShellExecution of runs/symlinked-cwd)")
 	require.Contains(t, c.logged(t), `"transcript_path":"`+path+`"`)
+	for _, suffix := range []string{".post", ".end"} { // and the payloads after it, as recorded (runs/symlinked-cwd: postToolUse, sessionEnd)
+		later, _ := os.ReadFile(c.log + suffix)
+		require.Contains(t, string(later), `"transcript_path":"`+path+`"`, "the mock names it on later hooks too: "+suffix)
+	}
 }
 
 // TestWhateverTheSessionEndHookPrintsIsNotInTheTranscript: recorded, the
@@ -202,4 +214,70 @@ func TestADenyFromOneHookRefusesTheCallWhateverAnotherHookAsks(t *testing.T) {
 		require.NotContains(t, c.stdout, "ASK-MSG", name)
 		require.NotContains(t, c.logged(t), "REFUSED-OR-NOT", name+": the command must not have run")
 	}
+}
+
+// TestTheUserRecordOpensWithAnEmptyTimestampElementThenTheQuery: recorded
+// (runs/tool-failure, runs/symlinked-cwd), the transcript's first record is the
+// user's, a text block that starts with an empty <timestamp/> element on its
+// own line and then holds the prompt in a <user_query> element; the mock
+// writes the same.
+func TestTheUserRecordOpensWithAnEmptyTimestampElementThenTheQuery(t *testing.T) {
+	first := func(recs []map[string]any) string {
+		require.NotEmpty(t, recs)
+		require.Equal(t, "user", recs[0]["role"])
+		blocks := recs[0]["message"].(map[string]any)["content"].([]any)
+		require.Len(t, blocks, 1)
+		return blocks[0].(map[string]any)["text"].(string)
+	}
+	for _, run := range []string{"tool-failure", "symlinked-cwd"} {
+		m, err := filepath.Glob(filepath.Join(newestSample(t, run), "transcript", "*", "*.jsonl"))
+		require.NoError(t, err)
+		require.Len(t, m, 1, run)
+		require.True(t, strings.HasPrefix(first(readJSONL(t, m[0])), "<timestamp/>\n<user_query>\n"), run)
+	}
+
+	c := runCustom(t, `{"version":1,"hooks":{}}`, nil, "echo hi")
+	path, _ := c.transcript(t)
+	got := first(readJSONL(t, path))
+	require.True(t, strings.HasPrefix(got, "<timestamp/>\n<user_query>\n"), got)
+	require.True(t, strings.HasSuffix(got, "\n</user_query>"), got)
+}
+
+// TestADenyBeatsAskAndRefusalMessagesAreJoinedOnBeforeShellExecutionAndBeforeReadFile:
+// the docs (#configuration) say all matching hooks run, any deny wins over ask,
+// and the hooks' messages are concatenated; recorded only for preToolUse
+// (runs/pretool-refusal-combined), so this drives the mock on the other two
+// events that refuse: with one beforeShellExecution hook asking and another
+// denying, in either order, the command is refused with the deny's message and
+// does not run; two hooks that both deny a command, or a read, have their
+// messages joined in the order the hooks are configured in.
+// sr:proves hooks-all-matching-run/cursor
+func TestADenyBeatsAskAndRefusalMessagesAreJoinedOnBeforeShellExecutionAndBeforeReadFile(t *testing.T) {
+	scripts := map[string]string{
+		"ask.sh":   "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"ask\",\"user_message\":\"ASK-MSG\"}'\n",
+		"deny1.sh": "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"deny\",\"user_message\":\"DENY-ONE\"}'\n",
+		"deny2.sh": "#!/bin/sh\ncat >/dev/null\necho '{\"permission\":\"deny\",\"user_message\":\"DENY-TWO\"}'\n",
+	}
+	for name, order := range map[string]string{
+		"ask first":  `[{"command":".cursor/hooks/ask.sh"},{"command":".cursor/hooks/deny1.sh"}]`,
+		"deny first": `[{"command":".cursor/hooks/deny1.sh"},{"command":".cursor/hooks/ask.sh"}]`,
+	} {
+		c := runCustom(t, `{"version":1,"hooks":{"beforeShellExecution":`+order+`,"afterShellExecution":[{"command":"cat >> \"$HOOK_LOG\""}]}}`, scripts, "echo REFUSED-OR-NOT")
+		require.Contains(t, c.stdout, "DENY-ONE", name)
+		require.NotContains(t, c.stdout, "ASK-MSG", name)
+		require.NotContains(t, c.logged(t), "REFUSED-OR-NOT", name+": the command must not have run")
+	}
+
+	c := runCustom(t, `{"version":1,"hooks":{"beforeShellExecution":[{"command":".cursor/hooks/deny1.sh"},{"command":".cursor/hooks/deny2.sh"}]}}`, scripts, "echo BOTH")
+	require.Contains(t, c.stdout, "DENY-ONE\\n\\n---\\n\\nDENY-TWO", "the command's refusal joins both messages in configured order")
+
+	r := runTools(t, `{"version":1,"hooks":{"beforeReadFile":[{"command":".cursor/hooks/deny1.sh"},{"command":".cursor/hooks/deny2.sh"}]}}`, scripts,
+		map[string]string{"note.txt": "hi\n"}, map[string]any{"name": "Read", "input": map[string]any{"file_path": "note.txt"}})
+	var joined string
+	for _, f := range r.frames {
+		if tc, _ := f["tool_call"].(map[string]any); tc != nil {
+			joined += jsonString(tc)
+		}
+	}
+	require.Contains(t, joined, "DENY-ONE\\n\\n---\\n\\nDENY-TWO", "the read's refusal joins both messages in configured order")
 }

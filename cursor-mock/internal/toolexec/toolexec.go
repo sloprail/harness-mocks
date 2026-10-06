@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
-	"time"
 )
 
 // Call is a tool call as Cursor names it: the kind of its tool_call frame
@@ -14,92 +13,9 @@ import (
 type Call struct {
 	Kind string
 	Args map[string]any
-}
-
-// Result is what a tool call came to.
-type Result struct {
-	// Failed: the call ran and failed.
-	Failed bool
-	// Frame is the result object of the call's completed stream frame.
-	Frame map[string]any
-	// ToolOutput is the call's result as postToolUse reports it, a JSON string.
-	ToolOutput string
-	// ErrorMessage is what postToolUseFailure reports when the call failed.
-	ErrorMessage string
-	// Output is what a shell command printed, for afterShellExecution.
-	Output string
-	// Background: the call started a background shell (no afterShellExecution
-	// follows it; its end comes as a task notification).
-	Background bool
-	// Edits are the changes a file write made, for afterFileEdit.
-	Edits []Edit
-	Took  time.Duration
-}
-
-// Edit is one change a write made to a file.
-type Edit struct {
-	OldString string `json:"old_string"`
-	NewString string `json:"new_string"`
-}
-
-// toolTable is the tools the mock models, by the name a scenario script gives
-// them (the Claude Code names, with Cursor's Shell too): the kind of Cursor
-// call, its name in hooks, and the parameters its input must carry.
-var toolTable = map[string]struct {
-	kind, hookName string
-	required       []string
-}{
-	"Bash":  {"shellToolCall", "Shell", []string{"command"}},
-	"Shell": {"shellToolCall", "Shell", []string{"command"}},
-	"Read":  {"readToolCall", "Read", []string{"file_path"}},
-	"Write": {"editToolCall", "Write", []string{"file_path", "content"}},
-	// a sub-agent dispatch, whichever name it goes by (Task is Agent's old name)
-	"Agent": {"taskToolCall", "Task", taskRequired},
-	"Task":  {"taskToolCall", "Task", taskRequired},
-}
-
-// Required is the parameters a call to the named tool must carry, and whether
-// the mock has the tool.
-func Required(name string) ([]string, bool) {
-	t, ok := toolTable[name]
-	return t.required, ok
-}
-
-// FromScript is the Cursor call a scenario script's tool call stands for.
-func FromScript(name string, input json.RawMessage) Call {
-	var in map[string]any
-	_ = json.Unmarshal(input, &in)
-	str := func(k string) string { s, _ := in[k].(string); return s }
-	c := Call{Kind: toolTable[name].kind, Args: map[string]any{}}
-	switch c.Kind {
-	case "shellToolCall":
-		c.Args["command"] = str("command")
-		// block_until_ms 0 (or run_in_background) is a shell left running in the
-		// background (recorded: runs/task-notifications-bg).
-		if v, ok := in["block_until_ms"].(float64); (ok && v == 0) || in["run_in_background"] == true {
-			c.Args["isBackground"], c.Args["timeout"] = true, 0
-			if d := str("description"); d != "" {
-				c.Args["description"] = d
-			}
-		}
-	case "readToolCall":
-		c.Args["path"] = str("file_path")
-	case "editToolCall":
-		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
-	case "taskToolCall":
-		c.Args["description"], c.Args["prompt"] = str("description"), str("prompt")
-	}
-	return c
-}
-
-// Name is the tool's name in hooks: Shell, Read or Write.
-func (c Call) Name() string {
-	for _, t := range toolTable {
-		if t.kind == c.Kind {
-			return t.hookName
-		}
-	}
-	return ""
+	// Replace is a StrReplace's old and new text: the call edits the file by it
+	// and the hooks see the whole file it makes (recorded: runs/file-tools).
+	Replace *[2]string
 }
 
 func (c Call) str(key string) string { s, _ := c.Args[key].(string); return s }
@@ -122,6 +38,54 @@ func (c Call) Description() string { return c.str("description") }
 // Command is the shell line of a Shell call.
 func (c Call) Command() string { return c.str("command") }
 
+// FromScript is the Cursor call a scenario script's tool call stands for.
+func FromScript(name string, input json.RawMessage) Call {
+	var in map[string]any
+	_ = json.Unmarshal(input, &in)
+	str := func(k string) string { s, _ := in[k].(string); return s }
+	kind, _, _, _ := lookup(name)
+	c := Call{Kind: kind, Args: map[string]any{}}
+	switch c.Kind {
+	case "shellToolCall":
+		c.Args["command"] = str("command")
+		// block_until_ms 0 (or run_in_background) is a shell left running in the
+		// background (recorded: runs/task-notifications-bg).
+		if v, ok := in["block_until_ms"].(float64); (ok && v == 0) || in["run_in_background"] == true {
+			c.Args["isBackground"], c.Args["timeout"] = true, 0
+			if d := str("description"); d != "" {
+				c.Args["description"] = d
+			}
+		}
+	case "readToolCall":
+		c.Args["path"] = str("file_path")
+	case "editToolCall":
+		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
+		if name == "Edit" { // a StrReplace: its stream content is the new text only
+			c.Args["streamContent"] = str("new_string")
+			c.Replace = &[2]string{str("old_string"), str("new_string")}
+		}
+	case "grepToolCall":
+		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
+	case "deleteToolCall":
+		c.Args["path"] = str("file_path")
+	case "mcpToolCall":
+		server, tool, _ := mcpName(name)
+		args := in
+		if args == nil {
+			args = map[string]any{}
+		}
+		if d, ok := args["__description"]; ok { // the model's description of the call: the frame carries it beside the args
+			c.Args["__description"] = d
+			delete(args, "__description")
+		}
+		c.Args["name"], c.Args["args"], c.Args["providerIdentifier"], c.Args["toolName"] = server+"-"+tool, args, server, tool
+		c.Args["smartModeApprovalOnly"], c.Args["skipApproval"], c.Args["serverIdentifier"] = false, false, server
+	case "taskToolCall":
+		c.Args["description"], c.Args["prompt"] = str("description"), str("prompt")
+	}
+	return c
+}
+
 // HookInput is the call's input as hooks see it.
 func (c Call) HookInput(dir string) map[string]any {
 	switch c.Kind {
@@ -131,8 +95,18 @@ func (c Call) HookInput(dir string) map[string]any {
 		return map[string]any{"file_path": c.Path(dir)}
 	case "taskToolCall":
 		return map[string]any{"description": c.str("description"), "prompt": c.str("prompt"), "subagent_type": "generalPurpose"}
+	case "grepToolCall":
+		return map[string]any{"pattern": c.str("pattern")}
+	case "deleteToolCall":
+		return map[string]any{"file_path": c.Path(dir)}
+	case "mcpToolCall":
+		return c.Args["args"].(map[string]any)
 	default:
-		return map[string]any{"file_path": c.Path(dir), "content": c.str("streamContent")}
+		content := c.str("streamContent")
+		if c.Replace != nil {
+			content, _ = replaced(c, dir)
+		}
+		return map[string]any{"file_path": c.Path(dir), "content": content}
 	}
 }
 
@@ -142,12 +116,16 @@ func Execute(ctx context.Context, c Call, dir string, env []string) Result {
 	switch c.Kind {
 	case "shellToolCall":
 		return shell(ctx, c, dir, env)
-	case "readToolCall":
-		return read(c, dir)
 	case "taskToolCall":
 		return task()
+	case "grepToolCall":
+		return ran(func() Result { return grep(c, dir) })
+	case "deleteToolCall":
+		return ran(func() Result { return deleteFile(c, dir) })
+	case "mcpToolCall":
+		return ran(func() Result { return mcp(ctx, c, dir, env) })
 	}
-	return write(c, dir)
+	return timed(c, dir)
 }
 
 func jsonString(v any) string { b, _ := json.Marshal(v); return string(b) }

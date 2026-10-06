@@ -16,25 +16,51 @@ func jsonLine(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
 
 // toolFrame is a tool_call frame: the call's kind and args, and, once it has
 // ended, its result.
-func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]any) []byte {
-	body := map[string]any{"args": c.Args}
+func toolFrame(session, id, subtype string, c toolexec.Call, result map[string]any, contexts []any) []byte {
+	args := c.Args
+	switch c.Kind {
+	case "grepToolCall", "deleteToolCall", "mcpToolCall", "getMcpToolsToolCall":
+		// these tools' args name their own call (recorded: runs/hook-matchers-grep-delete,
+		// runs/hook-matchers-mcp)
+		args = map[string]any{"toolCallId": id}
+		for k, v := range c.Args {
+			args[k] = v
+		}
+	}
+	body := map[string]any{"args": args}
+	if d, ok := args["__description"]; ok { // an MCP call's description sits beside its args (recorded: runs/hook-matchers-mcp)
+		body["description"] = d
+		args = copyWithout(args, "__description")
+		body["args"] = args
+	}
 	if result != nil {
 		body["result"] = result
 	}
 	return jsonLine(map[string]any{
 		"type": "tool_call", "subtype": subtype, "call_id": id, "session_id": session,
-		"tool_call": map[string]any{c.Kind: body},
+		"tool_call": envelope(map[string]any{c.Kind: body}, id, contexts),
 	})
+}
+
+// envelope is what every tool call frame carries beside its call: the call's id
+// again and the context the hooks gave the agent for the call (recorded: every
+// tool_call frame of runs/*, the contexts in runs/additional-context).
+func envelope(call map[string]any, id string, contexts []any) map[string]any {
+	if contexts == nil {
+		contexts = []any{}
+	}
+	call["toolCallId"], call["hookAdditionalContexts"] = id, contexts
+	return call
 }
 
 // startedFrame opens a tool call on the stream.
 func startedFrame(session, id string, c toolexec.Call) []byte {
-	return toolFrame(session, id, "started", c, nil)
+	return toolFrame(session, id, "started", c, nil, nil)
 }
 
 // completedFrame ends a tool call that ran.
-func completedFrame(session, id string, c toolexec.Call, result map[string]any) []byte {
-	return toolFrame(session, id, "completed", c, result)
+func completedFrame(session, id string, c toolexec.Call, result map[string]any, contexts []any) []byte {
+	return toolFrame(session, id, "completed", c, result, contexts)
 }
 
 // rejectedFrame ends a call a hook refused, with the reason the agent was
@@ -42,13 +68,18 @@ func completedFrame(session, id string, c toolexec.Call, result map[string]any) 
 // carrying the reason, shaped as that tool's other errors are (recorded:
 // runs/pretool-refusal for a command, runs/pretool-refusal-file-tools for a
 // Write and a Read).
-func rejectedFrame(session, id string, c toolexec.Call, reason string) []byte {
+func rejectedFrame(session, id string, c toolexec.Call, reason string, contexts []any) []byte {
 	switch c.Kind {
 	case "editToolCall":
 		return toolFrame(session, id, "completed", c, map[string]any{
-			"error": map[string]any{"path": "", "error": reason, "modelVisibleError": reason}})
+			"error": map[string]any{"path": "", "error": reason, "modelVisibleError": reason}}, contexts)
 	case "readToolCall":
-		return errorFrame(session, id, c, reason)
+		// a blocked read's completed frame carries no args, only the error
+		// (recorded: runs/before-read-refusal, runs/before-read-timeout)
+		return jsonLine(map[string]any{
+			"type": "tool_call", "subtype": "completed", "call_id": id, "session_id": session,
+			"tool_call": envelope(map[string]any{c.Kind: map[string]any{"result": map[string]any{"error": map[string]any{"errorMessage": reason}}}}, id, contexts),
+		})
 	}
 	rejected := map[string]any{"reason": reason, "isReadonly": false}
 	if c.Kind == "shellToolCall" {
@@ -56,7 +87,7 @@ func rejectedFrame(session, id string, c toolexec.Call, reason string) []byte {
 	} else {
 		rejected["path"] = c.Args["path"]
 	}
-	return toolFrame(session, id, "completed", c, map[string]any{"rejected": rejected})
+	return toolFrame(session, id, "completed", c, map[string]any{"rejected": rejected}, contexts)
 }
 
 // invalidFrame ends a call whose input lacks required parameters. A Task call
@@ -66,13 +97,23 @@ func invalidFrame(session string, c toolcall.Call, missing []string) []byte {
 	call := toolexec.FromScript(c.Name, c.Input)
 	if call.Kind == "taskToolCall" {
 		return toolFrame(session, c.ID, "completed", call,
-			map[string]any{"error": map[string]any{"error": toolexec.InvalidArguments(missing)}})
+			map[string]any{"error": map[string]any{"error": toolexec.InvalidArguments(missing)}}, nil)
 	}
 	return errorFrame(session, c.ID, call,
-		fmt.Sprintf("%s: missing required parameter(s): %s", c.Name, strings.Join(missing, ", ")))
+		fmt.Sprintf("%s: missing required parameter(s): %s", c.Name, strings.Join(missing, ", ")), nil)
 }
 
 // errorFrame ends a call that could not run.
-func errorFrame(session, id string, c toolexec.Call, message string) []byte {
-	return toolFrame(session, id, "completed", c, map[string]any{"error": map[string]any{"errorMessage": message}})
+func errorFrame(session, id string, c toolexec.Call, message string, contexts []any) []byte {
+	return toolFrame(session, id, "completed", c, map[string]any{"error": map[string]any{"errorMessage": message}}, contexts)
+}
+
+func copyWithout(m map[string]any, key string) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		if k != key {
+			out[k] = v
+		}
+	}
+	return out
 }

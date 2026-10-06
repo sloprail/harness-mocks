@@ -37,6 +37,6 @@ func (s *session) refusesTaskAtTheLimit(_ context.Context, tu scenario.ToolUse) 
 	}
 	s.forward(startedFrame(s.id, tu.ID, c))
 	s.tr.toolUse(tu.Name, c.Args)
-	s.forward(errorFrame(s.id, tu.ID, toolexec.Call{Kind: "unknownToolCall"}, "Unknown tool: "+tu.Name))
+	s.forward(errorFrame(s.id, tu.ID, toolexec.Call{Kind: "unknownToolCall"}, "Unknown tool: "+tu.Name, nil))
 	return true
 }

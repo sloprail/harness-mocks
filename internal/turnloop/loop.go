@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/sloprail/harness-mocks/internal/scenario"
 )
@@ -82,6 +83,7 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		if err := refusedBy(h); err != nil { // an agent's script asked for what the mock does not allow
 			return "", err
 		}
+		began := time.Now()
 		t, err := scenario.RunTurn(ctx, p.Script, p.Dir, p.Environ, scenario.Input{
 			Prompt: p.Prompt, AdditionalContext: contextOf(p, extra), SessionFile: h.SessionFile()})
 		if err != nil {
@@ -90,9 +92,8 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		if g, ok := h.(Gater); ok && !t.Gate.None() {
 			g.Gate(ctx, t.Gate)
 		}
-		for _, text := range t.Texts {
-			h.Say(text)
-			last = text
+		if said := say(ctx, h, t, time.Since(began)); said != "" {
+			last = said
 		}
 		if t.Compact != nil {
 			if c, ok := h.(Compactor); ok {

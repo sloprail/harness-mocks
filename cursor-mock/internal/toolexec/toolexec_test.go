@@ -69,10 +69,55 @@ func TestAScriptsToolCallBecomesACursorCall(t *testing.T) {
 	if c.Kind != "editToolCall" || c.Path("/") != "/a/b" || c.Name() != "Write" || c.HookInput("/")["content"] != "hi" {
 		t.Errorf("Write: %+v", c)
 	}
-	if _, known := Required("Grep"); known {
-		t.Error("Grep is not a tool the mock runs")
+	if _, known := Required("Glob"); known {
+		t.Error("Glob is not a tool the mock runs")
+	}
+	if c := FromScript("Grep", []byte(`{"pattern":"NEEDLE"}`)); c.Kind != "grepToolCall" || c.Name() != "Grep" || c.HookInput("/")["pattern"] != "NEEDLE" {
+		t.Errorf("Grep: %+v", c)
+	}
+	if c := FromScript("mcp__local__echo", []byte(`{"text":"HI"}`)); c.Kind != "mcpToolCall" || c.Name() != "MCP:echo" || c.HookInput("/")["text"] != "HI" {
+		t.Errorf("an MCP tool: %+v", c)
 	}
 	if req, known := Required("Read"); !known || len(req) != 1 || req[0] != "file_path" {
 		t.Errorf("Read requires %v (known %v)", req, known)
+	}
+}
+
+func TestAGrepOfAPatternAloneRuns(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("NEEDLE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok := Execute(context.Background(), FromScript("Grep", []byte(`{"pattern":"NEEDLE"}`)), dir, nil)
+	if ok.Failed {
+		t.Fatalf("a Grep of a pattern alone failed: %s", ok.ErrorMessage)
+	}
+}
+
+// sr:proves file-tools/cursor
+func TestAStrReplaceEditsTheFileAndTheHooksSeeTheWholeFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := FromScript("Edit", []byte(`{"file_path":"note.txt","old_string":"hi","new_string":"bye"}`))
+	if got := c.HookInput(dir)["content"]; got != "bye\n" {
+		t.Fatalf("the hook's content = %q, want the whole file it makes", got)
+	}
+	r := Execute(context.Background(), c, dir, nil)
+	if r.Failed {
+		t.Fatal(r.ErrorMessage)
+	}
+	s := r.Frame["success"].(map[string]any)
+	if s["diffString"] != "--- a/"+filepath.Join(dir, "note.txt")+"\n+++ b/"+filepath.Join(dir, "note.txt")+"\n@@ -1 +1 @@\n-hi\n+bye" || s["beforeFullFileContent"] != "hi\n" {
+		t.Fatalf("result %+v", s)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "note.txt")); string(b) != "bye\n" {
+		t.Fatalf("file %q", b)
+	}
+	// an old text that is not there once is not recorded: the call fails
+	again := Execute(context.Background(), FromScript("Edit", []byte(`{"file_path":"note.txt","old_string":"zzz","new_string":"x"}`)), dir, nil)
+	if !again.Failed {
+		t.Fatal("an old text that is not in the file must fail the call")
 	}
 }

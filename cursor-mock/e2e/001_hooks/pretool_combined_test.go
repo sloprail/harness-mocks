@@ -44,6 +44,28 @@ func TestEveryHookThatRefusesACallHasItsMessageToldInConfiguredOrder(t *testing.
 	}
 }
 
+// TestSeveralHooksThatBlockOneCallAllRunAndTheirMessagesAreMerged: recorded
+// (runs/pretool-refusal-combined), the four hooks all ran for each call, the
+// blocking ones included, and the failure hook's error_message is neither the
+// last-finishing blocker's nor the first's alone but the messages of both
+// blockers joined in configuration order, a deny and an exit 2 both counting.
+// sr:proves hooks-all-matching-run/cursor
+func TestSeveralHooksThatBlockOneCallAllRunAndTheirMessagesAreMerged(t *testing.T) {
+	got, want := replay(t, "pretool-refusal-combined")
+	conforms(t, got, want)
+
+	for name, o := range map[string]observed{"recorded": want, "mock": got} {
+		for _, cmd := range []string{"echo BOTH", "echo BLOCKFIRST", "echo TWODENY"} {
+			for _, hook := range []string{"first-block", "deny-one", "block-two", "deny-two"} {
+				require.Contains(t, o.results, "ran:"+hook+":preToolUse:<nil>:"+cmd+":<nil>", name+": "+hook+" ran for "+cmd)
+			}
+		}
+		msg, _, ok := failureOf(o, "echo BOTH")
+		require.True(t, ok, name)
+		require.Equal(t, "deny-one-DENY\n\n---\n\nHook blocked with message: block-two-BLOCK", msg, name)
+	}
+}
+
 func countOf(names []string, name string) (n int) {
 	for _, s := range names {
 		if s == name {

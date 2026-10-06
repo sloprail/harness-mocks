@@ -13,6 +13,7 @@ var schema = Schema{Harness: "demo", Tools: []Tool{
 		{Name: "block_until_ms", Type: Integer, Values: []any{0}},
 		{Name: "description", Type: String},
 	}, Answers: map[Kind]string{Missing: "runs/demo-missing"}},
+	{Name: "ext__*", Open: true, Valid: func(n string) bool { return len(n) > len("ext__") }},
 	{Name: "Read", Params: []Param{{Name: "file_path", Type: String, Required: true}}},
 }}
 
@@ -83,4 +84,19 @@ func TestUngroundedFindsWhatNoRecordingShows(t *testing.T) {
 	if !strings.Contains(strings.Join(bad, "\n"), "a recorded call of Shell") {
 		t.Errorf("a recorded call the schema refuses is not reported: %v", bad)
 	}
+}
+
+func TestAPrefixToolTakesAnyNameWithThePrefixAndAnyArguments(t *testing.T) {
+	if _, err := check("ext__server__tool", `{"text":"x","n":3}`); err != nil {
+		t.Fatal(err)
+	}
+	_, err := check("ext__server__tool", `[1]`)
+	refusedWith(t, err, WrongType, "not a JSON object")
+	_, err = check("other__server__tool", `{}`)
+	refusedWith(t, err, UnknownTool, "other__server__tool")
+}
+
+func TestAPrefixToolRefusesANameItsValidRuleRefuses(t *testing.T) {
+	_, err := check("ext__", `{}`)
+	refusedWith(t, err, UnknownTool, "ext__")
 }

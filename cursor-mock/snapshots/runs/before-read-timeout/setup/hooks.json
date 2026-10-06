@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/hook.sh" }],
+    "beforeReadFile": [
+      { "command": ".cursor/hooks/slow-read.sh a.txt", "timeout": 1 },
+      { "command": ".cursor/hooks/slow-read.sh b.txt", "timeout": 1, "failClosed": true }
+    ],
+    "postToolUse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/hook.sh" }]
+  }
+}

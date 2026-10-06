@@ -22,3 +22,14 @@ func ShellRefusal(message string) (failure, result string) {
 		"\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\n" + workaroundNote
 	return text, text
 }
+
+// ReadRefusal is how a file read refused at beforeReadFile is reported: one
+// text, for the failure hook's error_message and the tool's result alike
+// (recorded: runs/before-read-refusal).
+//
+// sr:docs https://cursor.com/docs/hooks#beforereadfile
+func ReadRefusal(message string) (failure, result string) {
+	text := "File read was blocked by a hook: " + message +
+		"\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\n" + workaroundNote
+	return text, text
+}

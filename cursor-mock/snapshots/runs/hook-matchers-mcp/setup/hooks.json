@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": ".cursor/hooks/ran.sh start" }],
+    "preToolUse": [
+      { "command": ".cursor/hooks/ran.sh pre-mcp-echo", "matcher": "MCP:echo" },
+      { "command": ".cursor/hooks/ran.sh pre-mcp-other", "matcher": "MCP:other" },
+      { "command": ".cursor/hooks/ran.sh pre-Shell", "matcher": "Shell" },
+      { "command": ".cursor/hooks/ran.sh pre-all" }
+    ],
+    "postToolUse": [
+      { "command": ".cursor/hooks/ran.sh post-mcp-echo", "matcher": "MCP:echo" },
+      { "command": ".cursor/hooks/ran.sh post-all" }
+    ],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/ran.sh fail-all" }]
+  }
+}

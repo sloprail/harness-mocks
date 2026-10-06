@@ -3,6 +3,7 @@ package hooks
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ func TestInterpretByExitStatusAndOutput(t *testing.T) {
 		{"json allow", PreToolUse, out(0, `{"permission":"allow"}`, ""), Decision{Permission: "allow"}},
 		{"text blocks", BeforeShellExecution, out(0, "not json", ""), Decision{Permission: "deny", Message: invalid}},
 		{"unknown permission blocks", PreToolUse, out(0, `{"permission":"maybe"}`, ""), Decision{Permission: "deny", Message: invalid}},
+		{"unknown permission on a read is worded apart (recorded: runs/before-read-refusal)", BeforeReadFile, out(0, `{"permission":"maybe"}`, ""), Decision{Permission: "deny", Message: `Hook "h.sh" returned an invalid response for this hook step. The command was blocked for safety.`}},
 		{"a hook on another event is not read", PostToolUse, out(0, "not json", ""), Decision{}},
 		{"a command that did not start fails open", PreToolUse, corehooks.Outcome{Exit: -1}, Decision{}},
 	} {
@@ -65,7 +67,6 @@ func TestAFailClosedHookBlocksOnAnyFailure(t *testing.T) {
 // Recorded (runs/pretool-refusal-combined): hooks that refuse one call, by exit
 // status or by output, all have their messages told, in the order the hooks are
 // configured in, separated by a blank line, a rule and a blank line.
-// sr:proves pretooluse-refusal/cursor
 func TestRefusalAnyRefusingHookRefusesAndEveryMessageIsTold(t *testing.T) {
 	deny := Decision{Permission: "deny", Message: "json says no"}
 	block := Decision{Permission: "deny", Blocked: true, Message: "exit says no"}
@@ -104,7 +105,7 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".cursor", "hooks.json"), []byte(conf), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c, err := Load(dir)
+	c, err := Load(dir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,12 +115,11 @@ func TestLoadReadsEntriesPerEventInOrder(t *testing.T) {
 	if got := c.Entries(SessionStart); len(got) != 0 {
 		t.Errorf("an event with no hooks has entries: %v", got)
 	}
-	if empty, err := Load(t.TempDir()); err != nil || len(empty.Entries(PreToolUse)) != 0 {
+	if empty, err := Load(t.TempDir(), ""); err != nil || len(empty.Entries(PreToolUse)) != 0 {
 		t.Errorf("no hooks.json is no hooks: %v %v", empty, err)
 	}
 }
 
-// sr:proves hook-timeout/cursor
 func TestAHookThatTimedOutIsIgnoredUnlessItFailsClosed(t *testing.T) {
 	timedOut := corehooks.Outcome{Started: true, Exit: -1, TimedOut: true, Timeout: time.Second, Stdout: `{"permission":"deny"}`}
 	if got := Interpret(BeforeShellExecution, Entry{Command: "h.sh", Timeout: time.Second}, timedOut); got != (Decision{}) {
@@ -141,5 +141,18 @@ func TestRefusalWording(t *testing.T) {
 	want := "Command execution was blocked by a hook: msg\n\nTo view or modify configured hooks, go to Cursor Settings > Hooks.\n\nAgent note: Do not suggest workarounds to the blocked tool."
 	if failure != want || result != want {
 		t.Errorf("ShellRefusal = %q %q", failure, result)
+	}
+}
+
+// A call's frame names the event the context came from and holds every hook's
+// text, set apart by a rule; no context is an empty list.
+func TestContextsJoinsTheHooksTextsForTheEvent(t *testing.T) {
+	got := Contexts(PostToolUse, []Decision{{Context: "P1"}, {}, {Context: "P2"}})
+	want := []any{map[string]any{"hookEventName": "postToolUse", "content": "P1\n\n---\n\nP2"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if Contexts(PostToolUse, []Decision{{}}) != nil {
+		t.Fatal("no context must be none")
 	}
 }

@@ -168,7 +168,9 @@ printf '%s\n' '{"type":"assistant","message":{"role":"assistant","content":[{"ty
 	for _, f := range frames {
 		if tc, ok := f["tool_call"].(map[string]any); ok {
 			for k := range tc {
-				kinds = append(kinds, f["subtype"].(string)+"/"+k)
+				if strings.HasSuffix(k, "ToolCall") { // the call itself, not its envelope
+					kinds = append(kinds, f["subtype"].(string)+"/"+k)
+				}
 			}
 		}
 	}

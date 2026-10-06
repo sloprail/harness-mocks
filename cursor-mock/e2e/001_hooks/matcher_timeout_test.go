@@ -91,3 +91,22 @@ func TestATimedOutHookThatFailsClosedBlocksTheCommand(t *testing.T) {
 	require.Contains(t, msg, "Hook script timed out after 1000ms")
 	require.Contains(t, msg, "configured to fail closed")
 }
+
+// TestABeforeReadFileHookIsMatchedOnTheToolName: the docs say a beforeReadFile
+// hook is matched against the tool, Read (https://cursor.com/docs/hooks#matcher-configuration);
+// the recording of it is runs/hook-matchers-task-read (TestAMatcherIsTestedAgainstTask...);
+// this drives the mock on its own: the hook whose matcher is Read runs for a
+// Read, the one whose matcher is Shell does not.
+func TestABeforeReadFileHookIsMatchedOnTheToolName(t *testing.T) {
+	log := `#!/bin/sh
+cat >/dev/null
+echo "$0" >>"$HOOK_LOG"
+`
+	r := runTools(t, `{"version":1,"hooks":{"beforeReadFile":[{"command":".cursor/hooks/on-read.sh","matcher":"Read"},{"command":".cursor/hooks/on-shell.sh","matcher":"Shell"}]}}`,
+		map[string]string{"on-read.sh": log, "on-shell.sh": log},
+		map[string]string{"note.txt": "hi\n"},
+		map[string]any{"name": "Read", "input": map[string]any{"file_path": "note.txt"}})
+	got := r.logged(t)
+	require.Contains(t, got, "on-read.sh")
+	require.NotContains(t, got, "on-shell.sh")
+}

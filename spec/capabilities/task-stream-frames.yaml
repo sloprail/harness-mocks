@@ -45,8 +45,7 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock runs no sub-agent, so a Task call is answered as an error
-          rather than with the sub-agent's reply, and it has no await tool: the
-          notification frame of a background command follows the end of the
-          turn it ran in (as runs/task-notifications-bg shows), where the
-          recording's follows the await the agent made.
+          The mock has no await tool: the notification frame of a background
+          command follows the end of the turn it ran in (as
+          runs/task-notifications-bg shows), where the recording's follows the
+          await the agent made.

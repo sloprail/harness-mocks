@@ -3,13 +3,33 @@ package scenario
 import "encoding/json"
 
 type block struct {
-	Type  string          `json:"type"`
-	Text  string          `json:"text"`
-	ID    string          `json:"id"`
-	Name  string          `json:"name"`
-	Input json.RawMessage `json:"input"`
+	Type     string          `json:"type"`
+	Text     string          `json:"text"`
+	Thinking string          `json:"thinking"`
+	ID       string          `json:"id"`
+	Name     string          `json:"name"`
+	Input    json.RawMessage `json:"input"`
 	// More marks a call that another call of the same script of the model follows.
 	More bool `json:"more"`
+	// fields are the rest of a thinking block: what the harness says of the model
+	// that thought, which the core does not read.
+	fields map[string]json.RawMessage
+}
+
+// UnmarshalJSON reads a block, keeping the other keys of a thinking block.
+func (b *block) UnmarshalJSON(data []byte) error {
+	type plain block
+	if err := json.Unmarshal(data, (*plain)(b)); err != nil {
+		return err
+	}
+	if b.Type == "thinking" {
+		if err := json.Unmarshal(data, &b.fields); err != nil {
+			return err
+		}
+		delete(b.fields, "type")
+		delete(b.fields, "thinking")
+	}
+	return nil
 }
 
 type line struct {
@@ -53,6 +73,10 @@ func (t *Turn) read(raw []byte) (done bool, err error) {
 			case "text":
 				if len(t.Tools) == 0 {
 					t.Texts = append(t.Texts, b.Text)
+				}
+			case "thinking":
+				if len(t.Tools) == 0 {
+					t.Thoughts = append(t.Thoughts, Thought{Text: b.Thinking, Fields: b.fields})
 				}
 			case "tool_use":
 				t.Tools = append(t.Tools, ToolUse{ID: b.ID, Name: b.Name, Input: b.Input, More: b.More})

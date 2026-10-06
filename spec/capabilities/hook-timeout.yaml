@@ -52,6 +52,7 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/hook-timeout
       - cursor-mock/snapshots/runs/hook-timeout-early-output
+      - cursor-mock/snapshots/runs/before-read-timeout
     deviations:
       - adr: capability-grounding
         kind: harness-lacks

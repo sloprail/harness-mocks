@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,8 +52,10 @@ func TestATaskCallFiresOnlyPreToolUseAndABackgroundOneIsSeenAsMade(t *testing.T)
 	log := filepath.Join(scratch, "payloads.jsonl")
 	cmd := exec.Command(binary, "-p", "--force", "--trust", "--output-format", "stream-json", "--script", main, "go")
 	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + log}
+	began := time.Now()
 	out, err := cmd.Output()
 	require.NoError(t, err, "the mock failed: %s", out)
+	lasted := time.Since(began)
 
 	// the shell commands a sub-agent runs fire their hooks in its own session,
 	// not the main agent's
@@ -106,4 +109,60 @@ func TestATaskCallFiresOnlyPreToolUseAndABackgroundOneIsSeenAsMade(t *testing.T)
 	}
 	assert.Less(t, mtime(got[1]["session_id"].(string)), mtime(gotShell[0]),
 		"the launching sub-agent ended before the background one it launched")
+
+	// the run lasts until the background sub-agent is done, and all of it is
+	// recorded to its end: its command's hooks and the session's end come after
+	// the launching sub-agent's report, and its end is reported on the stream
+	// (recorded: runs/nested-subagents-background, B's afterShellExecution and
+	// postToolUse, then sessionEnd, and a task_notification naming B)
+	assert.GreaterOrEqual(t, lasted.Milliseconds(), int64(1000), "the run lasts at least the background sub-agent's sleep")
+	order := func(lines []map[string]any, bSession string) (b []string, end int) {
+		end = -1
+		for i, h := range lines {
+			e, _ := h["hook_event_name"].(string)
+			if h["session_id"] == bSession && (e == "beforeShellExecution" || e == "afterShellExecution" || e == "postToolUse") {
+				b = append(b, e)
+			}
+			if e == "sessionEnd" {
+				end = i
+			}
+		}
+		return
+	}
+	recLines := readJSONL(t, filepath.Join(sample, "payloads.jsonl"))
+	recB, recEnd := order(recLines, recShell[0])
+	assert.Equal(t, []string{"beforeShellExecution", "afterShellExecution", "postToolUse"}, recB, "recorded: the background sub-agent's command's hooks")
+	gotLines := readJSONL(t, log)
+	gotB, gotEnd := order(gotLines, gotShell[0])
+	assert.Equal(t, recB, gotB, "mock: the background sub-agent's command's hooks")
+	for name, lines := range map[string][]map[string]any{"recorded": recLines, "mock": gotLines} {
+		bSession, end := recShell[0], recEnd
+		if name == "mock" {
+			bSession, end = gotShell[0], gotEnd
+		}
+		last := -1
+		for i, h := range lines {
+			if h["session_id"] == bSession && h["hook_event_name"] == "postToolUse" {
+				last = i
+			}
+		}
+		assert.Greater(t, end, last, name+": sessionEnd comes after the background sub-agent's last hook")
+	}
+	notes := func(frames []map[string]any, b string) (n int) {
+		for _, f := range frames {
+			if f["subtype"] == "task_notification" && f["task_id"] == b && f["status"] == "success" {
+				n++
+			}
+		}
+		return
+	}
+	recStream := readJSONL(t, filepath.Join(sample, "stream.jsonl"))
+	assert.Equal(t, 1, notes(recStream, recShell[0]), "recorded: one task_notification naming the background sub-agent")
+	assert.Equal(t, 1, notes(readJSONLText(t, string(out)), gotShell[0]), "mock: the same")
+	files, err := filepath.Glob(filepath.Join(home, ".cursor", "projects", "*", "agent-transcripts", gotShell[0], "*.jsonl"))
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	b, err := os.ReadFile(files[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "LEAF", "the background sub-agent's reply is in its transcript")
 }
