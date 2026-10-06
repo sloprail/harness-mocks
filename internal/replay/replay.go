@@ -47,6 +47,7 @@ type Agent struct {
 	Calls         []Call
 	Final         string
 	FinalThinking *Thinking // what the model thought before its final answer, when recorded
+	ID            string    // the agent's own id, when the recording names it (a sub-agent's conversation)
 }
 
 // Recording is a recorded run in unified form.
