@@ -28,14 +28,14 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 	}
 	return rp.Rules{
 		DropKeys: []string{
-			"uuid", "request_id", "end_time", // ids and times that differ in every run
+			"uuid", "request_id", // ids that differ in every run
 			"usage", "modelUsage", "total_cost_usd", "duration_ms", "duration_api_ms", // the model's cost: the mock has no model
 			"signature",                                                                                                                 // the model's thinking, signed
 			"first_content_frame_ms", "ttft_ms", "ttft_stream_ms", "time_to_request_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
 		},
 		// a sub-agent's spend and the model id its alias resolved to: there in both, their values the run's own
-		// and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
-		MaskKeys: []string{"totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
+		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
+		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{

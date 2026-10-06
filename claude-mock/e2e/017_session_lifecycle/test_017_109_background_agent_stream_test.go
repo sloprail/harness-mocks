@@ -181,7 +181,9 @@ func TestT017_112_AFailedBackgroundShellIsReportedFailed(t *testing.T) {
 		for _, f := range frames {
 			switch f["subtype"] {
 			case "task_updated":
-				out = append(out, "updated:"+f["patch"].(map[string]any)["status"].(string))
+				patch := f["patch"].(map[string]any)
+				assert.Contains(t, patch, "end_time", "the patch says when the task ended")
+				out = append(out, "updated:"+patch["status"].(string))
 			case "task_notification":
 				out = append(out, f["status"].(string)+":"+f["summary"].(string))
 			}
