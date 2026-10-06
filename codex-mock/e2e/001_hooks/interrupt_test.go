@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // interruptingWriter is a run's stdout that sends the run SIGINT when a command has started.
@@ -172,4 +173,33 @@ func TestInterruptHooksAreNotCutShortByTheSessionEndLimit(t *testing.T) {
 	})
 	assert.Equal(t, 1, got.Code)
 	assert.Equal(t, want, done(got.hookLog()), "the mock's")
+}
+
+// An Interrupt hook whose timeout is over the 3 seconds Interrupt hooks may have is clamped, and Codex
+// warns once per such hook, naming the hooks file; hooks with none set, or 3 or less, draw no warning
+// (recorded: runs/interrupt-hook-timeout, whose hook of 10 seconds drew the one warning).
+// sr:proves hook-timeout/codex
+func TestAnInterruptHookTimeoutOverThreeSecondsIsClampedWithAWarning(t *testing.T) {
+	clamps := func(stream string) (n int) {
+		for _, e := range jsonLines(stream) {
+			if item, _ := e["item"].(map[string]any); item["type"] == "error" && strings.Contains(fmt.Sprint(item["message"]), "clamping Interrupt hook timeout to 3s in ") {
+				n++
+			}
+		}
+		return n
+	}
+	rec := loadRecording(t, "interrupt-hook-timeout")
+	assert.Equal(t, 1, clamps(readFile(t, filepath.Join(rec.sample, "stream.jsonl"))), "recorded: one warning, for the hook of 10")
+	for name, tc := range map[string]struct {
+		timeouts string
+		want     int
+	}{"none and 3": {`{"type":"command","command":"true"},{"type":"command","command":"true","timeout":3}`, 0},
+		"10":          {`{"type":"command","command":"true","timeout":10}`, 1},
+		"10, 4 and 1": {`{"type":"command","command":"true","timeout":10},{"type":"command","command":"true","timeout":4},{"type":"command","command":"true","timeout":1}`, 2}} {
+		t.Run(name, func(t *testing.T) {
+			got := execMock(t, scenario{HooksJSON: `{"hooks":{"Interrupt":[{"hooks":[` + tc.timeouts + `]}]}}`, Script: callThenResult, Prompt: "go", Env: withCalls(t, "true"), BypassTrust: true})
+			require.Equal(t, 0, got.Code, got.Stderr)
+			assert.Equal(t, tc.want, clamps(got.Stdout))
+		})
+	}
 }
