@@ -47,6 +47,7 @@ func runSubagentStop(t *testing.T, name string) (recorded, got []map[string]any)
 // continue:false of one SubagentStop hook takes precedence over another's block: the
 // sub-agent is not continued, and both hooks ran (recorded: runs/subagent-stop-continue-false).
 // sr:proves hook-exit-code-semantics/codex
+// sr:proves subagent-lifecycle-hooks/codex
 func TestASubagentStopContinueFalseBeatsAnotherHooksBlock(t *testing.T) {
 	recorded, got := runSubagentStop(t, "subagent-stop-continue-false")
 	assert.Equal(t, hookLabels(recorded), hookLabels(got))
@@ -56,6 +57,7 @@ func TestASubagentStopContinueFalseBeatsAnotherHooksBlock(t *testing.T) {
 // Plain text on stdout with exit 0 is invalid for SubagentStop: it is ignored and the
 // sub-agent stops (recorded: runs/subagent-stop-plain-text).
 // sr:proves hook-exit-code-semantics/codex
+// sr:proves subagent-lifecycle-hooks/codex
 func TestASubagentStopPlainTextIsIgnored(t *testing.T) {
 	recorded, got := runSubagentStop(t, "subagent-stop-plain-text")
 	assert.Equal(t, hookLabels(recorded), hookLabels(got))
