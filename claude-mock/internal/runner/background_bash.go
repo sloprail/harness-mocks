@@ -71,7 +71,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	}
 	task := tasks.NewTask(tasks.Command, id)
 	task.ToolUseID, task.Owner, task.Description, task.Command, task.OutputFile = toolUseID, cfg.AgentID, desc, in.Command, outFile
-	task.Meta = taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true}
+	task.Meta = taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true, OwnedBySubagent: cfg.AgentID != ""}
 	frames := frameObserver{cfg}
 	if err := b.StartCommand(task, tasks.CommandSpec{
 		Argv: []string{"/bin/sh", "-c", in.Command}, Dir: cfg.Cwd,

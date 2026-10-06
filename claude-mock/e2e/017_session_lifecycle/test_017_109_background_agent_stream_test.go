@@ -204,3 +204,31 @@ func TestT017_112_AFailedBackgroundShellIsReportedFailed(t *testing.T) {
 	require.Equal(t, 0, code, out)
 	assert.Equal(t, want, summaries(streamFrames(t, out)))
 }
+
+// startedOwnedBySubagent is the owned_by_subagent flag of each local_bash task_started frame, in order.
+func startedOwnedBySubagent(frames []map[string]any) (out []any) {
+	for _, f := range frames {
+		if f["subtype"] == "task_started" && f["task_type"] == "local_bash" {
+			out = append(out, f["owned_by_subagent"])
+		}
+	}
+	return out
+}
+
+// TestT017_117_ABackgroundShellOfASubagentIsMarkedOwned: the task_started of a background Bash that a
+// sub-agent launched says owned_by_subagent, which the main thread's own does not (recording
+// fg-subagent-bash).
+// sr:proves task-stream-frames/claude
+func TestT017_117_ABackgroundShellOfASubagentIsMarkedOwned(t *testing.T) {
+	data, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/fg-subagent-bash/samples/*/stream.jsonl"))
+	require.NoError(t, err)
+	require.Equal(t, []any{true}, startedOwnedBySubagent(streamFrames(t, string(data))), "recorded")
+
+	dir := t.TempDir()
+	sub := script(t, dir, "sub", toolUse("bg1", "Bash", `{"command":"sleep 30","description":"bgsleep","run_in_background":true}`))
+	orch := script(t, dir, "orch", toolUse("ag1", "Agent", `{"prompt":"p","description":"d","script":"`+sub+`"}`))
+	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "os-1", "--project-dir", dir,
+		"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "go")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, []any{true}, startedOwnedBySubagent(streamFrames(t, out)))
+}
