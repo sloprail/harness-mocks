@@ -62,7 +62,7 @@ fi
 `), 0o755))
 	cmd := exec.Command(binary, "-p", "--force", "--trust", "--output-format", "stream-json", "--script", script, "go")
 	cmd.Dir, cmd.Env = t.TempDir(), []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir()}
-	out, err := cmd.Output()
-	require.NoError(t, err, string(out))
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "a refusal of something not modeled fails the run")
 	require.Contains(t, string(out), "an MCP tool call is modeled only with --approve-mcps")
 }

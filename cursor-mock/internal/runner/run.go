@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -16,6 +17,9 @@ import (
 
 // session is one run's state, and the harness side (turnloop.Host) of its turn.
 type session struct {
+	// refusal is shared by the run's sessions, a sub-agent's too: the first
+	// "not modeled" refusal of a call in any of them ends the run with that error.
+	refusal *refusal
 	cfg     Config
 	id      string
 	tr      *transcript
@@ -88,7 +92,9 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID()}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID(), refusal: &refusal{cancel: cancel}}
 	first := s.requestID // the result frame names the run's first request, whatever turns follow
 	if s.id == "" {
 		s.id = coresession.NewID()
@@ -113,6 +119,9 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
 	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
+	if msg := s.refusal.message(); msg != "" { // a refusal of something not modeled fails the run, wherever it was made
+		return errors.New(msg)
+	}
 	s.named = true
 	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
