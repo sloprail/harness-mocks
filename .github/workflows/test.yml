@@ -41,9 +41,12 @@ jobs:
           fi
       - run: go test -count=1 ./tools/capcells/ ./tools/harness-bin/ ./tools/repoguard/
 
+  # The e2e jobs run on macOS: the recordings the replay packages (claude-mock/e2e/018_replay,
+  # cursor-mock/e2e/003_replay, codex-mock/e2e/002_replay) replay were captured on macOS, and a
+  # recorded command's output (BSD `ls` vs GNU `ls`) is the host's.
   e2e:
     name: e2e tests
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -69,16 +72,14 @@ jobs:
 
   codex-e2e:
     name: codex-mock e2e tests
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
-      # the recorded runs name zsh as the shell a command runs by, and the mock runs it by that shell
-      - name: zsh
-        run: sudo apt-get install -y zsh
+      # the recorded runs name zsh as the shell a command runs by: macOS ships it
       - run: make -C codex-mock test-e2e
 
   cursor-unit:
@@ -94,7 +95,7 @@ jobs:
 
   cursor-e2e:
     name: cursor-mock e2e tests
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -103,7 +104,7 @@ jobs:
           cache: true
       # the e2e suite replays recorded runs, whose hook scripts use jq
       - name: jq
-        run: sudo apt-get install -y jq
+        run: command -v jq >/dev/null || brew install jq
       - run: make -C cursor-mock test-e2e
 
   # The e2e suites take minutes, so -count=3 in one job would triple the wall time. Instead the
@@ -111,7 +112,7 @@ jobs:
   # parallel on separate runners: three runs of every e2e test under CI load for the same wall time.
   e2e-repeat:
     name: e2e repeat (${{ matrix.mock }}, run ${{ matrix.run }} of 3)
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
@@ -125,10 +126,8 @@ jobs:
           cache: true
       # the cursor and codex suites replay recorded runs, whose hook scripts use jq
       - name: jq
-        run: sudo apt-get install -y jq
-      # the codex suite's recorded runs name zsh as the shell a command runs by
-      - name: zsh
-        run: sudo apt-get install -y zsh
+        run: command -v jq >/dev/null || brew install jq
+      # the codex suite's recorded runs name zsh as the shell a command runs by: macOS ships it
       # the same commands as each mock's Makefile test-e2e (race build, same environment), with
       # -count=1 only: the Makefile pins it, and each replica is one more run of the suite
       - name: e2e
