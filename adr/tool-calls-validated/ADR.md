@@ -13,8 +13,5 @@ script or a wrong recording pass.
 
 ## Decision
 
-- Every tool call a scenario script asks `claude-mock`, `codex-mock` or
-  `cursor-mock` to make is validated by the core (`internal/toolspec`) before the
-  mock plays it, in replays and in ordinary runs alike.
-- A call that fails validation is refused as `adr/fail-fast-unimplemented` says:
-  loudly, with an error that names it.
+- A mock validates every tool call its scenario script asks it to make before it
+  plays it, in replays and in ordinary runs alike.
