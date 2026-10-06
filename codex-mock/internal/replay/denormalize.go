@@ -21,8 +21,10 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
-	// Flags are run options the mock is given (--ephemeral).
+	// Flags are run options the mock is given (--ephemeral, -c agents.max_depth=N, -C dir).
 	Flags []string
+	// ProjectHooksJSON is the project layer's hooks, written to <repo>/.codex/hooks.json.
+	ProjectHooksJSON string
 	// Interrupt is a run the user interrupted: the mock is sent SIGINT once its last command has started.
 	Interrupt bool
 	// Then are the later runs of the harness (a resume, a fork), each with its own script.
@@ -86,14 +88,15 @@ func Denormalize(rec core.Recording) Scenario {
 		}
 	}
 	return Scenario{
-		HooksJSON: rec.Setup["hooks.json"],
-		Files:     files,
-		Scripts:   scripts,
-		Script:    scriptFor("main", 0, calls, rec.Agent.Final, false, mainGates[len(calls)]),
-		Then:      thenScenario(rec),
-		Prompt:    rec.Prompt,
-		Flags:     strings.Fields(rec.Setup["flags"]),
-		Interrupt: rec.Agent.Interrupted,
+		HooksJSON:        rec.Setup["hooks.json"],
+		Files:            files,
+		Scripts:          scripts,
+		Script:           scriptFor("main", 0, calls, rec.Agent.Final, false, mainGates[len(calls)]),
+		Then:             thenScenario(rec),
+		Prompt:           rec.Prompt,
+		Flags:            strings.Fields(rec.Setup["flags"]),
+		ProjectHooksJSON: rec.Setup["project-hooks.json"],
+		Interrupt:        rec.Agent.Interrupted,
 	}
 }
 

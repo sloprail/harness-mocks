@@ -38,16 +38,15 @@ func stepSpecs(setup string) []stepSpec {
 	return specs
 }
 
-// setupFileOK is whether the adapter installs the setup file.
-// The one run option installed is a token limit that makes the harness compact the session: the mock
-// has no tokens, so the script compacts where the harness did (the rollout's compacted records).
+// setupFileOK is whether the adapter installs the setup file: the run's hooks and prompt, its later
+// steps, a project layer's hooks, and run options it can give the mock (args).
 func setupFileOK(setup, name string) bool {
 	if name == "args" {
-		a := strings.TrimSpace(readFile(filepath.Join(setup, name)))
-		return a == "-c\nmodel_auto_compact_token_limit=3000" || a == ephemeralFlag
+		_, err := runFlags(readFile(filepath.Join(setup, name)))
+		return err == nil
 	}
 	// interrupt-after: the run was sent SIGINT; the replay sends it when the command has started (interrupt.go)
-	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || name == "interrupt-after" || stepFile.MatchString(name)
+	return name == "hooks.json" || name == "hook.sh" || name == "prompt.txt" || name == "project-hooks.json" || name == "interrupt-after" || stepFile.MatchString(name)
 }
 
 // threadsOf are the threads the stream starts, in order: the thread each run of the harness

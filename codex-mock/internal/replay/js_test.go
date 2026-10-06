@@ -138,7 +138,7 @@ func TestScriptKeepsRecordingAfterAChainAndInBinaryOperands(t *testing.T) {
 func TestUnifyRefusesWhatItCannotCarry(t *testing.T) {
 	for name, opts := range map[string]map[string]any{
 		"a number that is not finite": {"max_output_tokens": number{math.Inf(1)}},
-		"another working directory":   {"workdir": "<RUN>/.codex"},
+		"another working directory":   {"workdir": "/elsewhere"},
 	} {
 		in := map[string]any{"cmd": "a"}
 		for k, v := range opts {

@@ -13,7 +13,7 @@ const ephemeralFlag = "--ephemeral"
 
 // ephemeral is whether the run was made with --ephemeral: it leaves no rollout.
 func ephemeral(setup string) bool {
-	return strings.TrimSpace(readFile(filepath.Join(setup, "args"))) == ephemeralFlag
+	return strings.Contains(" "+strings.Join(strings.Fields(readFile(filepath.Join(setup, "args"))), " ")+" ", " "+ephemeralFlag+" ")
 }
 
 // loadEphemeral reads a run that kept no rollout. What the model did is only what the event stream
@@ -48,7 +48,7 @@ func loadEphemeral(runDir, setup, sample string) (core.Recording, error) {
 		Setup: map[string]string{
 			"hooks.json": readFile(filepath.Join(setup, "hooks.json")),
 			"hook.sh":    readFile(filepath.Join(setup, "hook.sh")),
-			"flags":      ephemeralFlag,
+			"flags":      flagsOf(setup),
 		},
 		Agent: core.Agent{Calls: calls, Final: final},
 	}, nil

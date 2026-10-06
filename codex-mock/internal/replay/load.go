@@ -19,9 +19,7 @@ func unbuildable(err error) error { return &core.Unbuildable{Reason: err.Error()
 // the command line every replayable recording was made with; one made another way is not replayed.
 const standardCommand = "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna"
 
-// Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the unified form: the
-// main agent's calls with the sub-agents it spawned attached. An *Unbuildable says what the
-// adapter cannot reproduce.
+// Load reads the recorded run in runDir into the unified form; an *Unbuildable says what cannot be reproduced.
 func (Adapter) Load(runDir string) (core.Recording, error) {
 	if fi, err := os.Stat(runDir); err != nil || !fi.IsDir() {
 		return core.Recording{}, fmt.Errorf("%s is not a recorded run", runDir)
@@ -36,8 +34,8 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	}
 	entries, _ := os.ReadDir(setup)
 	for _, e := range entries {
-		if n := e.Name(); !setupFileOK(setup, n) {
-			return core.Recording{}, unbuildable(fmt.Errorf("the setup has %s, which the adapter does not install", n))
+		if !setupFileOK(setup, e.Name()) {
+			return core.Recording{}, unbuildable(fmt.Errorf("the setup has %s, which the adapter does not install", e.Name()))
 		}
 	}
 	if sample == "" {
@@ -112,8 +110,10 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		Dir:    runDir,
 		Prompt: specs[0].prompt,
 		Setup: map[string]string{
-			"hooks.json": readFile(filepath.Join(setup, "hooks.json")),
-			"hook.sh":    readFile(filepath.Join(setup, "hook.sh")),
+			"hooks.json":         readFile(filepath.Join(setup, "hooks.json")),
+			"hook.sh":            readFile(filepath.Join(setup, "hook.sh")),
+			"project-hooks.json": readFile(filepath.Join(setup, "project-hooks.json")),
+			"flags":              flagsOf(setup),
 		},
 		Agent: agent,
 		Then:  then,

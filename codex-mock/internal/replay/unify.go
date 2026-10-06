@@ -3,6 +3,7 @@ package replay
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -35,7 +36,7 @@ func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 			if k == "cmd" || k == "yield_time_ms" {
 				continue
 			}
-			if k == "workdir" && v != "<RUN>" {
+			if wd, _ := v.(string); k == "workdir" && wd != "<RUN>" && !strings.HasPrefix(wd, "<RUN>/") { // the run's directory, or one under it a -C named
 				return core.Call{}, fmt.Errorf("an exec_command run in %v: the mock runs in the run's directory only", v)
 			}
 			sv, ok := scalar(v)

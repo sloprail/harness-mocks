@@ -81,6 +81,14 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 	}
+	if s.ProjectHooksJSON != "" {
+		if err := os.MkdirAll(filepath.Join(repo, ".codex"), 0o755); err != nil {
+			return want, got, err
+		}
+		if err := os.WriteFile(filepath.Join(repo, ".codex", "hooks.json"), []byte(s.ProjectHooksJSON), 0o644); err != nil {
+			return want, got, err
+		}
+	}
 	for name, body := range s.Files {
 		if err := os.WriteFile(filepath.Join(repo, name), []byte(inRepo(name, body, repo)), 0o755); err != nil {
 			return want, got, err
