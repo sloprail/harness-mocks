@@ -86,6 +86,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		os.Setenv("A10N_MOCK_SYSTEM_PROMPT", systemPrompt) //nolint:errcheck
 	}
 	name, _ := cmd.Flags().GetString("name")
+	tools, restrictTools := toolsFlag(cmd)
 	prompt := strings.Join(args, " ")
 	// Use projectDir as cwd when explicitly provided — it is the directory the
 	// simulated claude session runs in (the same as what real claude uses).
@@ -111,6 +112,8 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		ResumeLookup:            lookedUp(cmd),
 		ForkFrom:                forkFrom,
 		Name:                    name,
+		Tools:                   tools,
+		RestrictTools:           restrictTools,
 		Prompt:                  prompt,
 		Cwd:                     cwd,
 		ProjectDir:              projectDir,

@@ -50,6 +50,8 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		sessionFile:             s.sessionFile,
 		spawnDepth:              s.spawnDepth,
 		SpawnLimit:              s.parent.SpawnLimit,
+		Tools:                   s.parent.Tools,
+		RestrictTools:           s.parent.RestrictTools,
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
 	if !s.announced { // a re-run after a blocking SubagentStop streams no prompt of its own (recorded: snapshots/runs/hookmix)

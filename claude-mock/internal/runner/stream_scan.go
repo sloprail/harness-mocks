@@ -63,12 +63,18 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
+				var streamed []byte
+				line, streamed = withToolDefaults(line)
+				if cfg.AgentID != "" { // only the main agent's frames carry the inputs as the model sent them
+					streamed = line
+				}
+				_, _, toolInput = extractFirstToolUseWithID(line)
 				// The tool_use is written BEFORE the PreToolUse hook fires (the hook's
 				// attachment follows it): it is part of the trajectory whatever the hook decides.
 				if cfg.AgentID != "" {
 					cfg.progress(cfg, toolName, toolInput)
 				}
-				writeStreamLine(cfg, line)
+				writeStreamLine(cfg, streamed)
 				tr.persist(line)
 
 				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {

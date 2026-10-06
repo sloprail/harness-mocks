@@ -37,7 +37,9 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
 		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd",
 			// the harness's pid and its messaging secret, as a child's environment names them (a hook's payload): the run's own
-			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN"},
+			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN",
+			// how long a tool took (Glob's durationMs): measured, there in both
+			"durationMs"},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{

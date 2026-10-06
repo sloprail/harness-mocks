@@ -124,8 +124,12 @@ func mockCall(c core.Call) scriptCall {
 	switch c.Tool {
 	case core.ToolSpawn:
 		name = "Agent"
-	case toolRead:
-		name = "Read"
+	case toolRead, toolWrite, toolEdit, toolGlob:
+		for claude, unified := range fileTools {
+			if unified == c.Tool {
+				name = claude
+			}
+		}
 	case toolReply:
 		return scriptCall{Reply: c.Input["text"].(string)}
 	}
