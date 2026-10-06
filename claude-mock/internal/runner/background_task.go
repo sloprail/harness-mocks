@@ -6,6 +6,7 @@ import (
 
 	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 )
 
 // backgroundTasks is a session's background tasks: the core registry, which
@@ -15,6 +16,9 @@ type backgroundTasks struct {
 	*tasks.Registry
 	// stats is the session's count of its sub-agents (the result's subagent_stats).
 	stats subagents.Stats
+	// refused is the first call a scenario script asked for that the mock does not
+	// implement, in any run of the session, a sub-agent's too: it fails the run.
+	refused toolspec.Refusals
 }
 
 func newBackgroundTasks() *backgroundTasks {

@@ -63,6 +63,10 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
+				// a call the mock does not implement ends the run (adr/tool-calls-validated)
+				if _, err := Schema().Check(toolName, toolInput); err != nil {
+					return scanResult{}, err
+				}
 				// Forward the assistant record + append to session BEFORE the hook
 				// fires — real Claude Code writes the tool_use first and the
 				// PreToolUse hook's attachment after it, and the tool_use is part
