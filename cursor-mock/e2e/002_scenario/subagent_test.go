@@ -104,7 +104,8 @@ fi
 `), 0o755))
 	log := filepath.Join(ws, "payloads.jsonl")
 	cmd := exec.Command(binary, "-p", "--force", "--trust", "--output-format", "stream-json", "--script", main, "launch one")
-	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "HOOK_LOG=" + log}
+	home := t.TempDir()
+	cmd.Dir, cmd.Env = ws, []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + log}
 	out, err := cmd.Output()
 	require.NoError(t, err, "%s", out)
 	got := frames(string(out))
@@ -161,6 +162,24 @@ fi
 	assert.Equal(t, wantSuccess["conversationSteps"], gotSuccess["conversationSteps"], "the report is the sub-agent's last words")
 	assert.Contains(t, gotTask["completed"]["result"].(map[string]any)["success"].(map[string]any)["conversationSteps"].([]any)[0].(map[string]any)["assistantMessage"].(map[string]any)["text"], "PINEAPPLE-7")
 	assert.NotEmpty(t, gotSuccess["agentId"])
+	// the result's agent id is the sub-agent's own conversation id, not the id the call's args carry
+	// (recorded: the sub-agent's transcript is named by it, and it differs from args.agentId)
+	recTranscripts, err := filepath.Glob(filepath.Join(sample, "transcript", "*"))
+	require.NoError(t, err)
+	var recIDs []string
+	for _, d := range recTranscripts {
+		recIDs = append(recIDs, filepath.Base(d))
+	}
+	assert.Contains(t, recIDs, wantSuccess["agentId"], "recorded: the result's agentId names the sub-agent's transcript")
+	assert.NotEqual(t, wantArgs["agentId"], wantSuccess["agentId"], "recorded: it differs from the args' agentId")
+	subTranscripts, err := filepath.Glob(filepath.Join(home, ".cursor", "projects", "*", "agent-transcripts", "*"))
+	require.NoError(t, err)
+	var gotIDs []string
+	for _, d := range subTranscripts {
+		gotIDs = append(gotIDs, filepath.Base(d))
+	}
+	assert.Contains(t, gotIDs, gotSuccess["agentId"], "the mock's result agentId names the sub-agent's transcript")
+	assert.NotEqual(t, gotArgs["agentId"], gotSuccess["agentId"], "and differs from the args' agentId")
 	assert.Equal(t, wantSuccess["backgroundReason"], gotSuccess["backgroundReason"])
 	ms, err := strconv.Atoi(gotSuccess["durationMs"].(string))
 	require.NoError(t, err)
