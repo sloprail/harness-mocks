@@ -129,3 +129,11 @@ func TestAnAssistantLineCarriesAGate(t *testing.T) {
 		t.Fatalf("a line with no gate has one: %+v", turn.Gate)
 	}
 }
+
+// A gate with a field it does not have is the script's mistake: the turn is refused, not read leniently.
+func TestAGateWithAnUnknownFieldIsRefused(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' '{"gate":{"ended":[0],"parent_finished":2},"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{}}]}}'`)
+	if _, err := RunTurn(context.Background(), s, dir, environ, Input{}); err == nil || !strings.Contains(err.Error(), "parent_finished") {
+		t.Fatalf("err = %v, want one naming parent_finished", err)
+	}
+}

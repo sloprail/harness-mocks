@@ -67,6 +67,14 @@ type Gate struct {
 	ParentDone    int   `json:"parent_done,omitempty"`
 }
 
+// UnmarshalJSON reads a gate and refuses a field it does not have: a script's mistake is never ignored.
+func (g *Gate) UnmarshalJSON(b []byte) error {
+	type plain Gate
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	return dec.Decode((*plain)(g))
+}
+
 // None reports whether the gate holds nothing back.
 func (g Gate) None() bool { return len(g.Ended) == 0 && g.ParentStarted == 0 && g.ParentDone == 0 }
 
