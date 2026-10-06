@@ -67,6 +67,7 @@ providers:
       - cursor-mock/snapshots/runs/nested-subagents
       - cursor-mock/snapshots/runs/nested-subagents-depth
       - cursor-mock/snapshots/runs/nested-subagents-background
+      - cursor-mock/snapshots/runs/catalogue-search-task
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -83,7 +84,9 @@ providers:
           The statement's three layers and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
           are Claude Code's. Cursor's limit is two layers of sub-agents and has
           no environment variable: a sub-agent of a sub-agent is not offered the Task tool
-          (it said no Task tool is available, runs/nested-subagents-depth),
+          (it searched the tool catalogue, which answered nothing for the Task
+          pattern (runs/catalogue-search-task), and said no Task tool is available,
+          runs/nested-subagents-depth),
           rather than a dispatch ending in an error. The mock answers a Task
           call there as an unknown tool and nests two layers.
       - adr: modeled-surface
