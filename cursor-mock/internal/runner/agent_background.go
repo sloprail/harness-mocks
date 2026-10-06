@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/scenario"
@@ -34,9 +36,10 @@ func startsBackgroundSubagent(tu scenario.ToolUse) (taskInput, bool) {
 //
 // sr:provides background-agent/cursor
 func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) {
+	launched := time.Now()
 	typ, args := s.announceTask(ctx, tu, in)
 	sub := *s
-	sub.id, sub.parent = coresession.NewID(), s
+	sub.id, sub.parent = in.agentID(), s
 	sub.requestID, sub.modelN = coresession.NewID(), 0 // a sub-agent is a model request of its own
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
@@ -66,6 +69,6 @@ func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 		t.Result = strings.Join(sub.texts, "")
 	})
 	s.forward(taskFrame(s.id, tu.ID, "completed", args, map[string]any{"success": map[string]any{
-		"conversationSteps": []any{}, "agentId": sub.id, "isBackground": true, "durationMs": "0",
+		"conversationSteps": []any{}, "agentId": sub.id, "isBackground": true, "durationMs": strconv.FormatInt(max(time.Since(launched).Milliseconds(), 1), 10),
 		"backgroundReason": "SUBAGENT_BACKGROUND_REASON_AGENT_REQUEST"}}))
 }
