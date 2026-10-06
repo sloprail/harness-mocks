@@ -16,6 +16,9 @@ import (
 type Rules struct {
 	// DropKeys are object keys removed wherever they occur (a timestamp, a token count).
 	DropKeys []string
+	// MaskKeys keep the key and replace its value, whatever type, with MaskedValue: the
+	// key is there in both outputs, its value is a measure that differs per run.
+	MaskKeys []string
 	// Scrub rewrites every string value (a path, a pid, a duration).
 	Scrub []Scrub
 	// Rewrite changes the string value of the named key wherever it occurs (a
@@ -27,6 +30,9 @@ type Rules struct {
 	// still do so.
 	IDs []*regexp.Regexp
 }
+
+// MaskedValue stands for the value of a masked key.
+const MaskedValue = "<MASKED>"
 
 // Scrub is one rewrite of the text of a string value.
 type Scrub struct {
@@ -76,6 +82,11 @@ func (c *canon) walk(v any) any {
 			for _, d := range c.r.DropKeys {
 				if k == d {
 					continue next
+				}
+			}
+			for _, m := range c.r.MaskKeys {
+				if k == m {
+					e = MaskedValue
 				}
 			}
 			if fn := c.r.Rewrite[k]; fn != nil {
