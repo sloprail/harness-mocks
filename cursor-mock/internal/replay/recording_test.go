@@ -54,11 +54,10 @@ func TestUnifyRefusesAToolTheMockHasNot(t *testing.T) {
 	}
 }
 
-// The files of a later step are known; a run whose later step has its transcript in
-// a project directory of its own is not replayed.
+// The files of a later step are known.
 func TestLoadRefusesASetupItDoesNotInstall(t *testing.T) {
-	if _, err := (Adapter{}).Load(runDir("session-resume")); err == nil {
-		t.Fatal("a run whose later step runs from another directory has its transcript elsewhere: it is not replayed yet")
+	if _, err := (Adapter{}).Load(runDir("session-resume-unknown")); err != nil {
+		t.Fatal(err)
 	}
 	if !stepFile("then-02-args") || !stepFile("then-10-cwd") || stepFile("then-x-args") || stepFile("prompt.txt") {
 		t.Fatal("a later step's files are then-<NN>-prompt.txt, -args and -cwd")
@@ -254,5 +253,18 @@ func TestLoadReadsTheStepsOfARun(t *testing.T) {
 	}
 	if exits, _ := exitsOf(rec.Setup["exit"]); len(exits) != 3 || exits[2] != 1 {
 		t.Fatalf("exits %v", exits)
+	}
+}
+
+// A run whose later step ran from another directory has a transcript per project
+// folder: each step gets the records of its own directory, and the step that resumed
+// from the workspace begins where the first one ended.
+func TestLoadReadsTheTranscriptsOfEachDirectory(t *testing.T) {
+	rec, err := Adapter{}.Load(runDir("session-resume"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.Later) != 2 || rec.Later[0].Agent.Final != "NONE" || rec.Later[1].Agent.Final != "ORIGINAL-WORD" || rec.Agent.Final != "OK" {
+		t.Fatalf("steps: %+v / %+v", rec.Agent.Final, rec.Later)
 	}
 }

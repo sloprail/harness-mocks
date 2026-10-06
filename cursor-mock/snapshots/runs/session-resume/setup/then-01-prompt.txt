@@ -1,1 +1,1 @@
-Without running any command, reply only with the word the earlier shell command echoed.
+Without using any tool or running any command, reply only with the word the earlier shell command echoed, or only NONE if you cannot tell.

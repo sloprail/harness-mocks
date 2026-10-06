@@ -87,20 +87,21 @@ func (a Adapter) install(work string, rec core.Recording) (layout, error) {
 		path := filepath.Join(scripts, name)
 		files[path], modes[path] = body, 0o755
 	}
-	lines := s.Lines // the records the session's file holds after the steps so far
+	lines := map[string]int{repo: s.Lines} // the records each directory's transcript holds after the steps so far
 	for i, name := range stepNames(rec.Setup) {
 		st := rec.Later[i]
 		flags, err := flagWords(rec.Setup["then-"+name+"-args"], true)
 		if err != nil {
 			return l, err
 		}
+		dir := stepDir(work, repo, rec.Setup, name)
 		after := 0
-		if contains(flags, "--resume") { // a resumed session's file holds what the steps before it said
-			after = lines
+		if contains(flags, "--resume") { // a resumed session's file holds what the steps before it said, there
+			after = lines[dir]
 		}
 		sc := DenormalizeStep(st, i+1, scripts, &Paths{Run: repo, Tmp: work, RunDirname: encode(repo)}, after)
-		lines += sc.Lines
-		step := laterStep{script: filepath.Join(work, fmt.Sprintf("main%d.sh", i+1)), prompt: st.Prompt, dir: stepDir(work, repo, rec.Setup, name)}
+		lines[dir] += sc.Lines
+		step := laterStep{script: filepath.Join(work, fmt.Sprintf("main%d.sh", i+1)), prompt: st.Prompt, dir: dir}
 		files[step.script], modes[step.script] = sc.Script, 0o755
 		for sname, body := range sc.Scripts {
 			path := filepath.Join(scripts, sname)

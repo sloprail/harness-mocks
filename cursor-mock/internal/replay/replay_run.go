@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -68,6 +69,11 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 
 	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
 	rules := Rules(l.repo, work)
+	for _, name := range stepNames(rec.Setup) { // a later step's directory is named in its project folder by the capture's own temp directory
+		if cwd := strings.TrimSpace(rec.Setup["then-"+name+"-cwd"]); cwd != "" {
+			rules.Scrub = append([]core.Scrub{{Re: regexp.MustCompile(`projects/[A-Za-z0-9-]*-` + regexp.QuoteMeta(cwd) + `/`), With: "projects/<PROJECT>-" + cwd + "/"}}, rules.Scrub...)
+		}
+	}
 	wantC, gotC := core.New(rules), core.New(rules)
 	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
 	recExits, _ := exitsOf(rec.Setup["exit"])

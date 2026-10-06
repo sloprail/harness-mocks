@@ -98,14 +98,11 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 		return core.Recording{}, unbuildable("the stream names no session")
 	}
 	dir := filepath.Join(sample, "transcript")
-	records, err := readJSONL(filepath.Join(dir, session, session+".jsonl"))
+	files, err := transcriptsOf(dir, session)
 	if err != nil {
 		return core.Recording{}, err
 	}
-	if len(records) == 0 {
-		return core.Recording{}, unbuildable("no transcript of the main session was recorded: the model's turns are unknown")
-	}
-	agents, err := modelSteps(records, prompts, exits, thoughts[session])
+	agents, err := modelSteps(files, rec.Setup, prompts, exits, thoughts[session])
 	if err != nil {
 		return core.Recording{}, err
 	}
