@@ -11,6 +11,7 @@ var toolTable = map[string]struct {
 	"Shell":  {"shellToolCall", "Shell", []string{"command"}},
 	"Read":   {"readToolCall", "Read", []string{"file_path"}},
 	"Write":  {"editToolCall", "Write", []string{"file_path", "content"}},
+	"Edit":   {"editToolCall", "Write", []string{"file_path", "old_string", "new_string"}},
 	"Grep":   {"grepToolCall", "Grep", []string{"pattern"}},
 	"Delete": {"deleteToolCall", "Delete", []string{"file_path"}},
 	// a sub-agent dispatch, whichever name it goes by (Task is Agent's old name)

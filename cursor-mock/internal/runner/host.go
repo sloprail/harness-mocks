@@ -60,6 +60,9 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 	if s.refusesTaskAtTheLimit(ctx, tu) || s.refusesTaskModel(ctx, tu) {
 		return func() {}
 	}
+	if finish, ok := s.startsHookless(ctx, tu); ok {
+		return finish
+	}
 	if in, ok := startsBackgroundSubagent(tu); ok {
 		return func() { s.launchSubagent(ctx, tu, in) }
 	}
@@ -81,7 +84,7 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 	return func() {
 		if c.Kind == "editToolCall" {
 			path := map[string]any{"file_path": c.Args["path"]}
-			s.runTool(ctx, scenario.ToolUse{ID: tu.ID + "-read", Name: "Read", Input: jsonLine(path)}, true)
+			s.runTool(ctx, scenario.ToolUse{ID: tu.ID, Name: "Read", Input: jsonLine(path)}, true)
 		}
 		s.runTool(ctx, tu, false)
 		s.flushOwed()

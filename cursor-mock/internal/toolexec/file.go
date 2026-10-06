@@ -2,7 +2,9 @@ package toolexec
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,22 +86,82 @@ func read(c Call, dir string) Result {
 // sr:docs https://cursor.com/docs/hooks#afterfileedit
 func write(c Call, dir string) Result {
 	path, content := c.Path(dir), c.str("streamContent")
-	old, _, err := tools.WriteFile(path, content)
+	if c.Replace != nil {
+		var err error
+		if content, err = replaced(c, dir); err != nil {
+			return failed(err.Error(), err.Error())
+		}
+	}
+	old, existed, err := tools.WriteFile(path, content)
 	if err != nil {
 		return failed(err.Error(), err.Error())
 	}
 	before, after := trimShared(old, content)
+	frame := map[string]any{
+		"path": path, "linesAdded": lines(content), "linesRemoved": lines(old),
+		"afterFullFileContent": content, "message": "Wrote contents to " + path,
+	}
+	if c.Replace != nil { // an edit says what the file was and what changed (recorded: runs/file-tools)
+		frame["beforeFullFileContent"], frame["diffString"] = old, diff(path, old, content, true)
+		frame["message"] = "The file " + path + " has been updated."
+	} else if !existed { // a new file's diff is against nothing
+		frame["diffString"] = diff(path, "", content, false)
+	}
 	return Result{
-		Frame: map[string]any{"success": map[string]any{
-			"path": path, "linesAdded": lines(content), "linesRemoved": lines(old),
-			"afterFullFileContent": content, "message": "Wrote contents to " + path,
-		}},
+		Frame: map[string]any{"success": frame},
 		ToolOutput: jsonString(struct {
 			FilePath string `json:"file_path"`
 			Success  bool   `json:"success"`
 		}{path, true}),
 		Edits: []Edit{{OldString: before, NewString: after}},
 	}
+}
+
+// replaced is the file a StrReplace makes: its old text, which must be there
+// once, put by the new.
+func replaced(c Call, dir string) (string, error) {
+	text, err := tools.ReadFile(c.Path(dir))
+	if err != nil {
+		return "", err
+	}
+	if strings.Count(text, c.Replace[0]) != 1 {
+		return "", errors.New("cursor-mock: a StrReplace's old text must be in the file exactly once (other cases are not recorded)")
+	}
+	return strings.Replace(text, c.Replace[0], c.Replace[1], 1), nil
+}
+
+// diff is a file's change as the call reports it: the whole old text out and the
+// whole new text in as one hunk, as recorded for a file made and a one-line
+// edit (runs/file-tools); a change that leaves lines as they were is not
+// recorded, so its diff would differ in its context.
+func diff(path, old, new string, existed bool) string {
+	from := "a/" + path
+	if !existed {
+		from = "/dev/null"
+	}
+	count := func(n int) string {
+		if n == 1 {
+			return ""
+		}
+		return "," + strconv.Itoa(n)
+	}
+	ol, nl := splitLines(old), splitLines(new)
+	var b strings.Builder
+	fmt.Fprintf(&b, "--- %s\n+++ b/%s\n@@ -1%s +1%s @@", from, path, count(len(ol)), count(len(nl)))
+	for _, l := range ol {
+		b.WriteString("\n-" + l)
+	}
+	for _, l := range nl {
+		b.WriteString("\n+" + l)
+	}
+	return b.String()
+}
+
+func splitLines(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Split(strings.TrimSuffix(s, "\n"), "\n")
 }
 
 // trimShared drops the longest common prefix, then the longest common suffix

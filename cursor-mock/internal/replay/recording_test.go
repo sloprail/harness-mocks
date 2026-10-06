@@ -41,11 +41,16 @@ func TestLoadGroupsTheCallsOfOneResponseAndAttachesSubagents(t *testing.T) {
 	}
 }
 
-// What the mock has no tool for is refused, never guessed.
-func TestLoadRefusesATool(t *testing.T) {
-	_, err := Adapter{}.Load(runDir("file-tools"))
-	if u, ok := err.(*Unbuildable); !ok || !strings.Contains(u.Reason, "StrReplace") {
-		t.Fatalf("err = %v, want an Unbuildable naming the tool", err)
+// What the mock has no tool for is refused, never guessed; every tool the
+// recordings hold is mapped (StrReplace, GetDynamicTools and AwaitShell too).
+func TestUnifyRefusesAToolTheMockHasNot(t *testing.T) {
+	if _, err := unify(map[string]any{"name": "Glob", "input": map[string]any{"glob_pattern": "*"}}); err == nil || !strings.Contains(err.Error(), "Glob") {
+		t.Fatalf("err = %v, want one naming the tool", err)
+	}
+	for _, name := range []string{"StrReplace", "GetDynamicTools", "AwaitShell"} {
+		if _, err := unify(map[string]any{"name": name, "input": map[string]any{}}); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
 	}
 }
 
