@@ -16,6 +16,7 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/toolcall"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 )
 
 // A sub-agent whose start fails (its rollout cannot be created) is not told of
@@ -28,7 +29,7 @@ func TestAFailedSubAgentStartFailsTheWaitFast(t *testing.T) {
 	reg := tasks.NewRegistry()
 	defer reg.Shutdown()
 	h := toolHost{state: &state{
-		cfg: Config{CodexHome: notAHome, Cwd: t.TempDir(), Stderr: &stderr}, id: "main",
+		cfg: Config{CodexHome: notAHome, Cwd: t.TempDir(), Stderr: &stderr}, id: "main", home: notAHome, refused: &toolspec.Refusals{},
 		hooks: &hooks.Invoker{}, events: events.New(&bytes.Buffer{}), bg: reg,
 	}}
 	h.startBackground(toolcall.Call{Input: []byte(`{"message":"m"}`)}, `{"agent_id":"sub-1","nickname":"x"}`)

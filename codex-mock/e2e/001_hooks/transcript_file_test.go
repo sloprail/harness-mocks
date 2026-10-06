@@ -166,3 +166,24 @@ func TestAnEphemeralSessionHasNoTranscriptAndItsHooksSayNull(t *testing.T) {
 	cmds, _ := got.commands()
 	assert.Equal(t, []string{"echo one"}, cmds, "the script read the session so far and went on")
 }
+
+// An ephemeral session keeps nothing of its sub-agents either: no rollout is left under the configuration
+// directory for a sub-agent the run spawned, though the sub-agent ran (the session persists as the
+// real harness does for the same flags: adr/session-persistence).
+// sr:proves session-transcript-file/codex
+func TestAnEphemeralSessionKeepsNoSubAgentRollout(t *testing.T) {
+	got := execMock(t, scenario{
+		Files:  map[string]string{"sub.sh": subScript},
+		Script: spawnThenResult, Prompt: "go", Args: []string{"--ephemeral"},
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Contains(t, got.Stdout, "SUB-DONE", "the sub-agent ran")
+	var files []string
+	_ = filepath.Walk(filepath.Join(got.Home, "sessions"), func(p string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			files = append(files, p)
+		}
+		return nil
+	})
+	assert.Empty(t, files, "no rollout is kept, the sub-agent's included")
+}

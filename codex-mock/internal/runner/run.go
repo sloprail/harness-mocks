@@ -31,8 +31,7 @@ type Config struct {
 	Resume string
 	// ForkFrom is the id of the session `exec fork` continues in a new one.
 	ForkFrom string
-	// Ephemeral is --ephemeral: nothing of the session is kept under CODEX_HOME, and its hooks'
-	// payloads name no transcript (transcript_path null; recorded: runs/ephemeral-no-transcript).
+	// Ephemeral is --ephemeral: nothing is kept, transcript_path is null (ephemeral.go).
 	Ephemeral bool
 	// Cwd is the session's working directory.
 	Cwd string
@@ -41,11 +40,9 @@ type Config struct {
 	Model     string
 	// Environ is the environment the mock was started with.
 	Environ []string
-	// JSON prints the event stream on Stdout; otherwise Stdout gets the
-	// agent's final message.
+	// JSON prints the event stream on Stdout; otherwise Stdout gets the agent's final message.
 	JSON bool
-	// BypassHookTrust is --dangerously-bypass-hook-trust: hooks run without
-	// review, and Codex warns of it.
+	// BypassHookTrust is --dangerously-bypass-hook-trust: hooks run without review, with a warning.
 	BypassHookTrust bool
 	Stdout, Stderr  io.Writer
 }
@@ -66,8 +63,10 @@ type state struct {
 	// started it is (nil for the session's own), and spawned the sub-agents this one started
 	// (see subagents.Hold: what a script's gate is read against).
 	prog, parent *subagents.Progress
-	// refused is the run's refusal of a script's call the mock does not implement (validate.go).
+	// refused is the run's refusal of a script's call the mock does not implement (validate.go);
+	// home is where the session's files go (ephemeral.go).
 	refused *toolspec.Refusals
+	home    string
 	spawned *subagents.SpawnLog
 }
 
@@ -97,7 +96,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	s := &state{refused: &toolspec.Refusals{}, prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
+	s := &state{home: home, refused: &toolspec.Refusals{}, prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
 		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
@@ -127,8 +126,7 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}
 	s.events.TurnStarted()
-	last, err := "", error(nil)
-	// Codex honours a start hook's `continue: false` (runs/session-start-continue-false).
+	last, err := "", error(nil) // Codex honours a start hook's `continue: false` (runs/session-start-continue-false)
 	if !corehooks.StartHookEndsTurn(halted, true) {
 		turn, stop := signal.NotifyContext(ctx, os.Interrupt) // a user's Ctrl-C interrupts the turn, not the session
 		last, err = turnloop.Run(turn, turnHost{s}, turnloop.Params{
@@ -140,9 +138,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	s.events.TurnCompleted()
 	s.reapAtExit()
-	// The session ends with the run, for the one reason a non-interactive run has;
-	// what the hook prints is not read.
-	s.hooks.Later.Wait() // what ran in the background is over before the session ends
+	s.hooks.Later.Wait() // the session ends with the run, after what ran in the background; what the hook prints is not read
 	s.hooks.Fire(ctx, hooks.SessionEnd, "other", map[string]any{"reason": "other"})
 	if !cfg.JSON && last != "" {
 		fmt.Fprintln(cfg.Stdout, last)
