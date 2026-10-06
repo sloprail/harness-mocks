@@ -21,6 +21,8 @@ providers:
     runs:
       - codex-mock/snapshots/runs/subagent-lifecycle-hooks
       - codex-mock/snapshots/runs/subagent-start-refused
+      - codex-mock/snapshots/runs/subagent-start-systemmessage
+      - codex-mock/snapshots/runs/subagent-stop-no-message
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -29,14 +31,6 @@ providers:
           the sub-agent's agent_transcript_path and last_assistant_message, and
           no field naming the session's tasks (recorded:
           runs/subagent-lifecycle-hooks), so the mock lists none either.
-      - adr: modeled-surface
-        kind: mock-not-modeled
-        statement: >-
-          The mock reads nothing a SubagentStop hook answers: Codex's docs let
-          it block (decision block, or exit 2) to continue the sub-agent, with
-          continue false taking precedence, none of which the recordings show
-          and the mock does not model. Only the stop hook's firing and payload
-          are modeled.
   cursor:
     supported: false
     reason: >-

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/childenv"
@@ -14,7 +16,9 @@ import (
 	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
+	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -27,6 +31,8 @@ type Config struct {
 	Resume string
 	// ForkFrom is the id of the session `exec fork` continues in a new one.
 	ForkFrom string
+	// Ephemeral is --ephemeral: nothing is kept, transcript_path is null (ephemeral.go).
+	Ephemeral bool
 	// Cwd is the session's working directory.
 	Cwd string
 	// CodexHome holds the user's hooks.json and the session's rollout.
@@ -34,11 +40,9 @@ type Config struct {
 	Model     string
 	// Environ is the environment the mock was started with.
 	Environ []string
-	// JSON prints the event stream on Stdout; otherwise Stdout gets the
-	// agent's final message.
+	// JSON prints the event stream on Stdout; otherwise Stdout gets the agent's final message.
 	JSON bool
-	// BypassHookTrust is --dangerously-bypass-hook-trust: hooks run without
-	// review, and Codex warns of it.
+	// BypassHookTrust is --dangerously-bypass-hook-trust: hooks run without review, with a warning.
 	BypassHookTrust bool
 	Stdout, Stderr  io.Writer
 }
@@ -55,6 +59,15 @@ type state struct {
 	toolEnv []string
 	// bg holds the commands a call left running (see background.go).
 	bg *tasks.Registry
+	// prog is how far this agent is through its tool calls, parent how far the agent that
+	// started it is (nil for the session's own), and spawned the sub-agents this one started
+	// (see subagents.Hold: what a script's gate is read against).
+	prog, parent *subagents.Progress
+	// refused is the run's refusal of a script's call the mock does not implement (validate.go);
+	// home is where the session's files go (ephemeral.go).
+	refused *toolspec.Refusals
+	home    string
+	spawned *subagents.SpawnLog
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
@@ -69,7 +82,12 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot load hooks: %w", err)
 	}
-	id, rollout, start, err := session.Start(cfg.CodexHome, cfg.Cwd, cfg.Resume, cfg.ForkFrom, time.Now())
+	home, cleanup, err := sessionHome(cfg)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	id, rollout, start, err := session.Start(home, cfg.Cwd, cfg.Resume, cfg.ForkFrom, time.Now())
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot open the session file: %w", err)
 	}
@@ -78,12 +96,12 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	s := &state{cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
+	s := &state{home: home, refused: &toolspec.Refusals{}, prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
 		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
-		Common: hooks.Common{SessionID: id, TranscriptPath: rollout.Path, Cwd: cfg.Cwd, Model: cfg.Model,
-			PermissionMode: "bypassPermissions"}}
+		Common: hooks.Common{SessionID: id, TranscriptPath: transcriptOf(cfg, rollout), Cwd: cfg.Cwd, Model: cfg.Model,
+			PermissionMode: "bypassPermissions"}, Later: &corehooks.Later{}, Step: s.prog.Started}
 	if !cfg.JSON {
 		s.events.Progress(cfg.Stderr, events.Header{Version: childenv.Version, Cwd: cfg.Cwd, Model: cfg.Model, Prompt: cfg.Prompt})
 	}
@@ -96,6 +114,9 @@ func Run(ctx context.Context, cfg Config) error {
 	for _, f := range hooks.AsyncSessionEndFiles(cfg.CodexHome, cfg.Cwd) {
 		s.events.Warning("running async SessionEnd hook synchronously in " + f)
 	}
+	for _, w := range hooks.InterruptClampWarnings(cfg.CodexHome, cfg.Cwd) {
+		s.events.Warning(w)
+	}
 	halted := false
 	for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, start.Source, map[string]any{"source": start.Source}) {
 		d := hooks.Interpret(hooks.SessionStart, o)
@@ -105,16 +126,19 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}
 	s.events.TurnStarted()
-	last, err := "", error(nil)
-	// Codex honours a start hook's `continue: false` (runs/session-start-continue-false).
+	last, err := "", error(nil) // Codex honours a start hook's `continue: false` (runs/session-start-continue-false)
 	if !corehooks.StartHookEndsTurn(halted, true) {
-		last, err = turnloop.Run(ctx, turnHost{s}, turnloop.Params{
+		turn, stop := signal.NotifyContext(ctx, os.Interrupt) // a user's Ctrl-C interrupts the turn, not the session
+		last, err = turnloop.Run(turn, turnHost{s}, turnloop.Params{
 			Script: cfg.Script, Dir: cfg.Cwd, Environ: cfg.Environ, Prompt: cfg.Prompt})
+		if turn.Err() != nil && ctx.Err() == nil {
+			err = s.interrupted(ctx)
+		}
+		stop()
 	}
 	s.events.TurnCompleted()
 	s.reapAtExit()
-	// The session ends with the run, for the one reason a non-interactive run has;
-	// what the hook prints is not read.
+	s.hooks.Later.Wait() // the session ends with the run, after what ran in the background; what the hook prints is not read
 	s.hooks.Fire(ctx, hooks.SessionEnd, "other", map[string]any{"reason": "other"})
 	if !cfg.JSON && last != "" {
 		fmt.Fprintln(cfg.Stdout, last)

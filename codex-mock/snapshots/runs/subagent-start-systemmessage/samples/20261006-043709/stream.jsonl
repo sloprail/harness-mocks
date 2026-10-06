@@ -1,0 +1,10 @@
+{"type":"thread.started","thread_id":"01a10f80-5148-75e2-8081-9c52a959c2e3"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10f80-5148-75e2-8081-9c52a959c2e3","receiver_thread_ids":[],"prompt":"Run the shell command echo SUB-DONE and reply only SUB-DONE.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10f80-5148-75e2-8081-9c52a959c2e3","receiver_thread_ids":["01a10f80-6c6a-7042-a82f-2a05d752686a"],"prompt":"Run the shell command echo SUB-DONE and reply only SUB-DONE.","agents_states":{"01a10f80-6c6a-7042-a82f-2a05d752686a":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10f80-5148-75e2-8081-9c52a959c2e3","receiver_thread_ids":["01a10f80-6c6a-7042-a82f-2a05d752686a"],"prompt":null,"agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10f80-5148-75e2-8081-9c52a959c2e3","receiver_thread_ids":["01a10f80-6c6a-7042-a82f-2a05d752686a"],"prompt":null,"agents_states":{"01a10f80-6c6a-7042-a82f-2a05d752686a":{"status":"completed","message":"SUB-DONE"}},"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"DONE"}}
+{"type":"turn.completed","usage":{"input_tokens":44161,"cached_input_tokens":35072,"cache_write_input_tokens":0,"output_tokens":195,"reasoning_output_tokens":78}}

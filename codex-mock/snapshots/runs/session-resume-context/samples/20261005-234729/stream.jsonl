@@ -1,0 +1,14 @@
+{"type":"thread.started","thread_id":"01a10e77-1e04-74d2-b3e0-e7e6688e678a"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'echo ORIGINAL-WORD'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'echo ORIGINAL-WORD'","aggregated_output":"ORIGINAL-WORD\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"OK"}}
+{"type":"turn.completed","usage":{"input_tokens":23383,"cached_input_tokens":19968,"cache_write_input_tokens":0,"output_tokens":106,"reasoning_output_tokens":11}}
+{"type":"thread.started","thread_id":"01a10e77-1e04-74d2-b3e0-e7e6688e678a"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"ORIGINAL-WORD"}}
+{"type":"turn.completed","usage":{"input_tokens":35560,"cached_input_tokens":29952,"cache_write_input_tokens":0,"output_tokens":114,"reasoning_output_tokens":11}}

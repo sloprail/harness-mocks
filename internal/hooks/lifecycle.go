@@ -108,8 +108,6 @@ func PromptOutcome(blocked bool, context string) (refused bool, extra string) {
 // ContextOf is the text a hook adds to the agent's context: the context its
 // structured output gave and, for an event that reads plain output as
 // context, its plain output too (hooks that gave one each add both).
-//
-// sr:capability hook-additional-context
 func ContextOf(structured, plain string, plainAdds bool) string {
 	if !plainAdds {
 		return structured
@@ -124,4 +122,16 @@ func JoinContext(have, add string) string {
 		return have + add
 	}
 	return have + "\n" + add
+}
+
+// ContextDue is whether the context a hook added reaches the agent now. A hook the agent
+// waited for adds it at once. One that ran in the background (the agent did not wait for it) adds
+// it at the next safe point: once the agent has gone through the call after the one it had
+// begun when the hook started (startedAt calls begun then, steps now), or when its turn would
+// end. The sync path asks it with the agent's step as it is at the hook (nothing is yet
+// due for a background hook), the background path (Later.Due) as the agent goes on.
+//
+// sr:capability hook-additional-context
+func ContextDue(background bool, startedAt, steps int, endOfTurn bool) bool {
+	return !background || endOfTurn || startedAt < steps
 }

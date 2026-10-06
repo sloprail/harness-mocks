@@ -26,6 +26,7 @@ providers:
       - codex-mock/snapshots/runs/session-end
       - codex-mock/snapshots/runs/session-end-hook-output
       - codex-mock/snapshots/runs/session-end-hook-failure
+      - codex-mock/snapshots/runs/session-end-steering
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
@@ -37,12 +38,12 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          Codex reports a SessionEnd hook that times out or exits with an
-          error as a hook failure (the docs). A non-interactive run shows no
-          such report: of handlers that exited 1, exited 2 and outlived their
-          timeout, none appears in the event stream, on stderr or in the
-          transcript (recorded: runs/session-end-hook-failure). The mock reports
-          none either.
+          Doc and recording conflict: the hooks#sessionend section says "If a
+          command times out or exits with an error, Codex reports it as a hook
+          failure". The recording shows no such report: of handlers that
+          exited 1, exited 2 and outlived their timeout, none appears in the
+          event stream, on stderr or in the transcript (recorded:
+          runs/session-end-hook-failure). The mock reports none either.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionend

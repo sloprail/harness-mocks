@@ -170,11 +170,12 @@ func TestT007_09_EditToolOldStringNotFoundIsError(t *testing.T) {
 
 // --- Unknown tool ---
 
-// TestT007_10_UnknownToolReturnsError: unknown tool name produces is_error=true result.
-func TestT007_10_UnknownToolReturnsError(t *testing.T) {
+// TestT007_10_UnknownToolIsRefused: a script that asks for a tool the mock does not
+// implement fails the run, naming the tool (adr/tool-calls-validated).
+func TestT007_10_UnknownToolIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	out, code := runTool(t, dir, "FlyingUnicorn", `{}`)
-	require.Equal(t, 0, code, "mock must not crash on unknown tool; output:\n%s", out)
-	assert.Contains(t, out, `"is_error":true`)
-	assert.Contains(t, out, "not implemented")
+	require.NotEqual(t, 0, code, "the mock must refuse an unknown tool; output:\n%s", out)
+	assert.Contains(t, out, "FlyingUnicorn")
+	assert.Contains(t, out, "unknown tool")
 }

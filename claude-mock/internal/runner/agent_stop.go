@@ -60,6 +60,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
 		out.Failure = err.Error()
+		bg.refused.Set(err)
 	}
 	// A sub-agent does not wait for the background agents it launched: they go to
 	// whoever launched it, and report there (recorded: bgagent-nested-launcher).

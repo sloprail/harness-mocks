@@ -30,7 +30,7 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 		args[i] = v
 	}
 	if tool, ok := toolName(c.Callee); ok {
-		r.calls = append(r.calls, jsCall{Name: tool, Args: args})
+		r.calls = append(r.calls, jsCall{Num: r.n, Name: tool, Args: args})
 		r.n++
 		return ref{call: r.n - 1}, nil
 	}
@@ -67,6 +67,9 @@ func (r *jsRun) call(c *ast.CallExpression) (any, error) {
 		case []any, map[string]any: // a method may change what the script wrote (reverse, push), which is not followed
 			return nil, fmt.Errorf("the model's script calls %s on a value it wrote, which the adapter does not follow", d.Identifier.Name)
 		}
+		if !lookAround[d.Identifier.Name.String()] {
+			return nil, fmt.Errorf("the model's script calls %s on a value the adapter does not follow", d.Identifier.Name)
+		}
 		return opaque{}, nil
 	}
 	return nil, fmt.Errorf("the model's script calls a %T, which the adapter does not read", c.Callee)
@@ -92,3 +95,9 @@ func argString(args []any, i int) (string, bool) {
 	s, ok := args[i].(string)
 	return s, ok
 }
+
+// lookAround are the methods a script may call on a value the adapter does not
+// follow (the tool list, a regular expression, JSON, a string it was told): the
+// ones the recorded scripts use to look at what they were given, which make no
+// tool call and tell the replay nothing. Any other is refused, never guessed.
+var lookAround = map[string]bool{"filter": true, "test": true, "stringify": true, "includes": true, "toLowerCase": true, "trim": true}

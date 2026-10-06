@@ -8,9 +8,12 @@ type block struct {
 	ID    string          `json:"id"`
 	Name  string          `json:"name"`
 	Input json.RawMessage `json:"input"`
+	// More marks a call that another call of the same script of the model follows.
+	More bool `json:"more"`
 }
 
 type line struct {
+	Gate    *Gate  `json:"gate"`
 	Type    string `json:"type"`
 	Trigger string `json:"trigger"`
 	Result  string `json:"result"`
@@ -42,6 +45,9 @@ func (t *Turn) read(raw []byte) (done bool, err error) {
 		t.Result = &l.Result
 		return true, nil
 	case "assistant":
+		if l.Gate != nil && t.Gate.None() {
+			t.Gate = *l.Gate
+		}
 		for _, b := range l.Message.Content {
 			switch b.Type {
 			case "text":
@@ -49,7 +55,7 @@ func (t *Turn) read(raw []byte) (done bool, err error) {
 					t.Texts = append(t.Texts, b.Text)
 				}
 			case "tool_use":
-				t.Tools = append(t.Tools, ToolUse{ID: b.ID, Name: b.Name, Input: b.Input})
+				t.Tools = append(t.Tools, ToolUse{ID: b.ID, Name: b.Name, Input: b.Input, More: b.More})
 			}
 		}
 		if len(t.Tools) > 0 {
@@ -73,7 +79,7 @@ func (t *Turn) addCalls(raw []byte) bool {
 		}
 	}
 	for _, b := range l.Message.Content {
-		t.Tools = append(t.Tools, ToolUse{ID: b.ID, Name: b.Name, Input: b.Input})
+		t.Tools = append(t.Tools, ToolUse{ID: b.ID, Name: b.Name, Input: b.Input, More: b.More})
 	}
 	t.Tool = &t.Tools[0]
 	return true

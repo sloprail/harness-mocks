@@ -19,6 +19,7 @@ providers:
       - https://developers.openai.com/codex/hooks#posttooluse
     runs:
       - codex-mock/snapshots/runs/shell-exit-status
+      - codex-mock/snapshots/runs/exec-login-false
   cursor:
     docs:
       - https://cursor.com/docs/hooks#aftershellexecution

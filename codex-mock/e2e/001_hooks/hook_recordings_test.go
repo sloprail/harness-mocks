@@ -92,15 +92,15 @@ func TestPostToolUsePayloadFieldsOfRecordedRuns(t *testing.T) {
 
 			if name == "hook-exit-codes" {
 				// `echo one` was refused by PreToolUse (exit 2): no PostToolUse for it. The failed
-				// `ls` (non-zero exit) has one, whose response is the command's error output.
+				// `false` (non-zero exit, prints nothing) has one, whose response is the command's empty output.
 				for _, post := range [][]map[string]any{recPost, gotPost} {
 					var cmds, resps []string
 					for _, p := range post {
 						cmds = append(cmds, p["tool_input"].(map[string]any)["command"].(string))
 						resps = append(resps, p["tool_response"].(string))
 					}
-					assert.Equal(t, []string{"ls /nonexistent-dir-for-this-run", "echo three"}, cmds)
-					assert.Contains(t, resps[0], "No such file or directory")
+					assert.Equal(t, []string{"false", "echo three"}, cmds)
+					assert.Equal(t, "", resps[0])
 					assert.Equal(t, "three\n", resps[1])
 				}
 			}

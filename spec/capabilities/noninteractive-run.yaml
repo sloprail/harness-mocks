@@ -48,6 +48,7 @@ providers:
       - codex-mock/snapshots/runs/noninteractive-run-git-check-refused
       - codex-mock/snapshots/runs/noninteractive-run-no-git-check
       - codex-mock/snapshots/runs/noninteractive-run-output-schema
+      - codex-mock/snapshots/runs/ephemeral-no-transcript
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
@@ -82,8 +83,7 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock refuses --ephemeral (it always writes the session's rollout
-          file), and reads no piped stdin: a
+          The mock reads no piped stdin: a
           prompt argument plus piped input is not combined as additional
           context, and `codex exec -` (stdin as the prompt) is not modeled.
           `codex exec resume --last` is refused as well: only a session named

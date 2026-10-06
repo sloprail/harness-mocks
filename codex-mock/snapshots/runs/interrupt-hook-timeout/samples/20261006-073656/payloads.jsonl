@@ -1,0 +1,9 @@
+{"session_id":"01a11024-eb2a-7db0-a288-25e36585022e","turn_id":"01a11024-ed56-7dd2-9bc3-a9787d47d427","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T09-36-57-01a11024-eb2a-7db0-a288-25e36585022e.jsonl","cwd":"<RUN>","hook_event_name":"Interrupt","model":"gpt-5.6-luna","permission_mode":"bypassPermissions"}
+{"ran":"default"}
+{"session_id":"01a11024-eb2a-7db0-a288-25e36585022e","turn_id":"01a11024-ed56-7dd2-9bc3-a9787d47d427","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T09-36-57-01a11024-eb2a-7db0-a288-25e36585022e.jsonl","cwd":"<RUN>","hook_event_name":"Interrupt","model":"gpt-5.6-luna","permission_mode":"bypassPermissions"}
+{"ran":"capped"}
+{"done":"capped"}
+{"session_id":"01a11024-eb2a-7db0-a288-25e36585022e","turn_id":"01a11024-ed56-7dd2-9bc3-a9787d47d427","transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T09-36-57-01a11024-eb2a-7db0-a288-25e36585022e.jsonl","cwd":"<RUN>","hook_event_name":"Interrupt","model":"gpt-5.6-luna","permission_mode":"bypassPermissions"}
+{"ran":"limit3"}
+{"done":"default"}
+{"done":"limit3"}

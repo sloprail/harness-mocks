@@ -14,7 +14,7 @@ func TestWakeupTimesAreMasked(t *testing.T) {
 	got := c.Lines([]map[string]any{{"content": "Next wakeup scheduled for 16:19:00 (in 120s) (clamped to 60s)", "scheduledFor": 1790864340000.0}})
 	line := strings.NewReplacer(`\u003c`, "<", `\u003e`, ">").Replace(got[0])
 	want := `"content":"Next wakeup scheduled for <TIME> (in <N>s) (clamped to 60s)"`
-	if len(got) != 1 || !strings.Contains(line, want) || !strings.Contains(line, `"scheduledFor":"`+rp.MaskedValue+`"`) {
+	if len(got) != 1 || !strings.Contains(line, want) || !strings.Contains(line, `"scheduledFor":"<scheduledFor>"`) {
 		t.Fatalf("%v", got)
 	}
 }

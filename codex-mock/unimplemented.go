@@ -14,7 +14,7 @@ import (
 // `--enable multi_agent_v2` run replayed on the default mode, an output schema
 // that shapes nothing).
 var unimplemented = []string{"enable", "disable", "output-last-message", "output-schema", "thread-source",
-	"sandbox", "profile", "color", "ephemeral", "ignore-user-config", "ignore-rules", "strict-config", "approve-for-me"}
+	"sandbox", "profile", "color", "ignore-user-config", "ignore-rules", "strict-config", "approve-for-me"}
 
 // refuseUnimplemented is the error for the first flag given that the mock does
 // not implement, and for a -c override of a key it does not read.

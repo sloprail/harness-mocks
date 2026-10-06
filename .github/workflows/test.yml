@@ -16,6 +16,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      # a test whose tool is missing fails: the hook-session test needs python3
+      - name: python3
+        run: sudo apt-get install -y python3
       # -count=3: three runs of every test in one process, so a timing-flaky one surfaces here
       - run: go test -race -count=3 ./claude-mock/internal/...
 
@@ -28,6 +31,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      # a test whose tool is missing fails: the capability checks run jq, yq, git and bash
+      - name: jq and yq
+        run: |
+          sudo apt-get install -y jq
+          if ! command -v yq >/dev/null; then
+            sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
       - run: go test -count=1 ./tools/capcells/ ./tools/harness-bin/ ./tools/repoguard/
 
   e2e:
@@ -65,6 +76,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      # the recorded runs name zsh as the shell a command runs by, and the mock runs it by that shell
+      - name: zsh
+        run: sudo apt-get install -y zsh
       - run: make -C codex-mock test-e2e
 
   cursor-unit:
@@ -112,6 +126,9 @@ jobs:
       # the cursor and codex suites replay recorded runs, whose hook scripts use jq
       - name: jq
         run: sudo apt-get install -y jq
+      # the codex suite's recorded runs name zsh as the shell a command runs by
+      - name: zsh
+        run: sudo apt-get install -y zsh
       # the same commands as each mock's Makefile test-e2e (race build, same environment), with
       # -count=1 only: the Makefile pins it, and each replica is one more run of the suite
       - name: e2e
