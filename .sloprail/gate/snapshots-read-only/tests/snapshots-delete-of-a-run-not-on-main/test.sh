@@ -19,6 +19,9 @@ RESULT=$(sr-test agent "$SR_TEST_CASE_DIR/agent.sh" --prompt "drop two samples b
 # t1 (the run not on main) is not refused; t2 (the run on main) is, naming capture.sh
 echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only" and .outcome=="refused")] | length==1 and .[0].tool_use_id=="t2" and (.[0].reason | contains("capture.sh"))' >/dev/null ||
   { echo "$RESULT" | jq -c .events >&2; echo "the run on main was not the only refusal" >&2; exit 1; }
+# and the gate decided t1 itself: a GateChecked of this rule that permitted it
+echo "$RESULT" | jq -e '[.events[] | select(.kind=="GateChecked" and .rule=="snapshots-read-only" and .tool_use_id=="t1")] | length==1 and .[0].outcome=="permitted"' >/dev/null ||
+  { echo "$RESULT" | jq -c .events >&2; echo "the gate did not permit the deletion of the run that is not on main" >&2; exit 1; }
 SESSION=$(echo "$RESULT" | jq -er .session)
 jq -es '[.[] | select(.type=="user") | .message.content[]? | select(.type=="tool_result" and .tool_use_id=="t1")] | length==1 and all(.[]; .is_error!=true)' "$SESSION" >/dev/null ||
   { echo "the deletion of the run that is not on main did not run cleanly" >&2; exit 1; }
