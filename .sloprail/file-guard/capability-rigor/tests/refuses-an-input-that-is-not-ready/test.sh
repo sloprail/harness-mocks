@@ -33,7 +33,7 @@ printf 'version: 1\n' >claude-mock/snapshots/runs/c/run.yaml
 printf '{"e":1}\n' >claude-mock/snapshots/runs/c/samples/20240101-000000/events.jsonl
 SEAL=claude-mock/snapshots/runs/c/samples/20240101-000000/SEAL
 (cd claude-mock/snapshots/runs/c/samples/20240101-000000 && shasum -a 256 ./events.jsonl >SEAL)
-proof() { mkdir -p claude-mock/e2e; printf 'package e2e\n\n// sr:proves c/claude\nfunc TestC() {}\n' >claude-mock/e2e/c_test.go; }
+proof() { mkdir -p claude-mock/e2e; printf 'package e2e\n\n// sr:proves c/claude\nfunc TestC() {}\n' >claude-mock/e2e/c_test.go; mkdir -p claude-mock/e2e/018_replay; printf 'package e2e\n\nvar notReplaying = map[string]string{\n}\n' >claude-mock/e2e/018_replay/replay_allowlist_test.go; }
 proof
 cap() { printf 'statement: %s\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: [claude-mock/snapshots/runs/c]\n' "$1" >spec/capabilities/c.yaml; }
 cap "c works"

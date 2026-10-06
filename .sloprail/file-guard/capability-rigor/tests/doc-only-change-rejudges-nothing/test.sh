@@ -21,7 +21,9 @@ rm -rf .sloprail/tests .sloprail/file-guard/*/tests .sloprail/gate/*/tests .slop
 printf 'disabled:\n  - sloprail/gate/ci-verify-required\n  - sloprail/file-guard/rule-tests-pass\n' >.sloprail/config.yaml
 mani() { printf 'pin: "1"\ndocs:\n  https://d.example/p:\n    sha256: %s\n    fetched: "%s"\n' "$SHA" "$1" >claude-mock/snapshots/MANIFEST.yaml; }
 cap() { printf 'statement: %s\nproviders:\n  claude:\n    docs: [https://d.example/p#%s]\n    runs: [claude-mock/snapshots/runs/%s]\n' "$2" "$3" "$1" >"spec/capabilities/$1.yaml"; }
-mkdir -p spec/capabilities claude-mock/snapshots claude-mock/e2e
+mkdir -p spec/capabilities claude-mock/snapshots claude-mock/e2e claude-mock/e2e/018_replay
+# the mock has no run on its replay exception list (prepare.sh reads the list)
+printf 'package e2e\n\nvar notReplaying = map[string]string{}\n' >claude-mock/e2e/018_replay/replay_allowlist_test.go
 mani 2026-10-01
 cap c "c works" s
 cap d "d works" undocumented

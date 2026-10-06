@@ -25,6 +25,12 @@ providers:
 // the combined output.
 func check(t *testing.T, cell string, markers ...string) (int, string) {
 	t.Helper()
+	return checkChange(t, cell, "spec/capabilities/cap.yaml", nil, markers...)
+}
+
+// checkChange is check with the one file the change adds, and extra files in the tree (path -> text).
+func checkChange(t *testing.T, cell, changed string, extra map[string]string, markers ...string) (int, string) {
+	t.Helper()
 	for _, bin := range []string{"jq", "yq", "git", "bash"} {
 		if _, err := exec.LookPath(bin); err != nil {
 			t.Fatalf("%s is not installed: the tests need it", bin)
@@ -46,6 +52,9 @@ func check(t *testing.T, cell string, markers ...string) (int, string) {
 	write("claude-mock/a.go", "package main\n\n// sr:provides cap/claude\n")
 	write("claude-mock/a_test.go", "package main\n\n// sr:proves cap/claude\n")
 	write("other-mock/a.go", "package main\n")
+	for p, text := range extra {
+		write(p, text)
+	}
 	for i, m := range markers {
 		write("other-mock/m"+string(rune('a'+i))+".go", "package main\n\n"+m+"\n")
 	}
@@ -62,8 +71,8 @@ func check(t *testing.T, cell string, markers ...string) (int, string) {
 	cmd := exec.Command("bash", filepath.Join(guard, "covered.sh"))
 	cmd.Dir = guard
 	cmd.Env = append(os.Environ(), "SR_TREE="+root, "SR_GUARDRAIL_DIR="+guard)
-	// the change adds the capability file, so it touches every one of its (capability, harness) pairs
-	cmd.Stdin = strings.NewReader(`{"event":{"kind":"Changeset"},"changeset":{"files":[{"path":"spec/capabilities/cap.yaml","status":"A"}]}}`)
+	// the change adds the file: a capability file touches every one of its (capability, harness) pairs
+	cmd.Stdin = strings.NewReader(`{"event":{"kind":"Changeset"},"changeset":{"files":[{"path":"` + changed + `","status":"A"}]}}`)
 	out, err := cmd.CombinedOutput()
 	code := 0
 	if ee, ok := err.(*exec.ExitError); ok {
@@ -119,5 +128,20 @@ func TestSupportedCellStillNeedsAProvingTest(t *testing.T) {
 	code, out := check(t, "  other:\n    docs:\n      - https://example.com/hooks#events\n    runs:\n      - other-mock/snapshots/runs/r\n")
 	if code == 0 || !strings.Contains(out, "sr:proves") {
 		t.Fatalf("a supported cell without a proving test must be refused, got %d: %s", code, out)
+	}
+}
+
+// Every pending cell is listed on each run (adr/capability-once), touched by the change or not: idle is a capability
+// the change does not touch, with a pending cell, and a change that only adds cap's file still lists it.
+func TestPendingOfAnUntouchedCapabilityIsStillListed(t *testing.T) {
+	idle := "statement: Idle.\nproviders:\n  claude:\n    docs:\n      - https://code.claude.com/docs/en/hooks#x\n    runs:\n      - claude-mock/snapshots/runs/r\n  other: pending\n"
+	extra := map[string]string{
+		"spec/capabilities/idle.yaml": idle,
+		"internal/idle/idle.go":       "package idle\n\n// sr:capability idle\n",
+		"claude-mock/idle_test.go":    "package main\n\n// sr:proves idle/claude\n",
+	}
+	code, out := checkChange(t, "  other:\n    docs:\n      - https://example.com/hooks#events\n    runs:\n      - other-mock/snapshots/runs/r\n", "spec/capabilities/cap.yaml", extra, "// sr:proves cap/other")
+	if !strings.Contains(out, "idle/other") {
+		t.Fatalf("the pending cell of the untouched capability idle must be listed, got %d: %s", code, out)
 	}
 }

@@ -14,6 +14,23 @@ load_markers proves; proves="$MARKERS"
 # loaded here, in this shell: a $(...) loses what a loader sets, and a refusal inside one exits only it
 load_spec capabilities; load_touched
 load_touched_markers || refuse_error "the capability markers this change touches could not be worked out, so nothing could be prepared for the judge"
+# not_replaying <harness> — {run name: reason} of the runs on the harness's replay exception list
+# (`notReplaying` in <h>-mock/e2e/*/replay_allowlist_test.go): those runs do not replay green, so they prove
+# nothing. A harness with no such file but a replay test has no exceptions; no list and no replay test, or a
+# list that cannot be parsed, fails (message on stderr, status 1).
+not_replaying() {
+  local h="$1" f out all="{}" found=""
+  for f in "$SR_TREE/$h-mock"/e2e/*/replay_allowlist_test.go; do [ -f "$f" ] || continue; found=1
+    grep -q '^var notReplaying = map\[string\]string{' "$f" || { echo "cannot parse the replay exception list $f: no 'var notReplaying = map[string]string{'" >&2; return 1; }
+    out="$(awk '/^var notReplaying = map\[string\]string\{/ {on=1; next} on && /^\}/ {exit} on && /^[ \t]*"[^"]+":[ \t]*".*",?[ \t]*$/ {
+        line=$0; sub(/^[ \t]*/, "", line); k=line; sub(/":.*/, "", k); sub(/^"/, "", k); v=line; sub(/^"[^"]+":[ \t]*/, "", v); sub(/,[ \t]*$/, "", v); print k "\t" v}' "$f")"
+    out="$(printf '%s\n' "$out" | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {key: .[0], value: (.[1:] | join("\t") | fromjson)}) | from_entries')" || { echo "cannot parse the replay exception list $f" >&2; return 1; }
+    all="$(jq -c -n --argjson a "$all" --argjson b "$out" '$a + $b')"
+  done
+  if [ -z "$found" ] && ! ls "$SR_TREE/$h-mock"/e2e/*/*replay*_test.go >/dev/null 2>&1; then
+    echo "no replay exception list or replay test of $h-mock: cannot tell which runs replay green" >&2; return 1; fi
+  printf '%s' "$all"
+}
 subjects="[]"
 # Every lookup below that fails refuses: a prepare that cannot work out what to put before the judge
 # must not hand it less (or nothing, which skips the model) and let the verdict pass on that.
@@ -26,13 +43,14 @@ while IFS=$'\t' read -r pair cell c; do
   # copy or, when the page has drifted since, the live one; the doc is read,
   # never part of the verdict's key; a page that cannot be had fails this check closed), with
   # the line its cited section starts at.
+  notrep="$(not_replaying "$h")" || refuse_error "$pair: $(not_replaying "$h" 2>&1 >/dev/null)"
   cited_runs="$(jq -r '(.runs // [])[]' <<<"$cell")" || refuse_error "$pair: its cited runs could not be listed, so it could not be prepared for the judge"
   cited_docs="$(jq -r '(.docs // [])[]' <<<"$cell")" || refuse_error "$pair: its cited docs could not be listed, so it could not be prepared for the judge"
   runs="[]"; for r in $cited_runs; do
     samples="$(cd "$SR_TREE" && for s in "$r"/samples/*/events.jsonl; do if [ -f "$s" ]; then printf '%s\n' "$s"; fi; done | jq -R . | jq -sc .)" ||
       refuse_error "$pair: the samples of $r could not be listed, so it could not be prepared for the judge"
-    runs="$(jq -c --arg r "$r" --slurpfile sm <(printf '%s' "$samples") \
-      '. + [{name: ($r | split("/") | last), dir: $r, setup: ($r + "/setup"), samples: $sm[0]}]' <<<"$runs")" ||
+    runs="$(jq -c --arg r "$r" --slurpfile sm <(printf '%s' "$samples") --argjson nr "$notrep" \
+      '($r | split("/") | last) as $n | . + [{name: $n, dir: $r, setup: ($r + "/setup"), replays: (($nr | has($n)) | not), notReplayingReason: ($nr[$n] // ""), samples: $sm[0]}]' <<<"$runs")" ||
       refuse_error "$pair: the run $r could not be listed, so it could not be prepared for the judge"; done
   tests="$(printf '%s\n' "$proves" | awk -F'\t' -v q="$id/$h" '$2 == q {print $1}' | sort -u | jq -R . | jq -sc 'map(select(. != ""))')" ||
     refuse_error "$pair: the tests proving it could not be listed, so it could not be prepared for the judge"
