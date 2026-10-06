@@ -185,3 +185,19 @@ func TestWireInputsReplaceTheTranscriptsInputs(t *testing.T) {
 		t.Fatal("the recording's own calls are left as they were")
 	}
 }
+
+// A sample whose model read a setup file that now reads otherwise is replayed with the file as it read it.
+func TestChangedSetupFiles(t *testing.T) {
+	if got := unnumber("1\t#!/bin/sh\n2\techo x\n3\t"); got != "#!/bin/sh\necho x\n" {
+		t.Fatalf("%q", got)
+	}
+	run := filepath.Join("..", "..", "snapshots", "runs", "hookmix")
+	samples := sampleDirs(run)
+	setup := filepath.Join(run, "setup")
+	if got := changedSetupFiles(setup, samples[0]); len(got) != 0 {
+		t.Fatalf("the sample that read nothing: %v", got)
+	}
+	if got := changedSetupFiles(setup, samples[1]); !strings.HasPrefix(got["hook.sh"], "#!/bin/sh\nIN=$(cat); D=") {
+		t.Fatalf("%v", got)
+	}
+}
