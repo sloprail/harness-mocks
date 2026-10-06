@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nStart this shell command in the background so it keeps running without you waiting for it:\n\nsh -c 'echo $$ > bgpid; exec sleep 47'\n\nUse block_until_ms: 0 (or equivalent) so you do not wait for the command. Then immediately reply with the single word DONE. Do not wait for the command. Do not do anything else. Your entire final reply must be exactly: DONE\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Starting the sleep command in the background without waiting."},{"type":"tool_use","name":"Shell","input":{"command":"sh -c 'echo $$ > bgpid; exec sleep 47'","block_until_ms":0}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

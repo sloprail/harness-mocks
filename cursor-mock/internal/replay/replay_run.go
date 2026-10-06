@@ -77,6 +77,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	for _, c := range exits {
 		got.Exits = append(got.Exits, "exit "+strconv.Itoa(c))
 	}
+	recHooks, mockHooks = inOrder(recHooks), inOrder(mockHooks)
 	unsettled(recHooks)
 	unsettled(mockHooks)
 	want.Hooks, got.Hooks = concurrent(recHooks, wantC.Lines(recHooks)), concurrent(mockHooks, gotC.Lines(mockHooks))
