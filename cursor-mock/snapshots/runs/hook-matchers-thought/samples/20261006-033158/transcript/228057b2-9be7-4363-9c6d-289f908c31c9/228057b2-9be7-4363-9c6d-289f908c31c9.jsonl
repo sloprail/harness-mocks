@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRead the file note.txt with your Read tool, then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll read `note.txt` now, then reply only with DONE."},{"type":"tool_use","name":"Read","input":{"path":"<RUN>/note.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

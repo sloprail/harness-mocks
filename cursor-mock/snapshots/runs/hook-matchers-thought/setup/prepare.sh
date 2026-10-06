@@ -1,0 +1,1 @@
+echo hi > note.txt

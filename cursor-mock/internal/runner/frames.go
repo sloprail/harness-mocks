@@ -13,10 +13,15 @@ import (
 // (recorded: runs/*/samples/*/stream.jsonl). The tool frames are in
 // toolcall_frames.go.
 
-func initFrame(session, dir string) []byte {
+// modelNames are the names the init frame gives the models a run was started
+// with (--model), as recorded: the default, and the model whose thinking the
+// hooks report (runs/hook-matchers-thought).
+var modelNames = map[string]string{"": "Auto", "auto": "Auto", "cursor-grok-4.5-high": "Grok 4.5 High"}
+
+func initFrame(session, dir, model string) []byte {
 	return jsonLine(map[string]any{
 		"type": "system", "subtype": "init", "apiKeySource": "login", "cwd": dir,
-		"session_id": session, "model": "Auto", "permissionMode": "default",
+		"session_id": session, "model": modelNames[model], "permissionMode": "default",
 	})
 }
 

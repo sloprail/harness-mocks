@@ -11,6 +11,8 @@ type Common struct {
 	Dir string
 	// Version is the Cursor version the payloads report.
 	Version string
+	// Model is the model the run was started with (--model); "" is the default.
+	Model string
 }
 
 // Tool names a tool call as the hooks see it.
@@ -40,6 +42,9 @@ func (c Common) Payload(e Event, own map[string]any) []byte {
 	}
 	if c.TranscriptPath != "" {
 		p["transcript_path"] = c.TranscriptPath
+	}
+	if e == SessionEnd && c.Model != "" && c.Model != "auto" { // the end of a run names the model it was started with (recorded: runs/hook-matchers-thought)
+		p["model"] = c.Model
 	}
 	for k, v := range own {
 		p[k] = v
