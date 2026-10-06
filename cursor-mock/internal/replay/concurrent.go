@@ -6,7 +6,11 @@ import "sort"
 // hooks put in a fixed order: the hooks of one event run side by side, so the
 // order they log in is not the behaviour, while the order of the events is. A
 // group is the run of consecutive lines about the same event (the payloads and
-// what the hook scripts logged for it); sorted is only within it.
+// what the hook scripts logged for it); sorted is only within it. The thought of
+// a response is told while the response's calls are being started, so it comes
+// before the call's preToolUse or just after it (recorded: runs/hook-exit-codes
+// and runs/tool-failure): a run of thoughts and the preToolUse runs beside it are
+// one group.
 func concurrent(objs []map[string]any, lines []string) []string {
 	events := groups(objs)
 	out := append([]string(nil), lines...)
@@ -15,10 +19,23 @@ func concurrent(objs []map[string]any, lines []string) []string {
 		for j < len(objs) && events[j] == events[i] {
 			j++
 		}
+		for k := j; k < len(objs) && concurrentWith(events[k-1], events[k]); { // the run beside it joins
+			e := events[k]
+			for k < len(objs) && events[k] == e {
+				k++
+			}
+			j = k
+		}
 		sort.Strings(out[i:j])
 		i = j
 	}
 	return out
+}
+
+// concurrentWith reports whether a run of events b that follows one of a is
+// concurrent with it: a thought and a preToolUse, either way round.
+func concurrentWith(a, b string) bool {
+	return a == "afterAgentThought" && b == "preToolUse" || a == "preToolUse" && b == "afterAgentThought"
 }
 
 // groups is the event each logged line belongs to: its own when it names one of

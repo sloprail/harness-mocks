@@ -146,3 +146,41 @@ func TestLoadMapsMCPGrepAndDelete(t *testing.T) {
 		t.Fatalf("calls %+v, %v", rec.Agent.Calls, err)
 	}
 }
+
+// The thoughts a recording holds are put on the responses they were had in, by
+// order; one that holds a thought for some responses only is not read.
+func TestLoadPutsTheThoughtsOnTheirResponses(t *testing.T) {
+	rec, err := Adapter{}.Load(runDir("agent-input-validation"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := rec.Agent.Calls[0]
+	if c.Thinking == nil || c.Thinking.Fields["model_id"] == nil || rec.Agent.FinalThinking == nil {
+		t.Fatalf("call %+v, final %+v", c, rec.Agent.FinalThinking)
+	}
+	if s := Denormalize(rec, "<scripts>", nil); !strings.Contains(s.Script, `"type":"thinking"`) {
+		t.Fatalf("script:\n%s", s.Script)
+	}
+	_, err = Adapter{}.Load(runDir("symlinked-cwd"))
+	if u, ok := err.(*Unbuildable); !ok || !strings.Contains(u.Reason, "thought in 1 of its 2 responses") {
+		t.Fatalf("err = %v, want an Unbuildable naming the partial thoughts", err)
+	}
+}
+
+// A response's thought and its preToolUse are told together, in either order; the
+// events around them keep theirs.
+func TestConcurrentGroupsAThoughtWithThePreToolUseBesideIt(t *testing.T) {
+	ev := func(name string) map[string]any { return map[string]any{"hook_event_name": name} }
+	objs := []map[string]any{ev("sessionStart"), ev("preToolUse"), ev("afterAgentThought"), ev("beforeShellExecution")}
+	if got := concurrent(objs, []string{"s", "pre", "T", "b"}); strings.Join(got, "") != "sTpreb" {
+		t.Fatalf("pre then thought: %v", got)
+	}
+	objs = []map[string]any{ev("sessionStart"), ev("afterAgentThought"), ev("preToolUse"), ev("beforeShellExecution")}
+	if got := concurrent(objs, []string{"s", "T", "pre", "b"}); strings.Join(got, "") != "sTpreb" {
+		t.Fatalf("thought then pre: %v", got)
+	}
+	objs = []map[string]any{ev("afterAgentThought"), ev("beforeShellExecution"), ev("preToolUse")}
+	if got := concurrent(objs, []string{"T", "b", "pre"}); strings.Join(got, "") != "Tbpre" {
+		t.Fatalf("a thought is not concurrent with what is not a preToolUse: %v", got)
+	}
+}

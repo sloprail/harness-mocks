@@ -37,14 +37,16 @@ type Call struct {
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
 	// SameTurn: the model made this call in the same response as the previous one.
 	SameTurn bool
+	Thinking *Thinking // what the model thought in the response this call begins, when recorded
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in
 // order, then its final answer; an answer a continued turn gave sits among the
 // calls (ToolAnswer).
 type Agent struct {
-	Calls []Call
-	Final string
+	Calls         []Call
+	Final         string
+	FinalThinking *Thinking // what the model thought before its final answer, when recorded
 }
 
 // Recording is a recorded run in unified form.

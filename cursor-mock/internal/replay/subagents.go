@@ -21,7 +21,7 @@ type conversation struct {
 // session's: Cursor keeps a sub-agent's in a directory of its own named by its
 // id, beside the session's (agent-transcripts/<id>/<id>.jsonl), and no file that
 // says which call started it.
-func conversations(dir, session string) ([]conversation, error) {
+func conversations(dir, session string, thoughts map[string][]*core.Thinking) ([]conversation, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil
@@ -35,7 +35,8 @@ func conversations(dir, session string) ([]conversation, error) {
 		if err != nil {
 			return nil, err
 		}
-		agent, err := modelTurns(records)
+		agent, err := modelTurns(records, thoughts[e.Name()])
+		delete(thoughts, e.Name())
 		if err != nil {
 			return nil, &Unbuildable{Reason: "sub-agent: " + err.Error()}
 		}
@@ -73,7 +74,7 @@ func firstQuery(records []map[string]any) string {
 // two conversations share is not told apart, so it is an error; a spawn that
 // no conversation answers keeps no sub-agent (the call itself was refused).
 func attach(a core.Agent, convs *[]conversation) (core.Agent, error) {
-	out := core.Agent{Calls: append([]core.Call(nil), a.Calls...), Final: a.Final}
+	out := core.Agent{Calls: append([]core.Call(nil), a.Calls...), Final: a.Final, FinalThinking: a.FinalThinking}
 	for i, c := range out.Calls {
 		if c.Tool != core.ToolSpawn {
 			continue
