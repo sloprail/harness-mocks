@@ -1,4 +1,0 @@
-{"event":"stream","type":"system","subtype":"init"}
-{"event":"stream","type":"tool_call","subtype":"started","tool":"getMcpToolsToolCall","outcome":null}
-{"event":"stream","type":"tool_call","subtype":"completed","tool":"getMcpToolsToolCall","outcome":"success"}
-{"event":"stream","type":"result","subtype":"success"}

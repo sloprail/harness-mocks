@@ -1,6 +1,9 @@
 package runner
 
-import "github.com/sloprail/harness-mocks/internal/toolspec"
+import (
+	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
+)
 
 // taskParams are the parameters of a Task call as the model makes it (recorded:
 // the Task calls of runs/*). Only its prompt is required: a call without a
@@ -22,7 +25,13 @@ var taskParams = []toolspec.Param{
 // ended in time) run it in the foreground; a foreground command that outlasts its
 // limit moving to the background is not modeled (adr/modeled-surface).
 var shellParams = []toolspec.Param{
-	{Name: "command", Type: toolspec.String, Required: true},
+	{Name: "command", Type: toolspec.String, Required: true, Unmodeled: func(v any) string {
+		line, _ := v.(string)
+		if why := toolexec.UnmodeledSyntax(line); why != "" {
+			return "the command line holds " + why + ", whose frames no recording shows"
+		}
+		return ""
+	}},
 	{Name: "description", Type: toolspec.String},
 	{Name: "block_until_ms", Type: toolspec.Integer, Values: []any{0, 15000, 35000}},
 	{Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true},
