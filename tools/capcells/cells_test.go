@@ -62,7 +62,8 @@ func check(t *testing.T, cell string, markers ...string) (int, string) {
 	cmd := exec.Command("bash", filepath.Join(guard, "covered.sh"))
 	cmd.Dir = guard
 	cmd.Env = append(os.Environ(), "SR_TREE="+root, "SR_GUARDRAIL_DIR="+guard)
-	cmd.Stdin = strings.NewReader(`{"event":{"kind":"Changeset"},"changeset":{"files":[]}}`)
+	// the change adds the capability file, so it touches every one of its (capability, harness) pairs
+	cmd.Stdin = strings.NewReader(`{"event":{"kind":"Changeset"},"changeset":{"files":[{"path":"spec/capabilities/cap.yaml","status":"A"}]}}`)
 	out, err := cmd.CombinedOutput()
 	code := 0
 	if ee, ok := err.(*exec.ExitError); ok {
