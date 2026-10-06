@@ -4,6 +4,8 @@ set -euo pipefail
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only
 # this rule's outcome is asserted. Proves the permit of a shrinking list (down to empty), beside the refusal of an added entry.
 git init -q .
+. "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
+install_checker || exit 1
 mkdir -p codex-mock/e2e/001_hooks
 list=codex-mock/e2e/001_hooks/replay_allowlist_test.go
 head='package e2e\n\nvar notReplaying = map[string]string{\n'

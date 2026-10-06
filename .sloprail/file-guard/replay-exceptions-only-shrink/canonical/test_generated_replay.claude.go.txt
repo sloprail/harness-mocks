@@ -1,0 +1,53 @@
+func TestGeneratedReplay(t *testing.T) {
+	dirs, err := filepath.Glob(filepath.Join(runsDir, "*"))
+	require.NoError(t, err)
+	var names []string
+	for _, d := range dirs {
+		if samples, _ := filepath.Glob(filepath.Join(d, "samples", "*")); len(samples) > 0 {
+			names = append(names, filepath.Base(d))
+		}
+	}
+	sort.Strings(names)
+	for name := range notReplaying {
+		if _, err := os.Stat(filepath.Join(runsDir, name)); err != nil {
+			t.Errorf("notReplaying lists %s, which has no recording: remove the entry", name)
+		}
+	}
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			reason, listed := notReplaying[name]
+			flaky := listed && strings.HasPrefix(reason, "flaky:")
+			run := func() (string, error) {
+				return claudereplay.Run(e2etest.MockBinaryPath, filepath.Join(runsDir, name), os.Environ())
+			}
+			var diff string
+			var err error
+			if flaky {
+				diff, err = replayUntilGreen(run, flakyRuns)
+			} else {
+				diff, err = run()
+			}
+			var unbuildable *claudereplay.Unbuildable
+			switch {
+			case flaky && (err != nil || diff != ""):
+				t.Errorf("flaky entry never replayed green in %d runs (%s): triage it, or remove it from notReplaying: %v\n%s", flakyRuns, reason, err, diff)
+			case flaky:
+			case errors.As(err, &unbuildable) && strings.HasPrefix(unbuildable.Reason, claudereplay.RefusedPrefix):
+				assertRefuses(t, filepath.Join(runsDir, name))
+			case errors.As(err, &unbuildable) && listed:
+				t.Skipf("not replaying: %s", reason)
+			case errors.As(err, &unbuildable):
+				t.Errorf("not replayed (%v): list it in notReplaying with the reason, or extend the adapter", err)
+			case err != nil:
+				t.Error(err)
+			case diff == "" && listed:
+				t.Errorf("replays green: remove it from notReplaying (was: %s)", reason)
+			case diff != "" && listed:
+				t.Skipf("not replaying: %s\n%s", reason, diff)
+			case diff != "":
+				t.Error(diff)
+			}
+		})
+	}
+}

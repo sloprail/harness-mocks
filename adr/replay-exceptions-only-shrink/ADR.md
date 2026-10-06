@@ -26,10 +26,13 @@ accepted one.
   move between the triaged ones, or from `flaky:` or `untriaged:` to a stronger
   category, is allowed, and a reason that starts with none of the four is
   refused.
+- A `flaky:` entry is never skipped: the replay test generated for the
+  recordings (`generated_replay_test.go`, beside each list) runs it three times
+  and fails when none of them is green.
 
 ## Source
 
-The user's words for the second bullet: "A replay exception's reason may not
+The user's words for the second and third bullets: "A replay exception's reason may not
 move to a weaker category (flaky < untriaged < triaged), and a flaky entry runs
 3 times and fails if never green; it is never skipped."
 
