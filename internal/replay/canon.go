@@ -115,23 +115,6 @@ func (c *canon) walk(v any) any {
 	return v
 }
 
-func (c *canon) measured(key string) bool {
-	for _, m := range c.r.Measured {
-		if m == key {
-			return true
-		}
-	}
-	return false
-}
-
-// Measure is what a measurement says without its value: whether it is zero.
-func Measure(n float64) string {
-	if n == 0 {
-		return "<zero>"
-	}
-	return "<positive>"
-}
-
 // str applies the scrubs and the id renaming to a string (a value, or a key).
 func (c *canon) str(x string) string {
 	for _, s := range c.r.Scrub {
