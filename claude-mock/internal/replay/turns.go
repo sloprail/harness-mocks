@@ -2,7 +2,6 @@ package replay
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -108,11 +107,6 @@ func modelTurns(records []map[string]any) (turns, error) {
 	return t, nil
 }
 
-func blockID(block map[string]any) string {
-	id, _ := block["id"].(string)
-	return id
-}
-
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,
 // and theirs in turn, found by the id of the call that started them. A spawn
 // with no recorded sub-agent keeps none: the call itself was refused.
@@ -138,34 +132,3 @@ func attachSubagents(t turns, subs map[string]turns, early, late map[string]bool
 }
 
 // wireInputs are the inputs of the calls the main agent made as the model sent them, by call id, as
-
-// endsTurn is whether a record opens a turn of the model's own accord: a user record whose content is
-// text (a task's notification, a hook's feedback), not a tool's result.
-func endsTurn(rec map[string]any) bool {
-	if rec["type"] != "user" {
-		return false
-	}
-	msg, _ := rec["message"].(map[string]any)
-	_, text := msg["content"].(string)
-	return text
-}
-
-// nudge starts the user record the harness leaves when a model's response had no visible output.
-const nudge = "[Your previous response had no visible output."
-
-// isNudge is whether a user record is that nudge.
-func isNudge(rec map[string]any) bool {
-	msg, _ := rec["message"].(map[string]any)
-	s, _ := msg["content"].(string)
-	return strings.HasPrefix(s, nudge)
-}
-
-// withKey is the input with one more key, a copy.
-func withKey(in map[string]any, k string, v any) map[string]any {
-	out := make(map[string]any, len(in)+1)
-	for key, val := range in {
-		out[key] = val
-	}
-	out[k] = v
-	return out
-}

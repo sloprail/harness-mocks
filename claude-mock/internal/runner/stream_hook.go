@@ -20,14 +20,11 @@ import (
 // AGENTS, and each finished task starts a new turn with its notification (and
 // Stop fires again at that turn's end); a background command still running
 // when nothing else is left is killed. See background.go.
-//
 // A nested SUB-AGENT run fires no Stop: the Agent-tool layer (agent.go) owns
 // the sub-agent's terminal hook, SubagentStop, and its block→re-run loop. Its
 // own background commands end with its final response.
-// The run streams one result, at its real end (internal/scenario's Result). Once
-// the turn is over a `claude -p` session waits for its background agents, each
-// finished task starting a further turn (tasks.NextTurn) until the idle ceiling,
-// and ends the background shells that are left after a grace (tasks.ReapAtExit).
+// The run streams one result, at its real end (internal/scenario's Result); each
+// finished task starts a further turn (tasks.NextTurn) until the idle ceiling.
 //
 // sr:provides noninteractive-run/claude
 // sr:provides print-waits-for-background-agents/claude
