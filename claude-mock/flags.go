@@ -51,3 +51,9 @@ func maxTurns(cmd *cobra.Command) int {
 	n, _ := cmd.Flags().GetInt("max-turns")
 	return n
 }
+
+// hookEvents is --include-hook-events.
+func hookEvents(cmd *cobra.Command) bool {
+	b, _ := cmd.Flags().GetBool("include-hook-events")
+	return b
+}

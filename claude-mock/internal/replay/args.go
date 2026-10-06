@@ -11,13 +11,13 @@ import (
 // modelled are the flags of a recording's setup/args that the mock models, with
 // how many values each takes; the replay passes them to the mock as they were
 // given to claude.
-var modelled = map[string]int{"--max-turns": 1, "--model": 1}
+var modelled = map[string]int{"--max-turns": 1, "--model": 1, "--include-hook-events": 0}
 
 // refused are the flags the mock refuses (adr/fail-fast-unimplemented): a
 // recording made with one cannot be replayed, and says so rather than being
 // listed as a replay that fails (see RefusedPrefix).
 var refused = map[string]bool{
-	"--include-hook-events": true, "--max-budget-usd": true, "--input-format": true,
+	"--max-budget-usd": true, "--input-format": true,
 	"--include-partial-messages": true, "--agent": true,
 }
 

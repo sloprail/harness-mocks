@@ -63,7 +63,7 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 	case corehooks.AfterFailure:
 		notInterrupted := false
 		ms := took.Milliseconds()
-		_, _ = inv.Fire(ctx, hooks.Input{
+		in := hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUseFailure,
@@ -73,11 +73,13 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 			Error:         res.Output,
 			IsInterrupt:   &notInterrupted,
 			DurationMs:    &ms,
-		})
+		}
+		_, runs, _ := inv.FireRuns(ctx, in)
+		writeHookEventFrames(cfg, in, runs)
 	case corehooks.AfterSuccess:
 		// sr:provides posttooluse-payload/claude
 		n := corehooks.NewPostTool(pending.ToolInput, toolResponse(res), took)
-		_, _ = inv.Fire(ctx, hooks.Input{
+		in := hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUse,
@@ -86,6 +88,8 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 			ToolInput:     n.Input,
 			ToolResponse:  n.Response,
 			DurationMs:    &n.DurationMs,
-		})
+		}
+		_, runs, _ := inv.FireRuns(ctx, in)
+		writeHookEventFrames(cfg, in, runs)
 	}
 }

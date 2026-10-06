@@ -8,6 +8,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -42,6 +43,10 @@ func Run(ctx context.Context, cfg Config) error {
 	nested := cfg.SuppressSubagentHooks
 
 	settings, err := hooks.LoadSettings(cfg.ProjectDir, cfg.PluginCacheDir)
+	var unimplemented *hooks.UnimplementedError
+	if errors.As(err, &unimplemented) {
+		return err
+	}
 	if err != nil {
 		fmt.Fprintf(cfg.Stderr, "claude-mock: warn: loading settings: %v\n", err)
 		settings = &hooks.Settings{Hooks: make(map[hooks.EventName][]hooks.HookEntry)}

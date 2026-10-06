@@ -113,9 +113,14 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 
 	// Synthesise and emit the tool_result user record.
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+	took := time.Since(toolStarted)
+	if cfg.HookEvents { // its hook frames come ahead of the result frame, its records after the result's (recorded: runs/include-hook-events)
+		firePostTool(ctx, cfg, inv.WithRecorder(tr.holdHookRuns), pending, res, took)
+	}
 	if err := emitToolResult(cfg, pending, res, tr); err != nil {
 		return turnResult{}, err
 	}
+	tr.flushHookRuns()
 
 	// PostToolUse for the synthesised result; PostToolUseFailure instead when
 	// the tool ran and failed (a Bash exiting non-zero, a file tool's error),
@@ -124,8 +129,9 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// one, else the text the agent got. Input the tool could not take fires
 	// neither: the tool never ran. Neither leaves a record here.
 	// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
-	took := time.Since(toolStarted)
-	firePostTool(ctx, cfg, inv, pending, res, took)
+	if !cfg.HookEvents {
+		firePostTool(ctx, cfg, inv, pending, res, took)
+	}
 	if startAgent != nil {
 		startAgent()
 	}

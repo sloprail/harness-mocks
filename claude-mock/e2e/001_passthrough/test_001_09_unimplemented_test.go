@@ -31,7 +31,6 @@ func TestT001_09_UnimplementedInputsAreRefused(t *testing.T) {
 		"partial": {[]string{"--include-partial-messages"}, "--include-partial-messages is not implemented by the mock"},
 		"input":   {[]string{"--input-format", "stream-json"}, "--input-format is not implemented by the mock"},
 		"budget":  {[]string{"--max-budget-usd", "5"}, "--max-budget-usd is not implemented by the mock"},
-		"hookev":  {[]string{"--include-hook-events"}, "unknown flag: --include-hook-events"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			out, code := e2etest.RunWithScript(t, script, append(tc.args, "--session-id", "s-1", "-p", "go")...)

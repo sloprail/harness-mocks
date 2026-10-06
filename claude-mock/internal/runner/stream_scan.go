@@ -77,7 +77,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
 					return out, nil
 				}
-				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
+				pre := hooks.Input{
 					SessionID:     cfg.SessionID,
 					AgentID:       cfg.AgentID,
 					Cwd:           cfg.Cwd,
@@ -85,7 +85,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 					ToolName:      toolName,
 					ToolUseID:     toolUseID,
 					ToolInput:     toolInput,
-				})
+				}
+				hookOut, preRuns, hookErr := inv.FireRuns(ctx, pre)
+				writeHookEventFrames(cfg, pre, preRuns)
 				out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput}
 				if err := decidePreTool(cfg, &out.pending, hookOut, hookErr); err != nil {
 					return scanResult{}, err

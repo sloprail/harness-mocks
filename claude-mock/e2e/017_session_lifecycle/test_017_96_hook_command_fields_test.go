@@ -54,6 +54,23 @@ func TestT017_96_AHookWithArgsRunsItsProgramWithThem(t *testing.T) {
 // sr:proves hook-command-handler/claude
 func TestT017_96_AHookShellFieldChangesNothing(t *testing.T) {
 	got, want := runRecordedHooks(t, "hook-shell", "shell-1")
-	assert.Equal(t, []string{`{"hook":"with-shell-bash","zero":"/bin/sh"}`, `{"hook":"default","zero":"/bin/sh"}`}, want, "recorded")
-	assert.Equal(t, want, got)
+	both := []string{`{"hook":"with-shell-bash","zero":"/bin/sh"}`, `{"hook":"default","zero":"/bin/sh"}`}
+	assert.ElementsMatch(t, both, want, "recorded") // the two hooks of one event run at once: no order of their own
+	assert.ElementsMatch(t, want, got)
+}
+
+// A hook's `shell` other than the recorded "bash" is refused, naming it, and
+// nothing runs (fail fast until a recording covers another shell).
+// sr:proves hook-command-handler/claude
+func TestT017_96_AHookShellOtherThanTheRecordedOneIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "hooks.log")
+	write(t, filepath.Join(dir, ".claude", "settings.json"),
+		`{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"echo ran >> `+log+`","shell":"powershell"}]}]}}`, 0o644)
+	sc := script(t, dir, "s", toolUse("b1", "Bash", `{"command":"true"}`))
+	out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "sh-1", "--project-dir", dir, "--config-dir", filepath.Join(dir, "config"), "-p", "go")
+	assert.NotZero(t, code, out)
+	assert.Contains(t, out, `shell "powershell"`)
+	assert.Contains(t, out, "is not implemented by the mock")
+	assert.NoFileExists(t, log, "nothing ran")
 }

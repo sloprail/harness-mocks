@@ -3,6 +3,7 @@ package hooks
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,6 +75,9 @@ func LoadSettings(projectDir, pluginCacheDirOverride string) (*Settings, error) 
 			return nil, err
 		}
 		for evt, entries := range s.Hooks {
+			if err := refuseUnmodelledFields(evt, entries); err != nil {
+				return nil, err
+			}
 			merged.Hooks[evt] = mergeEntries(merged.Hooks[evt], entries)
 		}
 		// Local settings win: later files overwrite earlier per-key values.
@@ -170,4 +174,26 @@ func (a Args) List() []string {
 		return nil
 	}
 	return strings.Split(string(a), "\x00")
+}
+
+// UnimplementedError is a settings field the mock does not implement: the run is
+// refused rather than the field ignored (adr/fail-fast-unimplemented).
+type UnimplementedError struct{ What string }
+
+func (e *UnimplementedError) Error() string {
+	return "claude-mock: " + e.What + " is not implemented by the mock: it is refused rather than ignored"
+}
+
+// refuseUnmodelledFields refuses a hook's `shell` other than "bash", the one
+// value recorded (snapshots/runs/hook-shell: it changed nothing there); any other
+// stays refused until a recording covers it.
+func refuseUnmodelledFields(evt EventName, entries []HookEntry) error {
+	for _, e := range entries {
+		for _, h := range e.Hooks {
+			if h.Shell != "" && h.Shell != "bash" {
+				return &UnimplementedError{What: fmt.Sprintf("the %s hook's shell %q (only \"bash\" is recorded)", evt, h.Shell)}
+			}
+		}
+	}
+	return nil
 }

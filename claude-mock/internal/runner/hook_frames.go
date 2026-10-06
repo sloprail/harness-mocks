@@ -94,12 +94,9 @@ func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	if held { // what the hooks leave follows the prompt once it is written
 		inv = inv.WithRecorder(tr.holdHookRuns)
 	}
-	out, ferr := inv.Fire(ctx, hooks.Input{
-		SessionID:     cfg.SessionID,
-		Cwd:           cfg.Cwd,
-		HookEventName: hooks.EventUserPromptSubmit,
-		Prompt:        cfg.Prompt,
-	})
+	in := hooks.Input{SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: cfg.Prompt}
+	out, runs, ferr := inv.FireRuns(ctx, in)
+	writeHookEventFrames(cfg, in, runs)
 	refused, extra = corehooks.PromptOutcome(ferr != nil || out.Decision == "block", promptContextFrom(out))
 	if refused {
 		if ferr == nil { // an exit-0 hook that blocked by its JSON decision (recorded: snapshots/runs/prompt-blocked-json)
@@ -129,6 +126,9 @@ type Prompting struct {
 	PermissionMode string
 	// MaxTurns is --max-turns: the model turns a run may take (0: no limit).
 	MaxTurns int
+	// HookEvents is --include-hook-events: the stream carries a hook_started and a
+	// hook_response frame for each hook of the main thread, not only SessionStart's.
+	HookEvents bool
 	// Turn is the prompt the session is on: the root run makes it, every
 	// sub-agent run inside shares it.
 	Turn *hooks.Turn

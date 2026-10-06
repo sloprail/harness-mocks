@@ -14,7 +14,7 @@ func TestParseArgs(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(got, []string{"--max-turns", "2"}) {
 		t.Fatalf("modelled: %v %v", got, err)
 	}
-	_, err = parseArgs("--include-hook-events\n")
+	_, err = parseArgs("--max-budget-usd\n5\n")
 	var u *Unbuildable
 	if !errors.As(err, &u) || !strings.HasPrefix(u.Reason, RefusedPrefix) {
 		t.Fatalf("refused: %v", err)

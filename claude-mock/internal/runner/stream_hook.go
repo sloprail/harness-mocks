@@ -90,6 +90,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				BackgroundTasks:      &running,
 				SessionCrons:         &crons,
 			})
+			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
 			writeStopHookError(cfg, stopRuns)
 			// Its feedback, attachment and stop_hook_summary are written as it
 			// fires (transcript.recordHookRuns).
