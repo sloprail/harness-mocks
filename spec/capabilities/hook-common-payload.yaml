@@ -1,7 +1,8 @@
 statement: >-
   Every lifecycle hook receives a payload naming the session, its transcript
-  file and its working directory. An event raised inside a sub-agent also
-  names that sub-agent, while events on the main thread name none.
+  file and its working directory. An event raised inside a sub-agent carries an
+  identity of that sub-agent: its own session id, or the main session's id
+  together with an agent id.
 providers:
   claude:
     docs:
