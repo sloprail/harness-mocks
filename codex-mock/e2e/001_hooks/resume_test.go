@@ -54,6 +54,7 @@ func resumeIn(t *testing.T, first result, dir, id, prompt string) result {
 // sub-agent hook fires (runs/session-resume).
 // sr:proves session-resume/codex
 // sr:proves session-start-hook/codex
+// sr:proves noninteractive-run/codex
 func TestResumeByIDContinuesInTheRolloutFromAnotherDirectory(t *testing.T) {
 	rec := loadRecording(t, "session-resume")
 	first := execMock(t, scenario{

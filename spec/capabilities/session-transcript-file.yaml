@@ -18,12 +18,17 @@ providers:
       - https://developers.openai.com/codex/hooks#common-input-fields
     runs:
       - codex-mock/snapshots/runs/session-transcript-file
+      - codex-mock/snapshots/runs/session-transcript-file-hooks
+      - codex-mock/snapshots/runs/ephemeral-no-transcript
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
-          Codex creates a fresh session's file before the start hook runs: the
-          file the SessionStart payload's transcript_path names already exists
-          then, and the mock does the same (recorded: runs/session-transcript-file).
+          With --ephemeral Codex keeps no transcript: no rollout exists under the
+          configuration directory, and every hook payload has transcript_path
+          null, on each event the run fires (SessionStart, PreToolUse,
+          PostToolUse, Stop, SessionEnd; recorded: runs/ephemeral-no-transcript).
+          The mock does the same.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema

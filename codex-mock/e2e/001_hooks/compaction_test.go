@@ -127,6 +127,7 @@ func TestPostCompactCanStopWhatFollowsTheCompaction(t *testing.T) {
 // A compaction nobody stops is compacted manually when the scenario asks for
 // no trigger, and the hooks' matcher selects on the trigger.
 // sr:proves manual-compaction/codex
+// sr:proves hook-matcher-filter/codex
 func TestCompactionHookMatcherSelectsOnTheTrigger(t *testing.T) {
 	hooks := `{"hooks":{"PreCompact":[{"matcher":"^manual$","hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]}}`
 	got := execMock(t, scenario{

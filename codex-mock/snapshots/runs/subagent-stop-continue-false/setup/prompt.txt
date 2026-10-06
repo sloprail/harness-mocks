@@ -1,0 +1,1 @@
+Spawn exactly one sub-agent with your multi-agent tool (not a shell command) and have it reply only SUBDONE. Wait for it with your wait tool, then reply only DONE. If the sub-agent is told to continue, it should just reply SUBDONE2.

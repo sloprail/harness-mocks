@@ -5,6 +5,7 @@ package toolcall
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/sloprail/harness-mocks/internal/hooks"
 )
@@ -21,6 +22,11 @@ type Result struct {
 	Output string
 	// Failed: it ran and failed (a command exiting non-zero).
 	Failed bool
+	// Wall is how long a command that ran to its end took, which a harness may tell the agent
+	// of; zero for a call that did not run a command to its end.
+	Wall time.Duration
+	// Ended is that a command ran to its end (Wall is its time), not still running.
+	Ended bool
 }
 
 // Kind is how a call ended, which decides what the agent is told.

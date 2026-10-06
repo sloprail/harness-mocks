@@ -21,9 +21,13 @@ type Common struct {
 // sr:docs https://developers.openai.com/codex/hooks#common-input-fields
 // sr:provides hook-common-payload/codex
 func Payload(c Common, ev Event, own map[string]any) []byte {
+	var transcript any = c.TranscriptPath
+	if c.TranscriptPath == "" { // an ephemeral session keeps none: null (recorded: runs/ephemeral-no-transcript)
+		transcript = nil
+	}
 	p := map[string]any{
 		"session_id":      c.SessionID,
-		"transcript_path": c.TranscriptPath,
+		"transcript_path": transcript,
 		"cwd":             c.Cwd,
 		"hook_event_name": string(ev),
 		"model":           c.Model,

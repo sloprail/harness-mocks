@@ -85,8 +85,6 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	if systemPrompt != "" {
 		os.Setenv("A10N_MOCK_SYSTEM_PROMPT", systemPrompt) //nolint:errcheck
 	}
-	name, _ := cmd.Flags().GetString("name")
-	tools, restrictTools := toolsFlag(cmd)
 	prompt := strings.Join(args, " ")
 	// Use projectDir as cwd when explicitly provided — it is the directory the
 	// simulated claude session runs in (the same as what real claude uses).
@@ -111,9 +109,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		IsResume:                isResume,
 		ResumeLookup:            lookedUp(cmd),
 		ForkFrom:                forkFrom,
-		Name:                    name,
-		Tools:                   tools,
-		RestrictTools:           restrictTools,
+		Invocation:              invocation(cmd),
 		Prompt:                  prompt,
 		Cwd:                     cwd,
 		ProjectDir:              projectDir,
@@ -145,12 +141,7 @@ func noConversation(cmd *cobra.Command, noConv *runner.ErrNoConversation) {
 	sessionID, msg := noConv.SessionID, noConv.Error()
 	fmt.Fprintln(os.Stderr, msg)
 	if format, _ := cmd.Flags().GetString(flagOutputFormat); format == "stream-json" {
-		frame, _ := json.Marshal(map[string]any{
-			"type": "result", "subtype": "error_during_execution", "is_error": true,
-			"num_turns": 0, "session_id": sessionID, "errors": []string{msg},
-			// no turn was taken and nothing was denied (recorded: snapshots/runs/resume-unknown)
-			"permission_denials": []any{}, "result_index": 0, "stop_reason": nil,
-		})
+		frame, _ := json.Marshal(noConversationResult(sessionID, msg))
 		fmt.Println(string(frame))
 	}
 	os.Exit(1)

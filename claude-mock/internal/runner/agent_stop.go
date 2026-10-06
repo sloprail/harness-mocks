@@ -50,8 +50,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		sessionFile:             s.sessionFile,
 		spawnDepth:              s.spawnDepth,
 		SpawnLimit:              s.parent.SpawnLimit,
-		Tools:                   s.parent.Tools,
-		RestrictTools:           s.parent.RestrictTools,
+		Invocation:              Invocation{Tools: s.parent.Tools, RestrictTools: s.parent.RestrictTools},
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
 	if !s.announced { // a re-run after a blocking SubagentStop streams no prompt of its own (recorded: snapshots/runs/hookmix)
@@ -63,6 +62,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
 		out.Failure = err.Error()
+		bg.refused.Set(err)
 	}
 	// A sub-agent does not wait for the background agents it launched: they go to
 	// whoever launched it, and report there (recorded: bgagent-nested-launcher).

@@ -11,7 +11,8 @@ import (
 // The stream frames a stream-json run carries for hooks it fired. Only these
 // write them.
 
-// writeStopHookError streams the notice a Stop hook that blocked (by exit 2 or by
+// writeStopHookFrames streams what a Stop hook leaves in the stream: a blocked turn's feedback to the agent,
+// then the notice a Stop hook that blocked (by exit 2 or by
 // JSON: blocked says the turn was held on) or failed (a non-blocking error) leaves:
 // one notification per firing, whatever the number of failing handlers (recorded:
 // snapshots/runs/hook-exit-codes, exit 2; hook-exit-json, exit 1; stops, JSON). A Stop whose
@@ -19,7 +20,10 @@ import (
 //
 // The notice is shown once per run: a later Stop that blocks or fails leaves none (recorded:
 // snapshots/runs/stops, cap), and shown reports whether it was already.
-func writeStopHookError(cfg Config, runs []hooks.HandlerRun, blocked bool, shown *bool) {
+func writeStopHookFrames(cfg Config, runs []hooks.HandlerRun, blocked bool, shown *bool) {
+	if blocked {
+		writeStopFeedbackFrames(cfg, runs)
+	}
 	if *shown {
 		return
 	}

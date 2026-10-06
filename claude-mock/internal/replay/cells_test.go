@@ -22,7 +22,6 @@ var notAbout = map[string]string{
 	"session-resume/script":            "prose: the scenario script writes the init frame",
 	"session-fork/init":                "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
 	"session-resume/init":              "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
-	"foreground-subagent-result/usage": "the sub-agent's token counts, which the mock does not spend (a trailer's text is still compared)",
 	"stop-block-continuation/caller":   "prose: the caller who reads the result",
 }
 

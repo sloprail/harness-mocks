@@ -30,7 +30,7 @@ func yieldTime(c toolcall.Call) (time.Duration, bool) {
 	return time.Duration(*in.Yield) * time.Millisecond, true
 }
 
-// runYielding runs cmd for call c that yields: when the command ends within
+// runYielding runs argv (the command by its shell) for call c that yields: when the command ends within
 // the yield time its result is the ordinary one; when it is still running the
 // call returns a receipt, {chunk_id, wall_time_seconds, session_id,
 // original_token_count, output}: the session id of the command and what it has
@@ -40,7 +40,7 @@ func yieldTime(c toolcall.Call) (time.Duration, bool) {
 //
 // sr:provides background-bash/codex
 // sr:docs https://developers.openai.com/codex/hooks#tool-coverage
-func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, cmd string, yield time.Duration) (r tools.BashResult, running bool) {
+func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, argv []string, yield time.Duration) (r tools.BashResult, running bool) {
 	start := time.Now()
 	out, err := os.CreateTemp("", "codex-session-*")
 	if err != nil {
@@ -50,7 +50,7 @@ func (h toolHost) runYielding(ctx context.Context, c toolcall.Call, cmd string, 
 	session := 10000 + rand.Intn(90000)
 	t := tasks.NewTask(tasks.Command, strconv.Itoa(session))
 	t.Meta = c.ID
-	ended, err := h.bg.StartYielding(ctx, t, tasks.CommandSpec{Argv: []string{"/bin/sh", "-c", cmd}, Dir: h.cfg.Cwd, Env: h.toolEnv, Out: out}, yield)
+	ended, err := h.bg.StartYielding(ctx, t, tasks.CommandSpec{Argv: argv, Dir: h.cfg.Cwd, Env: h.toolEnv, Out: out}, yield)
 	if err != nil {
 		return tools.BashResult{Output: err.Error(), ExitCode: -1}, false
 	}

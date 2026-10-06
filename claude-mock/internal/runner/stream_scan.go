@@ -11,13 +11,11 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
 
-// scanLines reads one script invocation's JSONL output line by line, until a
-// tool_use (returned as pending), a result frame (done), or the end of output.
+// scanLines reads one script invocation's JSONL output line by line, until a tool_use (pending), a result frame (done) or its end.
 func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, tr *transcript) (scanResult, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var out scanResult
-
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(bytes.TrimSpace(line)) == 0 {
@@ -57,26 +55,20 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				out.lastText = t
 			}
 		}
-
 		// PreToolUse + turn break on tool_use blocks.
 		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				var streamed []byte
-				line, streamed = withToolDefaults(line)
-				if cfg.AgentID != "" { // only the main agent's frames carry the inputs as the model sent them
-					streamed = line
+				if _, err := Schema().Check(toolName, toolInput); err != nil { // adr/tool-calls-validated
+					return scanResult{}, err
 				}
-				_, _, toolInput = extractFirstToolUseWithID(line)
-				// The tool_use is written BEFORE the PreToolUse hook fires (the hook's
-				// attachment follows it): it is part of the trajectory whatever the hook decides.
-				if cfg.AgentID != "" {
+				line, streamed, toolInput := withToolDefaults(cfg, line)
+				if cfg.AgentID != "" { // the tool_use is written BEFORE the PreToolUse hook fires
 					cfg.progress(cfg, toolName, toolInput)
 				}
 				writeStreamLine(cfg, streamed)
 				tr.persist(line)
-
 				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
 					return out, nil
@@ -131,7 +123,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			}
 			if toolName != "" {
 				if err := refuseUnrecordedHook(cfg, inv, hooks.EventPostToolUse); err != nil {
-					return scanResult{}, err // a scenario-written tool_result: its frames are not recorded
+					return scanResult{}, err // a scenario-written tool_result
 				}
 				_, _ = inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,

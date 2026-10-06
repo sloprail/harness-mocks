@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
 )
 
 // lookedUp is whether the run's --resume value was found by lookup.
@@ -84,15 +86,31 @@ func hookEvents(cmd *cobra.Command) bool {
 	return b
 }
 
-// toolsFlag is --tools: the names it lists, and whether it restricts the run's tools at all ("default"
-// does not).
-func toolsFlag(cmd *cobra.Command) (names []string, restrict bool) {
-	if !cmd.Flags().Changed("tools") {
-		return nil, false
-	}
+// invocation is the run's --name and --tools: the names the latter lists, and whether it restricts the
+// run's tools at all ("default" does not).
+func invocation(cmd *cobra.Command) runner.Invocation {
+	name, _ := cmd.Flags().GetString("name")
 	value, _ := cmd.Flags().GetString("tools")
-	if value == "default" {
-		return nil, false
+	if !cmd.Flags().Changed("tools") || value == "default" {
+		return runner.Invocation{Name: name}
 	}
-	return strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' }), true
+	return runner.Invocation{Name: name, RestrictTools: true, Tools: strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' })}
+}
+
+// noConversationResult is the result frame of a run that resumed a session with no transcript: no turn
+// was taken and nothing was denied (recorded: snapshots/runs/resume-unknown).
+func noConversationResult(sessionID, msg string) map[string]any {
+	return map[string]any{
+		"type": "result", "subtype": "error_during_execution", "is_error": true,
+		"num_turns": 0, "session_id": sessionID, "errors": []string{msg},
+		"permission_denials": []any{}, "result_index": 0, "stop_reason": nil,
+	}
+}
+
+// addInvocationFlags registers --tools (the tools the run has: a call to another is refused;
+// cli-reference#--tools, recorded in snapshots/runs/file-tools) and --name (the session carries a name,
+// and --resume <name> finds it; cli-reference#--name, recorded in snapshots/runs/resume-name).
+func addInvocationFlags(cmd *cobra.Command) {
+	cmd.Flags().String("tools", "", `The only tools the run has: "default" for all, "" for none, else names separated by commas or spaces`)
+	cmd.Flags().StringP("name", "n", "", "Name the session (--name, -n, as used by claude CLI)")
 }

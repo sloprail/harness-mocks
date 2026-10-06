@@ -1,11 +1,11 @@
 package replay
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // Scenario is what the mock is given to replay a recording: the run's own
@@ -21,6 +21,20 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
+	// Flags are run options the mock is given (--ephemeral).
+	Flags []string
+	// Interrupt is a run the user interrupted: the mock is sent SIGINT once its last command has started.
+	Interrupt bool
+	// Then are the later runs of the harness (a resume, a fork), each with its own script.
+	Then []ThenStep
+}
+
+// ThenStep is a later run of the harness: its words, directory, prompt and script.
+type ThenStep struct {
+	Args   []string
+	Cwd    string
+	Prompt string
+	Script string
 }
 
 // scriptsDir stands, in the scenario's calls, for the directory the sub-agents'
@@ -32,6 +46,14 @@ type modelCall struct {
 	Text  *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
 	Name  string         `json:"name"`
 	Input map[string]any `json:"input"`
+	// More is that another call of the model's script follows: it is not asked again after this call.
+	More bool `json:"more,omitempty"`
+	// Final is the end of a turn: the model's answer, with no call.
+	Final *string `json:"-"`
+	// Hang is an agent that never ends (an unfinished one).
+	Hang bool `json:"-"`
+	// Gate is what must have happened before the step is taken (gates.go).
+	Gate scenario.Gate `json:"-"`
 }
 
 // runPlaceholder stands, in the scenario's calls, for the repository the mock runs
@@ -45,16 +67,20 @@ func Denormalize(rec core.Recording) Scenario {
 	files := map[string]string{"hook.sh": rec.Setup["hook.sh"]}
 	scripts := map[string]string{}
 	calls := make([]modelCall, len(rec.Agent.Calls))
+	mainGates := gatesOf(rec.Agent, nil)
 	n := 0
 	for i, c := range rec.Agent.Calls {
 		calls[i] = mockCall(c)
+		calls[i].Gate = mainGates[i]
 		if c.Tool == core.ToolSpawn && c.Sub != nil {
 			name := fmt.Sprintf("sub%d.sh", n)
 			subCalls := make([]modelCall, len(c.Sub.Calls))
+			subGates := gatesOf(*c.Sub, &rec.Agent)
 			for j, sc := range c.Sub.Calls {
 				subCalls[j] = mockCall(sc)
+				subCalls[j].Gate = subGates[j]
 			}
-			scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), subCalls, c.Sub.Final)
+			scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), 0, subCalls, c.Sub.Final, c.Sub.Unfinished, subGates[len(subCalls)])
 			calls[i].Input["script"] = scriptsDir + "/" + name
 			n++
 		}
@@ -63,15 +89,25 @@ func Denormalize(rec core.Recording) Scenario {
 		HooksJSON: rec.Setup["hooks.json"],
 		Files:     files,
 		Scripts:   scripts,
-		Script:    scriptFor("main", calls, rec.Agent.Final),
+		Script:    scriptFor("main", 0, calls, rec.Agent.Final, false, mainGates[len(calls)]),
+		Then:      thenScenario(rec),
 		Prompt:    rec.Prompt,
+		Flags:     strings.Fields(rec.Setup["flags"]),
+		Interrupt: rec.Agent.Interrupted,
 	}
 }
 
 // mockCall is the mock's name for a unified call; the input is copied, as the
 // spawn's script parameter is added to it.
 func mockCall(c core.Call) modelCall {
+	if c.Tool == core.ToolAnswer {
+		text, _ := c.Input["text"].(string)
+		return modelCall{Final: &text}
+	}
 	name := c.Tool
+	if c.Tool == core.ToolCompact {
+		return modelCall{Name: core.ToolCompact, Input: map[string]any{"trigger": c.Input["trigger"]}}
+	}
 	if c.Tool == core.ToolShell {
 		name = "Bash"
 	}
@@ -82,36 +118,12 @@ func mockCall(c core.Call) modelCall {
 		}
 		in[k] = v
 	}
-	return modelCall{Text: c.Said, Name: name, Input: in}
-}
-
-// scriptFor is the mock script that makes the given calls, one per model turn,
-// then answers with final. The calls are inside it, so a sub-agent's script is
-// a file of its own. Call ids are unique across the run's scripts (tag), as the
-// real ones are: the mock keys a still-running command by its call's id.
-func scriptFor(tag string, calls []modelCall, final string) string {
-	var lines []string
-	for _, c := range calls {
-		content := []any{}
-		if c.Text != nil {
-			content = append(content, map[string]any{"type": "text", "text": *c.Text})
+	if c.Tool == core.ToolWait { // the targets are the receipts of the agent's spawns: the script puts each one in, by its position
+		var ids []any
+		for _, k := range c.Input["targets"].([]int) {
+			ids = append(ids, map[string]any{"spawned": k})
 		}
-		content = append(content, map[string]any{"type": "tool_use", "id": "IDPLACE", "name": c.Name, "input": c.Input})
-		b, _ := json.Marshal(map[string]any{"type": "assistant", "message": map[string]any{"content": content}})
-		lines = append(lines, string(b))
+		in["targets"] = ids
 	}
-	fin, _ := json.Marshal(final)
-	return fmt.Sprintf(`#!/bin/sh
-n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
-call=$(sed -n "$((n+1))p" <<'CALLS_EOF'
-%s
-CALLS_EOF
-)
-if [ -n "$call" ]; then
-  printf '%%s\n' "$call" | sed "s/IDPLACE/call_%s_$n/"
-  exit 0
-fi
-text='%s'
-printf '%%s\n' "$(jq -nc --argjson t "$text" '{type:"assistant",message:{content:[{type:"text",text:$t}]}}')" "$(jq -nc --argjson t "$text" '{type:"result",subtype:"success",result:$t}')"
-`, strings.Join(lines, "\n"), tag, strings.ReplaceAll(string(fin), "'", `'\''`))
+	return modelCall{Text: c.Said, Name: name, Input: in, More: c.More}
 }

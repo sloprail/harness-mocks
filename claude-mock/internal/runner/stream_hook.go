@@ -51,7 +51,6 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var lastSig string
 	var repeats int
 	var stopBlocks int
-	var stopErrorShown bool // the notice of a Stop hook's error is shown once per run
 	var lastText string
 	var final scenario.Result // the run's one result frame, held until its turn really ends
 	finish := finisher(cfg, bg, &final)
@@ -93,21 +92,16 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			})
 			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
 			blocked := turnloop.Continues(stopErr != nil, stopOut.Decision == "block")
-			if blocked {
-				writeStopFeedbackFrames(cfg, stopRuns)
-			}
-			writeStopHookError(cfg, stopRuns, blocked, &stopErrorShown)
+			writeStopHookFrames(cfg, stopRuns, blocked, &bg.run.stopErrorShown)
 			// Its feedback, attachment and stop_hook_summary: transcript.recordHookRuns.
 			// sr:provides stop-block-continuation/claude
 			if blocked {
 				stopBlocks++
 				// sr:provides stop-block-cap/claude
 				if turnloop.AfterBlock(stopBlocks, blockCap) {
-					// Re-prompt: the turn goes on, so the script runs again and
-					// reacts to the block. Its result frame is dropped — a
-					// continued turn ends with one result, at its real end
-					// (claude 2.1.282 streamed a single result across 8
-					// continuations).
+					// Re-prompt: the turn goes on, so the script runs again and reacts to the
+					// block. Its result frame is dropped: a continued turn ends with one result,
+					// at its real end (claude 2.1.282 streamed one across 8 continuations).
 					lastSig, repeats = "", 0
 					final.Continue()
 					continue
@@ -137,7 +131,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				continue
 			}
 			bg.endRun(cfg)
-			return nil
+			return bg.refused.Err()
 		}
 		sig := turn.sig
 		if sig != "" && sig == lastSig {

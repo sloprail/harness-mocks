@@ -74,28 +74,28 @@ func TestScriptNamesAreScoped(t *testing.T) {
 }
 
 func TestScriptCallsInMethodArguments(t *testing.T) {
-	calls, err := newJSRun().script("text(JSON.stringify(await tools.exec_command({cmd:\"a\"}))); ALL_TOOLS.slice(await tools.exec_command({cmd:\"b\"}));")
+	calls, err := newJSRun().script("text(JSON.stringify(await tools.exec_command({cmd:\"a\"}))); ALL_TOOLS.includes(await tools.exec_command({cmd:\"b\"}));")
 	require.NoError(t, err)
 	assert.Len(t, calls, 2)
 }
 
 func TestUnifyTakesOneArgument(t *testing.T) {
-	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}})
+	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a"}, map[string]any{"cmd": "b"}}}, nil, nil)
 	assert.ErrorContains(t, err, "2 arguments")
 }
 
 func TestUnifyPassesTheHarnessOptionsOnAsGiven(t *testing.T) {
-	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>", "max_output_tokens": number{100}, "tty": true}}})
+	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "workdir": "<RUN>", "max_output_tokens": number{100}, "tty": true}}}, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"command": "a", "workdir": "<RUN>", "max_output_tokens": 100, "tty": true}, c.Input)
-	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": opaque{}}}})
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "stdin": opaque{}}}}, nil, nil)
 	assert.ErrorContains(t, err, "stdin")
-	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}})
+	_, err = unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": opaque{}}}}, nil, nil)
 	assert.Error(t, err)
 }
 
 func TestScriptCallsKeepJavaScriptsOrder(t *testing.T) {
-	calls, err := newJSRun().script("(await tools.exec_command({cmd:\"a\"})).output.slice(await tools.exec_command({cmd:\"b\"})); const o = {k:\"x\"}; o[(await tools.exec_command({cmd:\"c\"})).k];")
+	calls, err := newJSRun().script("(await tools.exec_command({cmd:\"a\"})).output.includes(await tools.exec_command({cmd:\"b\"})); const o = {k:\"x\"}; o[(await tools.exec_command({cmd:\"c\"})).k];")
 	require.NoError(t, err)
 	var cmds []any
 	for _, c := range calls {
@@ -106,20 +106,20 @@ func TestScriptCallsKeepJavaScriptsOrder(t *testing.T) {
 
 func TestUnifyYieldIsAWholeNumber(t *testing.T) {
 	for _, y := range []float64{1.9, 1e20} {
-		_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": number{y}}}})
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "a", "yield_time_ms": number{y}}}}, nil, nil)
 		assert.Error(t, err, "%v", y)
 	}
 }
 
 func TestUnifyASpawnWithNoArgumentsIsTheRefusedCall(t *testing.T) {
-	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}})
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{}}}, nil, nil)
 	require.NoError(t, err)
 	assert.Empty(t, c.Input)
 }
 
 func TestUnifyMapsOnlyAnObjectArgument(t *testing.T) {
 	for _, a := range []any{nil, "hi", number{2}, []any{}, opaque{}} {
-		_, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{a}})
+		_, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{a}}, nil, nil)
 		assert.Error(t, err, "%v", a)
 	}
 }
@@ -144,10 +144,10 @@ func TestUnifyRefusesWhatItCannotCarry(t *testing.T) {
 		for k, v := range opts {
 			in[k] = v
 		}
-		_, err := unify(jsCall{Name: "exec_command", Args: []any{in}})
+		_, err := unify(jsCall{Name: "exec_command", Args: []any{in}}, nil, nil)
 		assert.Error(t, err, name)
 	}
-	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{"message": "m", "fork": true, "n": number{1.5}}}})
+	c, err := unify(jsCall{Name: "multi_agent_v1__spawn_agent", Args: []any{map[string]any{"message": "m", "fork": true, "n": number{1.5}}}}, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"message": "m", "fork": true, "n": 1.5}, c.Input)
 }
@@ -172,4 +172,31 @@ func TestPlaceholderIsReplacedInSubAgentScriptsOnly(t *testing.T) {
 func TestInRepoReplacesThePlaceholderInScriptsOnly(t *testing.T) {
 	assert.Equal(t, "cat /r/a", inRepo("sub0.sh", "cat "+runPlaceholder+"/a", "/r"))
 	assert.Equal(t, "echo "+runPlaceholder, inRepo("hook.sh", "echo "+runPlaceholder, "/r"))
+}
+
+func TestAMethodOnAValueNotFollowedIsRefusedUnlessItOnlyLooksAround(t *testing.T) {
+	_, err := newJSRun().script("text(ALL_TOOLS.filter(x => /a/i.test(x.name)).length); text(JSON.stringify({a:1}));")
+	assert.NoError(t, err)
+	_, err = newJSRun().script("ALL_TOOLS.forEach(x => text(x));")
+	assert.Error(t, err)
+	_, err = newJSRun().script("const r = await tools.exec_command({cmd:\"a\"}); text(r.output.trim());") // recorded: runs/subagent-start-systemmessage
+	assert.NoError(t, err)
+	_, err = newJSRun().script("const r = await tools.exec_command({cmd:\"a\"}); text(r.output.padStart(3));")
+	assert.Error(t, err)
+}
+
+func TestPromiseAllOfToolCallsBindsEachName(t *testing.T) {
+	calls, err := newJSRun().script("const [a, b] = await Promise.all([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]); await tools.exec_command({cmd:a.output});")
+	require.NoError(t, err)
+	require.Len(t, calls, 3)
+	assert.Equal(t, ref{call: 0, path: ".output"}, calls[2].Args[0].(map[string]any)["cmd"])
+	for _, js := range []string{
+		"const [a] = await Promise.all([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]);",
+		"const [a, ...r] = await Promise.all([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]);",
+		"const [a, b] = await Promise.race([tools.exec_command({cmd:\"x\"}), tools.exec_command({cmd:\"y\"})]);",
+		"const [a, b] = [tools.exec_command({cmd:\"x\"}), 1];",
+	} {
+		_, err := newJSRun().script(js)
+		assert.Error(t, err, js)
+	}
 }
