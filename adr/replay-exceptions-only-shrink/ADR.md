@@ -1,5 +1,5 @@
 ---
-concern: how the list of recorded runs that do not replay green is kept from growing
+concern: how the list of recorded runs that do not replay green and its reasons are kept from hiding differences
 sloprails: [file-guard/replay-exceptions-only-shrink]
 ---
 
@@ -7,14 +7,30 @@ sloprails: [file-guard/replay-exceptions-only-shrink]
 
 ## Concern
 
-The recorded runs a mock's replay does not reproduce yet are listed with a
-reason in the `notReplaying` map of
-`codex-mock/e2e/001_hooks/replay_allowlist_test.go`. A list that can grow turns
-every difference between a recording and its mock into an accepted one.
+The recorded runs a mock's replay does not reproduce are listed with a
+reason in the `notReplaying` map of that mock's `replay_allowlist_test.go`
+(every such file in the repo); a `flaky:` entry is one whose replay is green in
+some runs and not in others. A list that can grow, or whose reasons can be
+softened, turns every difference between a recording and its mock into an
+accepted one.
 
 ## Decision
 
-- A change to the `notReplaying` map in
-  `codex-mock/e2e/001_hooks/replay_allowlist_test.go` removes keys and never
-  adds one: adding an entry fails CI (the `replay-exceptions-only-shrink`
-  file-guard compares the map's keys at the base and at the head).
+- A change to the `notReplaying` map of any `replay_allowlist_test.go` removes
+  keys and never adds one: adding an entry fails CI (the
+  `replay-exceptions-only-shrink` file-guard compares the map's keys at the base
+  and at the head). A new `flaky:` entry is an addition.
+- An existing entry's reason never moves to a weaker category: a reason starts
+  with one of `adapter:`, `mock gap:`, `untriaged:` or `flaky:`; `flaky:` is the
+  weakest, `untriaged:` is weaker than the triaged `adapter:` and `mock gap:`, a
+  move between the triaged ones, or from `flaky:` or `untriaged:` to a stronger
+  category, is allowed, and a reason that starts with none of the four is
+  refused.
+
+## Source
+
+The user's words for the second bullet: "A replay exception's reason may not
+move to a weaker category (flaky < untriaged < triaged), and a flaky entry runs
+3 times and fails if never green; it is never skipped."
+
+The user's words for the categories: "A replay exception's reason must start with one of adapter:, mock gap:, untriaged: or flaky:; a reason with none of these is refused."

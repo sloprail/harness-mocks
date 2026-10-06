@@ -26,6 +26,7 @@ add() { problems="${problems}- $1"$'\n'; }
 hash() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
 if [ -n "$(subject_id)" ]; then hs="$(subject_id)"; else hs="$(harnesses)"; fi
+[ -n "$hs" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness could be checked (an incomplete tree?)"
 for h in $hs; do
   d="$(snap_dir "$h")"
   cited="$(jq -c --arg h "$h" '[.[] | .doc.providers[$h] // false | select(type == "object")]' <<<"$caps")"

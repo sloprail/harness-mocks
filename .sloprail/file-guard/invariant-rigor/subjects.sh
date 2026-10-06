@@ -11,7 +11,9 @@ payload="$(cat)"
 slim_payload
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 load_markers proves
-arr="$(printf '%s' "$payload" | jq -c --arg proves "$MARKERS" '
+# the markers go to jq through a file, not argv (Linux caps one argument at 128 KB); a failed jq
+# refuses, never an empty list of subjects
+arr="$(printf '%s' "$payload" | jq -c --rawfile proves <(printf '%s' "$MARKERS") '
   .changeset.files as $files
   | [$proves | split("\n")[] | select(length > 0) | split("\t") | {p: .[0], q: .[1]}] as $pv
   | ([$files[] | (select(.path | test("^spec/invariants/[a-z0-9-]+\\.yaml$")) | .path | ltrimstr("spec/invariants/") | rtrimstr(".yaml")),
@@ -19,5 +21,6 @@ arr="$(printf '%s' "$payload" | jq -c --arg proves "$MARKERS" '
     | map(. as $id | {id: $id,
         files: [$files[] | select(.path == "spec/invariants/\($id).yaml"
                  or any(((.newMarkers // []) + (.oldMarkers // []))[]; (.kind == "invariant" or .kind == "proves") and .fqn == $id)) | .path],
-        deps: (["spec/invariants/\($id).yaml"] + [$pv[] | select(.q == $id) | .p])})')"
+        deps: (["spec/invariants/\($id).yaml"] + [$pv[] | select(.q == $id) | .p])})')" ||
+  refuse_error "the touched invariants could not be worked out, so no subject could be made"
 sub_finish unclaimed "$arr"

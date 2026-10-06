@@ -17,8 +17,10 @@ slim_payload '^spec/capabilities/'
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 load_spec capabilities; load_touched
-arr="$(printf '%s' "$payload" | jq -c --argjson caps "$SPEC" --arg tt "$TOUCHED_TSV" '
-  [.changeset.files[].path] as $changed
+# the catalog and the table go to jq through files (one argv entry is capped at 128 KB on Linux)
+arr="$(printf '%s' "$payload" | jq -c --slurpfile caps0 <(printf '%s' "$SPEC") --rawfile tt <(printf '%s' "$TOUCHED_TSV") '
+  $caps0[0] as $caps
+  | [.changeset.files[].path] as $changed
   | [$tt | split("\n")[] | select(length > 0) | split("\t") | {p: .[0], h: .[1]}] as $tr
   | ([$caps[] | .id as $id | "spec/capabilities/\($id).yaml" as $p
       | (.doc.providers // {} | to_entries | map(select(.value | type == "object"))) as $prov
@@ -34,5 +36,6 @@ arr="$(printf '%s' "$payload" | jq -c --argjson caps "$SPEC" --arg tt "$TOUCHED_
          deps: ([$p] + [$look[] | . as $h | (($prov[] | select(.key == $h) | .value.runs // [])[])]),
          extra: ("harnesses:" + ($hs | join(" ")))}])
     + [.changeset.files[] | select(.status == "D" and (.path | startswith("spec/capabilities/")))
-       | {id: (.path | ltrimstr("spec/capabilities/") | rtrimstr(".yaml")), files: [.path]}]')"
+       | {id: (.path | ltrimstr("spec/capabilities/") | rtrimstr(".yaml")), files: [.path]}]')" ||
+  refuse_error "the capabilities this change touches could not be worked out, so nothing could be judged"
 sub_finish unclaimed "$arr"

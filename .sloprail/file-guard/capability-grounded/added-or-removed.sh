@@ -11,11 +11,14 @@
 # is not waived. A `mock-not-modeled` deviation is "unchanged" when the base has the same
 # statement for that harness with that kind, or with no kind yet (the one-off migration that
 # gave every deviation its kind). What the user decides is compared parsed, at the range's
-# base and head, so an edit to any line of a folded block counts. Any failure requires the words.
+# base and head, so an edit to any line of a folded block counts. Any failure requires the words:
+# a lookup that fails applies the requirement (exit 0, with a hint saying so), it never waives it.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
 command -v jq >/dev/null 2>&1 && command -v yq >/dev/null 2>&1 || exit 0
+# applies WHY — the requirement applies, because what it depends on could not be worked out
+applies() { jq -n --arg h "$1" '{hint: $h}'; exit 0; }
 base="$(cs '.changeset.base')"; head="$(cs '.changeset.head')"
 [ -n "$base" ] && [ -n "$head" ] || exit 0
 # what the user decides, of one capability file at REV ("null" if absent): the statement, every
@@ -34,14 +37,18 @@ decided() {   # REV PATH
 }
 # the files this requirement is asked about: the subject's (the rule is split per capability, and
 # another capability's statement moving must not demand words of this one), else every changed one
-for p in $(cs '(.subject.files // [.changeset.files[].path])[] | select(test("^spec/capabilities/"))'); do
+files="$(cs '(.subject.files // [.changeset.files[].path])[] | select(test("^spec/capabilities/"))')" ||
+  applies "the changed capability files could not be listed, so the user's words are required"
+for p in $files; do
   b="$(decided "$base" "$p")"; h="$(decided "$head" "$p")"
   [ "$b" = "null" ] || [ "$h" = "null" ] && exit 0   # added or removed
+  # jq -e: 0 the change needs words, 1 it does not, anything else (5: the program failed) is a failure
   jq -ne --argjson b "$b" --argjson h "$h" '
     $b.statement != $h.statement
     or ([$h.deviations[] | select(.k != "harness-lacks") | . as $d
           | select([$b.deviations[] | select(.h == $d.h and .s == $d.s
               and (.k == $d.k or (.k == null and $d.k == "mock-not-modeled")))] | length == 0)] | length) > 0
-    or (($h.unrecorded - $b.unrecorded) | length) > 0' >/dev/null && exit 0
+    or (($h.unrecorded - $b.unrecorded) | length) > 0' >/dev/null
+  case $? in 0) exit 0 ;; 1) ;; *) applies "what $p changed could not be compared, so the user's words are required" ;; esac
 done
 exit 1

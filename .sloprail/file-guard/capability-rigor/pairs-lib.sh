@@ -7,14 +7,18 @@
 # or a recording it cites for <h> changed (a run). A doc page re-frozen is none of these: docs
 # follow recordings and never re-judge alone. touched.sh narrows a marker to its declaration,
 # so a change to one function leaves another's capability alone. Only the capability this check's subject names, when the rule is split (subjects.sh).
+# Fails (non-zero) when the pairs cannot be worked out: an empty list is "nothing touched", a failure is not,
+# so a caller captures `pairs="$(rigor_pairs)" || refuse ...` and never reads a failed lookup as an empty one.
+# The catalog and the tables go to jq through files, not the command line (one argv entry is capped at 128 KB on Linux).
 # Source after changeset.sh, spec.sh and snapshots.sh; no event logic.
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/touched.sh"
 rigor_pairs() {
-  load_spec capabilities; load_touched; load_touched_markers
+  load_spec capabilities; load_touched; load_touched_markers || return 1
   # one jq over the payload, the specs and the touched table: no process per capability or pair
-  printf '%s' "$payload" | jq -r --argjson caps "$SPEC" --arg tt "$TOUCHED_TSV" --arg tm "$TOUCHED_MARKERS_TSV" --arg want "$(subject_id)" '
-    [.changeset.files[].path] as $changed
+  printf '%s' "$payload" | jq -r --slurpfile caps0 <(printf '%s' "$SPEC") --rawfile tt <(printf '%s' "$TOUCHED_TSV") --rawfile tm <(printf '%s' "$TOUCHED_MARKERS_TSV") --arg want "$(subject_id)" '
+    $caps0[0] as $caps
+    | [.changeset.files[].path] as $changed
     | [$tm | split("\n")[] | select(length > 0) | split("\t") | .[2]] as $fq
     | [$tt | split("\n")[] | select(length > 0) | split("\t") | {p: .[0], h: .[1]}] as $tr
     | $caps[] | select($want == "" or .id == $want) | . as $c | .id as $id | "spec/capabilities/\($id).yaml" as $cp

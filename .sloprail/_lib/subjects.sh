@@ -34,8 +34,8 @@ SUBJECTS="[]"
 sub_oids() {
   local in out
   in="$(sed "s|^|$1:|")"
-  out="$(printf '%s\n' "$in" | git -C "$SR_TREE" cat-file --batch-check 2>&1)" || refuse "could not read object ids at $1: $out"
-  [ "$(printf '%s\n' "$in" | wc -l)" -eq "$(printf '%s\n' "$out" | wc -l)" ] || refuse "object id lookup at $1 returned the wrong number of lines"
+  out="$(printf '%s\n' "$in" | git -C "$SR_TREE" cat-file --batch-check 2>&1)" || refuse_error "could not read object ids at $1: $out"
+  [ "$(printf '%s\n' "$in" | wc -l)" -eq "$(printf '%s\n' "$out" | wc -l)" ] || refuse_error "object id lookup at $1 returned the wrong number of lines"
   printf '%s\n' "$out" | awk '{ if ($NF == "missing") print "-"; else print $1 }'
 }
 

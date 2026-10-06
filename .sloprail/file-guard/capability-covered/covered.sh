@@ -22,26 +22,39 @@ payload="$(cat)"
 load_spec capabilities; caps="$SPEC"
 load_markers capability; impl="$MARKERS"
 load_markers proves; proves="$(printf '%s\n' "$MARKERS" | awk -F'\t' 'NF && $2 ~ /\//')"
-hs="$(harnesses)"
+# The harness mocks are listed here, by a glob of directories: harnesses() (spec.sh) ends on its last `[ -d ]`,
+# so a stray file named like a mock sorted last would fail its listing. No mock directory at all is one refusal.
+hs=""
+for d in "$SR_TREE"/*-mock/; do
+  [ -d "$d" ] || continue
+  d="${d%/}"; d="${d##*/}"
+  hs="${hs}${d%-mock}"$'\n'
+done
+[ -n "$hs" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness cell could be checked (an incomplete tree?)"
 
 problems=""
 pending=""
 add() { problems="${problems}- $1"$'\n'; }
 # `// "missing"` would read a false cell as missing: jq's // treats false as absent.
-cell() { jq -c --arg id "$1" --arg h "$2" '[.[] | select(.id == $id)][0].doc.providers | if has($h) then .[$h] else "missing" end' <<<"$caps"; }
+cell() { jq -c --arg id "$1" --arg h "$2" '[.[] | select(.id == $id)][0].doc.providers | if type == "object" and has($h) then .[$h] else "missing" end' <<<"$caps"; }
 
+# a failed listing is a refusal, never an empty loop that checks nothing
+list="$(jq -c '.[]' <<<"$caps")" || refuse_error "the capability files could not be listed, so nothing could be checked"
 while IFS= read -r c; do
   [ -n "$c" ] || continue
-  id="$(jq -r '.id' <<<"$c")"
+  id="$(jq -r '.id' <<<"$c")" || refuse_error "a capability's id could not be read, so it could not be checked"
   kebab "$id" || add "spec/capabilities/$id.yaml: the file name must be kebab-case"
-  jq -e '(.doc.providers | type) == "object"' <<<"$c" >/dev/null || continue   # a bad shape is shapes' finding
-  for h in $(jq -r '.doc.providers | keys[]' <<<"$c"); do
-    printf '%s\n' "$hs" | grep -Fxq -- "$h" || add "capability '$id' has a cell for '$h', but there is no $h-mock/"
+  jq -e '(.doc.providers | type) == "object"' <<<"$c" >/dev/null; rc=$?
+  [ "$rc" -le 1 ] || refuse_error "capability '$id': its cells could not be read, so it could not be checked"
+  [ "$rc" -eq 0 ] || continue   # not an object: a bad shape is shapes' finding
+  keys="$(jq -r '.doc.providers | keys[]' <<<"$c")" || refuse_error "capability '$id': its cells could not be listed, so it could not be checked"
+  for h in $keys; do
+    case $'\n'"$hs" in *$'\n'"$h"$'\n'*) ;; *) add "capability '$id' has a cell for '$h', but there is no $h-mock/" ;; esac
   done
   n="$(printf '%s\n' "$impl" | awk -F'\t' -v id="$id" '$2 == id' | grep -c .)"
   [ "$n" -eq 1 ] || add "capability '$id' needs exactly one // sr:capability $id, in internal/ (found $n)"
   for h in $hs; do
-    v="$(cell "$id" "$h")"
+    v="$(cell "$id" "$h")" || refuse_error "capability '$id' × '$h': its cell could not be read, so it could not be checked"
     case "$v" in
       '"missing"') add "capability '$id' has no cell for '$h': set it to {docs, runs}, {supported: false, reason, docs}, or \"pending\"" ;;
       '"pending"') pending="${pending}${id}/${h}"$'\n' ;;
@@ -52,15 +65,16 @@ while IFS= read -r c; do
             add "capability '$id' × '$h' is {supported: false} without a one-line reason and at least one doc or recorded run that shows the feature absent"
           continue
         fi
-        for a in $(jq -r '.deviations[]?.adr' <<<"$v"); do
+        adrs="$(jq -r '.deviations[]?.adr' <<<"$v")" || refuse_error "capability '$id' × '$h': its deviations could not be read, so they could not be checked"
+        for a in $adrs; do
           [ -f "$SR_TREE/adr/$a/ADR.md" ] || add "capability '$id' × '$h' deviates citing adr/$a, which does not exist"
         done
-        printf '%s\n' "$proves" | awk -F'\t' -v f="$id/$h" '$2 == f && $1 ~ /_test\.go$/' | grep -q . ||
+        printf '%s\n' "$proves" | awk -F'\t' -v f="$id/$h" '$2 == f && $1 ~ /_test\.go$/ {ok = 1} END {exit !ok}' ||
           add "capability '$id' is provided by '$h' but no test carries // sr:proves $id/$h"
         ;;
     esac
   done
-done < <(jq -c '.[]' <<<"$caps")
+done <<<"$list"
 
 while IFS=$'\t' read -r path id; do
   [ -n "$path" ] || continue
@@ -70,7 +84,7 @@ done <<<"$impl"
 check_ref() {   # KIND PATH FQN WHERE-GLOB
   local kind="$1" path="$2" fqn="$3" id="${3%%/*}" h="${3#*/}" v
   case "$fqn" in */*) ;; *) add "$path: sr:$kind '$fqn' must be <capability>/<harness>"; return ;; esac
-  v="$(cell "$id" "$h")"
+  v="$(cell "$id" "$h")" || refuse_error "$path: the cell '$id' × '$h' could not be read, so sr:$kind $fqn could not be checked"
   [ "$(cell_kind "$v")" = supported ] ||
     { add "$path: sr:$kind $fqn, but '$id' has no supported cell for '$h' ({docs, runs}); a pending or unsupported cell is not coverage"; return; }
   case "$kind:$path" in

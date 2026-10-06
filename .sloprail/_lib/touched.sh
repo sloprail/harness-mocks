@@ -50,35 +50,43 @@ marker_regions() {
     }'
 }
 
+# Fails (non-zero) when what the changeset touches cannot be worked out (the markers cannot be read, or
+# a diff or a file's content cannot be had): "nothing touched" is an empty table, a failure is not, so
+# a caller runs `load_touched_markers || refuse ...` and never reads a failed lookup as "no capability
+# touched" (which would skip the judge).
 load_touched_markers() {
   [ -z "${TM_READY:-}" ] || return 0
-  TM_READY=1; TOUCHED_MARKERS_TSV=""
-  local base head rows path st side kind fqn line files f nl ol lines chg hit
-  base="$(cs '.changeset.base')"; head="$(cs '.changeset.head')"
-  rows="$(printf '%s' "$payload" | jq -r '.changeset.files[] | . as $f
+  TOUCHED_MARKERS_TSV=""
+  local base head all rows path st side kind fqn line files f nl ol lines chg hit diff content
+  base="$(cs '.changeset.base')" || return 1; head="$(cs '.changeset.head')" || return 1
+  all="$(printf '%s' "$payload" | jq -r '.changeset.files[] | . as $f
     | ((.newMarkers // []) | map(["n", $f.path, $f.status, .kind, .fqn, (.line | tostring)] | @tsv))[],
-      ((.oldMarkers // []) | map(["o", $f.path, $f.status, .kind, .fqn, (.line | tostring)] | @tsv))[]' |
-    awk -F'\t' '$4 == "capability" || $4 == "provides" || $4 == "proves"')"
-  [ -n "$rows" ] || return 0
+      ((.oldMarkers // []) | map(["o", $f.path, $f.status, .kind, .fqn, (.line | tostring)] | @tsv))[]')" || return 1
+  rows="$(printf '%s\n' "$all" | awk -F'\t' '$4 == "capability" || $4 == "provides" || $4 == "proves"')" || return 1
+  [ -n "$rows" ] || { TM_READY=1; return 0; }
   # added, deleted, renamed or unreadable: every marker of the file; modified: those whose region changed
-  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$rows" | awk -F'\t' '$3 != "M" {print $2 "\t" $4 "\t" $5}')"
-  files="$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "M" {print $2}' | sort -u)"
+  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$rows" | awk -F'\t' '$3 != "M" {print $2 "\t" $4 "\t" $5}')" || return 1
+  files="$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "M" {print $2}' | sort -u)" || return 1
   for f in $files; do
-    lines="$(git -C "$SR_TREE" diff -U0 --no-color --no-renames "$base" "$head" -- "$f" 2>/dev/null | diff_lines)" || lines=""
     if [ -z "$base" ] || [ -z "$head" ] || ! git -C "$SR_TREE" cat-file -e "$head:$f" 2>/dev/null; then
       TOUCHED_MARKERS_TSV="${TOUCHED_MARKERS_TSV}"$'\n'"$(printf '%s\n' "$rows" | awk -F'\t' -v f="$f" '$2 == f {print $2 "\t" $4 "\t" $5}')"; continue
     fi
+    # a diff that cannot be had is not "no changed lines"
+    diff="$(git -C "$SR_TREE" diff -U0 --no-color --no-renames "$base" "$head" -- "$f" 2>/dev/null)" || return 1
+    lines="$(printf '%s\n' "$diff" | diff_lines)" || return 1
     for side in n o; do
       chg="$(printf '%s\n' "$lines" | awk -v s="$side" '$1 == s {print $2}' | tr '\n' ' ')"
       [ -n "$chg" ] || continue
       nl="$(printf '%s\n' "$rows" | awk -F'\t' -v f="$f" -v s="$side" '$2 == f && $1 == s {print $6}' | tr '\n' ' ')"
       [ -n "$nl" ] || continue
-      if [ "$side" = n ]; then hit="$(git -C "$SR_TREE" show "$head:$f" | marker_regions "$nl" "$chg")"
-      else hit="$(git -C "$SR_TREE" show "$base:$f" | marker_regions "$nl" "$chg")"; fi
+      if [ "$side" = n ]; then content="$(git -C "$SR_TREE" show "$head:$f")" || return 1
+      else content="$(git -C "$SR_TREE" show "$base:$f")" || return 1; fi
+      hit="$(printf '%s\n' "$content" | marker_regions "$nl" "$chg")" || return 1
       for line in $hit; do
         TOUCHED_MARKERS_TSV="${TOUCHED_MARKERS_TSV}"$'\n'"$(printf '%s\n' "$rows" | awk -F'\t' -v f="$f" -v s="$side" -v l="$line" '$2 == f && $1 == s && $6 == l {print $2 "\t" $4 "\t" $5}')"
       done
     done
   done
-  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$TOUCHED_MARKERS_TSV" | sed '/^$/d' | sort -u)"
+  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$TOUCHED_MARKERS_TSV" | sed '/^$/d' | sort -u)" || return 1
+  TM_READY=1
 }
