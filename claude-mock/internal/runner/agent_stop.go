@@ -63,6 +63,8 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 	}
 	s.announced = true
 	s.startFrames.finish(s.parent)
+	s.steps = subCfg.steps
+	s.parent.steps.child(s.agentID, subCfg.steps) // a gate of the parent's script may wait on how far it has got
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
