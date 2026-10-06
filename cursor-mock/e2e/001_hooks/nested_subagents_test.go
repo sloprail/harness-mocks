@@ -204,7 +204,7 @@ func TestDepthLimitStopsNesting(t *testing.T) {
 				}
 			}
 		}
-		assert.Contains(t, last, "no Task tool is available", f)
+		assert.Regexp(t, `(?i)(no|don.t have a) Task tool`, last, f) // said in its own words: "no Task tool is available", "I don’t have a Task tool available"
 	}
 	// the mock: the Task call at the limit is made (it is in the sub-agent's
 	// transcript, the three layers' Task calls in all) and no hook sees it (the two
