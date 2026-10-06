@@ -87,11 +87,18 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          Cursor fires neither subagentStart nor subagentStop for a sub-agent
-          or its own sub-agent in print mode, though both were configured
-          (recorded: runs/nested-subagents, whose hook log has no event of
-          either), so the documented parent_conversation_id of those hooks
-          does not apply, and the mock fires neither.
+          Doc and recording conflict: the doc section hooks#subagentstart
+          (https://cursor.com/docs/hooks#subagentstart) says "Called before
+          spawning a subagent (Task tool).", and lists parent_conversation_id
+          ("Conversation ID of the parent agent session") among its fields,
+          with subagentStop "Called when a subagent completes, errors, or is
+          aborted.", but the recording
+          cursor-mock/snapshots/runs/nested-subagents shows Cursor firing
+          neither subagentStart nor subagentStop for a sub-agent or its own
+          sub-agent in print mode, though both were configured (its
+          payloads.jsonl has no event of either, and no parent field), so the
+          documented parent_conversation_id of those hooks does not apply. The
+          recording decides, and the mock fires neither.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
