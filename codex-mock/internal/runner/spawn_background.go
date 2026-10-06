@@ -23,11 +23,6 @@ import (
 func (h toolHost) spawnAgent(c toolcall.Call) toolcall.Result {
 	var in spawnInput
 	_ = json.Unmarshal(c.Input, &in)
-	var raw map[string]json.RawMessage
-	_ = json.Unmarshal(c.Input, &raw)
-	if _, old := raw["background"]; old { // the mock's former parameter: spawn_agent always answers at once now
-		return toolcall.Result{Output: "spawn_agent: the mock's 'background' parameter is gone (spawn_agent always answers at once); it is refused rather than ignored", Failed: true}
-	}
 	id := coresession.NewID()
 	h.spawned.Add(id)
 	spawn := h.events.CollabStarted(agentTool, h.id, nil, in.Message)

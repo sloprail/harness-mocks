@@ -8,7 +8,8 @@ import (
 )
 
 // The mock's former `background` parameter of spawn_agent is refused, not
-// ignored (adr/fail-fast-unimplemented): spawn_agent always answers at once now.
+// ignored (adr/fail-fast-unimplemented, adr/tool-calls-validated): the schema has
+// no such parameter, so the run fails naming it, before the call is played.
 func TestSpawnAgentRefusesTheOldBackgroundParameter(t *testing.T) {
 	r := execMock(t, scenario{BypassTrust: true, Prompt: "go", Files: map[string]string{"sub.sh": "#!/bin/sh\ntouch ran-anyway\n"}, Script: `#!/bin/sh
 n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
@@ -22,6 +23,7 @@ if [ "$n" = 1 ]; then # keep the turn going, so a sub-agent started anyway would
 fi
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' '{"type":"result","subtype":"success","result":"done"}'
 `})
-	assert.Contains(t, r.rollout(t), "'background' parameter is gone")
+	assert.NotEqual(t, 0, r.Code)
+	assert.Contains(t, r.Stderr, `unknown parameter "background"`)
 	assert.NoFileExists(t, filepath.Join(r.Repo, "ran-anyway"))
 }

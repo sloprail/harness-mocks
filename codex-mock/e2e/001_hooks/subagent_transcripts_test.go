@@ -20,7 +20,7 @@ const (
 	pingSpawn = `#!/bin/sh
 n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
 if [ "$n" = 0 ]; then
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_spawn","name":"spawn_agent","input":{"task_name":"ping","message":"Reply with PONG","script":"pong.sh"}}]}}'
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_spawn","name":"spawn_agent","input":{"message":"Reply with PONG","script":"pong.sh"}}]}}'
   exit 0
 fi
 if [ "$n" = 1 ]; then
