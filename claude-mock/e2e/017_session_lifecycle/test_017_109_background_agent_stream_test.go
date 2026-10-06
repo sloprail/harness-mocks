@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -126,4 +127,46 @@ func TestT017_110_ABackgroundShellKilledAtExitIsReportedAfterTheResult(t *testin
 		"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "hello")
 	require.Equal(t, 0, code, out)
 	assert.Equal(t, want, tailAfterResult(streamFrames(t, out)))
+}
+
+// taskFrames are the task_* frames of a stream as subtype with the description a started or
+// progress frame names and the status a notification carries.
+func taskFrames(frames []map[string]any) (out []string) {
+	for _, f := range frames {
+		sub, _ := f["subtype"].(string)
+		if !strings.HasPrefix(sub, "task_") {
+			continue
+		}
+		switch sub {
+		case "task_started", "task_progress":
+			sub += ":" + f["description"].(string)
+		case "task_notification":
+			sub += ":" + f["status"].(string)
+		}
+		out = append(out, sub)
+	}
+	return out
+}
+
+// TestT017_111_NestedForegroundAgentsStreamTheirTaskFrames: an agent that starts another in
+// the foreground streams its own task_started, a task_progress naming the call it makes, then
+// the inner agent's task_started, task_updated and task_notification, and the outer's
+// task_updated and task_notification last (recording meta, whose first step is this).
+// sr:proves nested-subagents/claude
+// sr:proves task-stream-frames/claude
+func TestT017_111_NestedForegroundAgentsStreamTheirTaskFrames(t *testing.T) {
+	data, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/meta/samples/*/stream.jsonl"))
+	require.NoError(t, err)
+	want := taskFrames(streamFrames(t, string(data)))[:7]
+	require.Equal(t, []string{"task_started:outer", "task_progress:inner", "task_started:inner", "task_updated", "task_notification:completed",
+		"task_updated", "task_notification:completed"}, want, "recorded")
+
+	dir := t.TempDir()
+	inner := script(t, dir, "inner")
+	outer := script(t, dir, "outer", toolUse("in1", "Agent", `{"prompt":"p","description":"inner","script":"`+inner+`"}`))
+	orch := script(t, dir, "orch", toolUse("ou1", "Agent", `{"prompt":"p","description":"outer","script":"`+outer+`"}`))
+	out, code := runInDir(t, dir, nil, "--script", orch, "--session-id", "nf-1", "--project-dir", dir,
+		"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "hello")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, want, taskFrames(streamFrames(t, out)))
 }

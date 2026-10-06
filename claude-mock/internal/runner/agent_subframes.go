@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 )
@@ -24,22 +25,37 @@ func (s *SubFrames) frameFields(cfg Config, m map[string]any) {
 }
 
 // progress streams the task_progress frame that precedes each tool call of a
-// sub-agent: what it is about to run (its description, else the tool's name),
-// the calls so far and how long it has run. The mock spends no tokens.
+// sub-agent: what it is about to do, the calls so far and how long it has run. The
+// mock spends no tokens.
 func (s *SubFrames) progress(cfg Config, tool string, input json.RawMessage) {
-	var in struct {
-		Description string `json:"description"`
-	}
-	_ = json.Unmarshal(input, &in)
-	what := in.Description
-	if what == "" {
-		what = tool
-	}
 	writeFrame(cfg, map[string]any{
 		"type": "system", "subtype": "task_progress", "task_id": cfg.AgentID, "tool_use_id": s.ParentToolUseID,
-		"description": "Running " + what, "subagent_type": cfg.AgentType, "last_tool_name": tool,
+		"description": progressWhat(tool, input), "subagent_type": cfg.AgentType, "last_tool_name": tool,
 		"usage": map[string]any{"total_tokens": 0, "tool_uses": s.toolUses.Add(1), "duration_ms": time.Since(s.begun).Milliseconds()},
 	})
+}
+
+// progressWhat is what a task_progress frame says of the call about to run, as recorded
+// (runs/meta, bgagent, file-tools...): an Agent call its own description, a Bash "Running "
+// and its description, a Read "Reading " and an Edit "Editing " and the file's name; any other
+// tool "Running " and its description, else its name.
+func progressWhat(tool string, input json.RawMessage) string {
+	var in struct {
+		Description string `json:"description"`
+		FilePath    string `json:"file_path"`
+	}
+	_ = json.Unmarshal(input, &in)
+	switch {
+	case tool == "Agent" && in.Description != "":
+		return in.Description
+	case tool == "Read" && in.FilePath != "":
+		return "Reading " + filepath.Base(in.FilePath)
+	case tool == "Edit" && in.FilePath != "":
+		return "Editing " + filepath.Base(in.FilePath)
+	case in.Description != "":
+		return "Running " + in.Description
+	}
+	return "Running " + tool
 }
 
 // announce streams the sub-agent's first frame: the prompt it was given, as a user message.
