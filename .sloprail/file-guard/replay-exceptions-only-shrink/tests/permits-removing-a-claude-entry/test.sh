@@ -4,8 +4,6 @@ set -euo pipefail
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only
 # this rule's outcome is asserted. Proves the permit of a shrinking claude list (down to empty).
 git init -q .
-. "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
-install_checker || exit 1
 mkdir -p claude-mock/e2e/018_replay
 list=claude-mock/e2e/018_replay/replay_allowlist_test.go
 head='package e2e\n\nvar notReplaying = map[string]string{\n'

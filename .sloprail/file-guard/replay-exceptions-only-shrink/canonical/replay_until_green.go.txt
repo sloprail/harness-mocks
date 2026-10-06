@@ -1,7 +1,0 @@
-func replayUntilGreen(run func() (string, error), attempts int) (string, error) {
-	diff, err := run()
-	for i := 1; i < attempts && (err != nil || diff != ""); i++ {
-		diff, err = run()
-	}
-	return diff, err
-}

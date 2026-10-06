@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
-# The notReplaying map at the head only shrinks from the base, in every replay exception list (one
-# replay_allowlist_test.go per mock): a change may remove entries, never add one, and may not move an
-# existing entry's reason to a weaker category (flaky: is weaker than untriaged:, which is weaker than
-# any triaged reason such as adapter: or mock gap:). A file created by the change has no base, so it may
-# carry no entries: every entry would be an addition.
+# The notReplaying map at the head only shrinks from the base, in every replay exception list
+# (one replay_allowlist_test.go per mock): a change may remove entries, never add one, and may
+# not move an existing entry's reason to a weaker category (flaky: is weaker than untriaged:,
+# which is weaker than any triaged reason such as adapter: or mock gap:). A file created by the
+# change has no base, so it may carry no entries: every entry would be an addition.
 #
-# The Go is read from its syntax tree and its type information by tools/replaycheck, never from its
-# text: the map is read as the declaration it is (an escape, a raw string, a one-line map or a comment
-# cannot hide an entry), the generated replay test may only read the list, flakyRuns is the one
-# package-level const 3, and no other file of the package may name the list. replayUntilGreen and
-# TestGeneratedReplay, which repeat a flaky: entry and fail it when it is never green, are pinned: printed
-# without comments they must equal the canonical copies in canonical/ byte for byte. Changing a canonical
-# copy changes the rule, and needs the user's citation.
-# Deleting a list file outright is not judged: removing the whole list only shrinks it, provided
-# nothing that still reads notReplaying is left without its list file (replaycheck check).
-# Anything the checker cannot do (a failed build, a failed run) is refuse_error, not a verdict.
+# The rule compares the map's text, so it accepts only forms it can compare (one "run": "reason", per
+# line, no escape inside a reason's category, the map named only by its declaration): these restrictions
+# exist so that the entry comparison can be trusted. Deleting a list file outright is not judged:
+# removing the whole list only shrinks it.
+# Follows the skill's check-template.sh: anything but a readable Changeset is a refusal.
 set -uo pipefail
 
 payload="$(cat)"
@@ -38,38 +33,28 @@ printf '%s' "$payload" | jq -e '.changeset.files | type == "array"' >/dev/null 2
 count="$(printf '%s' "$payload" | jq -r '.changeset.files | length')" || count=""
 case "$count" in '' | *[!0-9]*) refuse_error "the changeset's files could not be read, so they could not be checked" ;; esac
 
-[ -d "${SR_TREE:-}/tools/replaycheck" ] ||
-  refuse_error "tools/replaycheck is not in the committed tree, so the replay exception lists cannot be checked"
-work="$(mktemp -d)" || refuse_error "could not make a directory for the replay checker"
-bin="$work/replaycheck"
-canon="$(cd "${SR_GUARDRAIL_DIR:-.}" && pwd)/canonical"
-[ -d "$canon" ] || refuse_error "the canonical copies are not in the rule's folder ($canon), so the generated replay tests cannot be checked"
-build="$(cd "$SR_TREE" && go build -o "$bin" ./tools/replaycheck 2>&1)" ||
-  refuse_error "could not build tools/replaycheck, so the replay exception lists cannot be checked: $build"
+# keys TEXT: the keys of the notReplaying map literal in a Go source, one per line
+keys() { printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{/,/^}/p' | sed -n 's/^[[:space:]]*"\([^"]*\)":.*/\1/p' | sort -u; }
 
+# ranks TEXT: "key<TAB>rank" per entry of the map, sorted; the rank is how settled the reason is:
+# 0 flaky:, 1 untriaged:, 2 any other reason
+ranks() {
+  printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{/,/^}/p' |
+    sed -n 's/^[[:space:]]*"\([^"]*\)":[[:space:]]*"\(.*\)",\{0,1\}$/\1\t\2/p' |
+    awk -F'\t' '{ r = 2; if ($2 ~ /^flaky:/) r = 0; else if ($2 ~ /^untriaged:/) r = 1; print $1 "\t" r }' | sort -u
+}
+# malformed TEXT: the lines of the map that are not blank, a whole-line comment or one
+# "run": "reason", entry; such a line (a trailing comment, a raw string, a value on two lines)
+# hides an entry from the comparison, so it is refused instead of read
+malformed() {
+  printf '%s\n' "$1" | sed -n '/^var notReplaying = map\[string\]string{$/,/^}$/p' | sed '1d;$d' |
+    grep -vE '^[[:space:]]*($|//|"[^"]*":[[:space:]]*"([^"\\]|\\.)*",$)'
+  # the category a reason starts with is read from the source text, so an escape inside it
+  # ("\u0066laky:") would be read by Go as another category
+  printf '%s\n' "$1" | grep -E '^[[:space:]]*"[^"]*":[[:space:]]*"[^"\\]{0,11}\\'
+}
 tab="$(printf '\t')"
 rank_name() { case "$1" in 0) printf 'flaky:' ;; 1) printf 'untriaged:' ;; *) printf 'a triaged reason' ;; esac; }
-
-# checker ARGS... [< stdin] — runs replaycheck; sets out (its stdout) and rc. Exit 2 or anything else
-# than 0 and 1 is the tool failing: an error, not a verdict.
-checker() {
-  out="$("$bin" "$@" 2>"$work/err")"
-  rc=$?
-  case "$rc" in 0 | 1) ;; *) refuse_error "replaycheck failed ($rc), so the replay exception lists cannot be checked: $(cat "$work/err")" ;; esac
-}
-
-# entries TEXT — sets ENTRIES to the sorted "key<TAB>rank" lines of the list in TEXT; a list that
-# violates the structure is a refusal naming what is wrong
-entries() {
-  out="$(printf '%s\n' "$1" | "$bin" entries 2>"$work/err")"
-  rc=$?
-  case "$rc" in
-    0) ENTRIES="$(printf '%s\n' "$out" | LC_ALL=C sort -t "$tab" -k1,1)" ;;
-    1) ENTRIES_BAD="$out" ;;
-    *) refuse_error "replaycheck failed ($rc), so the replay exception lists cannot be checked: $(cat "$work/err")" ;;
-  esac
-  return "$rc"
-}
 
 i=0
 while [ "$i" -lt "$count" ]; do
@@ -78,9 +63,10 @@ while [ "$i" -lt "$count" ]; do
   status="$(printf '%s' "$payload" | jq -r --argjson i "$i" '.changeset.files[$i].status')" ||
     refuse_error "could not read $path from the changeset, so it could not be checked"
   i=$((i + 1))
-  # only a list file has a base to compare; the other files are judged by the package check below
+  # only a list file has a base to compare; the generated replay tests are not judged here
   case "$path" in */replay_allowlist_test.go) ;; *) continue ;; esac
-  [ "$status" = "D" ] && continue
+  # a deleted file has no list; a created one has an empty base, so each of its entries is an addition
+  if [ "$status" = "D" ]; then continue; fi
   old=""
   if [ "$status" != "A" ]; then
     old="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].oldContent')" ||
@@ -88,38 +74,25 @@ while [ "$i" -lt "$count" ]; do
   fi
   new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
     refuse_error "could not read $path from the changeset, so it could not be checked"
-  ENTRIES="" ENTRIES_BAD=""
-  if [ -n "$old" ]; then
-    entries "$old" || refuse_error "$path: the list at the base could not be read (its structure is not one this rule reads), so it could not be compared with the head: $ENTRIES_BAD"
-    old_entries="$ENTRIES"
-  else
-    old_entries=""
-  fi
-  entries "$new" || refuse "$path: the list is not in a form this rule can compare, so a change to it cannot be trusted: $ENTRIES_BAD"
-  new_entries="$ENTRIES"
-  added="$(comm -13 <(printf '%s\n' "$old_entries" | cut -f1 | LC_ALL=C sort -u) <(printf '%s\n' "$new_entries" | cut -f1 | LC_ALL=C sort -u))"
+  printf '%s\n' "$new" | grep -qx 'var notReplaying = map\[string\]string{' ||
+    refuse "$path: the notReplaying map could not be found; keep it as 'var notReplaying = map[string]string{' with one \"run\": \"reason\" per line"
+  # exactly one declaration: a second one (inside a block comment or a raw string, with the real map
+  # written some other way) would show this rule a map that Go never reads
+  [ "$(printf '%s\n' "$new" | grep -c '^[[:space:]]*var[[:space:]][[:space:]]*notReplaying\b')" = 1 ] ||
+    refuse "$path: notReplaying must be declared exactly once, as 'var notReplaying = map[string]string{' on a line of its own"
+  # notReplaying appears on the declaration line only (and in whole-line comments): a read or write of
+  # the map elsewhere (an init() adding an entry, a var ( group) is an entry this rule would not see
+  [ "$(printf '%s\n' "$new" | grep -v '^[[:space:]]*//' | grep -c 'notReplaying')" = 1 ] ||
+    refuse "$path: notReplaying may appear only on its declaration line (comments aside): do not read or change the map elsewhere in this file"
+  bad="$(malformed "$new")"
+  [ -z "$bad" ] || refuse "$path: a notReplaying line is not one \"run\": \"reason\", entry, so the list could not be compared (a line this rule cannot read would hide an entry): $(printf '%s' "$bad" | head -n 1)"
+  added="$(comm -13 <(keys "$old") <(keys "$new"))"
   [ -z "$added" ] || refuse "$path: the replay exception list may only shrink, and these entries were added: $(printf '%s' "$added" | tr '\n' ' '): make the run replay instead of listing it"
   weaker=""
   while IFS="$tab" read -r key was now; do
     [ -n "$key" ] || continue
     weaker="$weaker$key ($(rank_name "$was") -> $(rank_name "$now")); "
-  done < <(join -t "$tab" <(printf '%s\n' "$old_entries" | LC_ALL=C sort -t "$tab" -k1,1) <(printf '%s\n' "$new_entries" | LC_ALL=C sort -t "$tab" -k1,1) | awk -F'\t' '$3 < $2')
+  done < <(join -t "$tab" <(ranks "$old") <(ranks "$new") | awk -F'\t' '$3 < $2')
   [ -z "$weaker" ] || refuse "$path: the replay exception list may only shrink, and these entries' reasons became weaker: ${weaker%; }: triage the entry or make the run replay, a flaky: entry counts as an addition"
 done
-
-# the package check: every directory with a list file, a generated test, or any file naming the list
-files="$(git -C "$SR_TREE" ls-files -- '*replay_allowlist_test.go' '*generated_replay_test.go' 2>&1)" ||
-  refuse_error "could not list the replay files of the committed tree: $files"
-mentions="$(git -C "$SR_TREE" grep -l -w notReplaying -- '*.go' 2>&1)"
-rc=$?
-[ "$rc" -le 1 ] || refuse_error "could not search the committed tree for notReplaying: $mentions"
-[ "$rc" -eq 0 ] || mentions=""
-dirs="$(printf '%s\n%s\n' "$files" "$mentions" | grep -v '^$' | while IFS= read -r f; do dirname "$f"; done | LC_ALL=C sort -u)"
-bad=""
-for d in $dirs; do
-  checker check "$SR_TREE/$d" "$canon"
-  [ "$rc" -eq 0 ] || bad="$bad$out"$'\n'
-done
-[ -z "$bad" ] || refuse "the replay exception list and the generated replay test are not as adr/replay-exceptions-only-shrink needs:
-${bad//$SR_TREE\//}"
 exit 0

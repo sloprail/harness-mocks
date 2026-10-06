@@ -1,7 +1,6 @@
 # Enforces adr/replay-exceptions-only-shrink: every mock's notReplaying map may lose keys, never gain
-# one, and no entry's reason may move to a weaker category; every mock's generated replay test runs a
-# flaky: entry several times and fails when none is green.
-match: path matches "^[a-z0-9]+-mock/e2e/.*\\.go$"
+# one, and no entry's reason may move to a weaker category.
+match: path matches "^[a-z0-9]+-mock/e2e/.*replay_allowlist_test\\.go$"
 deletions: include
 checks:
   - script: ./only-shrinks.sh

@@ -2,10 +2,8 @@
 set -euo pipefail
 
 # The CI path, no agent turn: `sr-checks run` judges committed ranges with the project's rules; only
-# this rule's outcome is asserted. Proves the list is read as Go reads it, not as text: a comment, a one-line map, an escape or a commented header cannot hide a weakened or added entry.
+# this rule's outcome is asserted. Proves the refusal of an entry the rule cannot read (a trailing comment, a one-line map), which would otherwise hide a weakened or added entry.
 git init -q .
-. "$SR_TEST_SLOPRAIL_DIR/file-guard/replay-exceptions-only-shrink/tests/_setup.sh"
-install_checker || exit 1
 mkdir -p claude-mock/e2e/018_replay
 list=claude-mock/e2e/018_replay/replay_allowlist_test.go
 head='package e2e\n\nvar notReplaying = map[string]string{\n'
@@ -26,35 +24,33 @@ refuses() {
     { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1 was not refused with its reason (sr-checks exit $ran)" >&2; exit 1; }
 }
 
-# a weakened entry with a trailing comment: read as the weakening it is
-git checkout -q -b comment "$BASE"
+# a weakened entry with a trailing comment is not read as an entry: refused, not passed
+git checkout -q -b hides "$BASE"
 printf "$head"'\t"run-a": "adapter: x",\n\t"run-b": "flaky: y", // why\n}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b is flaky, commented"
-refuses "a flaky entry with a trailing comment" "run-b (untriaged: -> flaky:)"
+refuses "a flaky entry with a trailing comment" "is not one \"run\": \"reason\", entry"
 
-# an escaped category is the category Go decodes
-git checkout -q -b escape "$BASE"
-printf "$head"'\t"run-a": "\\u0066laky: x",\n\t"run-b": "untriaged: y",\n}\n' > "$list"
-git add -A && git -c user.name=t -c user.email=t@t commit -q -m "escaped flaky"
-refuses "an escaped flaky: reason" "run-a (a triaged reason -> flaky:)"
-
-# the whole map on one line: its added entry is seen
-git checkout -q -b oneline "$BASE"
-printf 'package e2e\n\nvar notReplaying = map[string]string{"run-a": "adapter: x", "run-b": "untriaged: y", "run-c": "mock gap: z"}\n' > "$list"
+# the whole map on one line hides every entry, an added one too
+printf 'package e2e\n\nvar notReplaying = map[string]string{"run-a": "adapter: x", "run-c": "mock gap: z"}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "one-line map"
-refuses "a one-line map" "these entries were added: run-c"
+refuses "a one-line map" "the notReplaying map could not be found"
 
-# a commented copy of the header beside a one-line real map hides nothing
-git checkout -q -b decoy "$BASE"
-printf 'package e2e\n\n/*\nvar notReplaying = map[string]string{\n}\n*/\nvar notReplaying = map[string]string{"run-a": "adapter: x", "run-b": "untriaged: y", "run-d": "flaky: z"}\n' > "$list"
+# a commented copy of the header beside a one-line real map hides the real entries too
+printf 'package e2e\n\n/*\nvar notReplaying = map[string]string{\n}\n*/\nvar notReplaying = map[string]string{"run-a": "adapter: x", "run-d": "flaky: z"}\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "commented header"
-refuses "a commented header" "these entries were added: run-d"
+refuses "a commented header beside a one-line map" "notReplaying must be declared exactly once"
 
-# an entry added by an init() in the list file is refused: the map is named only by its declaration
-git checkout -q -b init "$BASE"
-printf "$head"'\t"run-a": "adapter: x",\n\t"run-b": "untriaged: y",\n}\n\nfunc init() { notReplaying["run-e"] = "flaky: z" }\n' > "$list"
+# a reason whose category is written with an escape is read by Go as another one: refused
+printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "run-b replays"
+printf "$head"'\t"run-a": "\\u0066laky: x",\n}\n' > "$list"
+git add -A && git -c user.name=t -c user.email=t@t commit -q -m "escaped flaky"
+refuses "an escaped flaky: reason" "is not one \"run\": \"reason\", entry"
+
+# an entry added by an init() is an entry the literal does not show: refused
+printf "$head"'\t"run-a": "adapter: x",\n}\n\nfunc init() { notReplaying["run-e"] = "flaky: z" }\n' > "$list"
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "init adds an entry"
-refuses "an init adding an entry" "is named 2 times in the file"
+refuses "an init adding an entry" "notReplaying may appear only on its declaration line"
 
 # recovery: one entry per line, and the list only shrank
 printf "$head"'\t"run-a": "adapter: x",\n}\n' > "$list"
