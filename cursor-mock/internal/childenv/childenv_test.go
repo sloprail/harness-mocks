@@ -10,13 +10,13 @@ import (
 // sr:proves subprocess-session-env/cursor
 func TestAShellCommandSeesThisSessionAndAnInheritedHarnessMarkPassesThrough(t *testing.T) {
 	inherited := []string{"PATH=/bin", "CURSOR_CONVERSATION_ID=outer", "CURSOR_INVOKED_AS=outer", "CURSOR_AGENT=outer"}
-	got := procexec.Env(inherited, Identity("sid-1"), Defaults())
-	want := []string{"PATH=/bin", "CURSOR_AGENT=outer", "CURSOR_CONVERSATION_ID=sid-1", "CURSOR_INVOKED_AS=cursor-agent"}
+	got := procexec.Env(inherited, Identity("sid-1", "req-1", "v1"), Defaults())
+	want := []string{"PATH=/bin", "CURSOR_AGENT=outer", "CURSOR_CONVERSATION_ID=sid-1", "CURSOR_INVOKED_AS=cursor-agent", "CURSOR_REQUEST_ID=req-1", "CURSOR_RIPGREP_PATH=" + RipgrepPath("v1")}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("env = %v, want %v", got, want)
 	}
-	if got := procexec.Env([]string{"PATH=/bin"}, Identity("sid-2"), Defaults()); !reflect.DeepEqual(got,
-		[]string{"PATH=/bin", "CURSOR_AGENT=1", "CURSOR_CONVERSATION_ID=sid-2", "CURSOR_INVOKED_AS=cursor-agent"}) {
+	if got := procexec.Env([]string{"PATH=/bin"}, Identity("sid-2", "req-2", "v1"), Defaults()); !reflect.DeepEqual(got,
+		[]string{"PATH=/bin", "CURSOR_AGENT=1", "CURSOR_CONVERSATION_ID=sid-2", "CURSOR_INVOKED_AS=cursor-agent", "CURSOR_REQUEST_ID=req-2", "CURSOR_RIPGREP_PATH=" + RipgrepPath("v1")}) {
 		t.Fatalf("env = %v", got)
 	}
 }
