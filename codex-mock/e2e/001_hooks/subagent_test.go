@@ -102,6 +102,14 @@ func TestSubagentStartAndStopHooks(t *testing.T) {
 
 	for name, p := range map[string][2]map[string]any{"recorded": {ws, we}, "mock": {ps, pe}} {
 		start, stop := p[0], p[1]
+		session := want["Stop"][0]["session_id"]
+		if name == "mock" {
+			session = have["Stop"][0]["session_id"]
+		}
+		for _, ev := range []map[string]any{start, stop} { // the parent session's id, and the run's directory
+			assert.Equal(t, session, ev["session_id"], name+": the sub-agent's hooks carry the parent session's id")
+			assert.Contains(t, []any{"<RUN>", got.Repo}, evalIf(t, ev["cwd"]), name+": the run's directory")
+		}
 		assert.Equal(t, start["transcript_path"], stop["agent_transcript_path"], name+": the sub-agent's own transcript")
 		assert.NotEqual(t, stop["transcript_path"], stop["agent_transcript_path"], name+": not the session's")
 	}
@@ -222,4 +230,13 @@ func TestSubagentStartContextAndNoSessionEndForIt(t *testing.T) {
 			assert.Len(t, byEvent(got.hookLog())["probe"], 1, "the SessionEnd hook could read the session's transcript")
 		})
 	}
+}
+
+// evalIf is a directory with symlinks resolved, or the value as it is when it is not a real path (the recording's <RUN>).
+func evalIf(t *testing.T, v any) any {
+	s, _ := v.(string)
+	if d, err := filepath.EvalSymlinks(s); err == nil {
+		return d
+	}
+	return v
 }
