@@ -84,3 +84,14 @@ func TestACompactedRecordIsACompactStepOfTheScript(t *testing.T) {
 	assert.Contains(t, script, `{"type":"compact","trigger":"auto"}`)
 	assert.Contains(t, script, `grep -c '"type":"compacted"'`, "a compaction spends a step")
 }
+
+// An exec_command option the mock does not implement is refused, not passed on to be ignored: the
+// recording is not replayed; one it does implement goes through.
+func TestUnifyRefusesAnExecOptionTheMockDoesNotImplement(t *testing.T) {
+	_, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "x", "sandbox_permissions": "all"}}}, nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "sandbox_permissions")
+	c, err := unify(jsCall{Name: "exec_command", Args: []any{map[string]any{"cmd": "x", "login": false, "workdir": "<RUN>"}}}, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "x", c.Input["command"])
+}

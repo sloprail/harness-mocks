@@ -7,6 +7,10 @@ import (
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
+// execOptions are the options of an exec_command the mock implements (runner.execParams, by the
+// recordings' names): a recording whose call passes another is not replayed.
+var execOptions = map[string]bool{"cmd": true, "workdir": true, "yield_time_ms": true, "max_output_tokens": true, "shell": true, "login": true, "tty": true}
+
 // unify is the unified call of one of codex's tool calls.
 func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 	var arg map[string]any
@@ -24,7 +28,10 @@ func unify(m jsCall, spawns []int, told []string) (core.Call, error) {
 			return core.Call{}, fmt.Errorf("an exec_command whose cmd is not a string")
 		}
 		in := map[string]any{"command": cmd}
-		for k, v := range arg { // the harness's other options go to the mock as given; what the mock does with one is the mock's own (today it ignores them, which matters only for a workdir other than the run's directory, refused below)
+		for k, v := range arg { // the options the mock implements go to it as given; one it does not is refused, not ignored
+			if !execOptions[k] {
+				return core.Call{}, fmt.Errorf("an exec_command with the option %s, which the mock does not implement", k)
+			}
 			if k == "cmd" || k == "yield_time_ms" {
 				continue
 			}
