@@ -18,6 +18,7 @@ import (
 	coresession "github.com/sloprail/harness-mocks/internal/session"
 	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
@@ -62,7 +63,9 @@ type state struct {
 	// started it is (nil for the session's own), and spawned the sub-agents this one started
 	// (see subagents.Hold: what a script's gate is read against).
 	prog, parent *subagents.Progress
-	spawned      *subagents.SpawnLog
+	// refused is the run's refusal of a script's call the mock does not implement (validate.go).
+	refused *toolspec.Refusals
+	spawned *subagents.SpawnLog
 }
 
 // Run starts the session, fires SessionStart, and runs one turn.
@@ -86,7 +89,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if !cfg.JSON {
 		out = io.Discard
 	}
-	s := &state{prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
+	s := &state{refused: &toolspec.Refusals{}, prog: subagents.NewProgress(), spawned: &subagents.SpawnLog{}, cfg: cfg, id: id, turnID: coresession.NewID(), rollout: rollout, events: events.New(out),
 		toolEnv: childenv.ToolEnv(cfg.Environ, id), bg: tasks.NewRegistry()}
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),

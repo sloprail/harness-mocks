@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -50,18 +51,28 @@ printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"
 	assert.Equal(t, "LOGIN\n", outs[1])
 }
 
-// A wait_agent call with a field the real tool has not, or one of the wrong type, fails
-// with the reason; it is not read leniently.
-func TestWaitAgentRefusesBadInput(t *testing.T) {
-	r := execMock(t, scenario{BypassTrust: true, Prompt: "go", Script: `#!/bin/sh
-n=$(grep -c function_call_output "$A10N_MOCK_SESSION_FILE")
-if [ "$n" = 0 ]; then
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c0","name":"wait_agent","input":{"targets":["x"],"timeout_ms":"soon","extra":1}}]}}'
-  exit 0
-fi
-printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' '{"type":"result","subtype":"success","result":"done"}'
-`})
-	assert.Contains(t, r.rollout(t), "wait_agent: invalid input")
+// A tool call a script asks for that the mock does not implement ends the run before it is played,
+// naming the tool and the parameter (adr/tool-calls-validated): a wait_agent with a field the real
+// tool has not or one of the wrong type, an unknown tool, and a sub-agent's script's call too.
+func TestAScriptCallTheMockDoesNotImplementFailsTheRun(t *testing.T) {
+	call := func(name, input string) string {
+		return `printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c0","name":"` + name + `","input":` + input + `}]}}'`
+	}
+	r := execMock(t, scenario{BypassTrust: true, Prompt: "go", Script: "#!/bin/sh\n" + call("wait_agent", `{"targets":["x"],"timeout_ms":"soon","extra":1}`)})
+	require.NotEqual(t, 0, r.Code)
+	assert.Contains(t, r.Stderr, `unknown parameter "extra"`)
+	assert.Contains(t, r.Stderr, "timeout_ms")
+
+	r = execMock(t, scenario{BypassTrust: true, Prompt: "go", Script: "#!/bin/sh\n" + call("Teleport", `{}`)})
+	require.NotEqual(t, 0, r.Code)
+	assert.Contains(t, r.Stderr, "Teleport")
+	assert.NotContains(t, r.Stdout, "command_execution")
+
+	sub := filepath.Join(t.TempDir(), "sub.sh")
+	require.NoError(t, os.WriteFile(sub, []byte("#!/bin/sh\n"+call("Teleport", `{}`)), 0o755))
+	r = execMock(t, scenario{BypassTrust: true, Prompt: "go", Script: "#!/bin/sh\n" + call("spawn_agent", `{"message":"m","script":"`+sub+`"}`)})
+	require.NotEqual(t, 0, r.Code)
+	assert.Contains(t, r.Stderr, "Teleport")
 }
 
 // login:false with no shell named is accepted, as the real harness accepts it: the command runs by
