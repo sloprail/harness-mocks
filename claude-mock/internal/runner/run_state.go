@@ -40,6 +40,13 @@ func (r *runState) turn() {
 	r.mu.Unlock()
 }
 
+// addTurns counts several turns the model took at once.
+func (r *runState) addTurns(n int) {
+	r.mu.Lock()
+	r.turns += n
+	r.mu.Unlock()
+}
+
 // deny records a tool call a PreToolUse hook refused (the result's permission_denials).
 func (r *runState) deny(call pendingToolUse) {
 	var input any

@@ -49,6 +49,9 @@ func assistantFrame(block map[string]any, extra ...any) string {
 // it (a frame of its own, as the real stream has it) and the call, joined by
 // the byte \001, which JSON never holds raw; the script splits them again.
 func callLine(id string, c scriptCall) string {
+	if c.Silent { // a response with no visible output: thinking and the result that ends the turn
+		return gateLine(c.Gate) + assistantFrame(map[string]any{"type": "thinking", "thinking": ""}) + "\x01" + finalLines("", "")
+	}
 	if c.Name == "" { // an answer the end of the turn was refused on: the text and the result that ends the turn
 		return gateLine(c.Gate) + finalLines(c.Reply, "")
 	}
@@ -56,7 +59,11 @@ func callLine(id string, c scriptCall) string {
 	if c.Text != nil {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": *c.Text}))
 	}
-	parts = append(parts, assistantFrame(map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}))
+	block := map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}
+	if c.More {
+		block["more"] = true // another call of the same message follows (the scenario format's marker)
+	}
+	parts = append(parts, assistantFrame(block))
 	return gateLine(c.Gate) + strings.Join(parts, "\x01")
 }
 

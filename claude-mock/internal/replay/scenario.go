@@ -34,10 +34,12 @@ type ScenarioEarlier struct{ Prompt, Script string }
 
 // scriptCall is one tool call the model made, in the mock's script vocabulary.
 type scriptCall struct {
-	Text  *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
-	Name  string         `json:"name"`
-	Reply string         `json:"-"` // an answer a Stop hook refuses to end the turn on, not a call
-	Input map[string]any `json:"input"`
+	Text   *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
+	Name   string         `json:"name"`
+	Silent bool           `json:"-"` // the answer is a response with no visible output (only thinking)
+	More   bool           `json:"-"` // another call of the same message follows this one
+	Reply  string         `json:"-"` // an answer a Stop hook refuses to end the turn on, not a call
+	Input  map[string]any `json:"input"`
 	// Gate is what must have happened before the step is taken (core.Gates).
 	Gate scenario.Gate `json:"-"`
 }
