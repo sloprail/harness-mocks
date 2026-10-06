@@ -20,10 +20,10 @@ import (
 // tools are mapped onto the unified ones here; what the adapter cannot map is an
 // error, never a guess.
 //
-// thoughts are what the model thought in each of its responses, in order, or none:
-// the i-th response had the i-th thought. A recording that holds a thought for
-// some responses only is not read, as which responses had one would be a guess.
-func modelTurns(records []map[string]any, thoughts []*core.Thinking) (core.Agent, error) {
+// thoughts are what the model thought, by the number of the response that had
+// it: a response with no thought is not in them (recorded: runs/symlinked-cwd,
+// the first response thought and the second did not).
+func modelTurns(records []map[string]any, thoughts map[int]*core.Thinking) (core.Agent, error) {
 	var agent core.Agent
 	responses := 0
 	for _, rec := range records {
@@ -31,15 +31,12 @@ func modelTurns(records []map[string]any, thoughts []*core.Thinking) (core.Agent
 			responses++
 		}
 	}
-	if len(thoughts) > 0 && len(thoughts) != responses {
-		return core.Agent{}, fmt.Errorf("the model thought in %d of its %d responses: which ones is not recorded", len(thoughts), responses)
-	}
-	thought := func(i int) *core.Thinking {
-		if len(thoughts) == 0 {
-			return nil
+	for n := range thoughts {
+		if n < 0 || n >= responses {
+			return core.Agent{}, fmt.Errorf("a thought names response %d of a conversation of %d", n, responses)
 		}
-		return thoughts[i]
 	}
+	thought := func(i int) *core.Thinking { return thoughts[i] }
 	var said *string
 	var saidThought *core.Thinking // the thought of the text-only response said holds
 	ri, lookupRI := -1, -1         // the response that looked a tool up

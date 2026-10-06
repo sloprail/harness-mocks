@@ -148,7 +148,8 @@ func TestLoadMapsMCPGrepAndDelete(t *testing.T) {
 }
 
 // The thoughts a recording holds are put on the responses they were had in, by
-// order; one that holds a thought for some responses only is not read.
+// the response each names; a response that had none gets none (runs/symlinked-cwd:
+// the first response thought and the second did not).
 func TestLoadPutsTheThoughtsOnTheirResponses(t *testing.T) {
 	rec, err := Adapter{}.Load(runDir("agent-input-validation"))
 	if err != nil {
@@ -161,9 +162,12 @@ func TestLoadPutsTheThoughtsOnTheirResponses(t *testing.T) {
 	if s := Denormalize(rec, "<scripts>", nil); !strings.Contains(s.Script, `"type":"thinking"`) {
 		t.Fatalf("script:\n%s", s.Script)
 	}
-	_, err = Adapter{}.Load(runDir("symlinked-cwd"))
-	if u, ok := err.(*Unbuildable); !ok || !strings.Contains(u.Reason, "thought in 1 of its 2 responses") {
-		t.Fatalf("err = %v, want an Unbuildable naming the partial thoughts", err)
+	rec, err = Adapter{}.Load(runDir("symlinked-cwd"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := rec.Agent.Calls[0]; c.Thinking == nil || rec.Agent.FinalThinking != nil {
+		t.Fatalf("call %+v, final %+v: the first response thought, the answer did not", c, rec.Agent.FinalThinking)
 	}
 }
 
