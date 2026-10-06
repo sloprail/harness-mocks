@@ -99,3 +99,8 @@ checklist is not a pass.
 Name each test that asserts something the real harness did not do (quote the
 sample line it contradicts), each statement-scope behaviour no test or replay checks, and each
 test too loose to fail.
+
+List every finding for every <subject> in this one refusal: finish the whole checklist first, then name
+every unproven clause, one finding each, never only the first you reach. The author fixes them in one pass; a
+finding held back to a later run is a loop. The checklist is fixed by the statement, so a later run over the
+same statement raises a new finding only for a clause whose tests, runs or cell changed.
