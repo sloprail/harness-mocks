@@ -42,8 +42,9 @@ type Gater interface {
 // scenario.ToolUse.More), and when the agent's turn would end, which then goes on
 // with it instead of ending, no end-of-turn hook having run and no block counted.
 type Noticer interface {
-	// Notice is the next thing to tell the agent of, one at a time.
-	Notice() (text string, ok bool)
+	// Notice is what the agent is now to be told of, in order: after the last call of a script of
+	// the model, or, with endOfTurn, as its turn would end.
+	Notice(endOfTurn bool) []string
 	// Told records that the agent was told it.
 	Told(text string)
 }

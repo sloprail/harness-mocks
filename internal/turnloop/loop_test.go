@@ -196,13 +196,13 @@ type noticeHost struct {
 	pending []string
 }
 
-func (h *noticeHost) Notice() (string, bool) {
+func (h *noticeHost) Notice(bool) []string {
 	if len(h.pending) == 0 {
-		return "", false
+		return nil
 	}
 	text := h.pending[0]
 	h.pending = h.pending[1:]
-	return text, true
+	return []string{text}
 }
 func (h *noticeHost) Told(text string) { h.log = append(h.log, "told:"+text) }
 
