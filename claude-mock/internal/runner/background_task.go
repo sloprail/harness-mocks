@@ -17,8 +17,8 @@ type backgroundTasks struct {
 	stats subagents.Stats
 	// run is what the main agent has done since its last result frame.
 	run runState
-	// held are the result frames of turns that ended while a background agent worked (result_hold.go).
-	held [][]byte
+	// results holds the result frames of turns that ended while a background agent worked.
+	results tasks.Results
 }
 
 func newBackgroundTasks() *backgroundTasks {

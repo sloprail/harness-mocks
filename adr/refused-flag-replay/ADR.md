@@ -15,3 +15,11 @@ recordings that do not replay green.
 
 - A recorded run made with a flag the mock refuses replays as a check that the mock
   refuses that flag; it is not an exception-list entry.
+
+## Scope
+
+It governs the replay of a recorded run of any mock: the claude mock's adapter
+(`claude-mock/internal/replay`) marks such a run by the flag in its `setup/args`
+(`refused` in `args.go`), and the replay test (`claude-mock/e2e/018_replay`) runs the mock
+with that flag and checks that it exits non-zero and names the flag in its error, the script
+never running; the run has no entry in the list of recordings that do not replay green.
