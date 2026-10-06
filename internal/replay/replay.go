@@ -50,7 +50,8 @@ type Call struct {
 	More       bool   // another call of the same script follows: the model is not sampled between them
 	// SameTurn: the model made this call in the same response as the previous one.
 	SameTurn bool
-	Thinking *Thinking // what the model thought in the response this call begins, when recorded
+	Thinking *Thinking      // what the model thought in the response this call begins, when recorded
+	Compact  map[string]any // the compaction the harness made just before this response, as its hook said it, when it did
 	// At is when the harness made the call (an answer: gave it), and Done when the call's output
 	// was given back, as recorded: how one agent's steps are ordered against another's.
 	At, Done time.Time

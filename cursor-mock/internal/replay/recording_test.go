@@ -268,3 +268,27 @@ func TestLoadReadsTheTranscriptsOfEachDirectory(t *testing.T) {
 		t.Fatalf("steps: %+v / %+v", rec.Agent.Final, rec.Then)
 	}
 }
+
+func TestMarkCompactionsPlacesThemByTheHookLog(t *testing.T) {
+	prompt := func(text string) map[string]any {
+		return map[string]any{"role": "user", "message": map[string]any{"content": []any{map[string]any{"type": "text", "text": "<user_query>\n" + text + "\n</user_query>"}}}}
+	}
+	call := map[string]any{"role": "assistant", "message": map[string]any{"content": []any{map[string]any{"type": "tool_use"}}}}
+	// the transcript rewrites the prompt after the first call, the hook log says the harness
+	// compacted after the second: the hook log places it
+	records := []map[string]any{prompt("go"), call, prompt("go"), call, call}
+	got, err := markCompactions(records, []compaction{{fields: map[string]any{"trigger": "auto"}, after: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var roles []string
+	for _, r := range got {
+		roles = append(roles, r["role"].(string))
+	}
+	if want := "user assistant assistant compact assistant"; strings.Join(roles, " ") != want {
+		t.Fatalf("roles = %v, want %s", roles, want)
+	}
+	if _, err := markCompactions([]map[string]any{prompt("go"), call}, []compaction{{after: 1}}); err == nil {
+		t.Fatal("a compaction the transcript does not show is not read")
+	}
+}

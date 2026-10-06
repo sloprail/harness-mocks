@@ -2,6 +2,7 @@ package toolexec
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -46,14 +47,27 @@ func read(c Call, dir string) Result {
 	if err != nil {
 		return failed(err.Error(), err.Error())
 	}
+	if _, ok := c.Args["limit"]; ok { // recorded only against a file that is not there (runs/compaction-transcript-continuity)
+		msg := "cursor-mock: Read of a file that exists with a limit is not modeled"
+		return failed(msg, msg)
+	}
+	if n := len(content); n > ReadCarriedBytes && n < ReadOmittedBytes {
+		msg := fmt.Sprintf("cursor-mock: Read of a file of %d bytes is not modeled (recorded: %d carried, %d not)", n, ReadCarriedBytes, ReadOmittedBytes)
+		return failed(msg, msg)
+	}
 	total := strings.Count(content, "\n") + 1
+	body := map[string]any{
+		"content": content, "isEmpty": content == "", "exceededLimit": false, "totalLines": total, "fileSize": len(content),
+		"path": filepath.Clean(path), "readRange": map[string]any{"startLine": 1, "endLine": total}, // the result names the file resolved; the hooks, as given (recorded: runs/no-add-dir-access)
+		"relatedCursorRulePaths": []string{}, "relatedCursorRules": []string{},
+	}
+	if len(content) >= ReadOmittedBytes { // too big for the frame: it names the content by an id instead
+		delete(body, "content")
+		body["contentBlobId"] = contentBlobID(content)
+	}
 	return Result{
-		Frame: map[string]any{"success": map[string]any{
-			"content": content, "isEmpty": content == "", "exceededLimit": false, "totalLines": total, "fileSize": len(content),
-			"path": filepath.Clean(path), "readRange": map[string]any{"startLine": 1, "endLine": total}, // the result names the file resolved; the hooks, as given (recorded: runs/no-add-dir-access)
-			"relatedCursorRulePaths": []string{}, "relatedCursorRules": []string{},
-		}},
-		Read: &ReadFile{path, content},
+		Frame: map[string]any{"success": body},
+		Read:  &ReadFile{path, content},
 		ToolOutput: jsonString(struct {
 			FilePath      string `json:"file_path"`
 			ContentLength int    `json:"content_length"`

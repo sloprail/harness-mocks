@@ -91,6 +91,7 @@ func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result
 	} else if !h.read {
 		h.res = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, env)
 		h.s.refuseResult(h.res)
+		h.s.offload(&h.res)
 	}
 	return toolcall.Result{Output: h.res.Output, Failed: h.res.Failed}
 }
@@ -115,6 +116,9 @@ func (h *toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 func (h *toolHost) prepare(c toolcall.Call) {
 	h.call = toolexec.FromScript(c.Name, c.Input)
 	h.call.Request = h.s.requestID
+	if h.call.Kind == "readToolCall" {
+		h.call.Args["path"] = h.s.resolveOffload(h.call.Path(h.s.cfg.Dir))
+	}
 	useID := c.ID
 	if h.call.Kind == "mcpToolCall" || h.call.Kind == "shellToolCall" && !h.call.Background() {
 		// an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp),
