@@ -121,6 +121,11 @@ type Config struct {
 	// session's tasks). Nil for the root run, which creates it.
 	bg *backgroundTasks
 
+	// steps is what this run's script gates are read against (steps.go); nil for a bare Config.
+	steps *agentSteps
+	// background marks a background sub-agent (its frames differ: writeToolUse in steps.go).
+	background bool
+
 	// wake is the session's pending ScheduleWakeup, shared by the root run and
 	// every nested run like bg. Nil for the root run, which creates it.
 	wake *coretools.Wakeups
@@ -138,13 +143,4 @@ type Config struct {
 	// sessionFile is the session's actual transcript, next to which every
 	// sub-agent's subagents/agent-<id>.jsonl lives. Set by the root run.
 	sessionFile string
-}
-
-// projectDirOf is the project root the run's hooks are told: the one given, else
-// the working directory.
-func projectDirOf(cfg Config) string {
-	if cfg.ProjectDir != "" {
-		return cfg.ProjectDir
-	}
-	return cfg.Cwd
 }

@@ -57,3 +57,20 @@ func TestAGateNamingWhatDoesNotExistIsReported(t *testing.T) {
 	assert.Contains(t, problems[0], "started by none")
 	assert.Contains(t, problems[1], "sub-agent 3, which this agent has not started")
 }
+
+// A sub-agent that ended inside the call that started it (a foreground one) is named by its position
+// all the same, and a gate waiting for it waits for nothing: no task of it was ever registered.
+func TestAGateWaitsForNothingOnASettledSubagent(t *testing.T) {
+	reg := tasks.NewRegistry()
+	defer reg.Shutdown()
+	spawned := &SpawnLog{}
+	spawned.AddSettled("fg")
+	done := make(chan []string, 1)
+	go func() { done <- Hold(context.Background(), scenario.Gate{Ended: []int{0}}, reg, spawned, nil) }()
+	select {
+	case problems := <-done:
+		assert.Empty(t, problems)
+	case <-time.After(time.Second):
+		t.Fatal("the gate waited for a sub-agent that had ended")
+	}
+}

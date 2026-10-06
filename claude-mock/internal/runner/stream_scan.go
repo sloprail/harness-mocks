@@ -28,6 +28,11 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			return scanResult{}, fmt.Errorf("claude-mock: script emitted invalid JSONL: %w", err)
 		}
 
+		if rec.Type == "gate" { // the step that follows waits for what the gate names: the script orders the agents
+			cfg.steps.hold(ctx, cfg, rec.Gate)
+			continue
+		}
+
 		// A compaction: the {"type":"compact",…} control record, or a scenario's
 		// own isCompactSummary record. See compact (control.go). The turn goes on
 		// after it.
@@ -64,11 +69,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 					return scanResult{}, err
 				}
 				line, streamed, toolInput := withToolDefaults(cfg, line)
-				if cfg.AgentID != "" { // the tool_use is written BEFORE the PreToolUse hook fires
-					cfg.progress(cfg, toolName, toolInput)
-				}
-				writeStreamLine(cfg, streamed)
+				writeToolUse(cfg, streamed, toolName, toolInput)
 				tr.persist(line)
+				cfg.steps.started() // what another agent's gate may wait for
 				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
 					return out, nil
@@ -111,28 +114,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			tr.persist(line)
 		}
 
-		// PostToolUse for a tool_result the scenario wrote itself (a tool the
-		// mock does not run, e.g. an AskUserQuestion answer). Real PostToolUse
-		// names the call by its tool_use_id — also its attachment's toolUseID —
-		// and the tool by the tool_use it answers.
-		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
 		if rec.Type == "user" {
-			toolUseID, toolName, toolOutput := extractFirstToolResult(line)
-			if toolName == "" && toolUseID != "" {
-				toolName = toolNameInTranscript(tr, toolUseID)
-			}
-			if toolName != "" {
-				if err := refuseUnrecordedHook(cfg, inv, hooks.EventPostToolUse); err != nil {
-					return scanResult{}, err // a scenario-written tool_result
-				}
-				_, _ = inv.Fire(ctx, hooks.Input{
-					SessionID:     cfg.SessionID,
-					Cwd:           cfg.Cwd,
-					HookEventName: hooks.EventPostToolUse,
-					ToolName:      toolName,
-					ToolUseID:     toolUseID,
-					ToolResponse:  toolOutput,
-				})
+			if err := postScenarioResult(ctx, cfg, inv, tr, line); err != nil {
+				return scanResult{}, err
 			}
 		}
 

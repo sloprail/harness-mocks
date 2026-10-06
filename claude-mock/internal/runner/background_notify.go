@@ -68,7 +68,7 @@ func writeFrame(cfg Config, frame map[string]any) {
 func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) {
 	for _, t := range b.TakeFinished(cfg.AgentID) {
 		note := taskNotification(t)
-		if !submitNotification(ctx, cfg, inv, tr, note) {
+		if !submitNotification(ctx, cfg, inv, tr, note, true) {
 			continue
 		}
 		tr.persistMap(map[string]any{"type": "attachment", "attachment": map[string]any{
@@ -84,7 +84,7 @@ func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *h
 // false — writing nothing, so no turn runs for it — when the hook refused it.
 func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, t *tasks.Task) bool {
 	note := taskNotification(t)
-	if !submitNotification(ctx, cfg, inv, tr, note) {
+	if !submitNotification(ctx, cfg, inv, tr, note, false) { // a turn of its own: it begins a prompt (recorded: runs/bgagent, nested-fork-limit)
 		return false
 	}
 	tr.persistMap(map[string]any{
@@ -98,6 +98,7 @@ func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *ho
 	tr.flushHookRuns()
 	if cfg.AgentID == "" {
 		writeInitFrame(cfg)
+		b.run.startedBy(notificationOrigin())
 	}
 	return true
 }
@@ -106,13 +107,13 @@ func (b *backgroundTasks) deliverAsTurn(ctx context.Context, cfg Config, inv *ho
 // its hooks leave until the notification itself is written (they follow it),
 // and reports whether they let it through. A refused notification leaves
 // nothing.
-func submitNotification(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, note string) bool {
+func submitNotification(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, note string, insideTurn bool) bool {
 	// sr:provides user-prompt-submit-hook/claude
 	if !corehooks.PromptHookFires(corehooks.PromptTaskNotification) {
 		return true
 	}
 	out, err := inv.WithRecorder(tr.holdHookRuns).Fire(ctx, hooks.Input{
-		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note, ContinuesPrompt: true,
+		SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: note, ContinuesPrompt: insideTurn,
 	})
 	if refused, _ := corehooks.PromptOutcome(err != nil || out.Decision == "block", ""); refused {
 		tr.dropHeldHookRuns()

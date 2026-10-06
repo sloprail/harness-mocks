@@ -62,9 +62,10 @@ func wireToolInputs(frame map[string]any) map[string]any {
 
 // isMessageFrame is whether a stream line is a frame a sub-agent streams: a user
 // message (its prompt, a tool's result) or an assistant message that calls a
-// tool. Its final answer does not stream: the task's notification carries it
-// (recorded: snapshots/runs/isolated-worktree).
-func isMessageFrame(line []byte) bool {
+// tool. A foreground one's final answer does not stream: the task's notification carries it
+// (recorded: snapshots/runs/isolated-worktree); a background one's does (recorded: runs/bgagent,
+// bgagent-concurrent-limit, nested-fork-limit).
+func isMessageFrame(line []byte, background bool) bool {
 	var f struct {
 		Type    string `json:"type"`
 		Message struct {
@@ -80,7 +81,7 @@ func isMessageFrame(line []byte) bool {
 		return true
 	}
 	for _, b := range f.Message.Content {
-		if f.Type == "assistant" && b.Type == "tool_use" {
+		if f.Type == "assistant" && (b.Type == "tool_use" || b.Type == "text" && background) {
 			return true
 		}
 	}

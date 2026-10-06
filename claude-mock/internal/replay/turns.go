@@ -2,7 +2,7 @@ package replay
 
 import (
 	"fmt"
-	"strings"
+	"time"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -24,14 +24,22 @@ type turns struct {
 func modelTurns(records []map[string]any) (turns, error) {
 	var t turns
 	var said *string
+	var saidAt time.Time
+	records = withoutForkContext(records)
+	done := map[string]time.Time{} // when each call's result was given back
 	for _, rec := range records {
+		if rec["type"] == "user" {
+			for id := range resultIDs(rec) {
+				done[id] = stampOf(rec)
+			}
+		}
 		if rec["type"] == "user" && isStopFeedback(rec) {
 			// a Stop hook blocked the end of the turn: what the model said before it was a reply of its
 			// own, and the model answers again
 			if said == nil {
 				return turns{}, fmt.Errorf("a Stop hook's feedback came to a model that had said nothing")
 			}
-			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}})
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, At: saidAt, Input: map[string]any{"text": *said}})
 			t.ids = append(t.ids, "")
 			said = nil
 			continue
@@ -39,7 +47,7 @@ func modelTurns(records []map[string]any) (turns, error) {
 		if rec["type"] == "user" && isNotificationTurn(rec) && said != nil {
 			// a finished background agent's notification starts a new turn: what the model said before it was its answer
 			// to the turn that ended, and it answers the notification in turn
-			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}})
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, At: saidAt, Input: map[string]any{"text": *said}})
 			t.ids = append(t.ids, "")
 			said = nil
 			continue
@@ -57,13 +65,13 @@ func modelTurns(records []map[string]any) (turns, error) {
 					return turns{}, fmt.Errorf("the model said two things before one call: the adapter keeps one")
 				}
 				text, _ := block["text"].(string)
-				said = &text
+				said, saidAt = &text, stampOf(rec)
 			case "tool_use":
 				call, err := unify(block)
 				if err != nil {
 					return turns{}, err
 				}
-				call.Said = said
+				call.Said, call.At = said, stampOf(rec)
 				said = nil
 				id, _ := block["id"].(string)
 				t.agent.Calls = append(t.agent.Calls, call)
@@ -72,30 +80,12 @@ func modelTurns(records []map[string]any) (turns, error) {
 		}
 	}
 	if said != nil {
-		t.agent.Final = *said
+		t.agent.Final, t.agent.FinalAt = *said, saidAt
+	}
+	for i, id := range t.ids {
+		t.agent.Calls[i].Done = done[id]
 	}
 	return t, nil
-}
-
-// toolReply is the adapter's unified name of an answer the model gave that a Stop hook then refused
-// to end the turn on: Input "text". It is not a tool call: the model said it, and was told to go on.
-const toolReply = "reply"
-
-// isNotificationTurn is whether a user record is a background task's notification handed over as a turn.
-func isNotificationTurn(rec map[string]any) bool {
-	msg, _ := rec["message"].(map[string]any)
-	s, _ := msg["content"].(string)
-	return strings.HasPrefix(s, "<task-notification>")
-}
-
-// stopFeedback starts the user record a blocking Stop hook leaves.
-const stopFeedback = "Stop hook feedback:"
-
-// isStopFeedback is whether a user record is a Stop hook's feedback.
-func isStopFeedback(rec map[string]any) bool {
-	msg, _ := rec["message"].(map[string]any)
-	s, _ := msg["content"].(string)
-	return strings.HasPrefix(s, stopFeedback)
 }
 
 // unify maps a tool_use block onto the unified vocabulary: Bash is a shell
@@ -126,7 +116,7 @@ func unify(block map[string]any) (core.Call, error) {
 // and theirs in turn, found by the id of the call that started them. A spawn
 // with no recorded sub-agent keeps none: the call itself was refused.
 func attachSubagents(t turns, subs map[string]turns) core.Agent {
-	agent := core.Agent{Calls: append([]core.Call(nil), t.agent.Calls...), Final: t.agent.Final}
+	agent := core.Agent{Calls: append([]core.Call(nil), t.agent.Calls...), Final: t.agent.Final, FinalAt: t.agent.FinalAt}
 	for i, c := range agent.Calls {
 		if c.Tool != core.ToolSpawn {
 			continue
