@@ -1,0 +1,1 @@
+Run exactly this Bash command, once, and nothing else: echo "A=$FROM_ENV_FILE B=$PATH_EXTRA" . Then reply only DONE.

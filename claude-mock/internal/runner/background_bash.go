@@ -74,7 +74,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	task.Meta = taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true}
 	frames := frameObserver{cfg}
 	if err := b.StartCommand(task, tasks.CommandSpec{
-		Argv: []string{"/bin/sh", "-c", in.Command}, Dir: cfg.Cwd,
+		Argv: []string{"/bin/sh", "-c", toolexec.WithSessionEnv(cfg.SessionID, in.Command)}, Dir: cfg.Cwd,
 		Env: procexec.Env(os.Environ(), childenv.Tool(cfg.SessionID), childenv.Defaults()),
 		Out: out, Trailer: exitTrailer,
 		Started: func(t *tasks.Task) { tasks.Announce(b.Registry, t, frames) },

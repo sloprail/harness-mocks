@@ -1,0 +1,4 @@
+{"session_id":"8b5f381d-7e57-4eb8-a649-f03d1a287141","transcript_path":"<TMP>/home/.claude/projects/<RUN_DIRNAME>/8b5f381d-7e57-4eb8-a649-f03d1a287141.jsonl","cwd":"<RUN>","hook_event_name":"SessionStart","source":"startup"}
+{"env_file_event":"SessionStart","env_file_set":"yes"}
+{"session_id":"8b5f381d-7e57-4eb8-a649-f03d1a287141","transcript_path":"<TMP>/home/.claude/projects/<RUN_DIRNAME>/8b5f381d-7e57-4eb8-a649-f03d1a287141.jsonl","cwd":"<RUN>","prompt_id":"1849117a-acb4-4760-a17a-ff1da9ad8861","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo \"A=$FROM_ENV_FILE B=$PATH_EXTRA\"","description":"Run the specified echo command"},"tool_use_id":"toolu_01Y7XLaYwxu5uqPvkJmXGpSD"}
+{"env_file_event":"PreToolUse","env_file_set":""}

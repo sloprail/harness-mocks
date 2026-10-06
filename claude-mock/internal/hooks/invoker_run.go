@@ -79,13 +79,15 @@ func (h HandlerSpec) env(envFile string) []string {
 
 // envFile is the path a SessionStart hook is told as CLAUDE_ENV_FILE, where the real harness lets it
 // persist environment variables for the session: <config dir>/session-env/<session>/sessionstart-hook-<index>.sh
-// (recorded: runs/subprocess-session-env). Only that event's hooks have one. The mock names the file and
-// does not read it back: what a hook writes there reaches no later command.
+// (recorded: runs/subprocess-session-env). Only that event's hooks have one; what a hook writes there reaches
+// the session's later Bash commands (toolexec.WithSessionEnv; recorded: runs/env-file-persist).
 func (inv *Invoker) envFile(ev EventName, index int) string {
 	if ev != EventSessionStart || inv.configDir == "" || inv.sessionID == "" {
 		return ""
 	}
-	return filepath.Join(inv.configDir, "session-env", inv.sessionID, fmt.Sprintf("sessionstart-hook-%d.sh", index))
+	dir := filepath.Join(inv.configDir, "session-env", inv.sessionID)
+	_ = os.MkdirAll(dir, 0o755) // the hook appends to the file: its folder is there
+	return filepath.Join(dir, fmt.Sprintf("sessionstart-hook-%d.sh", index))
 }
 
 // hookDir is where a command hook runs. Claude's order of candidates is the
