@@ -11,8 +11,6 @@ import (
 // the next safe point: a hook started when the agent had begun `step` calls is delivered once the
 // agent has gone through the call after it (Due), or when its turn would end, whichever comes
 // first. Delivery waits for the hook to have finished: an event, not a time.
-//
-// sr:capability hook-additional-context
 type Later struct {
 	mu   sync.Mutex
 	last chan struct{} // closed when the run started last has finished
