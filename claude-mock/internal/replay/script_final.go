@@ -55,16 +55,12 @@ func callLine(id string, c scriptCall) string {
 		b, _ := json.Marshal(rec)
 		return string(b)
 	}
-	if c.Answer { // what it said before, then the answer and the result that ends the turn
-		var early []string
-		for _, e := range c.Early {
-			early = append(early, assistantFrame(map[string]any{"type": "text", "text": e}))
-		}
-		return strings.Join(append(early, finalLines(*c.Text, "")), "\x01")
-	}
 	var parts []string
 	for _, e := range c.Early {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": e}))
+	}
+	if c.Name == "" { // an answer that ends a turn the harness goes on from: the text and the result that ends the turn
+		return strings.Join(append(parts, finalLines(c.Reply, "")), "\x01")
 	}
 	if c.Text != nil {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": *c.Text}))

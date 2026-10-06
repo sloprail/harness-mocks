@@ -35,7 +35,11 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 		},
 		// a sub-agent's spend and the model id its alias resolved to: there in both, their values the run's own
 		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
-		MaskKeys: []string{"end_time", "scheduledFor", "pre_tokens", "post_tokens", "cumulative_dropped_tokens", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
+		MaskKeys: []string{"end_time", "scheduledFor", "pre_tokens", "post_tokens", "cumulative_dropped_tokens", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd",
+			// the harness's pid and its messaging secret, as a child's environment names them (a hook's payload): the run's own
+			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN",
+			// how long a tool took (Glob's durationMs): measured, there in both
+			"durationMs"},
 		// when a frame was written differs in every run; that it has one does not
 		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{
@@ -44,6 +48,11 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
 			// when a scheduled wakeup falls: the wall clock and the seconds to the next minute's boundary
 			{Re: re(`scheduled for \d\d:\d\d:\d\d \(in \d+s\)`), With: "scheduled for <TIME> (in <N>s)"},
+			// the same, as a command prints its environment: the pid, the socket named for it, the secret (the capture redacts it), the executable's path
+			{Re: re(`CLAUDE_PID=\d+`), With: "CLAUDE_PID=<MASKED>"},
+			{Re: re(`cc-socks/\d+\.sock`), With: "cc-socks/<MASKED>.sock"},
+			{Re: re(`CLAUDE_CODE_MESSAGING_TOKEN=\S+`), With: "CLAUDE_CODE_MESSAGING_TOKEN=<MASKED>"},
+			{Re: re(`CLAUDE_CODE_EXECPATH=\S+`), With: "CLAUDE_CODE_EXECPATH=<MASKED>"},
 			// the per-user folder of the temp root, named for the uid the capture and the replay ran under
 			{Re: re(`claude-\d+`), With: "claude-<UID>"},
 			// the order the capture sanitised in: the repository first, as it holds the temp root

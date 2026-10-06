@@ -55,6 +55,7 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 	}
 	if kind == corehooks.StartResumed {
 		in.SessionTitle = sessionTitleOf(cfg.sessionFile)
+		inv.SetSessionTitle(in.SessionTitle)
 	}
 	ssOut, runs, ferr := inv.FireRuns(ctx, in)
 	// Only the SessionStart of a session resumed from another directory is told

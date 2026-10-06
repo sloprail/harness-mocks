@@ -12,6 +12,13 @@ import (
 func (in Input) MarshalJSON() ([]byte, error) {
 	type plain Input
 	b, err := json.Marshal(plain(in))
+	if err == nil && in.PromptTitle != "" {
+		// a UserPromptSubmit names the session's title after the prompt, the last of its fields
+		var title []byte
+		if title, err = json.Marshal(in.PromptTitle); err == nil {
+			b = append(b[:len(b)-1:len(b)-1], append([]byte(`,"session_title":`), append(title, '}')...)...)
+		}
+	}
 	if err != nil || in.AgentID == "" || in.AgentType != "" {
 		return b, err
 	}

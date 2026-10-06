@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -23,38 +24,22 @@ type turns struct {
 func modelTurns(records []map[string]any) (turns, error) {
 	var t turns
 	var said *string
-	var before []string
-	trigger := "manual" // of the compaction whose summary comes next: its boundary says
-	preserved := 0      // and how many of the last messages it kept
-	logical := ""       // and whether its logical parent was a record the file holds
-	segment := true     // and whether it names a preserved segment
-	written := map[string]bool{}
-	for _, r := range records {
-		if id, _ := r["uuid"].(string); id != "" {
-			written[id] = true
-		}
-	}
+	var before []string // what it said earlier still, ahead of the same call
+	compacts := newCompactions(records)
 	for _, rec := range records {
-		if endsTurn(rec) && said != nil { // a new turn begins: what was said last was the answer that ended the one before
-			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: core.ToolAnswer, Input: map[string]any{"text": *said}, SaidBefore: before})
+		if rec["type"] == "user" && isStopFeedback(rec) && said == nil {
+			return turns{}, fmt.Errorf("a Stop hook's feedback came to a model that had said nothing")
+		}
+		if endsTurn(rec) && said != nil {
+			// a turn ends and the harness goes on from it (a Stop hook's feedback, a task's notification):
+			// what the model said last was the answer that ended it, and the model answers again
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}, SaidBefore: before})
 			t.ids = append(t.ids, "")
 			said, before = nil, nil
 		}
-		if c, ok := compaction(rec, trigger, preserved, logical, segment); ok {
+		if c, ok := compacts.see(rec); ok {
 			t.agent.Calls = append(t.agent.Calls, c)
 			t.ids = append(t.ids, "")
-		}
-		if meta, _ := rec["compactMetadata"].(map[string]any); rec["subtype"] == "compact_boundary" && meta != nil {
-			trigger, _ = meta["trigger"].(string)
-			preserved, logical = 0, ""
-			_, segment = meta["preservedSegment"]
-			if lp, _ := rec["logicalParentUuid"].(string); lp != "" && !written[lp] {
-				logical = "unwritten"
-			}
-			if pm, _ := meta["preservedMessages"].(map[string]any); pm != nil {
-				uuids, _ := pm["uuids"].([]any)
-				preserved = len(uuids)
-			}
 		}
 		if rec["type"] != "assistant" {
 			continue
@@ -89,18 +74,32 @@ func modelTurns(records []map[string]any) (turns, error) {
 	return t, nil
 }
 
-// toolPrefix starts the unified name of a tool the claude adapter passes on as it is: the mock either
-// carries it out or refuses it, and what it does with it is then the replay's finding.
-const toolPrefix = "claude:"
+// toolReply is the adapter's unified name of an answer the model gave that a Stop hook then refused
+// to end the turn on: Input "text". It is not a tool call: the model said it, and was told to go on.
+const toolReply = "reply"
 
-// unify maps a tool_use block onto the unified vocabulary: Bash is a shell command, Agent (alias
-// Task) a spawn (its prompt is the message); any other tool goes on under its own name.
+// stopFeedback starts the user record a blocking Stop hook leaves.
+const stopFeedback = "Stop hook feedback:"
+
+// isStopFeedback is whether a user record is a Stop hook's feedback.
+func isStopFeedback(rec map[string]any) bool {
+	msg, _ := rec["message"].(map[string]any)
+	s, _ := msg["content"].(string)
+	return strings.HasPrefix(s, stopFeedback)
+}
+
+// unify maps a tool_use block onto the unified vocabulary: Bash is a shell
+// command, Agent a spawn (its prompt is the message). Any other tool is not
+// mapped yet.
 func unify(block map[string]any) (core.Call, error) {
 	name, _ := block["name"].(string)
 	input, _ := block["input"].(map[string]any)
 	in := make(map[string]any, len(input)+1)
 	for k, v := range input {
 		in[k] = v
+	}
+	if tool, ok := fileTools[name]; ok {
+		return core.Call{Tool: tool, Input: in}, nil
 	}
 	switch name {
 	case "Bash":
@@ -109,10 +108,11 @@ func unify(block map[string]any) (core.Call, error) {
 		prompt, _ := input["prompt"].(string)
 		in["message"] = prompt
 		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
-	case "":
+	}
+	if name == "" {
 		return core.Call{}, fmt.Errorf("a tool call with no name")
 	}
-	return core.Call{Tool: toolPrefix + name, Input: in}, nil
+	return core.Call{Tool: toolPrefix + name, Input: in}, nil // any other tool goes on under its own name: the mock runs or refuses it
 }
 
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,
@@ -135,6 +135,11 @@ func attachSubagents(t turns, subs map[string]turns) core.Agent {
 	return agent
 }
 
+// wireInputs are the inputs of the calls the main agent made as the model sent them, by call id, as
+
+// toolPrefix starts the unified name of a tool the claude adapter passes on as it is.
+const toolPrefix = "claude:"
+
 // endsTurn is whether a record opens a turn of the model's own accord: a user record whose content is
 // text (a task's notification, a hook's feedback), not a tool's result.
 func endsTurn(rec map[string]any) bool {
@@ -144,25 +149,4 @@ func endsTurn(rec map[string]any) bool {
 	msg, _ := rec["message"].(map[string]any)
 	_, text := msg["content"].(string)
 	return text
-}
-
-// compaction is the compaction a record is the summary of: the user record the harness writes with
-// isCompactSummary, whose text is what the agent is given in place of what was compacted.
-func compaction(rec map[string]any, trigger string, preserved int, logical string, segment bool) (core.Call, bool) {
-	if rec["type"] != "user" || rec["isCompactSummary"] != true {
-		return core.Call{}, false
-	}
-	msg, _ := rec["message"].(map[string]any)
-	text, ok := msg["content"].(string)
-	in := map[string]any{"summary": text, "trigger": trigger}
-	if preserved > 0 {
-		in["preserve"] = preserved
-	}
-	if logical != "" {
-		in["logical_parent"] = logical
-	}
-	if !segment {
-		in["preserved_segment"] = false
-	}
-	return core.Call{Tool: core.ToolCompact, Input: in}, ok
 }

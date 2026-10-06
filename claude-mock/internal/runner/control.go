@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/subagents"
@@ -30,8 +31,12 @@ func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg C
 		return true, errAPIRetry
 	}
 	if rec.Type == "assistant" {
-		if _, name, _ := extractFirstToolUseWithID(line); refusedTools[name] {
+		_, name, _ := extractFirstToolUseWithID(line)
+		if refusedTools[name] {
 			return true, fmt.Errorf("claude-mock: the %s tool is not implemented by the mock: it is refused rather than ignored", name)
+		}
+		if name != "" && cfg.RestrictTools && !slices.Contains(cfg.Tools, name) {
+			return true, fmt.Errorf("claude-mock: the %s tool is not among the --tools of this run: what claude answers a call to a tool it was not given is not recorded, so the mock refuses it rather than ignoring it", name)
 		}
 	}
 	if err := refuseUnrecordedControl(cfg, inv, rec.Type); err != nil {
