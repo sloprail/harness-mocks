@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -84,4 +86,35 @@ func TestSessionEndMatcherSelectsOnTheReason(t *testing.T) {
 			}
 		})
 	}
+}
+
+// SessionEnd hooks are advisory: ones that print continue:false or a block decision with a reason
+// steer nothing. The run still ends normally (exit 0), after the one turn, with no extra turn, and
+// neither the stream nor the transcript carries what they said (recorded: runs/session-end-steering).
+// sr:proves session-end-hook/codex
+func TestSessionEndHooksCannotSteerTheRun(t *testing.T) {
+	rec := loadRecording(t, "session-end-steering")
+	assert.Equal(t, "0\n", readFile(t, filepath.Join(rec.sample, "exit.txt")))
+	recordedStream := readFile(t, filepath.Join(rec.sample, "stream.jsonl"))
+	assert.Equal(t, 1, strings.Count(recordedStream, `"turn.completed"`))
+	assert.NotContains(t, recordedStream, "SE-")
+	assert.NotContains(t, recordedRollout(t, rec), "SE-")
+
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files:     map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh"))},
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "echo one"),
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, 1, strings.Count(got.Stdout, `"turn.completed"`), "one turn, no extra")
+	assert.Equal(t, 1, strings.Count(got.Stdout, `"agent_message"`))
+	assert.NotContains(t, got.Stdout, "SE-")
+	assert.NotContains(t, got.rollout(t), "SE-")
+	var ran []string
+	for _, l := range got.hookLog() {
+		if r, ok := l["ran"].(string); ok {
+			ran = append(ran, r)
+		}
+	}
+	assert.ElementsMatch(t, []string{"stop", "block"}, ran, "both ran")
 }
