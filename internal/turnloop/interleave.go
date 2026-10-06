@@ -22,6 +22,13 @@ type Orderer interface {
 	Order(calls []scenario.ToolUse) []scenario.ToolUse
 }
 
+// Waiter is an Interleaver whose waits (a call that blocks for a time, naming no
+// work of its own to do) are completed after the other calls of the response, which
+// are in flight meanwhile and so are done first.
+type Waiter interface {
+	Waits(tu scenario.ToolUse) bool
+}
+
 // turnCalls is the calls of the turn the host carries out: all of them for an
 // Interleaver, the first otherwise.
 func turnCalls(h Host, t scenario.Turn) []scenario.ToolUse {
@@ -52,11 +59,17 @@ func perform(ctx context.Context, h Host, calls []scenario.ToolUse) {
 		h.Tool(ctx, calls[0])
 		return
 	}
-	var finish []func()
+	var finish, waits []func()
+	w, _ := h.(Waiter)
 	for _, c := range calls {
-		finish = append(finish, h.(Interleaver).Start(ctx, c))
+		f := h.(Interleaver).Start(ctx, c)
+		if w != nil && w.Waits(c) {
+			waits = append(waits, f)
+		} else {
+			finish = append(finish, f)
+		}
 	}
-	for _, f := range finish {
+	for _, f := range append(finish, waits...) {
 		f()
 	}
 }

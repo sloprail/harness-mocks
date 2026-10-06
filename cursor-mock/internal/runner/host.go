@@ -133,3 +133,8 @@ func (s *session) Order(calls []scenario.ToolUse) []scenario.ToolUse {
 	}
 	return append(rest, tasks...)
 }
+
+// Waits is turnloop.Waiter: a wait (AwaitShell) outlasts the other calls of its
+// response, which are in flight beside it (recorded: runs/nested-subagents-background,
+// where the wait of 60 s is completed after the sub-agent the same response started).
+func (s *session) Waits(tu scenario.ToolUse) bool { return tu.Name == "AwaitShell" }
