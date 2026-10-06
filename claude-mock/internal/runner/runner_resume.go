@@ -26,6 +26,8 @@ func resumeFailed(ctx context.Context, cfg Config, settings *hooks.Settings, fro
 		return nil
 	}
 	inv := hooks.NewInvoker(settings, cfg.Cwd, from)
+	cfg.configureInvoker(inv)
+	inv.SetProjectDir(projectDirOf(cfg))
 	inv.SetTranscriptPath(sessionFilePath(cfg.ConfigDir, cfg.Cwd, from))
 	for _, phase := range nc.Fire {
 		if phase == session.End {

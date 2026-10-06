@@ -20,8 +20,6 @@ type backgroundTasks struct {
 	run runState
 	// results holds the result frames of turns that ended while a background agent worked.
 	results tasks.Results
-	// stopErrorShown: the Stop hook error notification has been streamed in this run.
-	stopErrorShown bool
 	// refused is the first call a scenario script asked for that the mock does not
 	// implement, in any run of the session, a sub-agent's too: it fails the run.
 	refused toolspec.Refusals

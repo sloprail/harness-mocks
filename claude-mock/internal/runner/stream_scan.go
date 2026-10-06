@@ -11,8 +11,7 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
 
-// scanLines reads one script invocation's JSONL output line by line, until a
-// tool_use (returned as pending), a result frame (done), or the end of output.
+// scanLines reads one script invocation's JSONL output line by line, until a tool_use (pending), a result frame (done) or its end.
 func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, tr *transcript) (scanResult, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
@@ -64,10 +63,11 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				if _, err := Schema().Check(toolName, toolInput); err != nil { // adr/tool-calls-validated
 					return scanResult{}, err
 				}
+				line, streamed, toolInput := withToolDefaults(cfg, line)
 				if cfg.AgentID != "" { // the tool_use is written BEFORE the PreToolUse hook fires
 					cfg.progress(cfg, toolName, toolInput)
 				}
-				writeStreamLine(cfg, line)
+				writeStreamLine(cfg, streamed)
 				tr.persist(line)
 				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}

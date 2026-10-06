@@ -54,7 +54,6 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var lastText string
 	var final scenario.Result // the run's one result frame, held until its turn really ends
 	finish := finisher(cfg, bg, &final)
-	streamFeedback(cfg, tr)
 	blockCap := stopHookBlockCap()
 	for {
 		if maxTurnsReached(cfg, bg) {
@@ -92,15 +91,17 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				SessionCrons:         &crons,
 			})
 			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
-			writeStopHookError(cfg, bg, stopRuns)
+			blocked := turnloop.Continues(stopErr != nil, stopOut.Decision == "block")
+			writeStopHookFrames(cfg, stopRuns, blocked, &bg.run.stopErrorShown)
 			// Its feedback, attachment and stop_hook_summary: transcript.recordHookRuns.
 			// sr:provides stop-block-continuation/claude
-			if turnloop.Continues(stopErr != nil, stopOut.Decision == "block") {
+			if blocked {
 				stopBlocks++
 				// sr:provides stop-block-cap/claude
 				if turnloop.AfterBlock(stopBlocks, blockCap) {
-					// Re-prompt: the turn goes on and the script runs again. Its result
-					// frame is dropped: a continued turn ends with one result, at its end.
+					// Re-prompt: the turn goes on, so the script runs again and reacts to the
+					// block. Its result frame is dropped: a continued turn ends with one result,
+					// at its real end (claude 2.1.282 streamed one across 8 continuations).
 					lastSig, repeats = "", 0
 					final.Continue()
 					continue

@@ -47,8 +47,7 @@ printf '{"type":"result","subtype":"success","result":"result of turn %s","is_er
 			results = append(results, rec["result"].(string))
 		}
 	}
-	assert.Equal(t, []string{"assistant", "user", "system", "assistant", "user", "assistant", "result"}, types,
-		"one event per assistant record, the Stop hook's feedback after the first two (a user frame, the first with its error notice), then the one result")
+	assert.Equal(t, []string{"assistant", "user", "system", "assistant", "user", "assistant", "result"}, types, "one event per assistant record and per block's feedback to the agent (the first block's error notice among them), then the one result")
 	assert.Equal(t, []string{"result of turn 2"}, results, "the result of the turn's real end")
 	lines := nonEmptyLines(out)
 	var last map[string]any

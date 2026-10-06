@@ -50,10 +50,12 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		sessionFile:             s.sessionFile,
 		spawnDepth:              s.spawnDepth,
 		SpawnLimit:              s.parent.SpawnLimit,
+		Invocation:              Invocation{Tools: s.parent.Tools, RestrictTools: s.parent.RestrictTools},
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
-	if !s.background { // a background sub-agent's prompt is no frame (recorded: runs/bgagent)
+	if !s.announced && !s.background { // a re-run after a blocking SubagentStop streams no prompt of its own (recorded: hookmix); nor does a background sub-agent (recorded: bgagent)
 		subCfg.announce(subCfg, prompt)
+		s.announced = true
 	}
 	s.startFrames.finish(s.parent)
 	out := subagents.Outcome{}

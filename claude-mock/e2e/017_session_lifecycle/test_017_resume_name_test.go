@@ -53,13 +53,11 @@ func titlesOf(ps []map[string]any, session string) (events, titles []string) {
 }
 
 // TestT017_78_ResumeByNameAsRecorded: a session that was given a name (by
-// --name, which the mock does not model; the real harness records it as a
-// custom-title and an agent-name record, as the resume-name run's transcript
-// shows) is resumed by `--resume <name>`: the same session continues in its own
-// file, its SessionStart carries session_title and the stream a session_title_changed
-// frame after the hooks' and before init, as recorded (the recorded UserPromptSubmit
-// carries the title too, which the mock's does not: the cell's deviation), and an
-// unnamed session's resume carries none.
+// --name, which records a custom-title and an agent-name record, as the resume-name
+// run's transcript shows) is resumed by `--resume <name>`: the same session continues
+// in its own file, its SessionStart and its UserPromptSubmit carry session_title and
+// the stream a session_title_changed frame after the hooks' and before init, as
+// recorded, and an unnamed session's resume carries none.
 // sr:proves session-resume/claude
 func TestT017_78_ResumeByNameAsRecorded(t *testing.T) {
 	raw, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/resume-name/samples/*/payloads.jsonl"))
@@ -91,21 +89,22 @@ func TestT017_78_ResumeByNameAsRecorded(t *testing.T) {
 		return out
 	}
 	run("--session-id", "plain-1")
-	run("--session-id", "named-1")
-	// the records the real harness left in its named session, in the real order
+	run("--session-id", "named-1", "--name", "earlier-by-name")
 	named := transcriptPath(t, cfg, dir, "named-1")
 	body, err := os.ReadFile(named)
 	require.NoError(t, err)
-	head := `{"type":"custom-title","customTitle":"earlier-by-name","sessionId":"named-1"}` + "\n" +
-		`{"type":"agent-name","agentName":"earlier-by-name","sessionId":"named-1"}` + "\n"
-	require.NoError(t, os.WriteFile(named, append([]byte(head), body...), 0o644))
+	mockRecs := strings.Split(string(body), "\n")
+	assert.Contains(t, mockRecs[0], `"type":"custom-title"`, "the session's title is ahead of everything else, as recorded")
+	assert.Contains(t, mockRecs[0], `"customTitle":"earlier-by-name"`)
+	assert.Contains(t, mockRecs[1], `"type":"agent-name"`, "and its agent-name record follows")
+	assert.Contains(t, mockRecs[1], `"agentName":"earlier-by-name"`)
 	before := len(payloads(t, log))
 	stream := run("--resume", "earlier-by-name")
 	run("--resume", "plain-1")
 
 	events, titles := titlesOf(payloads(t, log)[before:], "named-1")
 	assert.Equal(t, wantEvents, events, "the name finds the named session")
-	assert.Equal(t, []string{"earlier-by-name", "", "", ""}, titles, "SessionStart carries the title (the UserPromptSubmit one is the deviation)")
+	assert.Equal(t, wantTitles, titles, "the title is on the resume's SessionStart and UserPromptSubmit only, as recorded")
 	assert.Equal(t, recordedFrames(t), framesBeforeInit(stream), "the stream's frames up to init, as recorded")
 	_, plainTitles := titlesOf(payloads(t, log), "plain-1")
 	assert.Equal(t, make([]string, len(plainTitles)), plainTitles, "an unnamed session's hooks carry no title")

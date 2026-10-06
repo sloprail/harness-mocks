@@ -16,13 +16,13 @@ import (
 // left out ("cell/word": reason). An entry the cells no longer need fails the
 // test, so the list only shrinks.
 var notAbout = map[string]string{
-	"background-agent/script":          "prose: a mock sub-agent is a scenario script",
-	"noninteractive-run/script":        "prose: the stream is produced from the scenario script",
-	"session-fork/script":              "prose: the scenario script writes the init and result frames",
-	"session-resume/script":            "prose: the scenario script writes the init frame",
-	"session-fork/init":                "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
-	"session-resume/init":              "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
-	"stop-block-continuation/caller":   "prose: the caller who reads the result",
+	"background-agent/script":        "prose: a mock sub-agent is a scenario script",
+	"noninteractive-run/script":      "prose: the stream is produced from the scenario script",
+	"session-fork/script":            "prose: the scenario script writes the init and result frames",
+	"session-resume/script":          "prose: the scenario script writes the init frame",
+	"session-fork/init":              "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
+	"session-resume/init":            "the cell declares the mock writes no init frame at a session's start (only one after a compaction), and both are left out of the comparison (frames.go unmodelled)",
+	"stop-block-continuation/caller": "prose: the caller who reads the result",
 }
 
 // No capability cell may be about what the replay leaves out of the comparison:

@@ -48,7 +48,7 @@ func forkTranscript(configDir, cwd, fromID, dest, newID string) error {
 		return err
 	}
 	var buf []byte
-	for _, line := range mockPreambleRecords(newID) {
+	for _, line := range mockPreambleRecords(newID, "") {
 		buf = append(append(buf, line...), '\n')
 	}
 	for _, rec := range segment {

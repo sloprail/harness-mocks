@@ -179,3 +179,42 @@ func TestT007_10_UnknownToolIsRefused(t *testing.T) {
 	assert.Contains(t, out, "FlyingUnicorn")
 	assert.Contains(t, out, "unknown tool")
 }
+
+// TestT007_20_EditWithoutReplaceAllIsStreamedWithTheDefault: an Edit that leaves replace_all out is
+// streamed and written with replace_all false (the harness fills the default in), and the stream names
+// the input as it was sent (recorded: snapshots/runs/file-tools).
+// sr:proves file-tools/claude
+func TestT007_20_EditWithoutReplaceAllIsStreamedWithTheDefault(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "f.txt")
+	require.NoError(t, os.WriteFile(f, []byte("a\n"), 0o644))
+	out, code := runTool(t, dir, "Edit", `{"file_path":"`+f+`","old_string":"a","new_string":"b"}`)
+	require.Equal(t, 0, code, out)
+	assert.Contains(t, out, `"input":{"file_path":"`+f+`","new_string":"b","old_string":"a","replace_all":false}`)
+	assert.Contains(t, out, `"wire_tool_inputs":{"tu_1":{"file_path":"`+f+`","new_string":"b","old_string":"a"}}`)
+}
+
+// TestT007_21_ToolsRestrictTheRunsTools: with --tools a call to a tool not listed is refused, one listed
+// runs, and "default" restricts nothing.
+// sr:proves file-tools/claude
+func TestT007_21_ToolsRestrictTheRunsTools(t *testing.T) {
+	for name, tc := range map[string]struct {
+		tools string
+		ok    bool
+	}{"listed": {"Read,Bash", true}, "spaces": {"Read Bash", true}, "unlisted": {"Read,Edit", false}, "none": {"", false}, "default": {"default", true}} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			script := toolUseScript(t, dir, "Bash", `{"command":"echo hello-bash"}`)
+			out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir,
+				"--config-dir", filepath.Join(dir, "cfg"), "--tools", tc.tools, "-p", "go")
+			if tc.ok {
+				require.Equal(t, 0, code, out)
+				assert.Contains(t, out, "hello-bash")
+				return
+			}
+			assert.NotEqual(t, 0, code, out)
+			assert.Contains(t, out, "the Bash tool is not among the --tools of this run")
+			assert.NotContains(t, out, "hello-bash")
+		})
+	}
+}
