@@ -155,6 +155,14 @@ func TestAnEphemeralSessionHasNoTranscriptAndItsHooksSayNull(t *testing.T) {
 		return nil
 	})
 	assert.Empty(t, files, "the mock keeps no session file")
+	// nothing is left anywhere after the run: the configuration directory holds no session, and the
+	// scratch directory the mock kept the session in while it ran is gone from the temporary directory
+	scratch, _ := filepath.Glob(filepath.Join(got.Tmp, "codex-mock-ephemeral-*"))
+	assert.Empty(t, scratch, "the mock removes its scratch session")
+	entries, _ := os.ReadDir(got.Home)
+	for _, e := range entries {
+		assert.NotEqual(t, "sessions", e.Name(), "the mock leaves no sessions directory under the configuration directory")
+	}
 	cmds, _ := got.commands()
 	assert.Equal(t, []string{"echo one"}, cmds, "the script read the session so far and went on")
 }
