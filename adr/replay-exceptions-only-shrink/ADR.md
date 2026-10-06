@@ -7,7 +7,7 @@ sloprails: [file-guard/replay-exceptions-only-shrink]
 
 ## Concern
 
-The recorded runs a mock's replay does not reproduce yet are listed with a
+The recorded runs a mock's replay does not reproduce are listed with a
 reason in the `notReplaying` map of that mock's `replay_allowlist_test.go`
 (every such file in the repo); a `flaky:` entry is one whose replay is green in
 some runs and not in others. A list that can grow, or whose reasons can be
