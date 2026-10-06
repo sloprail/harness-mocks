@@ -87,7 +87,7 @@ func TestT001_17_AnUnknownResumeEndsItsSessionBeforeTheResultFrame(t *testing.T)
 	dir := t.TempDir()
 	stamp := filepath.Join(dir, "hook-ended")
 	hook := filepath.Join(dir, "end.sh")
-	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat >/dev/null\nsleep 0.5\n: > "+stamp+"\n"), 0o755))
+	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat >/dev/null\nsleep 0.1\n: > "+stamp+"\n"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"),
 		[]byte(`{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"`+hook+`"}]}],"SessionEnd":[{"hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))

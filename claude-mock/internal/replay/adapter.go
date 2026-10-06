@@ -86,7 +86,7 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 	for name, body := range s.Scripts {
 		s.Scripts[name] = fill.Replace(body)
 	}
-	env := append(a.env(home, tmp, filepath.Join(work, "hook.log")), strings.Fields(rec.Setup["env"])...) // the setup's own, KEY=VALUE per line
+	env := append(a.env(home, tmp, filepath.Join(work, "hook.log")), strings.Fields(rec.Setup["env"])...) // the setup's own
 	ctx := context.Background()
 	for _, argv := range [][]string{
 		{"git", "-C", repo, "init", "-q", "-b", "main"},
@@ -118,13 +118,17 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 			return nil, nil, "", "", err
 		}
 	}
-
 	if prep := rec.Setup["prepare.sh"]; prep != "" {
 		// a capture runs the scenario's preparation in the scratch repository, before git init and claude
 		if err := os.WriteFile(filepath.Join(work, "prepare.sh"), []byte(prep), 0o644); err != nil {
 			return nil, nil, "", "", err
 		}
-		if res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"sh", filepath.Join(work, "prepare.sh")}, Dir: repo, Env: env}); err != nil || res.ExitCode != 0 {
+		shims, err := pluginShim(work)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+		prepEnv := withShimsFirst(env, shims)
+		if res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"sh", filepath.Join(work, "prepare.sh")}, Dir: repo, Env: prepEnv}); err != nil || res.ExitCode != 0 {
 			return nil, nil, "", "", fmt.Errorf("prepare.sh: %v %s", err, res.Stderr)
 		}
 	}
