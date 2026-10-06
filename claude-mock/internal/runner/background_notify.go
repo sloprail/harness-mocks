@@ -67,6 +67,10 @@ func writeFrame(cfg Config, frame map[string]any) {
 // sr:provides task-notifications/claude
 func (b *backgroundTasks) deliverMidTurn(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript) {
 	for _, t := range b.TakeFinished(cfg.AgentID) {
+		if _, launching := b.endedAtLaunch.LoadAndDelete(t); launching {
+			b.Unclaim(t) // recorded: runs/midturn
+			continue
+		}
 		note := taskNotification(t)
 		if !submitNotification(ctx, cfg, inv, tr, note) {
 			continue

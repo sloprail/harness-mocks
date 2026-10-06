@@ -2,6 +2,7 @@ package toolexec
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strconv"
 	"testing"
@@ -53,4 +54,20 @@ func TestBashKeepsInheritedEnvironment(t *testing.T) {
 
 	require.False(t, res.IsError, "bash failed: %s", res.Output)
 	assert.Equal(t, "still-here", res.Output)
+}
+
+// A touch that succeeds prints nothing and says so (recorded: snapshots/runs/isolated-worktree); a
+// command that is not recorded as silent, or is more than one call, does not.
+// sr:proves bash-tool-result/claude
+func TestSilentCommand(t *testing.T) {
+	for command, want := range map[string]bool{"touch f.txt": true, "true": false, "sleep 2": false, "touch a; echo x": false, "touch a && rm a": false, "": false} {
+		if got := silentCommand(command); got != want {
+			t.Errorf("%q: %v", command, got)
+		}
+	}
+	dir := t.TempDir()
+	res := Execute(context.Background(), "Bash", json.RawMessage(`{"command":"touch f.txt"}`), dir, "s")
+	if res.ToolUseResult.(map[string]any)["noOutputExpected"] != true {
+		t.Fatalf("%+v", res)
+	}
 }

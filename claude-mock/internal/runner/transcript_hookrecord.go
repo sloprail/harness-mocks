@@ -90,3 +90,21 @@ func (t *transcript) recordExit2(att func(string, map[string]any), s *stopSummar
 	}
 	s.hasOutput = true
 }
+
+// stopFeedbackOf is the feedback a handler of the event that ends a turn hands the agent when it blocks it:
+// its stderr for an exit 2, its reason for a block by JSON.
+func stopFeedbackOf(ev hooks.EventName, r hooks.HandlerRun) (string, bool) {
+	rec := corehooks.RecordFor(ranOf(ev, r, additionalContextFrom(r.Output)))
+	switch {
+	case !rec.Feedback:
+		return "", false
+	case r.Blocked:
+		return hooks.QuoteRun(r), true
+	case rec.Attachment == corehooks.AttachBlockingError:
+		if r.Output.Reason == "" {
+			return "Blocked by hook", true
+		}
+		return r.Output.Reason, true
+	}
+	return "", false
+}

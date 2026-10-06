@@ -24,10 +24,10 @@ const standardCommand = "claude -p --model haiku --dangerously-skip-permissions 
 // the files of a recording's setup the adapter installs; any other (extra
 // flags, later steps, a preparation script, environment) is something of the
 // recording the adapter cannot reproduce yet
-var installed = map[string]bool{"hook.sh": true, "prompt.txt": true, "settings.json": true, "prepare.sh": true, "args": true, "then": true, "env": true}
+var installed = map[string]bool{"hook.sh": true, "prompt.txt": true, "settings.json": true, "prepare.sh": true, "args": true, "then": true, "env": true, "cwd": true, "symlink": true}
 
-// stepFile is a flat file of a later run (capture.sh: then-<NN>-prompt.txt, then-<NN>-args).
-var stepFile = regexp.MustCompile(`^then-\d+-(prompt\.txt|args)$`)
+// stepFile is a flat file of a later run (capture.sh: then-<NN>-prompt.txt, then-<NN>-args, then-<NN>-cwd).
+var stepFile = regexp.MustCompile(`^then-\d+-(prompt\.txt|args|cwd)$`)
 
 // sampleDir is the latest sample of the run in dir, the one the model's turns
 // and the stream's session are read from; empty when it has none.
@@ -99,17 +99,18 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 	if _, err := readJSONL(filepath.Join(sample, "payloads.jsonl")); err != nil {
 		return core.Recording{}, err
 	}
-	agent, then, err := agentsOf(setup, sample, stream)
+	agent, then, earlier, err := agentsOf(setup, sample, stream)
 	if err != nil {
 		return core.Recording{}, err
 	}
 	if len(then) > 0 && failedResult(stream) != "" {
 		return core.Recording{}, unbuildable(fmt.Errorf("a run of several steps whose model API failed"))
 	}
-	args, err := parseArgs(readFile(filepath.Join(setup, "args")))
+	specs, err := stepSpecs(setup)
 	if err != nil {
 		return core.Recording{}, err
 	}
+	first := specs[0]
 	return core.Recording{
 		Dir:    runDir,
 		Prompt: strings.TrimSpace(readFile(filepath.Join(setup, "prompt.txt"))),
@@ -118,7 +119,13 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 			"hook.sh":       readFile(filepath.Join(setup, "hook.sh")),
 			"prepare.sh":    readFile(filepath.Join(setup, "prepare.sh")),
 			"env":           readFile(filepath.Join(setup, "env")),
-			"args":          strings.Join(args, "\n"),
+			"args":          strings.Join(mainMockArgs(first), "\n"),
+			"session":       first.newID,
+			"cwd":           first.cwd,
+			"symlink":       first.symlink,
+			"steps":         stepFilesJSON(specs[1:]),
+			"files":         filesJSON(changedSetupFiles(setup, sample)),
+			"earlier":       earlierJSON(earlier),
 			"exit":          code,
 			"result":        failedResult(stream),
 		},

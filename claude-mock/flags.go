@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
 )
 
 // lookedUp is whether the run's --resume value was found by lookup.
@@ -40,6 +42,10 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 		if cmd.Flags().Changed(name) {
 			return fmt.Errorf("claude-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
 		}
+	}
+	// --name names a session this run starts; naming a resumed one (a rename) is not recorded
+	if cmd.Flags().Changed("name") && (cmd.Flags().Changed(flagResume) || cmd.Flags().Changed(flagContinue)) {
+		return fmt.Errorf("claude-mock: --name with --resume or --continue is not implemented by the mock: it is refused rather than ignored")
 	}
 	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0) {
 		return fmt.Errorf("claude-mock: a piped stdin is not implemented by the mock: it is refused rather than ignored")
@@ -78,4 +84,33 @@ func maxTurns(cmd *cobra.Command) int {
 func hookEvents(cmd *cobra.Command) bool {
 	b, _ := cmd.Flags().GetBool("include-hook-events")
 	return b
+}
+
+// invocation is the run's --name and --tools: the names the latter lists, and whether it restricts the
+// run's tools at all ("default" does not).
+func invocation(cmd *cobra.Command) runner.Invocation {
+	name, _ := cmd.Flags().GetString("name")
+	value, _ := cmd.Flags().GetString("tools")
+	if !cmd.Flags().Changed("tools") || value == "default" {
+		return runner.Invocation{Name: name}
+	}
+	return runner.Invocation{Name: name, RestrictTools: true, Tools: strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' })}
+}
+
+// noConversationResult is the result frame of a run that resumed a session with no transcript: no turn
+// was taken and nothing was denied (recorded: snapshots/runs/resume-unknown).
+func noConversationResult(sessionID, msg string) map[string]any {
+	return map[string]any{
+		"type": "result", "subtype": "error_during_execution", "is_error": true,
+		"num_turns": 0, "session_id": sessionID, "errors": []string{msg},
+		"permission_denials": []any{}, "result_index": 0, "stop_reason": nil,
+	}
+}
+
+// addInvocationFlags registers --tools (the tools the run has: a call to another is refused;
+// cli-reference#--tools, recorded in snapshots/runs/file-tools) and --name (the session carries a name,
+// and --resume <name> finds it; cli-reference#--name, recorded in snapshots/runs/resume-name).
+func addInvocationFlags(cmd *cobra.Command) {
+	cmd.Flags().String("tools", "", `The only tools the run has: "default" for all, "" for none, else names separated by commas or spaces`)
+	cmd.Flags().StringP("name", "n", "", "Name the session (--name, -n, as used by claude CLI)")
 }

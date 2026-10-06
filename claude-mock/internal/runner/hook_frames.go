@@ -5,24 +5,36 @@ import (
 	"path/filepath"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
 
 // The stream frames a stream-json run carries for hooks it fired. Only these
 // write them.
 
-// writeStopHookError streams the notice a Stop hook that blocked (exit 2) or
-// failed (a non-blocking error) leaves: one notification per firing, whatever
-// the number of failing handlers (recorded: snapshots/runs/hook-exit-codes,
-// exit 2; hook-exit-json, exit 1). A Stop whose handlers all succeeded leaves
-// none.
-func writeStopHookError(cfg Config, runs []hooks.HandlerRun) {
+// writeStopHookFrames streams what a Stop hook leaves in the stream: a blocked turn's feedback to the agent,
+// then the notice a Stop hook that blocked (by exit 2 or by
+// JSON: blocked says the turn was held on) or failed (a non-blocking error) leaves:
+// one notification per firing, whatever the number of failing handlers (recorded:
+// snapshots/runs/hook-exit-codes, exit 2; hook-exit-json, exit 1; stops, JSON). A Stop whose
+// handlers all succeeded leaves none.
+//
+// The notice is shown once per run: a later Stop that blocks or fails leaves none (recorded:
+// snapshots/runs/stops, cap), and shown reports whether it was already.
+func writeStopHookFrames(cfg Config, runs []hooks.HandlerRun, blocked bool, shown *bool) {
+	if blocked {
+		writeStopFeedbackFrames(cfg, runs)
+	}
+	if *shown {
+		return
+	}
 	for _, r := range runs {
-		if r.Blocked || r.JSONError != "" || (r.ExitCode != 0 && !r.JSONParsed) {
+		if blocked || r.Blocked || r.JSONError != "" || (r.ExitCode != 0 && !r.JSONParsed) {
 			writeFrame(cfg, map[string]any{
 				"type": "system", "subtype": "notification", "key": "stop-hook-error",
 				"text": "Stop hook error occurred · ctrl+o to see", "priority": "immediate",
 			})
+			*shown = true
 			return
 		}
 	}
@@ -109,7 +121,28 @@ type Prompting struct {
 // beside the tasks: recorded in snapshots/runs/nested-session-env).
 func (cfg Config) configureInvoker(inv *hooks.Invoker) {
 	inv.SetPermissionMode(cfg.PermissionMode)
+	inv.SetConfigDir(cfg.ConfigDir)
+	toolexec.SetConfigDir(cfg.ConfigDir) // the Bash commands source the env files its SessionStart hooks write
 	if cfg.Scratchpad {
 		inv.SetScratchpadDir(filepath.Join(filepath.Dir(tasksDir(cfg.Cwd, cfg.SessionID)), "scratchpad"))
+	}
+}
+
+// writeStopFeedbackFrames streams what a Stop hook that blocks hands the agent: a synthetic user
+// message carrying the feedback, one per handler that gave some (recorded: snapshots/runs/stops, cap,
+// hook-exit-codes), ahead of the notice of the error.
+func writeStopFeedbackFrames(cfg Config, runs []hooks.HandlerRun) {
+	for _, r := range runs {
+		text, ok := stopFeedbackOf(hooks.EventStop, r)
+		if !ok {
+			continue
+		}
+		line, err := marshalRecord(map[string]any{
+			"type": "user", "isSynthetic": true, "uuid": newRecordUUID(),
+			"message": map[string]any{"role": "user", "content": []any{map[string]any{"type": "text", "text": "Stop hook feedback:\n" + text}}},
+		})
+		if err == nil {
+			writeStreamLine(cfg, stampFrame(cfg, line))
+		}
 	}
 }

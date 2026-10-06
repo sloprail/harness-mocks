@@ -36,11 +36,20 @@ var preambleTypes = map[string]bool{
 // The content is deterministic — this is a mock, and nothing downstream reads the
 // bookkeeping VALUES; only the "counted-but-skipped no-uuid line" shape matters. The
 // sessionId is the run's own so the records look like they belong to this session.
-func mockPreambleRecords(sessionID string) [][]byte {
+func mockPreambleRecords(sessionID, name string) [][]byte {
+	title := "a mock session"
+	if name != "" {
+		title = name
+	}
 	recs := []map[string]any{
-		{"type": "custom-title", "customTitle": "a mock session", "sessionId": sessionID},
+		{"type": "custom-title", "customTitle": title, "sessionId": sessionID},
 		{"type": "mode", "mode": "normal", "sessionId": sessionID},
 		{"type": "last-prompt", "lastPrompt": "", "leafUuid": "", "sessionId": sessionID},
+	}
+	if name != "" {
+		// a session started with --name carries its name, which a later --resume finds it by
+		// (recorded: runs/resume-name)
+		recs = append(recs[:1], append([]map[string]any{{"type": "agent-name", "agentName": name, "sessionId": sessionID}}, recs[1:]...)...)
 	}
 	var out [][]byte
 	for _, r := range recs {
@@ -78,7 +87,7 @@ func mockPreambleRecords(sessionID string) [][]byte {
 // time — after the prepended head — so the streamed records still land in order. Best-
 // effort throughout: any read/write error leaves the transcript as-is (session
 // persistence must never fail the run), matching seedRootPromptTranscript.
-func seedPreamble(f *os.File, sessionID string) {
+func seedPreamble(f *os.File, sessionID, name string) {
 	if f == nil {
 		return
 	}
@@ -90,7 +99,7 @@ func seedPreamble(f *os.File, sessionID string) {
 		return // already opened with a preamble — don't write it twice
 	}
 	var buf []byte
-	for _, line := range mockPreambleRecords(sessionID) {
+	for _, line := range mockPreambleRecords(sessionID, name) {
 		buf = append(buf, line...)
 		buf = append(buf, '\n')
 	}

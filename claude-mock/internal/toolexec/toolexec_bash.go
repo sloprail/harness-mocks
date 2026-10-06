@@ -23,7 +23,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 		return Result{Output: "Bash: missing or invalid 'command' field", IsError: true}
 	}
 
-	ran := tools.Bash(ctx, inp.Command, cwd, bashEnv(sessionID, inp.Command))
+	ran := tools.Bash(ctx, WithSessionEnv(sessionID, inp.Command), cwd, bashEnv(sessionID, inp.Command))
 	text, failedRun := ran.MessageFor(inp.Command, tools.BenignExit1)
 	// toolUseResult/tool_response: the structured result real Claude Code
 	// records for a foreground Bash ({stdout, stderr, interrupted, isImage,
@@ -31,7 +31,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 	// the command with one combined stream, so stdout carries it all.
 	// sr:provides bash-tool-result/claude
 	structured := map[string]any{
-		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
+		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": text == "" && !failedRun && silentCommand(inp.Command),
 	}
 	if failedRun {
 		// A command that exits non-zero is answered the way claude 2.1.28x
@@ -52,7 +52,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 // Code session would hand its tool calls the OPERATOR's outer session id. Set
 // only when non-empty, matching the hook invoker (hooks/invoker.go).
 func bashEnv(sessionID, command string) []string {
-	ident := childenv.Identity(sessionID)
+	ident := childenv.Tool(sessionID)
 	// sloprail's own commands resolve their session elsewhere: keep them out of it
 	if strings.HasPrefix(strings.TrimSpace(command), "sr-") {
 		delete(ident, "CLAUDE_CODE_SESSION_ID")

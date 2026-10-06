@@ -74,8 +74,8 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	task.Meta = taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true}
 	frames := frameObserver{cfg}
 	if err := b.StartCommand(task, tasks.CommandSpec{
-		Argv: []string{"/bin/sh", "-c", in.Command}, Dir: cfg.Cwd,
-		Env: procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID), childenv.Defaults()),
+		Argv: []string{"/bin/sh", "-c", toolexec.WithSessionEnv(cfg.SessionID, in.Command)}, Dir: cfg.Cwd,
+		Env: procexec.Env(os.Environ(), childenv.Tool(cfg.SessionID), childenv.Defaults()),
 		Out: out, Trailer: exitTrailer,
 		Started: func(t *tasks.Task) { tasks.Announce(b.Registry, t, frames) },
 		Ended:   func(t *tasks.Task) { tasks.Conclude(b.Registry, t, frames) },
@@ -83,6 +83,10 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 		return toolexec.Result{Output: fmt.Sprintf("Bash: %v", err), IsError: true}
 	}
 
+	if _, gated := b.receiptAfterEnd.LoadAndDelete(toolUseID); gated {
+		<-task.Done() // as the recording's order shows: the command's frames ahead of its receipt
+		b.endedAtLaunch.Store(task, true)
+	}
 	endsWithFinal := cfg.SyncSubagent
 	parts := []string{"Command running in background with ID: " + id + ". Output is being written to: " + outFile + "."}
 	if endsWithFinal {

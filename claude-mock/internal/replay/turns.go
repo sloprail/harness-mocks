@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"strings"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -24,6 +25,17 @@ func modelTurns(records []map[string]any) (turns, error) {
 	var t turns
 	var said *string
 	for _, rec := range records {
+		if rec["type"] == "user" && isStopFeedback(rec) {
+			// a Stop hook blocked the end of the turn: what the model said before it was a reply of its
+			// own, and the model answers again
+			if said == nil {
+				return turns{}, fmt.Errorf("a Stop hook's feedback came to a model that had said nothing")
+			}
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, Input: map[string]any{"text": *said}})
+			t.ids = append(t.ids, "")
+			said = nil
+			continue
+		}
 		if rec["type"] != "assistant" {
 			continue
 		}
@@ -57,8 +69,19 @@ func modelTurns(records []map[string]any) (turns, error) {
 	return t, nil
 }
 
-// toolRead is the unified name of the Read tool (a file read), which only the claude adapter maps.
-const toolRead = "read"
+// toolReply is the adapter's unified name of an answer the model gave that a Stop hook then refused
+// to end the turn on: Input "text". It is not a tool call: the model said it, and was told to go on.
+const toolReply = "reply"
+
+// stopFeedback starts the user record a blocking Stop hook leaves.
+const stopFeedback = "Stop hook feedback:"
+
+// isStopFeedback is whether a user record is a Stop hook's feedback.
+func isStopFeedback(rec map[string]any) bool {
+	msg, _ := rec["message"].(map[string]any)
+	s, _ := msg["content"].(string)
+	return strings.HasPrefix(s, stopFeedback)
+}
 
 // unify maps a tool_use block onto the unified vocabulary: Bash is a shell
 // command, Agent a spawn (its prompt is the message). Any other tool is not
@@ -70,17 +93,18 @@ func unify(block map[string]any) (core.Call, error) {
 	for k, v := range input {
 		in[k] = v
 	}
+	if tool, ok := fileTools[name]; ok {
+		return core.Call{Tool: tool, Input: in}, nil
+	}
 	switch name {
 	case "Bash":
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
-	case "Read":
-		return core.Call{Tool: toolRead, Input: in}, nil
 	case "Agent", "Task":
 		prompt, _ := input["prompt"].(string)
 		in["message"] = prompt
 		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
 	}
-	return core.Call{}, fmt.Errorf("the model called %s: the adapter maps Bash, Read and Agent", name)
+	return core.Call{}, fmt.Errorf("the model called %s: the adapter maps Bash, Read, Write, Edit, Glob and Agent", name)
 }
 
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,
@@ -102,3 +126,5 @@ func attachSubagents(t turns, subs map[string]turns) core.Agent {
 	}
 	return agent
 }
+
+// wireInputs are the inputs of the calls the main agent made as the model sent them, by call id, as
