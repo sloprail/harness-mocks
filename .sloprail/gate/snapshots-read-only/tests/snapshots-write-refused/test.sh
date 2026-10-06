@@ -4,7 +4,7 @@ set -euo pipefail
 # refused, naming capture.sh (which changes what is recorded, and re-freezes the docs with it); the recovery
 # the reason names (running capture.sh) and the boundary (a scenario's setup/, authored by hand) are not
 # refused: the gate does not wake for them, no event, and the calls ran.
-git init -q .
+git init -q -b main .
 cp -R "$SR_TEST_SLOPRAIL_DIR" .sloprail
 rm -rf .sloprail/tests
 # the plugin's own Stop notices are incidental here
