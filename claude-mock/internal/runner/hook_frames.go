@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
@@ -129,7 +130,19 @@ type Prompting struct {
 	// HookEvents is --include-hook-events: the stream carries a hook_started and a
 	// hook_response frame for each hook of the main thread, not only SessionStart's.
 	HookEvents bool
+	// Scratchpad: the session has a scratchpad directory, which the hooks are told of.
+	Scratchpad bool
 	// Turn is the prompt the session is on: the root run makes it, every
 	// sub-agent run inside shares it.
 	Turn *hooks.Turn
+}
+
+// configureInvoker gives the invoker what the payloads of this session carry besides what the
+// event brings: its permission mode and, when it has one, its scratchpad (<session dir>/scratchpad,
+// beside the tasks: recorded in snapshots/runs/nested-session-env).
+func (cfg Config) configureInvoker(inv *hooks.Invoker) {
+	inv.SetPermissionMode(cfg.PermissionMode)
+	if cfg.Scratchpad {
+		inv.SetScratchpadDir(filepath.Join(filepath.Dir(tasksDir(cfg.Cwd, cfg.SessionID)), "scratchpad"))
+	}
 }

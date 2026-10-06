@@ -24,7 +24,7 @@ const standardCommand = "claude -p --model haiku --dangerously-skip-permissions 
 // the files of a recording's setup the adapter installs; any other (extra
 // flags, later steps, a preparation script, environment) is something of the
 // recording the adapter cannot reproduce yet
-var installed = map[string]bool{"hook.sh": true, "prompt.txt": true, "settings.json": true, "prepare.sh": true, "args": true, "then": true}
+var installed = map[string]bool{"hook.sh": true, "prompt.txt": true, "settings.json": true, "prepare.sh": true, "args": true, "then": true, "env": true}
 
 // stepFile is a flat file of a later run (capture.sh: then-<NN>-prompt.txt, then-<NN>-args).
 var stepFile = regexp.MustCompile(`^then-\d+-(prompt\.txt|args)$`)
@@ -117,6 +117,7 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 			"settings.json": readFile(filepath.Join(setup, "settings.json")),
 			"hook.sh":       readFile(filepath.Join(setup, "hook.sh")),
 			"prepare.sh":    readFile(filepath.Join(setup, "prepare.sh")),
+			"env":           readFile(filepath.Join(setup, "env")),
 			"args":          strings.Join(args, "\n"),
 			"exit":          code,
 			"result":        failedResult(stream),

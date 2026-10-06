@@ -8,8 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/sloprail/harness-mocks/claude-mock/e2etest"
 )
 
 // A resume of an unknown session puts "No conversation found with session ID:
@@ -29,7 +27,7 @@ func TestT001_13_AnUnknownResumeKeepsItsMessageOnStderrAndItsFrameOnStdout(t *te
 	script := filepath.Join(dir, "s.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\necho RAN\n"), 0o755))
 	const id = "00000000-0000-4000-8000-0000000000ff"
-	stdout, stderr, code := e2etest.RunSplit(t, dir, nil, "--script", script, "--resume", id, "--project-dir", dir, "--output-format", "stream-json", "-p", "hello")
+	stdout, stderr, code := runSplit(t, dir, nil, "--script", script, "--resume", id, "--project-dir", dir, "--output-format", "stream-json", "-p", "hello")
 	assert.Equal(t, 1, code)
 	assert.Equal(t, "No conversation found with session ID: "+id, strings.TrimSpace(stderr), "the message, on stderr alone")
 	assert.NotContains(t, stdout, "No conversation found with session ID: "+id+"\n", "not as a line of stdout")

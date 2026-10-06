@@ -1,0 +1,1 @@
+Run exactly this Bash command, once, and nothing else: true. Then reply with the single word DONE.

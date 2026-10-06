@@ -47,6 +47,9 @@ type Input struct {
 	SessionID      string `json:"session_id"`
 	TranscriptPath string `json:"transcript_path,omitempty"`
 	Cwd            string `json:"cwd"`
+	// ScratchpadDir is the session's scratchpad directory, on a session that has one: the
+	// docs say it is absent otherwise (recorded: snapshots/runs/scratchpad-dir, nested-session-env).
+	ScratchpadDir string `json:"scratchpad_dir,omitempty"`
 	// PromptID names the user prompt the event belongs to: every event after the
 	// first UserPromptSubmit carries it (SessionStart before any prompt does not),
 	// and each prompt has its own (recorded: snapshots/runs/forkresume, compact).

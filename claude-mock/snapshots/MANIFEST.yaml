@@ -4,7 +4,7 @@ docs:
     sha256: 2af05ab61b572507726c30a9529d51f445cb314659e16ed481b54fe1bfbcb36e
     fetched: "2026-10-06"
   https://code.claude.com/docs/en/hooks:
-    sha256: 4fb83742d4267c6159a578a95fe3e1c5097b7366ecfda8e7320303e6d8068719
+    sha256: 883bebba1486461a6dc62c66647320783d56ddc638a7422509d0123708b43ce4
     fetched: "2026-10-06"
   https://code.claude.com/docs/en/tools-reference:
     sha256: 9dff373c68a2072871dc8c4f4155902d5d55e275f79eca082dceaec5b87a2377
@@ -25,8 +25,8 @@ docs:
     sha256: 482a41a8099236ab99e78d81bb37df1006e3039710f68adcbf790cc86c7a5ff7
     fetched: "2026-10-06"
   https://code.claude.com/docs/en/headless:
-    sha256: e2213e785a9105847e0d2ad006f3885c35ded7b88f0db23ce708ea45c43a7fbc
-    fetched: "2026-10-05"
+    sha256: 620ab6c85efd23581b3b31ba6daa44d00f83a562bb3f9892115a8d6902aad8c9
+    fetched: "2026-10-06"
   https://code.claude.com/docs/en/sub-agents:
     sha256: 2a447df088c10f4edef2c565da63bdbb850d889423dd90322977ab4c8a6a4b75
     fetched: "2026-10-05"
@@ -34,8 +34,8 @@ docs:
     sha256: cb2a422f9dc7f3a1dc21dcaf3a4ace38759334c1535683f8a0f64fedf01593b8
     fetched: "2026-10-05"
   https://code.claude.com/docs/en/agent-sdk/typescript:
-    sha256: 8f6eb83c882ae2a2430bc705cfadd1ca94f3d7e4ee3a1afb7f1be1475e242c10
-    fetched: "2026-10-05"
+    sha256: b38c0cb899a8cbff7dd8e785fc7748fc5bb279bc50b3d99fd57f3344df52cfa0
+    fetched: "2026-10-06"
   https://code.claude.com/docs/en/interactive-mode:
     sha256: 78a71e55efe8b7bf7817a090da951d983d62c4db35ad873de12d9eb5790fd6c0
     fetched: "2026-10-06"

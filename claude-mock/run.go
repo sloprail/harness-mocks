@@ -116,7 +116,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		PluginCacheDir:          pluginCacheDir,
 		PrintMode:               printMode,
 		Model:                   model,
-		Prompting:               runner.Prompting{PermissionMode: permissionMode(cmd), MaxTurns: maxTurns(cmd), HookEvents: hookEvents(cmd)},
+		Prompting:               runner.Prompting{PermissionMode: permissionMode(cmd), MaxTurns: maxTurns(cmd), HookEvents: hookEvents(cmd), Scratchpad: hasScratchpad()},
 		BgWaitCeiling:           printWaitCeiling(),
 		SpawnLimit:              spawnLimit(),
 		BackgroundTasksDisabled: backgroundTasksDisabled(),

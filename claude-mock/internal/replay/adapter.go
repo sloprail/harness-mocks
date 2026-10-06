@@ -86,7 +86,7 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 	for name, body := range s.Scripts {
 		s.Scripts[name] = fill.Replace(body)
 	}
-	env := a.env(home, tmp, filepath.Join(work, "hook.log"))
+	env := append(a.env(home, tmp, filepath.Join(work, "hook.log")), strings.Fields(rec.Setup["env"])...) // the setup's own, KEY=VALUE per line
 	ctx := context.Background()
 	for _, argv := range [][]string{
 		{"git", "-C", repo, "init", "-q", "-b", "main"},

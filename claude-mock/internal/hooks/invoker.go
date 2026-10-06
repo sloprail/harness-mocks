@@ -36,6 +36,7 @@ type Invoker struct {
 	// it is the SESSION's transcript and the sub-agent is named by agent_id.
 	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
 	transcriptPath string
+	scratchpadDir  string
 
 	// recorder, when set, is handed every handler's run — what the harness then
 	// writes into the transcript as a hook attachment record.
@@ -72,6 +73,9 @@ func (inv *Invoker) SetProjectDir(dir string) { inv.projectDir = dir }
 // SetTranscriptPath sets the transcript_path every payload carries unless the
 // caller names one.
 func (inv *Invoker) SetTranscriptPath(path string) { inv.transcriptPath = path }
+
+// SetScratchpadDir sets the scratchpad_dir every payload carries ("" for a session that has none).
+func (inv *Invoker) SetScratchpadDir(dir string) { inv.scratchpadDir = dir }
 
 // TranscriptPath is the transcript_path payloads carry by default.
 func (inv *Invoker) TranscriptPath() string { return inv.transcriptPath }
