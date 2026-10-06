@@ -13,7 +13,6 @@ a harness binary) and finds it missing.
 ## Decision
 
 - A Go test whose required external tool (looked up with `exec.LookPath`) is
-  missing fails; it never calls `t.Skip` for that. A test package in which any
-  code looks a tool up with `exec.LookPath` calls no `t.Skip` (nor `Skipf` or
-  `SkipNow`) at all, so that no skip can stand for a missing tool.
-- Only an explicit opt-in environment gate (`A10N_*_TEST`) may skip.
+  missing fails; it never calls `t.Skip` for that.
+- In a test package that looks up an external tool, no test may skip unless the
+  skip sits behind an `A10N_*_TEST` gate.
