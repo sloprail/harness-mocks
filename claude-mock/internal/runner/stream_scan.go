@@ -58,7 +58,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 
 		if rec.Type == "assistant" {
 			if t := assistantText(line); t != "" {
-				out.lastText = t
+				out.lastText, out.thinking = t, false
+			} else if thinkingOnly(line) {
+				out.thinking = true
 			}
 		}
 		// PreToolUse + turn break on tool_use blocks.
@@ -66,33 +68,20 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				if _, err := Schema().Check(toolName, toolInput); err != nil { // adr/tool-calls-validated
+				call, err := writeCall(cfg, tr, line, toolUseID, toolName, toolInput)
+				if err != nil {
 					return scanResult{}, err
 				}
-				line, streamed, toolInput := withToolDefaults(cfg, line)
-				writeToolUse(cfg, streamed, toolName, toolInput)
-				tr.persist(line)
-				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
-					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
-					cfg.steps.started()
-					return out, nil
+				out.group = append(out.group, call)
+				if toolUseMore(line) { // the message holds more calls: all its frames come before any hook
+					continue
 				}
-				pre := hooks.Input{
-					SessionID:     cfg.SessionID,
-					AgentID:       cfg.AgentID,
-					Cwd:           cfg.Cwd,
-					HookEventName: hooks.EventPreToolUse,
-					ToolName:      toolName,
-					ToolUseID:     toolUseID,
-					ToolInput:     toolInput,
+				for i := range out.group {
+					if err := preTool(ctx, cfg, inv, &out.group[i]); err != nil {
+						return scanResult{}, err
+					}
 				}
-				hookOut, preRuns, hookErr := inv.FireRuns(ctx, pre)
-				writeHookEventFrames(cfg, pre, preRuns)
-				out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput}
-				if err := decidePreTool(cfg, &out.pending, hookOut, hookErr); err != nil {
-					return scanResult{}, err
-				}
-				cfg.steps.started() // once its PreToolUse hooks have run: what another agent's gate may wait for
+				out.pending = out.group[0]
 				return out, nil
 			}
 		}

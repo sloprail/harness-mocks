@@ -72,9 +72,12 @@ type turnResult struct {
 	sig string
 	// lastText is the text of the last assistant record it emitted.
 	lastText string
+	thinking bool // an assistant record held thinking and no text, since the last one that did
 	// resultLine is the result frame that ended the turn, held back until Stop
 	// has let the turn end.
 	resultLine []byte
+	// emptyReply: the turn's answer was a model response with no visible output (only thinking).
+	emptyReply bool
 }
 
 // pendingToolUse carries the fields needed to execute a tool and synthesise the
@@ -98,11 +101,13 @@ type pendingToolUse struct {
 // scanResult is what one script invocation's output amounted to.
 type scanResult struct {
 	pending    pendingToolUse
-	done       bool           // a result frame was seen
-	compactSig string         // a compaction happened (and what it was)
-	lastText   string         // text of the last assistant record
-	resultLine []byte         // the result frame, not yet streamed
-	execGate   *scenario.Gate // what the step's call waits for before it is carried out (script's gate)
+	group      []pendingToolUse // the calls of the message, in order, when it holds several (pending is the first)
+	done       bool             // a result frame was seen
+	compactSig string           // a compaction happened (and what it was)
+	lastText   string           // text of the last assistant record
+	thinking   bool             // an assistant record held thinking and no text since the last one that did
+	resultLine []byte           // the result frame, not yet streamed
+	execGate   *scenario.Gate   // what the step's call waits for before it is carried out (script's gate)
 }
 
 // buildEnv constructs the environment for a script invocation.

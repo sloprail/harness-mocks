@@ -76,7 +76,7 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 // may name one (TestNoCellNamesWhatReplayDrops).
 func Dropped() (keys, frames []string) {
 	keys = append(keys, Rules("", "", nil).DropKeys...)
-	keys = append(keys, "script", "caller", "thinking") // dropped from an Agent input, an assistant block, a block type
+	keys = append(keys, "script", "mock_start_after_post", "caller", "thinking") // dropped from an Agent input, an assistant block, a block type
 	for k := range assistantMeta {
 		if k != "id" && k != "model" && k != "type" { // the response's own id, model and type: common words no cell is about
 			keys = append(keys, k)

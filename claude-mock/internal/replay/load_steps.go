@@ -101,13 +101,14 @@ func agentsOf(setup, sample string, stream, payloads []map[string]any) (core.Age
 			return core.Agent{}, nil, nil, err
 		}
 	}
+	early, late := execEarly(stream), startAfterPost(payloads, subs)
 	var agents []core.Agent
 	for _, recs := range records {
 		t, err := modelTurns(recs)
 		if err != nil {
 			return core.Agent{}, nil, nil, unbuildable(err)
 		}
-		agents = append(agents, attachSubagents(withReceiptGates(withWireInputs(t, wire), gated), subs))
+		agents = append(agents, attachSubagents(withReceiptGates(withWireInputs(t, wire), gated), subs, early, late))
 	}
 	if len(subs) > 0 {
 		return core.Agent{}, nil, nil, unbuildable(fmt.Errorf("a sub-agent whose starting call is in no transcript"))

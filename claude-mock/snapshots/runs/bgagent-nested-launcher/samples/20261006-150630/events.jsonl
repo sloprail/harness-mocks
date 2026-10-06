@@ -1,0 +1,47 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","source":"startup"}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Use the Agent tool (not in background) with subagent_type general-purpose, description 'outer', prompt: 'Use the Agent tool with subagent_type general-purpose, description inner, run_in_background true, prompt: Run the Bash command sleep 6; echo INNERDONE . Then reply INNERREPLY. After launching it, immediately reply LAUNCHED and do not wait for it.' Then reply only DONE."}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"prompt":"Use the Agent tool with subagent_type general-purpose, description 'inner', run_in_background: true, prompt: 'Run the Bash command sleep 6; echo INNERDONE. Then reply INNERREPLY.' After launching it, immediately reply LAUNCHED and do not wait for it.","subagent_type":"general-purpose","run_in_background":false}}}
+{"event":"hook","hook":"SubagentStart","payload":{"session_id":"<SESSION_ID>","agent_type":"general-purpose","hook_event_name":"SubagentStart"}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"prompt":"Run the Bash command sleep 6; echo INNERDONE. Then reply INNERREPLY.","subagent_type":"general-purpose","run_in_background":true}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"prompt":"Run the Bash command sleep 6; echo INNERDONE. Then reply INNERREPLY.","subagent_type":"general-purpose","run_in_background":true},"tool_response":{"isAsync":true,"status":"async_launched","agentId":"a310d4a3b560ccf2a","description":"inner","resolvedModel":"claude-haiku-4-5-20251001","prompt":"Run the Bash command sleep 6; echo INNERDONE. Then reply INNERREPLY.","outputFile":"<TMP>/tmp/claude-501/<RUN_DIRNAME>/<SESSION_ID>/tasks/a310d4a3b560ccf2a.output","canReadOutputFile":true}}}
+{"event":"hook","hook":"SubagentStart","payload":{"session_id":"<SESSION_ID>","agent_type":"general-purpose","hook_event_name":"SubagentStart"}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"SubagentStop","stop_hook_active":false,"agent_transcript_path":"<TMP>/home/.claude/projects/<RUN_DIRNAME>/<SESSION_ID>/subagents/agent-aebc02f3b18bbeace.jsonl","background_tasks":[{"id":"a310d4a3b560ccf2a","type":"subagent","status":"running","description":"inner","agent_type":"general-purpose"}],"session_crons":[]}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"prompt":"Use the Agent tool with subagent_type general-purpose, description 'inner', run_in_background: true, prompt: 'Run the Bash command sleep 6; echo INNERDONE. Then reply INNERREPLY.' After launching it, immediately reply LAUNCHED and do not wait for it.","subagent_type":"general-purpose","run_in_background":false},"tool_response":{"status":"completed","prompt":"Use the Agent tool with subagent_type general-purpose, description 'inner', run_in_background: true, prompt: 'Run the Bash command sleep 6; echo INNERDONE. Then reply INNERREPLY.' After launching it, immediately reply LAUNCHED and do not wait for it.","agentId":"aebc02f3b18bbeace","agentType":"general-purpose","harnessNoteCount":0,"harnessTailCount":0,"harnessSectionHash":"95bd3553ee687135","content":[{"type":"text","text":"LAUNCHED"}],"resolvedModel":"claude-haiku-4-5-20251001","totalDurationMs":3646,"totalTokens":15099,"totalToolUseCount":1,"usage":{"output_tokens_details":{"thinking_tokens":38},"input_tokens":8,"cache_creation_input_tokens":1825,"cache_read_input_tokens":13220,"output_tokens":46,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":1825},"inference_geo":"not_available","iterations":[{"input_tokens":8,"output_tokens":46,"cache_read_input_tokens":13220,"cache_creation_input_tokens":1825,"cache_creation":{"ephemeral_5m_input_tokens":1825,"ephemeral_1h_input_tokens":0},"type":"message"}],"speed":"standard","fallback_credit":null}}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"sleep 6; echo INNERDONE"}}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"Stop","stop_hook_active":false,"background_tasks":[{"id":"a310d4a3b560ccf2a","type":"subagent","status":"running","description":"inner","agent_type":"general-purpose"}],"session_crons":[]}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"sleep 6; echo INNERDONE"},"tool_response":{"stdout":"INNERDONE","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"SubagentStop","stop_hook_active":false,"agent_transcript_path":"<TMP>/home/.claude/projects/<RUN_DIRNAME>/<SESSION_ID>/subagents/agent-a310d4a3b560ccf2a.jsonl","background_tasks":[{"id":"a310d4a3b560ccf2a","type":"subagent","status":"running","description":"inner","agent_type":"general-purpose"}],"session_crons":[]}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"<task-notification>\n<task-id>a310d4a3b560ccf2a</task-id>\n<tool-use-id>toolu_0129f6jvzdPUJcRmjhHjupSp</tool-use-id>\n<output-file><TMP>/tmp/claude-501/<RUN_DIRNAME>/<SESSION_ID>/tasks/a310d4a3b560ccf2a.output</output-file>\n<status>completed</status>\n<summary>Agent \"inner\" finished</summary>\n<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>\n<result>INNERREPLY</result>\n<usage><subagent_tokens>13691</subagent_tokens><tool_uses>1</tool_uses><duration_ms>8932</duration_ms></usage>\n</task-notification>"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"Stop","stop_hook_active":false,"background_tasks":[],"session_crons":[]}}
+{"event":"hook","hook":"SessionEnd","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionEnd","reason":"other"}}
+{"event":"stream","type":"system","subtype":"hook_started"}
+{"event":"stream","type":"system","subtype":"hook_response"}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"task_started"}
+{"event":"stream","type":"system","subtype":"task_progress"}
+{"event":"stream","type":"system","subtype":"background_tasks_changed"}
+{"event":"stream","type":"system","subtype":"task_started"}
+{"event":"stream","type":"system","subtype":"task_updated"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"system","subtype":"task_progress"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"task_started"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"background_tasks_changed"}
+{"event":"stream","type":"system","subtype":"task_updated"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"result","subtype":"success"}
+{"event":"stream","type":"result","subtype":"success"}

@@ -66,6 +66,11 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		if turn.lastText != "" {
 			lastText = turn.lastText
 		}
+		if turn.done && turn.emptyReply && cfg.AgentID == "" && !nested { // nudged, no result, no Stop (nudge.go)
+			writeNoVisibleOutputNudge(cfg, bg, tr)
+			lastSig, repeats = "", 0
+			continue
+		}
 		if turn.done {
 			final.Hold(turn.resultLine)
 			if nested || bg.run.isLocal() { // a sub-agent's run, or a command the harness carried out itself: no Stop
@@ -99,9 +104,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				stopBlocks++
 				// sr:provides stop-block-cap/claude
 				if turnloop.AfterBlock(stopBlocks, blockCap) {
-					// Re-prompt: the turn goes on, so the script runs again and reacts to the
-					// block. Its result frame is dropped: a continued turn ends with one result,
-					// at its real end (claude 2.1.282 streamed one across 8 continuations).
+					// Re-prompt: the turn goes on and the script runs again; its result frame is dropped.
 					lastSig, repeats = "", 0
 					final.Continue()
 					continue

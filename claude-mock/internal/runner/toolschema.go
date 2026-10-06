@@ -17,6 +17,7 @@ var agentParams = []toolspec.Param{
 	{Name: "isolation", Type: toolspec.String, Values: []any{"worktree"}},
 	{Name: "run_in_background", Type: toolspec.Boolean},
 	{Name: "script", Type: toolspec.String, MockOnly: true},
+	{Name: "mock_start_after_post", Type: toolspec.Boolean, MockOnly: true},
 }
 
 // answers is the one kind Claude Code answers itself, a call missing a required

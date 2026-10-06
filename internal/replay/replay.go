@@ -52,6 +52,9 @@ type Call struct {
 	SameTurn bool
 	Thinking *Thinking      // what the model thought in the response this call begins, when recorded
 	Compact  map[string]any // the compaction the harness made just before this response, as its hook said it, when it did
+	// ExecEarly is that the call was carried out before the next step of the agents above it, as the
+	// recording's stream shows: its gate does not wait for those steps.
+	ExecEarly bool
 	// At is when the harness made the call (an answer: gave it), and Done when the call's output
 	// was given back, as recorded: how one agent's steps are ordered against another's.
 	At, Done time.Time

@@ -1,0 +1,65 @@
+package runner
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
+)
+
+// writeCall streams and records a tool_use the script made, ahead of its hooks (the tool_use is part of
+// the trajectory whatever a hook decides), checking first that the mock implements the call
+// (adr/tool-calls-validated). It returns the call as pending, its hooks not yet run.
+func writeCall(cfg Config, tr *transcript, line []byte, id, name string, input json.RawMessage) (pendingToolUse, error) {
+	if _, err := Schema().Check(name, input); err != nil {
+		return pendingToolUse{}, err
+	}
+	line, streamed, input := withToolDefaults(cfg, withoutMore(line))
+	writeToolUse(cfg, streamed, name, input)
+	tr.persist(line)
+	call := pendingToolUse{ToolUseID: id, ToolName: name, ToolInput: input}
+	if res := invalidCall(name, input, cfg.Cwd); res != nil {
+		call.Invalid = res
+	}
+	return call, nil
+}
+
+// preTool fires the PreToolUse hooks of a call and records what they decided on it; a call that cannot be
+// acted on has no hook. The call counts as started once its hooks have run: what another agent's gate may
+// wait for.
+func preTool(ctx context.Context, cfg Config, inv *hooks.Invoker, call *pendingToolUse) error {
+	defer cfg.steps.started()
+	if call.Invalid != nil {
+		return nil
+	}
+	pre := hooks.Input{
+		SessionID: cfg.SessionID, AgentID: cfg.AgentID, Cwd: cfg.Cwd, HookEventName: hooks.EventPreToolUse,
+		ToolName: call.ToolName, ToolUseID: call.ToolUseID, ToolInput: call.ToolInput,
+	}
+	hookOut, runs, hookErr := inv.FireRuns(ctx, pre)
+	writeHookEventFrames(cfg, pre, runs)
+	return decidePreTool(cfg, call, hookOut, hookErr)
+}
+
+// withoutMore is the line without the scenario's "more" marker on its tool_use block: it is no part of
+// what the model sent.
+func withoutMore(line []byte) []byte {
+	if !toolUseMore(line) {
+		return line
+	}
+	var m map[string]any
+	if json.Unmarshal(line, &m) != nil {
+		return line
+	}
+	msg, _ := m["message"].(map[string]any)
+	blocks, _ := msg["content"].([]any)
+	for _, b := range blocks {
+		if block, _ := b.(map[string]any); block["type"] == "tool_use" {
+			delete(block, "more")
+		}
+	}
+	if out, err := marshalRecord(m); err == nil {
+		return out
+	}
+	return line
+}

@@ -88,3 +88,26 @@ func extractFirstToolResult(line []byte) (toolUseID, toolName string, toolOutput
 	}
 	return "", "", nil
 }
+
+// toolUseMore is whether the first tool_use block of an assistant line carries "more": another tool_use
+// of the same message follows in the next line, as the model sends several calls in one message (the
+// scenario format's marker; the core's scenario.ToolUse.More).
+func toolUseMore(line []byte) bool {
+	var rec struct {
+		Message *struct {
+			Content []struct {
+				Type string `json:"type"`
+				More bool   `json:"more"`
+			} `json:"content"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(line, &rec) != nil || rec.Message == nil {
+		return false
+	}
+	for _, b := range rec.Message.Content {
+		if b.Type == "tool_use" {
+			return b.More
+		}
+	}
+	return false
+}

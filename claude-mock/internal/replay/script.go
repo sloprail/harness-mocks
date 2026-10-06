@@ -23,7 +23,8 @@ func mockCall(c core.Call) scriptCall {
 			}
 		}
 	case toolReply:
-		return scriptCall{Reply: c.Input["text"].(string), Early: c.SaidBefore}
+		silent, _ := c.Input["silent"].(bool)
+		return scriptCall{Reply: c.Input["text"].(string), Early: c.SaidBefore, Silent: silent}
 	case core.ToolCompact:
 		return scriptCall{Name: "compact", Input: c.Input, Control: true}
 	}
@@ -36,7 +37,7 @@ func mockCall(c core.Call) scriptCall {
 			in[k] = v
 		}
 	}
-	return scriptCall{Text: c.Said, Early: c.SaidBefore, Name: name, Input: in, Gated: c.Input[gateKey] == true}
+	return scriptCall{Text: c.Said, Early: c.SaidBefore, Name: name, Input: in, Gated: c.Input[gateKey] == true, More: c.More}
 }
 
 // script is the mock script that makes the given calls, one per turn, then
@@ -46,12 +47,20 @@ func mockCall(c core.Call) scriptCall {
 // Call ids are unique across the run's scripts (tag), as the real ones are.
 func script(tag string, calls []scriptCall, final, extra string, skip int, finalGate scenario.Gate) string {
 	lines := make([]string, 0, len(calls)+1)
-	for i, c := range calls {
-		lines = append(lines, callLine(fmt.Sprintf("toolu_%s%d", tag, i), c))
+	for i := 0; i < len(calls); i++ {
+		line, extra := callLine(fmt.Sprintf("toolu_%s%d", tag, i), calls[i]), 0
+		for calls[i].More && i+1 < len(calls) { // a message of several calls is one run's output, each answered in turn
+			i++
+			line, extra = line+"\x01"+callLine(fmt.Sprintf("toolu_%s%d", tag, i), calls[i]), extra+1
+		}
+		lines = append(lines, line)
+		for ; extra > 0; extra-- {
+			lines = append(lines, "") // the lines the script's index skips: each of the message's results counts
+		}
 	}
 	lines = append(lines, gateLine(finalGate)+finalLines(final, extra))
 	return fmt.Sprintf(`#!/bin/sh
-n=$(grep -c -e '"type":"tool_result"' -e '"turnOrigin":"task_notification"' -e '"isCompactSummary":true' -e '"content":"Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
+n=$(grep -c -e '"type":"tool_result"' -e '"turnOrigin":"task_notification"' -e '"isCompactSummary":true' -e '"content":"Stop hook feedback:' -e 'Your previous response had no visible output' "$A10N_MOCK_SESSION_FILE")
 sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
 %s
 CALLS_EOF

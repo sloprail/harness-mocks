@@ -57,6 +57,9 @@ func callLine(id string, c scriptCall) string {
 		b, _ := json.Marshal(rec)
 		return string(b)
 	}
+	if c.Silent { // a response with no visible output: thinking and the result that ends the turn
+		return gateLine(c.Gate) + assistantFrame(map[string]any{"type": "thinking", "thinking": ""}) + "\x01" + finalLines("", "")
+	}
 	var parts []string
 	for _, e := range c.Early {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": e}))
@@ -67,11 +70,15 @@ func callLine(id string, c scriptCall) string {
 	if c.Text != nil {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": *c.Text}))
 	}
+	block := map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}
+	if c.More {
+		block["more"] = true // another call of the same message follows (the scenario format's marker)
+	}
 	var frame []any
 	if c.Gated {
 		frame = append(frame, map[string]any{"mock_gate": map[string]any{"receipt_after_end": true}})
 	}
-	parts = append(parts, assistantFrame(map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}, frame...))
+	parts = append(parts, assistantFrame(block, frame...))
 	return gateLine(c.Gate) + strings.Join(parts, "\x01")
 }
 

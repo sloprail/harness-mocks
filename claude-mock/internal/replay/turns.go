@@ -2,6 +2,7 @@ package replay
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -10,8 +11,9 @@ import (
 // turns are what an agent did, with the id each of its calls had, so that the
 // agent a call started can be attached to it.
 type turns struct {
-	agent core.Agent
-	ids   []string // the id of each of agent.Calls
+	agent   core.Agent
+	ids     []string // the id of each of agent.Calls
+	agentID string   // for a sub-agent: its own id, as its file names it
 }
 
 // modelTurns are the calls the model made in one recorded transcript, in
@@ -57,6 +59,12 @@ func modelTurns(records []map[string]any) (turns, error) {
 			said = nil
 			continue
 		}
+		if rec["type"] == "user" && isNudge(rec) && said == nil {
+			// the model's response had no visible output (only thinking): the harness nudged it to go on
+			t.agent.Calls = append(t.agent.Calls, core.Call{Tool: toolReply, At: stampOf(rec), Input: map[string]any{"text": "", "silent": true}})
+			t.ids = append(t.ids, "")
+			continue
+		}
 		if rec["type"] != "assistant" {
 			continue
 		}
@@ -79,6 +87,11 @@ func modelTurns(records []map[string]any) (turns, error) {
 				call.Said, call.SaidBefore, call.At = said, before, stampOf(rec)
 				said, before = nil, nil
 				id, _ := block["id"].(string)
+				if n := len(t.ids); n > 0 && t.ids[n-1] != "" {
+					if _, answered := done[t.ids[n-1]]; !answered {
+						t.agent.Calls[n-1].More = true // sent in one message with this one: no result between them
+					}
+				}
 				t.agent.Calls = append(t.agent.Calls, call)
 				t.ids = append(t.ids, id)
 			}
@@ -96,9 +109,13 @@ func modelTurns(records []map[string]any) (turns, error) {
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,
 // and theirs in turn, found by the id of the call that started them. A spawn
 // with no recorded sub-agent keeps none: the call itself was refused.
-func attachSubagents(t turns, subs map[string]turns) core.Agent {
+func attachSubagents(t turns, subs map[string]turns, early, late map[string]bool) core.Agent {
 	agent := core.Agent{Calls: append([]core.Call(nil), t.agent.Calls...), Final: t.agent.Final, FinalAt: t.agent.FinalAt}
 	for i, c := range agent.Calls {
+		agent.Calls[i].ExecEarly = early[t.ids[i]]
+		if late[t.ids[i]] { // the harness started the sub-agent after the call's PostToolUse, in this sample
+			agent.Calls[i].Input = withKey(agent.Calls[i].Input, "mock_start_after_post", true)
+		}
 		if c.Tool != core.ToolSpawn {
 			continue
 		}
@@ -107,7 +124,7 @@ func attachSubagents(t turns, subs map[string]turns) core.Agent {
 			continue
 		}
 		delete(subs, t.ids[i]) // a sub-agent is attached once
-		a := attachSubagents(sub, subs)
+		a := attachSubagents(sub, subs, early, late)
 		agent.Calls[i].Sub = &a
 	}
 	return agent
@@ -124,4 +141,24 @@ func endsTurn(rec map[string]any) bool {
 	msg, _ := rec["message"].(map[string]any)
 	_, text := msg["content"].(string)
 	return text
+}
+
+// nudge starts the user record the harness leaves when a model's response had no visible output.
+const nudge = "[Your previous response had no visible output."
+
+// isNudge is whether a user record is that nudge.
+func isNudge(rec map[string]any) bool {
+	msg, _ := rec["message"].(map[string]any)
+	s, _ := msg["content"].(string)
+	return strings.HasPrefix(s, nudge)
+}
+
+// withKey is the input with one more key, a copy.
+func withKey(in map[string]any, k string, v any) map[string]any {
+	out := make(map[string]any, len(in)+1)
+	for key, val := range in {
+		out[key] = val
+	}
+	out[k] = v
+	return out
 }

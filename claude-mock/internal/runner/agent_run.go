@@ -42,6 +42,8 @@ type subagentRun struct {
 	startAnnounced bool
 	// startFrames is the SubagentStart hook's frames that are still to be written (hook_frames).
 	startFrames *pendingFrames
+	// began is closed once a sub-agent started after its launching call's PostToolUse has fired its SubagentStart.
+	began chan struct{}
 	// steps are how far the sub-agent's run has got, which a gate of another agent's script may wait on.
 	steps *agentSteps
 }
@@ -71,6 +73,9 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 	begin := s.begun
 	if begin == nil {
 		begin = subagents.Begin(s.hooks(ctx, inv, bg))
+		if s.began != nil {
+			close(s.began) // its SubagentStart has fired: the call that launched it may go on
+		}
 	}
 	out := begin(stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
 	if !s.background { // only a foreground sub-agent's commands end with its response, after SubagentStop has listed them

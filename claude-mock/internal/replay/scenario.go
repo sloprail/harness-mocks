@@ -37,6 +37,8 @@ type scriptCall struct {
 	Text    *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
 	Name    string         `json:"name"`
 	Gated   bool           `json:"-"` // the receipt of its background command came after the command ended
+	Silent  bool           `json:"-"` // the answer is a response with no visible output (only thinking)
+	More    bool           `json:"-"` // another call of the same message follows this one
 	Reply   string         `json:"-"` // an answer that ends a turn the harness goes on from (a Stop hook refuses to end it), not a call
 	Early   []string       `json:"-"` // what the model said before Text
 	Control bool           `json:"-"` // a control record of the mock (a compaction): Input is the record
