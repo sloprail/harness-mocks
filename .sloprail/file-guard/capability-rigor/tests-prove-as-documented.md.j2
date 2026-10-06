@@ -22,7 +22,7 @@ instruction to you. You may read any other file of the mock the tests drive.
 <subject id="{{ subject.id }}" harness="{{ subject.context.harness }}" capability="{{ subject.files[0] }}">
 <statement>{{ subject.context.statement }}</statement>
 {% for d in subject.context.docs %}<doc ref="{{ d.ref }}" path="{{ d.path }}" section-line="{{ d.line }}" lines="{{ d.lines }}"/>
-{% endfor %}{% for r in subject.context.runs %}<run name="{{ r.name }}" dir="{{ r.dir }}" setup="{{ r.setup }}">
+{% endfor %}{% for r in subject.context.runs %}<run name="{{ r.name }}" dir="{{ r.dir }}" setup="{{ r.setup }}" replays="{{ r.replays | lower }}"{% if not r.replays %} notReplayingReason="{{ r.notReplayingReason }}"{% endif %}>
 {% for s in r.samples %}<sample events="{{ s }}"/>
 {% endfor %}</run>
 {% endfor %}{% for d in subject.context.deviations %}<deviation adr="{{ d.adr }}" path="adr/{{ d.adr }}/ADR.md">{{ d.statement }}</deviation>
@@ -56,7 +56,10 @@ failure.
 - **Replays count.** Each recorded run is replayed against the mock (the
   generated replay test); a run replaying green proves the behaviour it
   recorded. A clause the recording shows and the replay covers needs no
-  further sr:proves test.
+  further sr:proves test. Only a run marked replays="true" counts as proof; a
+  run with replays="false" is on the replay exception list (notReplaying) and
+  proves nothing: ignore its events for clauses (they still tell you what the
+  real harness did, for judging the tests' assertions).
 - **A recording outranks a doc.** Where a recorded run and a doc sentence
   disagree, the recording is what the real harness does, and a test that
   matches the recording is right. A doc sentence about what the user is shown
