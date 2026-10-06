@@ -11,6 +11,11 @@ import (
 // the next safe point: a hook started when the agent had begun `step` calls is delivered once the
 // agent has gone through the call after it (Due), or when its turn would end, whichever comes
 // first. Delivery waits for the hook to have finished: an event, not a time.
+//
+// This is the delivery half of the hook-additional-context capability, whose one marker is at
+// the context the hooks add (lifecycle.go): which hooks run in the background, and which events
+// run theirs synchronously all the same, is the harness's and is passed in (Start is given only
+// the hooks to run in the background).
 type Later struct {
 	mu   sync.Mutex
 	last chan struct{} // closed when the run started last has finished

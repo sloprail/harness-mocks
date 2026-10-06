@@ -65,3 +65,23 @@ func TestSessionEndHookFailureDoesNotEndTheRunAbnormally(t *testing.T) {
 		assert.Equal(t, "SessionEnd", r.hookLog()[len(r.hookLog())-1]["hook_event_name"])
 	}
 }
+
+// A SessionEnd hook's matcher is applied to the reason the session ends, which for a
+// non-interactive run is "other": a matcher of "other" runs, "clear" does not (hooks#sessionend).
+// sr:proves hook-matcher-filter/codex
+func TestSessionEndMatcherSelectsOnTheReason(t *testing.T) {
+	for matcher, runs := range map[string]bool{"other": true, "^other$": true, "clear": false, "logout|clear": false} {
+		t.Run(matcher, func(t *testing.T) {
+			r := execMock(t, scenario{
+				HooksJSON: `{"hooks":{"SessionEnd":[{"matcher":"` + matcher + `","hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}]}}`,
+				Script:    callThenResult, Prompt: "go", Env: withCalls(t),
+			})
+			require.Equal(t, 0, r.Code, r.Stderr)
+			ends := eventsOf(r, "SessionEnd")
+			assert.Equal(t, runs, len(ends) == 1, "matcher %q", matcher)
+			if runs {
+				assert.Equal(t, "other", ends[0]["reason"])
+			}
+		})
+	}
+}

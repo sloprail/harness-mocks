@@ -203,8 +203,9 @@ func TestFailedFileCallsAreErrors(t *testing.T) {
 // call (the payload still names apply_patch), and not for a shell command (the
 // doc's hooks#posttooluse matcher aliases).
 // sr:proves posttooluse-payload/codex
+// sr:proves hook-matcher-filter/codex
 func TestEditMatcherSelectsPatchCalls(t *testing.T) {
-	for _, matcher := range []string{"Edit", "Write"} {
+	for _, matcher := range []string{"Edit", "Write", "^apply_patch$"} {
 		t.Run(matcher, func(t *testing.T) {
 			rec := loadRecording(t, "file-tools")
 			hooks := map[string]any{"hooks": map[string]any{"PostToolUse": []any{map[string]any{
