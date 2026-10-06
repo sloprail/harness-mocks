@@ -26,6 +26,7 @@ providers:
       - codex-mock/snapshots/runs/session-end
       - codex-mock/snapshots/runs/session-end-hook-output
       - codex-mock/snapshots/runs/session-end-hook-failure
+      - codex-mock/snapshots/runs/session-end-steering
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
