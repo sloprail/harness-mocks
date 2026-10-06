@@ -98,3 +98,6 @@ func (s *Settings) accept(f settingsWithPlugins) error {
 	}
 	return s.addDeny(f.Permissions)
 }
+
+// Configured is whether any handler is configured for the event.
+func (s *Settings) Configured(event EventName) bool { return len(s.Hooks[event]) > 0 }

@@ -75,6 +75,9 @@ func (inv *Invoker) SetProjectDir(dir string) { inv.projectDir = dir }
 // caller names one.
 func (inv *Invoker) SetTranscriptPath(path string) { inv.transcriptPath = path }
 
+// Configured is whether any hook is configured for the event.
+func (inv *Invoker) Configured(event EventName) bool { return inv.settings.Configured(event) }
+
 // Denied is whether a deny rule of the settings refuses the tool call, and the command it names.
 func (inv *Invoker) Denied(tool string, input json.RawMessage) (string, bool) {
 	return inv.settings.Denied(tool, input)

@@ -52,6 +52,7 @@ func (s *subagentRun) run(ctx context.Context, bg *backgroundTasks, prompt strin
 		BackgroundTasksDisabled: s.parent.BackgroundTasksDisabled,
 	}
 	subCfg.announce(subCfg, prompt)
+	s.startFrames.finish(s.parent)
 	out := subagents.Outcome{}
 	if err := Run(ctx, subCfg); err != nil {
 		fmt.Fprintf(s.parent.Stderr, "claude-mock: subagent run error: %v\n", err)
@@ -82,7 +83,7 @@ func fireSubagentStop(ctx context.Context, s *subagentRun, inv *hooks.Invoker, b
 	facts := subagents.Stop(s.sidechain, lastAssistant, bg.Registry)
 	running := backgroundTaskList(facts.Tasks)
 	crons := sessionCrons(s.parent.wake)
-	out, err := inv.Fire(ctx, hooks.Input{
+	in := hooks.Input{
 		SessionID:            s.parent.SessionID,
 		Cwd:                  s.subCwd,
 		AgentTranscriptPath:  facts.TranscriptPath,
@@ -93,7 +94,9 @@ func fireSubagentStop(ctx context.Context, s *subagentRun, inv *hooks.Invoker, b
 		LastAssistantMessage: &facts.LastMessage,
 		BackgroundTasks:      &running,
 		SessionCrons:         &crons,
-	})
+	}
+	out, runs, err := inv.FireRuns(ctx, in)
+	writeHookEventFrames(s.parent, in, runs)
 	return corehooks.BlockReason(err, out.Decision, out.Reason)
 }
 

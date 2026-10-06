@@ -58,13 +58,10 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{sig: "invalid:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
 	}
 
-	// PreToolUse REFUSED this tool call — an exit-0 permissionDecision deny, or
-	// an exit 2. The tool does not run and no PostToolUse fires; the refusal is
-	// the tool_result, "PreToolUse:<Tool> hook error: <reason>" (for an exit 2,
-	// "[<command>]: <stderr>" as the reason), and the turn goes on: the script
-	// runs again and reads it. Claude 2.1.282 did exactly this for both forms in
-	// a controlled run. The loop guard signature is the blocked tool_use, so an
-	// agent that re-emits the identical blocked call is still bounded.
+	// PreToolUse REFUSED this tool call — an exit-0 permissionDecision deny, or an exit 2. The
+	// tool does not run and no PostToolUse fires; the refusal is the tool_result, "PreToolUse:<Tool>
+	// hook error: <reason>" (an exit 2's reason is "[<command>]: <stderr>"), and the turn goes on
+	// (claude 2.1.282). The loop guard signature is the blocked tool_use, so a re-emitted call is bounded.
 	// sr:docs https://code.claude.com/docs/en/hooks#pretooluse
 	if pending.Blocked {
 		text := "PreToolUse:" + pending.ToolName + " hook error: " + pending.BlockReason
@@ -77,6 +74,9 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{sig: "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
 	}
 
+	if err := refuseBackgroundHookFrames(cfg, inv, pending); err != nil {
+		return turnResult{}, err
+	}
 	if text, denied := ruleDenial(inv, pending); denied {
 		return denyByRule(ctx, cfg, inv, tr, bg, pending, text, sc.lastText)
 	}
