@@ -65,6 +65,14 @@ providers:
       - codex-mock/snapshots/runs/prompt-blocked
       - codex-mock/snapshots/runs/posttool-block
       - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/subagent-stop-block-loop
+      - codex-mock/snapshots/runs/subagent-stop-continue-false
+      - codex-mock/snapshots/runs/subagent-stop-plain-text
+      - codex-mock/snapshots/runs/subagent-stop-exit2-continue-false
+      - codex-mock/snapshots/runs/subagent-start-refused
+      - codex-mock/snapshots/runs/manual-compaction-auto-blocked
+      - codex-mock/snapshots/runs/manual-compaction-auto-post-stopped
+      - codex-mock/snapshots/runs/session-end-hook-failure
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -78,10 +86,12 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock fires SessionStart, UserPromptSubmit, PreToolUse,
-          PostToolUse and Stop, and no others. The docs' exit-code rows for
-          PermissionRequest, PreCompact, PostCompact, SubagentStart,
-          SubagentStop, Interrupt and SessionEnd are not modeled.
+          The mock fires no PermissionRequest event (a non-interactive run has
+          nothing to request), so the docs' exit-code row for it is not
+          modeled; it fires every other event the docs give a row
+          (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop,
+          PreCompact, PostCompact, SubagentStart, SubagentStop, SessionEnd and
+          Interrupt, which a SIGINT during a turn fires: runs/interrupt-hook).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#command-based-hooks

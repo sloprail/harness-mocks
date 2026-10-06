@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,4 +70,21 @@ func TestShellResultIsOutputAndItsStructuredForm(t *testing.T) {
 	rollout := got.rollout(t)
 	assert.True(t, resultTold(t, rollout, "MORE-OUTPUT\nERR-OUTPUT", "xit code"), "the output of a failed command, and no exit code")
 	assert.True(t, resultTold(t, rollout, "FINE", "xit code"))
+
+	// what the agent is told, command by command, whole: the harness frames the output of a command
+	// that ran to its end ("Script completed", the time it took, "Output:"), the same for a failure as
+	// for a success, and a command that printed nothing is told an empty output, with no exit code;
+	// only the time differs from one run to the next
+	told := func(rollout string) (out []string) {
+		wall := regexp.MustCompile(`Wall time [0-9.]+ seconds`)
+		for _, o := range toolOutputs(t, rollout) {
+			assert.NotContains(t, o, "xit code")
+			out = append(out, wall.ReplaceAllString(o, "Wall time <T> seconds"))
+		}
+		return
+	}
+	frame := "Script completed\nWall time <T> seconds\nOutput:\n"
+	wantTold := told(recordedRollout(t, rec))
+	assert.Equal(t, []string{frame, frame + "SOME-OUTPUT\n", frame + "MORE-OUTPUT\nERR-OUTPUT\n", frame, frame + "FINE\n"}, wantTold, "recorded")
+	assert.Equal(t, wantTold, told(rollout), "the mock's")
 }

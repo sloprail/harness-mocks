@@ -10,6 +10,16 @@ import (
 // that): subagents.MessageRequired.
 const agentTool = "spawn_agent"
 
+// waitTool is the script's name for Codex's tool that waits for sub-agents to
+// finish; the hooks name it waitHookName (recorded: runs/foreground-subagent-bash-ends-with-response).
+const (
+	waitTool     = "wait_agent"
+	waitHookName = "multi_agent_v1wait_agent"
+)
+
+// waitRequired is what a wait must carry: the sub-agents to wait for.
+var waitRequired = []string{"targets"}
+
 // agentRequired is what a dispatch must carry, as the core checks it.
 var agentRequired = subagents.MessageRequired
 
@@ -19,8 +29,11 @@ const spawnRefusal = "Provide one of: message or items"
 
 // hookName is the tool's name in the hooks' payloads.
 func hookName(c toolcall.Call) string {
-	if c.Name == agentTool {
+	switch c.Name {
+	case agentTool:
 		return agentTool
+	case waitTool:
+		return waitHookName
 	}
 	return toolName
 }

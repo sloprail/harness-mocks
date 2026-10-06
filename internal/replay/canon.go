@@ -8,16 +8,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 )
 
 // Rules say what may differ between a recording and a replay of it. The
 // adapter that fills them in says why each entry is not behaviour.
 type Rules struct {
-	// DropKeys are object keys removed wherever they occur (a timestamp, a token count).
+	// DropKeys are object keys removed wherever they occur, though no cell is about them.
 	DropKeys []string
-	// MaskKeys keep the key and replace its value, whatever type, with MaskedValue: the
-	// key is there in both outputs, its value is a measure that differs per run.
+	// MaskKeys are object keys whose value differs per run but whose presence is
+	// behaviour (a transcript path, a token count): the key stays, its value is
+	// replaced by <key>, so a payload that lacks it is a difference. A key in both
+	// lists is dropped; a masked key's Rewrite does not run.
 	MaskKeys []string
 	// Scrub rewrites every string value (a path, a pid, a duration).
 	Scrub []Scrub
@@ -30,9 +33,6 @@ type Rules struct {
 	// still do so.
 	IDs []*regexp.Regexp
 }
-
-// MaskedValue stands for the value of a masked key.
-const MaskedValue = "<MASKED>"
 
 // Scrub is one rewrite of the text of a string value.
 type Scrub struct {
@@ -84,10 +84,9 @@ func (c *canon) walk(v any) any {
 					continue next
 				}
 			}
-			for _, m := range c.r.MaskKeys {
-				if k == m {
-					e = MaskedValue
-				}
+			if slices.Contains(c.r.MaskKeys, k) {
+				out[c.str(k)] = "<" + k + ">"
+				continue
 			}
 			if fn := c.r.Rewrite[k]; fn != nil {
 				if str, ok := e.(string); ok {

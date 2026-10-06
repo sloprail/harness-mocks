@@ -15,7 +15,6 @@ import (
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
 type bashInput struct {
 	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
 }
 
 func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string) Result {

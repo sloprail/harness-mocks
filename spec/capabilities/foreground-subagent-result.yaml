@@ -1,7 +1,5 @@
 statement: >-
-  A foreground sub-agent blocks its parent until it finishes, then hands its
-  final report back as the tool's result with a trailer naming the sub-agent
-  and its usage.
+  The dispatching agent receives the foreground sub-agent's final result.
 providers:
   claude:
     docs:
@@ -39,7 +37,19 @@ providers:
       - https://developers.openai.com/codex/subagents#orchestration-and-thread-controls
     runs:
       - codex-mock/snapshots/runs/foreground-subagent-result
+      - codex-mock/snapshots/runs/foreground-subagent-wait-many
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the orchestration-and-thread-controls
+          section says "When many agents are running, Codex waits until all
+          requested results are available, then returns a consolidated
+          response". The recording shows a wait naming two sub-agents returned as soon as the first
+          finished, telling only of it (its status map had that one entry, and the
+          stream's completed wait item named only it), and the second was told of
+          afterwards, as a notification of its own, which the agent answered
+          (runs/foreground-subagent-wait-many). The mock does the same.
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
@@ -50,12 +60,6 @@ providers:
           to its completion with the report as text, not a report with a
           trailer naming the sub-agent and its usage (recorded:
           runs/foreground-subagent-result). The mock does the same.
-      - adr: modeled-surface
-        kind: mock-not-modeled
-        statement: >-
-          The mock carries out spawn_agent and the wait that follows as one
-          call: it returns the wait's result as its own, and no wait_agent call
-          of the script is modelled.
   cursor:
     docs:
       - https://cursor.com/docs/subagents#foreground-vs-background

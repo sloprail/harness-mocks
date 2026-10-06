@@ -58,8 +58,7 @@ func (rec recording) transcript(t *testing.T) string {
 	return strings.Join(all, "\n")
 }
 
-// eventNames names the hook events of a log, in order (lines that are not a
-// payload, like the scenario's own markers, are skipped).
+// eventNames names the hook events of a log, in order (a line that is not a payload is skipped).
 func eventNames(log []map[string]any) []string {
 	var out []string
 	for _, l := range log {
@@ -283,6 +282,7 @@ func TestWhatARealSessionEndHookPrintsIsNotRecorded(t *testing.T) {
 // and neither the stream, stderr nor the transcript mention a failure
 // (runs/session-end-hook-failure).
 // sr:proves session-end-hook/codex
+// sr:proves hook-timeout/codex
 func TestSessionEndHooksThatFailOrAreAsyncAsRecorded(t *testing.T) {
 	rec := loadRecording(t, "session-end-hook-failure")
 	assert.Equal(t, "0\n", readFile(t, filepath.Join(rec.sample, "exit.txt")))

@@ -1,0 +1,17 @@
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"spawn_agent","tool_input":{"message":"Reply with exactly the word PINEAPPLE-7 and nothing else."},"tool_response":"{\"agent_id\":\"01a10dfd-32cf-75a1-a56c-1a68a72500f1\",\"nickname\":\"Sagan\"}"}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"spawn_agent","tool_input":{"message":"Reply with exactly the word MANGO-3 and nothing else."},"tool_response":"{\"agent_id\":\"01a10dfd-34b2-7ce0-ba33-0aafda444801\",\"nickname\":\"Schrodinger\"}"}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"multi_agent_v1wait_agent","tool_input":{"targets":["01a10dfd-32cf-75a1-a56c-1a68a72500f1","01a10dfd-34b2-7ce0-ba33-0aafda444801"],"timeout_ms":3600000},"tool_response":"{\"status\":{\"01a10dfd-32cf-75a1-a56c-1a68a72500f1\":{\"completed\":\"PINEAPPLE-7\"}},\"timed_out\":false}"}}
+{"event":"hook","hook":"Stop","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Stop","permission_mode":"bypassPermissions","stop_hook_active":false}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

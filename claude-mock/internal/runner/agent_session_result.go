@@ -12,10 +12,11 @@ import (
 // next result's fields are derived: the turns the main agent's model took, the
 // tool calls a hook refused, and how many results came before.
 type runState struct {
-	mu      sync.Mutex
-	turns   int
-	denials []map[string]any
-	results int
+	mu             sync.Mutex
+	turns          int
+	denials        []map[string]any
+	results        int
+	stopErrorShown bool // the notice of a Stop hook's error is shown once per run
 }
 
 // turn counts a turn the model took: it called a tool or answered.
@@ -105,6 +106,9 @@ func withResultFields(line []byte, st *runState, sessionID string) []byte {
 // run: the run's own result frames carry the run's state, a sub-agent's (internal) do not.
 func finisher(cfg Config, bg *backgroundTasks, final *scenario.Result) func() {
 	return func() {
+		if bg.refused.Err() != nil { // a run that refused a call streams no result: it fails
+			return
+		}
 		final.Finish(func(line []byte) {
 			if cfg.AgentID == "" {
 				line = withResultFields(line, &bg.run, cfg.SessionID)

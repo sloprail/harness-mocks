@@ -14,17 +14,15 @@ type Config struct {
 	ScriptPath string
 	// SessionID is the Claude Code session identifier passed via --resume or --session-id.
 	SessionID string
-	// AgentID is the sub-agent's id when this Config drives a nested SUB-AGENT run (set by
-	// runAgentTool). Empty for the ROOT run. It is stamped onto every PreToolUse payload
-	// fired inside this run, so a hook can tell a sub-agent's tool call from the root's —
-	// mirroring real claude, where a sub-agent's PreToolUse carries agent_id.
+	// AgentID is the sub-agent's id when this Config drives a nested SUB-AGENT run (empty for the ROOT
+	// run), stamped onto its PreToolUse payloads as real claude does.
 	AgentID string
 	// IsResume is true when the caller used --resume (existing session) vs --session-id (new).
 	IsResume bool
 	// ResumeLookup: --resume named its session by a name or path, or --continue chose it.
 	ResumeLookup bool
-	// Name is --name: the name the session is given, which a later --resume finds it by.
-	Name string
+	// the run's --name and --tools
+	Invocation
 	// Prompt is the user prompt forwarded to the script via the A10N_MOCK_PROMPT env var.
 	Prompt string
 	// AdditionalContext is populated from a UserPromptSubmit hook's additionalContext
@@ -108,10 +106,6 @@ type Config struct {
 	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
 	// after its final turn; zero waits without a limit.
 	BgWaitCeiling time.Duration
-	// Tools is --tools: the only tools the run has (RestrictTools; nil Tools with it set: none). A call to
-	// another is refused by the mock.
-	Tools         []string
-	RestrictTools bool
 	// SpawnLimit is how many layers of sub-agents nest below the main thread;
 	// 0 is the default.
 	SpawnLimit int

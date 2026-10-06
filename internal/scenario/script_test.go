@@ -111,3 +111,28 @@ func TestRunTurnStopsAtAnUnreadableLineAfterTheCalls(t *testing.T) {
 		t.Fatalf("turn = %+v, %v", turn, err)
 	}
 }
+
+// An assistant line may carry a gate: what must have happened (other agents' steps) before the
+// host takes the line's calls and messages. The script orders the agents, not the time anything takes.
+func TestAnAssistantLineCarriesAGate(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' '{"gate":{"ended":[0,2],"parent_started":3,"parent_done":1},"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{}}]}}'`)
+	turn, err := RunTurn(context.Background(), s, dir, environ, Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := turn.Gate; len(got.Ended) != 2 || got.Ended[0] != 0 || got.Ended[1] != 2 || got.ParentStarted != 3 || got.ParentDone != 1 || got.None() {
+		t.Fatalf("gate = %+v", got)
+	}
+	s, dir = script(t, `printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"x"}]}}'`)
+	if turn, _ = RunTurn(context.Background(), s, dir, environ, Input{}); !turn.Gate.None() {
+		t.Fatalf("a line with no gate has one: %+v", turn.Gate)
+	}
+}
+
+// A gate with a field it does not have is the script's mistake: the turn is refused, not read leniently.
+func TestAGateWithAnUnknownFieldIsRefused(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' '{"gate":{"ended":[0],"parent_finished":2},"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{}}]}}'`)
+	if _, err := RunTurn(context.Background(), s, dir, environ, Input{}); err == nil || !strings.Contains(err.Error(), "parent_finished") {
+		t.Fatalf("err = %v, want one naming parent_finished", err)
+	}
+}

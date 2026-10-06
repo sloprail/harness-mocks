@@ -34,6 +34,8 @@ type scenario struct {
 	Dir string
 	// NoJSON runs `exec` without --json, so stdout carries the final message.
 	NoJSON bool
+	// InterruptOnCommand sends the run SIGINT once its stream shows a command started (an event, not a time).
+	InterruptOnCommand bool
 	// BypassTrust passes --dangerously-bypass-hook-trust, as every recording does.
 	BypassTrust bool
 }
@@ -92,6 +94,9 @@ func execMock(t *testing.T, s scenario) result {
 	cmd.Env = append(env, s.Env...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
+	if s.InterruptOnCommand {
+		cmd.Stdout = &interruptingWriter{out: &out, cmd: cmd}
+	}
 	if err := cmd.Run(); err != nil {
 		var exit *exec.ExitError
 		require.ErrorAs(t, err, &exit)

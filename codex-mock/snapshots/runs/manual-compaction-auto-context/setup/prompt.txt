@@ -1,0 +1,1 @@
+Run these shell commands one at a time, each as its own tool call: 1) seq 1 1500 2) seq 1 1500 3) echo FINE. Then reply only DONE.

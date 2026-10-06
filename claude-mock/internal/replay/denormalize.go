@@ -8,44 +8,6 @@ import (
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
-// Scenario is what the mock is given to replay a recording: the run's own
-// setup (its settings, its hook command, its prompt) and the scenario script
-// that makes the model's calls, in the format the mock takes of any scenario.
-type Scenario struct {
-	Settings string
-	Hook     string
-	// Scripts are the sub-agents' scripts, by file name; the main one is Script.
-	Scripts map[string]string
-	Script  string
-	Prompt  string
-	// Earlier are the runs the setup's preparation makes before the run itself, each as its prompt
-	// and the script file (by name, in Scripts) that makes its calls.
-	Earlier []ScenarioEarlier
-	// Then are the later runs of claude, each with its own script and the flags to run the mock with.
-	Then []ScenarioStep
-}
-
-// ScenarioStep is a later run: its script, its prompt and the words given before it (a resume's
-// <SESSION> is the first run's session).
-type ScenarioStep struct {
-	Script, Prompt string
-	Args           []string
-	// Cwd is the directory of the repository the run starts in (empty: its root), Symlink "<name> <target>"
-	// a link made first, Settings and Hook the project files of that directory
-	Cwd, Symlink, Settings, Hook string
-}
-
-// ScenarioEarlier is an earlier run: the prompt it is given (how the replay's claude knows it) and its script's file name.
-type ScenarioEarlier struct{ Prompt, Script string }
-
-// scriptCall is one tool call the model made, in the mock's script vocabulary.
-type scriptCall struct {
-	Text  *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
-	Name  string         `json:"name"`
-	Reply string         `json:"-"` // an answer a Stop hook refuses to end the turn on, not a call
-	Input map[string]any `json:"input"`
-}
-
 // Denormalize turns the unified recording into the mock's scenario: the
 // unified tools go back to Claude's names, and each sub-agent's turns become a
 // script of their own, which the spawning call names in its `script` input.
@@ -114,53 +76,6 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 		Prompt:   rec.Prompt,
 		Then:     then,
 	}
-}
-
-// mockCall is Claude's name for a unified call; the input is copied, as the
-// spawn's script parameter is added to it. The spawn's message is the prompt
-// the input already carries.
-func mockCall(c core.Call) scriptCall {
-	name := "Bash"
-	switch c.Tool {
-	case core.ToolSpawn:
-		name = "Agent"
-	case toolRead, toolWrite, toolEdit, toolGlob:
-		for claude, unified := range fileTools {
-			if unified == c.Tool {
-				name = claude
-			}
-		}
-	case toolReply:
-		return scriptCall{Reply: c.Input["text"].(string)}
-	}
-	in := make(map[string]any, len(c.Input))
-	for k, v := range c.Input {
-		if k != "message" {
-			in[k] = v
-		}
-	}
-	return scriptCall{Text: c.Said, Name: name, Input: in}
-}
-
-// script is the mock script that makes the given calls, one per turn, then
-// answers with final. The calls are inside it, so a sub-agent's script is a
-// file of its own. The mock runs the script once per tool call and the session
-// file holds the results so far, so the script's n-th run makes the n-th call.
-// Call ids are unique across the run's scripts (tag), as the real ones are.
-func script(tag string, calls []scriptCall, final, extra string, skip int) string {
-	lines := make([]string, 0, len(calls)+1)
-	for i, c := range calls {
-		lines = append(lines, callLine(fmt.Sprintf("toolu_%s%d", tag, i), c))
-	}
-	lines = append(lines, finalLines(final, extra))
-	return fmt.Sprintf(`#!/bin/sh
-n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
-f=$(grep -c '"content":"Stop hook feedback:' "$A10N_MOCK_SESSION_FILE")
-n=$((n+f))
-sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
-%s
-CALLS_EOF
-`, skip, strings.Join(lines, "\n"))
 }
 
 // resumes is whether a run's flags resume, continue or fork an earlier session.
