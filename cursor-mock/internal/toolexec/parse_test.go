@@ -63,3 +63,40 @@ func TestShellFrameArgsParseFailure(t *testing.T) {
 		t.Fatalf("parsingResult = %v", p)
 	}
 }
+
+// The forms runs/shell-syntax shows: a double-quoted word is a string, `<` reads
+// descriptor 0, `>>` writes 1, `2>&1` copies 2 to the number 1 and is quiet, and a
+// command substitution is an argument of its own type whose commands are listed
+// after the outer one.
+func TestShellFrameArgsModelTheRecordedSyntax(t *testing.T) {
+	p := frameArgs(t, `{"command":"echo \"a b\" $(echo inner)"}`)["parsingResult"].(map[string]any)
+	cmds := p["executableCommands"].([]map[string]any)
+	args := cmds[0]["args"].([]any)
+	if args[0].(map[string]any)["type"] != "string" || args[1].(map[string]any)["type"] != "command_substitution" || len(cmds) != 2 || p["hasCommandSubstitution"] != true {
+		t.Fatalf("cmds = %v", cmds)
+	}
+	in := frameArgs(t, `{"command":"cat < in.txt"}`)
+	if in["hasInputRedirect"] != true || in["hasOutputRedirect"] != false {
+		t.Fatalf("input redirect: %v", in)
+	}
+	dup := frameArgs(t, `{"command":"ls x 2>&1"}`)
+	r := dup["parsingResult"].(map[string]any)["redirects"].([]map[string]any)[0]
+	if r["operator"] != ">&" || r["targetNodeType"] != "number" || r["destinationFds"].([]any)[0] != 2 ||
+		dup["parsingResult"].(map[string]any)["allRedirectsAreDevNull"] != true || dup["hasOutputRedirect"] != true {
+		t.Fatalf("dup: %v", dup)
+	}
+}
+
+// What no recording shows is refused by name, and what the recordings show is not.
+func TestUnmodeledSyntax(t *testing.T) {
+	for _, ok := range []string{`echo "a" 'b' c`, `cat < in.txt`, `echo x >> f`, `ls y 2>&1`, `echo $(echo z)`, `a | b; c`, `sh -c 'echo $HOME && ls *'`, `pgrep -f "sleep 2; [t]ouch x"`} {
+		if why := UnmodeledSyntax(ok); why != "" {
+			t.Errorf("%q refused: %s", ok, why)
+		}
+	}
+	for _, bad := range []string{`echo $HOME`, `a && b`, `a || b`, "cat <<EOF\nx\nEOF", `ls *.txt`, `(cd x)`, `for i in 1; do :; done`, `X=1 cmd`, "echo `x`", `sleep 1 &`, `echo ~`} {
+		if UnmodeledSyntax(bad) == "" {
+			t.Errorf("%q must be refused", bad)
+		}
+	}
+}

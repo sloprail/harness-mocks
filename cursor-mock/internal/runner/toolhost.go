@@ -53,6 +53,9 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 		// named by its call (recorded: runs/task-notifications-bg, runs/shell-exit-status)
 		useID = coresession.NewID()
 	}
+	if h.call.HookID != "" && h.call.Kind != "mcpToolCall" { // a script names the id its recording's hooks gave the call
+		useID = h.call.HookID
+	}
 	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: useID}
 	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
 		h.failure, h.result = hooks.PreToolRefusal(msg)

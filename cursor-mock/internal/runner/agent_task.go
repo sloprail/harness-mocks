@@ -23,6 +23,8 @@ type taskInput struct {
 	Prompt       string `json:"prompt"`
 	SubagentType string `json:"subagent_type"`
 	Script       string `json:"script"`
+	// HookToolUseID is the id the call's hooks name it by, when it is not its own.
+	HookToolUseID string `json:"hook_tool_use_id"`
 	// Model and RunInBackground are optional: what the model left out the hooks
 	// are not told of either (recorded: runs/subagent-worktree-isolation and
 	// runs/foreground-subagent-result).

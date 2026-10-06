@@ -80,6 +80,8 @@ func (t Tool) issues(input json.RawMessage) []Issue {
 		_ = json.Unmarshal(raw, &v)
 		if !p.Type.holds(v) {
 			out = append(out, Issue{Kind: WrongType, Tool: t.Name, Param: p.Name, Detail: fmt.Sprintf("must be a %s, got %s", p.Type, kindOf(v))})
+		} else if why := p.unmodeled(v); why != "" {
+			out = append(out, Issue{Kind: BadValue, Tool: t.Name, Param: p.Name, Detail: "is not modeled: " + why})
 		} else if len(p.Values) > 0 && !p.allows(v) {
 			out = append(out, Issue{Kind: BadValue, Tool: t.Name, Param: p.Name, Detail: fmt.Sprintf("is %s; the mock implements %v", raw, p.Values)})
 		}
@@ -101,6 +103,13 @@ func (t Tool) paramNames() string {
 		names[i] = p.Name
 	}
 	return strings.Join(names, ", ")
+}
+
+func (p Param) unmodeled(v any) string {
+	if p.Unmodeled == nil {
+		return ""
+	}
+	return p.Unmodeled(v)
 }
 
 func (p Param) allows(v any) bool {
