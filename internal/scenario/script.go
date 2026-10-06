@@ -33,6 +33,9 @@ type ToolUse struct {
 // triggered it ("manual" or "auto"; empty when it names none).
 type Compact struct {
 	Trigger string
+	// Fields are the other keys of the compact line: what the harness says of the
+	// compaction (token counts, say), which the core leaves to the harness.
+	Fields map[string]json.RawMessage
 }
 
 // Thought is a thinking block of a script: the text, and the other keys the block

@@ -56,7 +56,11 @@ func (t *Turn) read(raw []byte) (done bool, err error) {
 	}
 	switch l.Type {
 	case "compact":
-		t.Compact = &Compact{Trigger: l.Trigger}
+		var fields map[string]json.RawMessage
+		_ = json.Unmarshal(raw, &fields)
+		delete(fields, "type")
+		delete(fields, "trigger")
+		t.Compact = &Compact{Trigger: l.Trigger, Fields: fields}
 		return true, nil
 	case "result":
 		t.Result = &l.Result

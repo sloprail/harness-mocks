@@ -25,6 +25,7 @@ type step struct {
 	said    *string
 	calls   []scriptCall
 	thought *core.Thinking // what the model thought in the response, when recorded
+	compact map[string]any // the compaction the harness made just before the response, when it did
 }
 
 // lines is how many assistant records the mock writes to the session file for
@@ -78,11 +79,11 @@ func denormalize(root core.Agent, prompt, dir string, paths *Paths, prefix strin
 			switch {
 			case c.Tool == core.ToolAnswer:
 				text, _ := c.Input["text"].(string)
-				steps = append(steps, step{said: &text, thought: c.Thinking})
+				steps = append(steps, step{said: &text, thought: c.Thinking, compact: c.Compact})
 			case c.SameTurn && len(steps) > 0:
 				steps[len(steps)-1].calls = append(steps[len(steps)-1].calls, mockCall(c))
 			default:
-				steps = append(steps, step{said: c.Said, calls: []scriptCall{mockCall(c)}, thought: c.Thinking})
+				steps = append(steps, step{said: c.Said, calls: []scriptCall{mockCall(c)}, thought: c.Thinking, compact: c.Compact})
 			}
 			if c.Tool == core.ToolSpawn && c.Sub != nil {
 				name := fmt.Sprintf("%ssub%d.sh", prefix, n)

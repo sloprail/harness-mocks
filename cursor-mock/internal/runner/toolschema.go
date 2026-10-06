@@ -49,7 +49,7 @@ var taskAnswers = map[toolspec.Kind]string{toolspec.Missing: "agent-input-valida
 var schema = toolspec.Schema{Harness: "cursor", Tools: []toolspec.Tool{
 	{Name: "Shell", Params: shellParams},
 	{Name: "Bash", Recorded: "Shell", Params: shellParams},
-	{Name: "Read", Params: []toolspec.Param{{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true}, {Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true}}},
+	{Name: "Read", Params: []toolspec.Param{{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true}, {Name: "limit", Type: toolspec.Integer}, {Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true}}},
 	{Name: "Write", Params: []toolspec.Param{
 		{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true},
 		{Name: "content", Recorded: "contents", Type: toolspec.String, Required: true},

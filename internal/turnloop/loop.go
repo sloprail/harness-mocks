@@ -108,10 +108,8 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 			last = said
 		}
 		if t.Compact != nil {
-			if c, ok := h.(Compactor); ok {
-				if err := c.Compact(ctx, t.Compact.Trigger); err != nil {
-					return last, err
-				}
+			if err := compact(ctx, h, *t.Compact); err != nil {
+				return last, err
 			}
 		}
 		if t.Tool == nil && t.Compact == nil {

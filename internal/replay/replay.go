@@ -37,7 +37,8 @@ type Call struct {
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
 	// SameTurn: the model made this call in the same response as the previous one.
 	SameTurn bool
-	Thinking *Thinking // what the model thought in the response this call begins, when recorded
+	Thinking *Thinking      // what the model thought in the response this call begins, when recorded
+	Compact  map[string]any // the compaction the harness made just before this response, as its hook said it, when it did
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in

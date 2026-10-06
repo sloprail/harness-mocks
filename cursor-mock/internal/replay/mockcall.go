@@ -73,14 +73,44 @@ func mockCall(c core.Call) scriptCall {
 // the real ones are.
 func script(tag string, steps []step, after int) string {
 	var b strings.Builder
-	b.WriteString("#!/bin/sh\nn=$(grep -c '\"role\":\"assistant\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\ncase ${n:-0} in\n")
-	at := after
+	compacts := 0
+	for _, s := range steps {
+		if s.compact != nil {
+			compacts++
+		}
+	}
+	// A script that compacts also counts the user records of the session's file: a
+	// compaction writes the prompt into it again, which is how the script knows it
+	// has compacted (and so does not ask for it again).
+	key, users := "${n:-0}", func(done int) string { return "" }
+	b.WriteString("#!/bin/sh\nn=$(grep -c '\"role\":\"assistant\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\n")
+	if compacts > 0 {
+		b.WriteString("u=$(grep -c '\"role\":\"user\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\n")
+		key, users = "${n:-0}/${u:-0}", func(done int) string { return fmt.Sprintf("/%d", 1+done) }
+	}
+	b.WriteString("case " + key + " in\n")
+	at, done := after, 0
 	for i, s := range steps {
-		fmt.Fprintf(&b, "%d) printf '%%s\\n' '%s' ;;\n", at, shellQuote(stepLine(fmt.Sprintf("toolu_%s_%d", tag, i), s)))
+		if s.compact != nil {
+			fmt.Fprintf(&b, "%d%s) printf '%%s\\n' '%s' ;;\n", at, users(done), shellQuote(compactLine(s.compact)))
+			done++
+		}
+		fmt.Fprintf(&b, "%d%s) printf '%%s\\n' '%s' ;;\n", at, users(done), shellQuote(stepLine(fmt.Sprintf("toolu_%s_%d", tag, i), s)))
 		at += s.lines()
 	}
 	b.WriteString("esac\n")
 	return b.String()
+}
+
+// compactLine is the control line that asks the mock to compact the session, with
+// what the hook is to say of it.
+func compactLine(fields map[string]any) string {
+	line := map[string]any{"type": "compact"}
+	for k, v := range fields {
+		line[k] = v
+	}
+	b, _ := json.Marshal(line)
+	return string(b)
 }
 
 // stepLine is the assistant line the script prints for a step: what the model

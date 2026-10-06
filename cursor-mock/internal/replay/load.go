@@ -102,6 +102,16 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, err
 	}
+	if marked := compactionsOf(payloads); len(marked) > 0 {
+		if len(files) != 1 || len(prompts) != 1 {
+			return core.Recording{}, unbuildable("the harness compacted in a run of several steps: the compactions are not told apart by step")
+		}
+		for name, records := range files {
+			if files[name], err = markCompactions(records, marked); err != nil {
+				return core.Recording{}, err
+			}
+		}
+	}
 	agents, err := modelSteps(files, rec.Setup, prompts, exits, thoughts[session])
 	if err != nil {
 		return core.Recording{}, err

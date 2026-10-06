@@ -80,6 +80,9 @@ func FromScript(name string, input json.RawMessage) Call {
 		}
 	case "readToolCall":
 		c.Args["path"] = str("file_path")
+		if v, ok := in["limit"].(float64); ok {
+			c.Args["limit"] = int(v)
+		}
 	case "editToolCall":
 		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
 		if name == "Edit" { // a StrReplace: its stream content is the new text only
