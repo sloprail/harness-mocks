@@ -19,4 +19,5 @@ func TestT017_80_ASubagentScriptsRefusedCallFailsTheRun(t *testing.T) {
 		"--project-dir", dir, "--config-dir", filepath.Join(dir, "config"), "-p", "hello")
 	require.NotEqual(t, 0, code, out)
 	assert.Contains(t, out, "Teleport")
+	assert.NotContains(t, out, `"type":"result"`, "a run that refused a call streams no result")
 }

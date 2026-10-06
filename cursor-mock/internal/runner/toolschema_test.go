@@ -16,9 +16,12 @@ var runs = filepath.Join("..", "..", "snapshots", "runs")
 
 // recordedCalls are the tool calls the model made in every recorded run: the
 // tool_use blocks of the assistant records of each transcript, sub-agents' too.
-func recordedCalls(t *testing.T) []toolspec.Recorded {
+func recordedCalls(t *testing.T) []toolspec.Recorded { return recordedCallsOf(t, "*") }
+
+// recordedCallsOf are those of the named run.
+func recordedCallsOf(t *testing.T, run string) []toolspec.Recorded {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(runs, "*", "samples", "*", "transcript", "*", "*.jsonl"))
+	files, err := filepath.Glob(filepath.Join(runs, run, "samples", "*", "transcript", "*", "*.jsonl"))
 	require.NoError(t, err)
 	var calls []toolspec.Recorded
 	for _, f := range files {
@@ -54,8 +57,9 @@ func recordedCalls(t *testing.T) []toolspec.Recorded {
 // mock can play or Cursor itself answers (adr/tool-calls-validated).
 //
 // One recorded call the mock cannot play yet: a Read with a limit (the lines to
-// read), which the mock does not implement. A script that asks for it is refused,
-// and the run that shows it is not replayable until the mock reads a range.
+// read) in runs/compaction-transcript-continuity, which has only a started frame,
+// no completed one: what a limited read returns is not recorded, so the mock
+// refuses a script that asks for it rather than invent it.
 func TestTheSchemaIsGroundedInTheRecordings(t *testing.T) {
 	var problems []string
 	for _, p := range Schema().Ungrounded(recordedCalls(t)) {
@@ -67,15 +71,31 @@ func TestTheSchemaIsGroundedInTheRecordings(t *testing.T) {
 }
 
 // Each mistake the schema says Cursor answers itself is one a recorded run shows
-// it answering, with the text the mock answers with.
+// it answering: the run holds a call of that tool without the required parameter
+// the answer names, and the stream's completed frame carries the answer's text.
+// The exact text and frame the mock answers with are pinned by
+// TestTaskWithoutPromptIsRefusedBeforeAnyHook (e2e/001_hooks).
 func TestTheAnsweredKindsAreInTheirRecordings(t *testing.T) {
+	missing := map[string]string{"Task": "prompt", "Agent": "prompt"} // the parameter each answered tool's recorded call lacks
 	for _, tool := range Schema().Tools {
 		for kind, run := range tool.Answers {
-			files, _ := filepath.Glob(filepath.Join(runs, run, "samples", "*", "stream.jsonl"))
-			require.NotEmpty(t, files, "%s: %s has no stream", tool.Name, run)
-			b, err := os.ReadFile(files[0])
+			param := missing[tool.Name]
+			require.NotEmpty(t, param, "%s: say which required parameter its recorded call lacks", tool.Name)
+			recorded := tool.Recorded
+			if recorded == "" {
+				recorded = tool.Name
+			}
+			var lacking bool
+			for _, c := range recordedCallsOf(t, run) {
+				_, has := c.Input[param]
+				lacking = lacking || c.Tool == recorded && !has
+			}
+			require.True(t, lacking, "%s (%s): %s holds no call of %s without %s", tool.Name, kind, run, recorded, param)
+			streams, _ := filepath.Glob(filepath.Join(runs, run, "samples", "*", "stream.jsonl"))
+			require.NotEmpty(t, streams, "%s: %s has no stream", tool.Name, run)
+			b, err := os.ReadFile(streams[0])
 			require.NoError(t, err)
-			require.Contains(t, string(b), "Invalid arguments:", "%s (%s): %s does not show Cursor's answer", tool.Name, kind, run)
+			require.Contains(t, string(b), "Invalid arguments:\\n"+param+": Required", "%s (%s): %s does not show Cursor's answer", tool.Name, kind, run)
 		}
 	}
 }

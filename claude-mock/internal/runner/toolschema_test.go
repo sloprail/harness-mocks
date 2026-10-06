@@ -16,11 +16,14 @@ var runs = filepath.Join("..", "..", "snapshots", "runs")
 
 // recordedCalls are the tool calls the model made in every recorded run: the
 // tool_use blocks of the assistant records of each transcript, sub-agents' too.
-func recordedCalls(t *testing.T) []toolspec.Recorded {
+func recordedCalls(t *testing.T) []toolspec.Recorded { return recordedCallsOf(t, "*") }
+
+// recordedCallsOf are those of the named run.
+func recordedCallsOf(t *testing.T, run string) []toolspec.Recorded {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(runs, "*", "samples", "*", "transcript", "*.jsonl"))
+	files, err := filepath.Glob(filepath.Join(runs, run, "samples", "*", "transcript", "*.jsonl"))
 	require.NoError(t, err)
-	subs, err := filepath.Glob(filepath.Join(runs, "*", "samples", "*", "transcript", "*", "subagents", "*.jsonl"))
+	subs, err := filepath.Glob(filepath.Join(runs, run, "samples", "*", "transcript", "*", "subagents", "*.jsonl"))
 	require.NoError(t, err)
 	var calls []toolspec.Recorded
 	for _, f := range append(files, subs...) {
@@ -59,15 +62,31 @@ func TestTheSchemaIsGroundedInTheRecordings(t *testing.T) {
 }
 
 // Each mistake the schema says Claude Code answers itself is one a recorded run
-// shows it answering, with the text the mock answers with.
+// shows it answering: the run holds a call of that tool without the required
+// parameter, and its transcript the InputValidationError naming it. The exact
+// answer the mock gives is pinned by TestT017_56_AgentDispatchWithoutRequiredInputIsRefusedBeforeAnyHook
+// and TestT017_29c_InvalidInputFiresNoHook (e2e/017_session_lifecycle).
 func TestTheAnsweredKindsAreInTheirRecordings(t *testing.T) {
+	missing := map[string]string{"Agent": "prompt", "Task": "prompt", "Read": "file_path"} // the parameter each answered tool's recorded call lacks
 	for _, tool := range Schema().Tools {
 		for kind, run := range tool.Answers {
+			param := missing[tool.Name]
+			require.NotEmpty(t, param, "%s: say which required parameter its recorded call lacks", tool.Name)
+			recorded := tool.Recorded
+			if recorded == "" {
+				recorded = tool.Name
+			}
+			var lacking bool
+			for _, c := range recordedCallsOf(t, run) {
+				_, has := c.Input[param]
+				lacking = lacking || c.Tool == recorded && !has
+			}
+			require.True(t, lacking, "%s (%s): %s holds no call of %s without %s", tool.Name, kind, run, recorded, param)
 			files, _ := filepath.Glob(filepath.Join(runs, run, "samples", "*", "transcript", "*.jsonl"))
 			require.NotEmpty(t, files, "%s: %s has no transcript", tool.Name, run)
 			b, err := os.ReadFile(files[0])
 			require.NoError(t, err)
-			require.Contains(t, string(b), "InputValidationError", "%s (%s): %s does not show Claude Code's answer", tool.Name, kind, run)
+			require.Contains(t, string(b), "The required parameter `"+param+"` is missing", "%s (%s): %s does not show Claude Code's answer", tool.Name, kind, run)
 		}
 	}
 }

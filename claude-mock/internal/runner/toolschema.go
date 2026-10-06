@@ -3,7 +3,7 @@ package runner
 import "github.com/sloprail/harness-mocks/internal/toolspec"
 
 // toolsDoc names the parameters of Claude Code's tools that the mock implements and no
-// recorded run shows the model pass (a Bash timeout, a Glob path, an Agent model).
+// recorded run shows the model pass (a Glob path, an Agent model).
 const toolsDoc = "https://code.claude.com/docs/en/tools-reference"
 
 // agentParams are the parameters of an Agent (or Task) call as the model makes
@@ -35,7 +35,6 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "command", Type: toolspec.String, Required: true},
 		{Name: "description", Type: toolspec.String},
 		{Name: "run_in_background", Type: toolspec.Boolean},
-		{Name: "timeout", Type: toolspec.Integer, Doc: toolsDoc},
 	}},
 	{Name: "Read", Params: []toolspec.Param{
 		{Name: "file_path", Type: toolspec.String, Required: true},

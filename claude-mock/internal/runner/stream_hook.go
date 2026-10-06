@@ -53,7 +53,11 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var stopBlocks int
 	var lastText string
 	var final scenario.Result // the run's one result frame, held until its turn really ends
-	finish := func() { final.Finish(func(line []byte) { writeStreamLine(cfg, line) }) }
+	finish := func() {        // a run that refused a call streams no result: it fails
+		if bg.refused.Err() == nil {
+			final.Finish(func(line []byte) { writeStreamLine(cfg, line) })
+		}
+	}
 	blockCap := stopHookBlockCap()
 	for {
 		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
@@ -125,7 +129,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				continue
 			}
 			bg.ReapAtExit(cfg.AgentID, printReapGrace)
-			return nil
+			return bg.refused.Err()
 		}
 		sig := turn.sig
 		if sig != "" && sig == lastSig {
