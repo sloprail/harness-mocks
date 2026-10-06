@@ -106,6 +106,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	s.forward(initFrame(s.id, cfg.Dir))
 	s.forward(userFrame(s.id, cfg.Prompt))
+	s.hooks.Fire(ctx, hooks.WorkspaceOpen, hooks.NoSubject, nil) // the app opens the workspace before the session starts (recorded: runs/workspace-open)
 	if startHook.For(cfg.Resume != "").Fires {
 		s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	}
