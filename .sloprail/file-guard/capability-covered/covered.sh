@@ -127,6 +127,15 @@ touched_impl="$(awk -F'\t' 'NR == FNR { if ($2 == "capability") t[$1 "\t" $3] = 
   refuse_error "the touched sr:capability markers could not be selected, so they could not be checked"
 touched_proves="$(awk -F'\t' 'NR == FNR { if ($2 == "proves") t[$1 "\t" $3] = 1; next } (($1 "\t" $2) in t)' <(printf '%s\n' "$TOUCHED_MARKERS_TSV") <(printf '%s\n' "$proves"))" ||
   refuse_error "the touched sr:proves markers could not be selected, so they could not be checked"
+# and the markers that name a pair whose cell this change touched (a cell parked as pending under a test that still claims it)
+while IFS=$'\t' read -r path fqn; do
+  [ -n "$path" ] || continue
+  case "$fqn" in */*) ;; *) continue ;; esac
+  th="$(touched_harnesses "spec/capabilities/${fqn%%/*}.yaml")"
+  if grep -qxF '*' <<<"$th" || grep -qxF "${fqn#*/}" <<<"$th"; then
+    touched_proves="${touched_proves}"$'\n'"${path}"$'\t'"${fqn}"
+  fi
+done <<<"$proves"
 while IFS=$'\t' read -r path id; do
   [ -n "$path" ] || continue
   jq -e --arg id "$id" 'any(.[]; .id == $id)' <<<"$caps" >/dev/null || add "$path: sr:capability '$id' names no spec/capabilities/$id.yaml"

@@ -69,7 +69,7 @@ expect_passed "control"
 # subjects.sh: which pairs and capabilities the change touches
 scenario; inject '$want == ""'
 expect_refused "the pairs lookup fails" "the touched capability pairs could not be worked out, so nothing could be judged"
-scenario; inject '"pairs:"'
+scenario; inject '"pair:"'
 expect_refused "the subjects assembly fails" "the capabilities this change touches could not be worked out, so nothing could be judged"
 
 # inputs-ready.sh: a cell's cited docs and runs

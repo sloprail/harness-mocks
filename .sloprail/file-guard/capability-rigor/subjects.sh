@@ -42,5 +42,6 @@ arr="$(printf '%s' "$payload" | jq -c --rawfile pairs <(printf '%s' "$pairs") --
          deps: (["spec/capabilities/\($id).yaml"]
                 + [$mine[] | (.cell.runs // [])[]]
                 + [$mine[].pair as $pr | $pv[] | select(.q == $pr) | .p]),
-         extra: ("pair:" + $p.pair)})')"
+         extra: ("pair:" + $p.pair)})')" ||
+  refuse_error "the capabilities this change touches could not be worked out, so nothing could be judged"
 sub_finish unclaimed "$arr"
