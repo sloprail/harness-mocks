@@ -28,6 +28,18 @@ func mockCall(c core.Call) scriptCall {
 		name = "Write"
 		in["file_path"] = in["path"]
 		delete(in, "path")
+	case core.ToolEditFile:
+		name = "Edit"
+		in["file_path"] = in["path"]
+		delete(in, "path")
+	case core.ToolSearchTools:
+		name = "GetDynamicTools"
+	case core.ToolAwaitTask:
+		name = "AwaitShell"
+		if id, ok := in["task"]; ok {
+			in["shell_id"] = id
+			delete(in, "task")
+		}
 	case core.ToolSearchFiles:
 		name = "Grep"
 	case core.ToolDeleteFile:

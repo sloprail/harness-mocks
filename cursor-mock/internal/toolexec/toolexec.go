@@ -14,6 +14,9 @@ import (
 type Call struct {
 	Kind string
 	Args map[string]any
+	// Replace is a StrReplace's old and new text: the call edits the file by it
+	// and the hooks see the whole file it makes (recorded: runs/file-tools).
+	Replace *[2]string
 	// Unmodeled are the keys of a script's input the mock does not take for the
 	// tool (a Grep's path, glob and the rest): the call fails rather than ignore them.
 	Unmodeled []string
@@ -61,6 +64,10 @@ func FromScript(name string, input json.RawMessage) Call {
 		c.Args["path"] = str("file_path")
 	case "editToolCall":
 		c.Args["path"], c.Args["streamContent"] = str("file_path"), str("content")
+		if name == "Edit" { // a StrReplace: its stream content is the new text only
+			c.Args["streamContent"] = str("new_string")
+			c.Replace = &[2]string{str("old_string"), str("new_string")}
+		}
 	case "grepToolCall":
 		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
 		for k := range in {
@@ -105,7 +112,11 @@ func (c Call) HookInput(dir string) map[string]any {
 	case "mcpToolCall":
 		return c.Args["args"].(map[string]any)
 	default:
-		return map[string]any{"file_path": c.Path(dir), "content": c.str("streamContent")}
+		content := c.str("streamContent")
+		if c.Replace != nil {
+			content, _ = replaced(c, dir)
+		}
+		return map[string]any{"file_path": c.Path(dir), "content": content}
 	}
 }
 

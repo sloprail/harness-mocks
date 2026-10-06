@@ -19,6 +19,16 @@ func unify(block map[string]any) (core.Call, error) {
 	switch name {
 	case "Grep":
 		return core.Call{Tool: core.ToolSearchFiles, Input: in}, nil
+	case "StrReplace":
+		return core.Call{Tool: core.ToolEditFile, Input: in}, nil
+	case "GetDynamicTools": // a search of the harness's tools (a lookup of one is the call's own, see lookupOf)
+		return core.Call{Tool: core.ToolSearchTools, Input: in}, nil
+	case "AwaitShell":
+		if id, ok := in["shell_id"]; ok {
+			in["task"] = id
+			delete(in, "shell_id")
+		}
+		return core.Call{Tool: core.ToolAwaitTask, Input: in}, nil
 	case "Delete":
 		return core.Call{Tool: core.ToolDeleteFile, Input: in}, nil
 	case "CallDynamicTool":
