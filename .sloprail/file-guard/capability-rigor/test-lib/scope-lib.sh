@@ -42,3 +42,10 @@ scope_case() {
   git add -A && git commit -q -m "record c again"
   status=0; sr-checks run --base "$BASE" --head HEAD >out 2>&1 || status=$?
 }
+# add_test <assertion line>: the fix a refusal asks for, a test asserting the clause, judged again
+add_test() {
+  printf '%s\n' "$1" >>claude-mock/e2e/c_test.go
+  git add -A && git commit -q -m "a test for the clause"
+  : >"$SR_EVENTS_FILE"
+  status=0; sr-checks run --base "$BASE" --head HEAD >out 2>&1 || status=$?
+}
