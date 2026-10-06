@@ -54,6 +54,10 @@ func callLine(id string, c scriptCall) string {
 	if c.Text != nil {
 		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": *c.Text}))
 	}
-	parts = append(parts, assistantFrame(map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}))
+	var frame []any
+	if c.Gated {
+		frame = append(frame, map[string]any{"mock_gate": map[string]any{"receipt_after_end": true}})
+	}
+	parts = append(parts, assistantFrame(map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}, frame...))
 	return strings.Join(parts, "\x01")
 }

@@ -83,7 +83,8 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 		return toolexec.Result{Output: fmt.Sprintf("Bash: %v", err), IsError: true}
 	}
 
-	if awaitReceipt(task) {
+	if _, gated := b.receiptAfterEnd.LoadAndDelete(toolUseID); gated {
+		<-task.Done() // as the recording's order shows: the command's frames ahead of its receipt
 		b.endedAtLaunch.Store(task, true)
 	}
 	endsWithFinal := cfg.SyncSubagent

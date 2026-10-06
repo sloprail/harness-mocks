@@ -26,11 +26,11 @@ func mockCall(c core.Call) scriptCall {
 	}
 	in := make(map[string]any, len(c.Input))
 	for k, v := range c.Input {
-		if k != "message" {
+		if k != "message" && k != gateKey {
 			in[k] = v
 		}
 	}
-	return scriptCall{Text: c.Said, Name: name, Input: in}
+	return scriptCall{Text: c.Said, Name: name, Input: in, Gated: c.Input[gateKey] == true}
 }
 
 // script is the mock script that makes the given calls, one per turn, then

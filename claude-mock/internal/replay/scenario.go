@@ -34,6 +34,7 @@ type ScenarioEarlier struct{ Prompt, Script string }
 type scriptCall struct {
 	Text  *string        `json:"text,omitempty"` // what the model said just before the call, if it said anything
 	Name  string         `json:"name"`
+	Gated bool           `json:"-"` // the receipt of its background command came after the command ended
 	Reply string         `json:"-"` // an answer a Stop hook refuses to end the turn on, not a call
 	Input map[string]any `json:"input"`
 }

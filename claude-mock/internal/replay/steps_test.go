@@ -214,3 +214,23 @@ func TestRecordedAgentIDsStandForTheMocks(t *testing.T) {
 		t.Fatal("a different number of agents is left as it is")
 	}
 }
+
+// A background command whose task had ended, in the stream's order, before the result that answers its call is
+// one whose receipt waited for its end; a replay marks its call.
+func TestReceiptsAfterEnd(t *testing.T) {
+	result := func(id string) map[string]any {
+		return map[string]any{"message": map[string]any{"content": []any{map[string]any{"type": "tool_result", "tool_use_id": id}}}}
+	}
+	stream := []map[string]any{
+		{"subtype": "task_notification", "tool_use_id": "c1"}, result("c1"),
+		result("c2"), {"subtype": "task_notification", "tool_use_id": "c2"},
+	}
+	got := receiptsAfterEnd(stream)
+	if !got["c1"] || got["c2"] {
+		t.Fatalf("%v", got)
+	}
+	marked := withReceiptGates(turns{agent: core.Agent{Calls: []core.Call{{Tool: core.ToolShell, Input: map[string]any{"command": "x"}}}}, ids: []string{"c1"}}, got)
+	if call := mockCall(marked.agent.Calls[0]); !call.Gated || call.Input[gateKey] != nil {
+		t.Fatalf("%+v", call)
+	}
+}
