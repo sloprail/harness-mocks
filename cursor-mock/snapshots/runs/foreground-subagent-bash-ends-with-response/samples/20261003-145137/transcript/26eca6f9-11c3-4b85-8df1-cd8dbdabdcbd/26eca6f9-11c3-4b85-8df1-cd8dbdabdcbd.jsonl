@@ -1,4 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nStart this shell command in the background so it keeps running without you waiting for it:\n\nsleep 47; echo SUBBG\n\nUse block_until_ms: 0 (or equivalent) so the command is backgrounded immediately and you do NOT wait for it to finish.\n\nThen immediately reply with the single word DONE. Do not wait for the sleep command. Your entire final response to me must be exactly: DONE\n</user_query>"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"Starting the sleep command in the background now."},{"type":"tool_use","name":"Shell","input":{"command":"sleep 47; echo SUBBG","block_until_ms":0}}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
-{"type":"turn_ended","status":"success"}

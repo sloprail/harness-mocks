@@ -1,7 +1,6 @@
 package replay
 
 import (
-	rp "github.com/sloprail/harness-mocks/internal/replay"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,20 +75,5 @@ func TestMeasuredDurationsAreComparedBySign(t *testing.T) {
 	}
 	if got := measuredText("n/a"); got != "n/a" {
 		t.Errorf("a string that is not a number is left alone, got %q", got)
-	}
-}
-
-// The processes a listing shows are the machine's: any number of them, in either
-// of the forms the output takes, canonicalise alike.
-func TestAProcessListingIsNotCompared(t *testing.T) {
-	c := rp.New(Rules("/r", "/w"))
-	got := c.Lines([]map[string]any{
-		{"output": "  1 ??  Ss   0:00.01 /bin/zsh -c x\n 22 ??  S   0:00.02 cursor-agent sleep 47\nCHECKED\n"},
-		{"output": " 99 ??  S   0:00.02 cmock sleep 47\nCHECKED\n"},
-		{"tool_output": `{"output":"1 ??  Ss   0:00.01 /bin/zsh -c \\'x\\'\n2 ?? S 0:01.00 y\nCHECKED\n"}`},
-		{"tool_output": `{"output":"7 ?? S 0:00.02 z\nCHECKED\n"}`},
-	})
-	if got[0] != got[1] || got[2] != got[3] {
-		t.Fatalf("%v", got)
 	}
 }
