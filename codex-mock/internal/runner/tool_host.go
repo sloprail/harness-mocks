@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
@@ -74,6 +75,7 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 	cmd := command(c)
 	argv := shellArgv(c, cmd)
 	id := h.events.CommandStarted(cmd)
+	began := time.Now()
 	var r tools.BashResult
 	if y, yields := yieldTime(c); yields {
 		var running bool
@@ -83,12 +85,15 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 	} else {
 		r = tools.BashArgv(ctx, argv, h.cfg.Cwd, h.toolEnv)
 	}
+	if ctx.Err() != nil { // the user interrupted the turn: the command was stopped, and it is not reported as ended
+		return toolcall.Result{Output: fmt.Sprintf("aborted by user after %.1fs", time.Since(began).Seconds())}
+	}
 	r.Output = ttyOutput(c, r.Output)
 	if tooLong(c, r.Output) {
 		return refused("max_output_tokens below the command's output (the output is not truncated)")
 	}
 	h.events.CommandCompleted(id, cmd, r.Output, r.ExitCode)
-	return toolcall.Result{Output: r.Output, Failed: r.Failed()}
+	return toolcall.Result{Output: r.Output, Failed: r.Failed(), Wall: time.Since(began), Ended: true}
 }
 
 // After fires PostToolUse, which Codex fires for every command that ran,
@@ -96,7 +101,7 @@ func (h toolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Result 
 // gives the agent its feedback in place of the result.
 // sr:provides posttooluse-payload/codex
 func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result, _ corehooks.AfterTool) (string, bool) {
-	if !tasks.AfterHookFires(h.stillRunning(c.ID)) { // its PostToolUse comes when it ends, if ever
+	if ctx.Err() != nil || !tasks.AfterHookFires(h.stillRunning(c.ID)) { // an interrupted call fires no PostToolUse // its PostToolUse comes when it ends, if ever
 		return "", false
 	}
 	own := h.payload(c)
@@ -114,36 +119,4 @@ func (h toolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Result,
 		}
 	}
 	return "", false
-}
-
-// Answer records what the agent was told, in Codex's words.
-func (h toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
-	var text string
-	switch a.Kind {
-	case toolcall.Unknown:
-		text = "unsupported call: " + c.Name
-	case toolcall.Invalid:
-		if c.Name == agentTool {
-			text = spawnRefusal
-			break
-		}
-		text = fmt.Sprintf("failed to parse function arguments: missing field `%s`", a.Missing[0])
-	case toolcall.Refused:
-		text = fmt.Sprintf("Command blocked by PreToolUse hook: %s. Command: %s", a.Reason, command(c))
-		fmt.Fprintf(h.cfg.Stderr, "ERROR codex_core::tools::router: error=%s\n", text)
-	case toolcall.Done:
-		text = a.Result.Output
-		if c.Name == patchTool && !a.Result.Failed {
-			text = patchTold
-		}
-		if a.Replaced {
-			text = a.Feedback
-			fmt.Fprintf(h.cfg.Stderr, "ERROR codex_core::tools::router: error=%s\n", text)
-		}
-	}
-	h.rollout.ToolOutput(c.ID, text)
-	h.prog.Move(0, 1) // finished: what another agent's gate may wait for
-	if c.Name == agentTool && a.Kind == toolcall.Done && !a.Replaced && !a.Result.Failed {
-		h.startBackground(c, a.Result.Output) // a dispatch not waited for runs once it is answered
-	}
 }
