@@ -6,8 +6,7 @@ package e2e
 // the claude adapter cannot reproduce yet; "mock gap:" is what the mock does not produce that
 // the recording shows (each gap is a PR of its own).
 var notReplaying = map[string]string{
-	"bgagent-concurrent-limit": "mock gap: the sub-agent's Bash starts (task_started) before the main agent's next answer streams, where the recording has it after; SubagentStart's hook line precedes the launch's PostToolUse, where the recording (a race between two concurrent hooks) has it after",
-	"bgagent-nested-launcher":  "adapter: the model said two things before one call: the adapter keeps one",
+	"bgagent-concurrent-limit": "mock gap: the recorded samples differ in what the model did (one sends both Agent calls in a single message, one is nudged by the harness's synthetic \"no visible output\" user turn): the mock replays one tool call per turn, and has no frame for the nudge",
 	"cap":                      "adapter: the model said two things before one call: the adapter keeps one",
 	"compact":                  "adapter: the setup has then, which the adapter does not install",
 	"compact-nohooks":          "adapter: the setup has then, which the adapter does not install",
