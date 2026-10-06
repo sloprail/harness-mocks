@@ -94,18 +94,18 @@ eq "cap-grounded: b's cited run changed, a's key does not" "$(key "$K1" a)" "$(k
 back; run rb '{"e":2}'; H4="$(step rb)"
 back; run ra '{"e":2}'; H5="$(step ra)"
 K4="$(keys capability-rigor "$H4")"; K5="$(keys capability-rigor "$H5")"
-eq "cap-rigor: a run of b touches b alone" "$(ids "$K4")" "b "
-eq "cap-rigor: a run of a touches a alone" "$(ids "$K5")" "a "
+eq "cap-rigor: a run of b touches b alone" "$(ids "$K4")" "b/claude "
+eq "cap-rigor: a run of a touches a alone" "$(ids "$K5")" "a/claude "
 back; run rb '{"e":2}'; run ra '{"e":2}'; H6="$(step both-runs)"
 K6="$(keys capability-rigor "$H6")"
-eq "cap-rigor: both runs, both capabilities" "$(ids "$K6")" "a b "
-eq "cap-rigor: b's key is the same whether or not a's run changed" "$(key "$K4" b)" "$(key "$K6" b)"
-eq "cap-rigor: a's key is the same whether or not b's run changed" "$(key "$K5" a)" "$(key "$K6" a)"
+eq "cap-rigor: both runs, both capabilities" "$(ids "$K6")" "a/claude b/claude "
+eq "cap-rigor: b's key is the same whether or not a's run changed" "$(key "$K4" b/claude)" "$(key "$K6" b/claude)"
+eq "cap-rigor: a's key is the same whether or not b's run changed" "$(key "$K5" a/claude)" "$(key "$K6" a/claude)"
 # a proving test b carries but this range does not select (it is unchanged): declared by the fingerprint
 back; cap b rb "b changed"; w claude-mock/e2e/b_test.go <<<$'// sr:proves b/claude\n// edited'; H7="$(step b-test)"
 back; cap b rb "b changed"; w claude-mock/e2e/b_test.go <<<$'// sr:proves b/claude\n// edited more'; H8="$(step b-test2)"
 K7="$(keys capability-rigor "$H7")"; K8="$(keys capability-rigor "$H8")"
-ne "cap-rigor: b's proving test changed, b's key moves" "$(key "$K7" b)" "$(key "$K8" b)"
+ne "cap-rigor: b's proving test changed, b's key moves" "$(key "$K7" b/claude)" "$(key "$K8" b/claude)"
 
 # --- #87's cell kinds: a pending cell is neither judged nor coverage; an unsupported one (with its docs) is grounded, never rigor
 back; w spec/capabilities/u.yaml <<'EOF'
@@ -272,10 +272,11 @@ for rule in capability-grounded capability-rigor; do
     eq "$rule: a doc-only change (re-freeze, binary bump, same-sha re-freeze) re-judges nothing" "$("$SR" changeset --rule $rule --base "$BASE" --head "$n" | jq -r '[.subjects[] | (.payload.subject.files // [])[]] | length')" "0"
   done
   K1="$(keys $rule "$NR1")"; K2="$(keys $rule "$NR2")"; K3="$(keys $rule "$NR3")"
-  eq "$rule: a recording of a's touches a alone" "$(ids "$K1")" "a "
-  eq "$rule: ... a re-freeze shipped with it leaves a's key as the recording alone has it" "$(key "$K1" a)" "$(key "$K2" a)"
-  eq "$rule: ... and a re-freeze of a page a does not cite changes nothing either" "$(key "$K1" a)" "$(key "$K3" a)"
-  eq "$rule: ... and b is not touched by a's recording or the re-freeze" "$(ids "$K3")" "a "
+  s=""; [ "$rule" = capability-rigor ] && s="/claude"   # the rigor subjects are (capability, harness) pairs
+  eq "$rule: a recording of a's touches a alone" "$(ids "$K1")" "a$s "
+  eq "$rule: ... a re-freeze shipped with it leaves a's key as the recording alone has it" "$(key "$K1" a$s)" "$(key "$K2" a$s)"
+  eq "$rule: ... and a re-freeze of a page a does not cite changes nothing either" "$(key "$K1" a$s)" "$(key "$K3" a$s)"
+  eq "$rule: ... and b is not touched by a's recording or the re-freeze" "$(ids "$K3")" "a$s "
 done
 # an edited declaration touches the capabilities marked on it, and a file edit outside every declaration none
 back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n\tmore()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'; X1="$(step edit-A)"
@@ -284,11 +285,11 @@ back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nf
 back; w claude-mock/internal/x/x.go <<<$'package x\n\nfunc helper() {}\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'; X4="$(step add-unmarked-func)"
 back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n'; X5="$(step drop-B)"
 KX1="$(keys capability-rigor "$X1")"; KX2="$(keys capability-rigor "$X2")"; KX3="$(keys capability-rigor "$X3")"
-eq "cap-rigor: editing A's declaration touches a alone" "$(ids "$KX1")" "a "
-eq "cap-rigor: editing B's declaration touches b alone" "$(ids "$KX2")" "b "
-eq "cap-rigor: editing both touches both" "$(ids "$KX3")" "a b "
+eq "cap-rigor: editing A's declaration touches a alone" "$(ids "$KX1")" "a/claude "
+eq "cap-rigor: editing B's declaration touches b alone" "$(ids "$KX2")" "b/claude "
+eq "cap-rigor: editing both touches both" "$(ids "$KX3")" "a/claude b/claude "
 eq "cap-rigor: an unmarked function added in the file touches no capability" "$(ids "$(keys capability-rigor "$X4")")" "unclaimed "
-eq "cap-rigor: removing B's marked declaration touches b (its old marker), not a" "$(ids "$(keys capability-rigor "$X5")")" "b "
+eq "cap-rigor: removing B's marked declaration touches b (its old marker), not a" "$(ids "$(keys capability-rigor "$X5")")" "b/claude "
 # a doc problem is the refusal reason, never an unbound-variable crash: doc_copy's DOC_ERROR must reach
 # prepare.sh (it once ran in a $(...) subshell and died with "DOC_ERROR: unbound variable")
 back; cap z rz; w spec/capabilities/z.yaml <<<$'statement: z works\nproviders:\n  claude:\n    docs: [https://d.example/unfrozen#s]\n    runs: [claude-mock/snapshots/runs/rz]\n  codex: pending'; run rz '{"e":1}'; w claude-mock/e2e/z_test.go <<<'// sr:proves z/claude'; HZ="$(step unfrozen-doc)"
