@@ -68,30 +68,12 @@ const runPlaceholder = "@RUN@"
 func Denormalize(rec core.Recording) Scenario {
 	files := map[string]string{"hook.sh": rec.Setup["hook.sh"]}
 	scripts := map[string]string{}
-	calls := make([]modelCall, len(rec.Agent.Calls))
-	mainGates := gatesOf(rec.Agent, nil)
-	n := 0
-	for i, c := range rec.Agent.Calls {
-		calls[i] = mockCall(c)
-		calls[i].Gate = mainGates[i]
-		if c.Tool == core.ToolSpawn && c.Sub != nil {
-			name := fmt.Sprintf("sub%d.sh", n)
-			subCalls := make([]modelCall, len(c.Sub.Calls))
-			subGates := gatesOf(*c.Sub, &rec.Agent)
-			for j, sc := range c.Sub.Calls {
-				subCalls[j] = mockCall(sc)
-				subCalls[j].Gate = subGates[j]
-			}
-			scripts[name] = scriptFor(fmt.Sprintf("sub%d", n), 0, subCalls, c.Sub.Final, c.Sub.Unfinished, subGates[len(subCalls)])
-			calls[i].Input["script"] = scriptsDir + "/" + name
-			n++
-		}
-	}
+	main := agentCalls(rec.Agent, nil, scripts, new(int))
 	return Scenario{
 		HooksJSON:        rec.Setup["hooks.json"],
 		Files:            files,
 		Scripts:          scripts,
-		Script:           scriptFor("main", 0, calls, rec.Agent.Final, false, mainGates[len(calls)]),
+		Script:           scriptFor("main", 0, main.calls, rec.Agent.Final, false, main.final),
 		Then:             thenScenario(rec),
 		Prompt:           rec.Prompt,
 		Flags:            strings.Fields(rec.Setup["flags"]),
@@ -129,4 +111,32 @@ func mockCall(c core.Call) modelCall {
 		in["targets"] = ids
 	}
 	return modelCall{Text: c.Said, Name: name, Input: in, More: c.More}
+}
+
+// agentScript is an agent's calls as the mock's steps, with the gate of its final answer.
+type agentScript struct {
+	calls []modelCall
+	final scenario.Gate
+}
+
+// agentCalls are an agent's calls as the mock's steps. Each sub-agent it starts, and each of theirs,
+// becomes a script file of its own in scripts, named by the order the whole tree's spawns are met in
+// (n counts them), and its spawn call names it.
+func agentCalls(a core.Agent, parent *core.Agent, scripts map[string]string, n *int) agentScript {
+	calls := make([]modelCall, len(a.Calls))
+	gates := gatesOf(a, parent)
+	for i, c := range a.Calls {
+		calls[i] = mockCall(c)
+		calls[i].Gate = gates[i]
+		if c.Tool != core.ToolSpawn || c.Sub == nil {
+			continue
+		}
+		k := *n
+		*n++
+		sub := agentCalls(*c.Sub, &a, scripts, n)
+		name := fmt.Sprintf("sub%d.sh", k)
+		scripts[name] = scriptFor(fmt.Sprintf("sub%d", k), 0, sub.calls, c.Sub.Final, c.Sub.Unfinished, sub.final)
+		calls[i].Input["script"] = scriptsDir + "/" + name
+	}
+	return agentScript{calls, gates[len(calls)]}
 }

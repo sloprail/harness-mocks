@@ -85,6 +85,9 @@ func modelTurns(records []map[string]any, receipts []string) (agent core.Agent, 
 	if len(derived) > 0 {
 		return core.Agent{}, fmt.Errorf("a script of the model has no recorded output: its calls may not have run")
 	}
+	if receipts == nil { // a sub-agent's own spawns are not in the run's stream: its rollout holds the receipts it was given
+		receipts = told
+	}
 	if err := attachReceipts(calls, receipts); err != nil {
 		return core.Agent{}, err
 	}

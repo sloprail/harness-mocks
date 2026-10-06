@@ -14,8 +14,6 @@ var notReplaying = map[string]string{
 	"manual-compaction-auto-blocked":       "adapter: a compaction a hook stopped aborts the turn, which the rollout shows as an interruption the adapter does not turn into a script",
 	"manual-compaction-auto-post-stopped":  "adapter: a compaction a hook stopped aborts the turn, which the rollout shows as an interruption the adapter does not turn into a script",
 	"nested-session-env":                   "adapter: the setup has env, which the adapter does not install",
-	"nested-subagents":                     "adapter: the setup has args, which the adapter does not install",
-	"nested-subagents-limit":               "adapter: the setup has args, which the adapter does not install",
 	"noninteractive-run-git-check-refused": "adapter: recorded with another command line: \"codex exec --json --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
 	"noninteractive-run-no-git-check":      "adapter: recorded with another command line: \"codex exec --json --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
 	"noninteractive-run-output-schema":     "adapter: the setup has args, which the adapter does not install",

@@ -87,24 +87,11 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, unbuildable(err)
 	}
-	for i := range agent.Calls {
-		c := &agent.Calls[i]
-		if c.Tool != core.ToolSpawn || c.Ref == "" { // a spawn with no receipt was refused: no sub-agent
-			continue
-		}
-		rollout, ok := subs[c.Ref]
-		if !ok {
-			return core.Recording{}, unbuildable(fmt.Errorf("a spawn_agent whose receipt names %s, which has no recorded rollout", c.Ref))
-		}
-		delete(subs, c.Ref)
-		sub, err := modelTurns(rollout, nil)
-		if err != nil {
-			return core.Recording{}, unbuildable(fmt.Errorf("sub-agent: %w", err))
-		}
-		c.Sub = &sub
+	if err := attachSubs(&agent, subs); err != nil {
+		return core.Recording{}, unbuildable(err)
 	}
 	for thread := range subs {
-		return core.Recording{}, unbuildable(fmt.Errorf("the rollout of thread %s is no spawn_agent's of the main thread (a sub-agent's own sub-agents are not replayed yet)", thread))
+		return core.Recording{}, unbuildable(fmt.Errorf("the rollout of thread %s is no spawn_agent's of any agent", thread))
 	}
 	return core.Recording{
 		Dir:    runDir,
