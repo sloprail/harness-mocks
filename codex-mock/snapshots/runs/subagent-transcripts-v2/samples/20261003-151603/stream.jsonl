@@ -1,8 +1,0 @@
-{"type":"thread.started","thread_id":"01a10256-30c2-7943-a8da-522dd95b6a86"}
-{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
-{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
-{"type":"turn.started"}
-{"type":"item.started","item":{"id":"item_2","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10256-30c2-7943-a8da-522dd95b6a86","receiver_thread_ids":[],"prompt":null,"agents_states":{},"status":"in_progress"}}
-{"type":"item.completed","item":{"id":"item_2","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10256-30c2-7943-a8da-522dd95b6a86","receiver_thread_ids":[],"prompt":null,"agents_states":{},"status":"completed"}}
-{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"DONE"}}
-{"type":"turn.completed","usage":{"input_tokens":39977,"cached_input_tokens":32000,"cache_write_input_tokens":0,"output_tokens":81,"reasoning_output_tokens":16}}

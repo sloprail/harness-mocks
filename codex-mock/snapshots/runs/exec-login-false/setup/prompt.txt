@@ -1,0 +1,1 @@
+Run the shell command echo one with the exec_command tool, passing login set to false and no shell option. Then reply only DONE.

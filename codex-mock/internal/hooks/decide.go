@@ -92,7 +92,7 @@ func readOutput(ev Event, s string) Decision {
 	if out.Decision != nil && *out.Decision == "block" {
 		d.Denied, d.DenyReason, d.Permission = true, out.Reason, "deny"
 	}
-	if (ev == Stop || ev == SessionStart) && out.Continue != nil && !*out.Continue {
+	if (ev == Stop || ev == SessionStart || ev == SubagentStop) && out.Continue != nil && !*out.Continue {
 		d.Halt = true
 	}
 	if ev == PreToolUse {

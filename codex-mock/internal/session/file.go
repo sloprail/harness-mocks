@@ -85,5 +85,14 @@ func (s *File) ToolOutput(callID, output string) {
 	s.append("response_item", map[string]any{"type": "function_call_output", "call_id": callID, "output": output})
 }
 
+// ToolOutputParts records a tool result that the harness tells the agent as parts, one after another.
+func (s *File) ToolOutputParts(callID string, parts ...string) {
+	out := make([]map[string]string, len(parts))
+	for i, p := range parts {
+		out[i] = map[string]string{"type": "input_text", "text": p}
+	}
+	s.append("response_item", map[string]any{"type": "function_call_output", "call_id": callID, "output": out})
+}
+
 // Close ends the rollout.
 func (s *File) Close() error { return s.f.Close() }

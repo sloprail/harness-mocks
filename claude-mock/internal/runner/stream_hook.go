@@ -132,7 +132,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				continue
 			}
 			bg.endRun(cfg)
-			return nil
+			return bg.refused.Err()
 		}
 		sig := turn.sig
 		if sig != "" && sig == lastSig {

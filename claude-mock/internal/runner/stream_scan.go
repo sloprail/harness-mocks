@@ -17,7 +17,6 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var out scanResult
-
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(bytes.TrimSpace(line)) == 0 {
@@ -62,13 +61,14 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				// The tool_use is written BEFORE the PreToolUse hook fires: it is part of the trajectory.
-				if cfg.AgentID != "" {
+				if _, err := Schema().Check(toolName, toolInput); err != nil { // adr/tool-calls-validated
+					return scanResult{}, err
+				}
+				if cfg.AgentID != "" { // the tool_use is written BEFORE the PreToolUse hook fires
 					cfg.progress(cfg, toolName, toolInput)
 				}
 				writeStreamLine(cfg, line)
 				tr.persist(line)
-
 				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
 					return out, nil

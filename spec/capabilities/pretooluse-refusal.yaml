@@ -32,7 +32,7 @@ providers:
         kind: mock-not-modeled
         statement: >-
           The mock's tool executor handles only the shell tool (hooks name it
-          Bash), so a refusal of apply_patch, of MCP tools and of Codex's other
+          Bash) and apply_patch, so a refusal of MCP tools and of Codex's other
           local function tools is not modeled. Hosted tools such as web search
           run no hook in Codex either.
   cursor:

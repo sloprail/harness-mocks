@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -75,7 +76,9 @@ func TestACommandStillRunningAfterItsYieldTimeIsAnsweredWithAReceiptAndKeepsRunn
 	cmds, yields := recordedYields(t, rec)
 	require.Len(t, cmds, 2)
 	require.Contains(t, cmds[0], "sleep 25")
-	calls := []string{yields[0] + " " + strings.ReplaceAll(cmds[0], "sleep 25", "sleep 3"), yields[1] + " " + cmds[1]}
+	// the recorded 25 seconds are shortened to 3, and the command notes its process id, so that whether
+	// it died with the run is read at once from that process, not from a file that could appear later
+	calls := []string{yields[0] + " echo $$ >pid.txt; " + strings.ReplaceAll(cmds[0], "sleep 25", "sleep 3"), yields[1] + " " + cmds[1]}
 	f := filepath.Join(t.TempDir(), "calls")
 	require.NoError(t, os.WriteFile(f, []byte(strings.Join(calls, "\n")+"\n"), 0o644))
 	got := execMock(t, scenario{
@@ -117,14 +120,20 @@ func TestACommandStillRunningAfterItsYieldTimeIsAnsweredWithAReceiptAndKeepsRunn
 	assert.Equal(t, []string{cmds[1]}, post)
 
 	// the receipt is what the recording shows: a session id and what was
-	// printed so far, no file; the ls result is plain
+	// printed so far, no file; the ls result is framed as any command that ran to its end
 	told := toolOutputs(t, got.rollout(t))
 	require.Len(t, told, 2)
 	assert.Equal(t, recordedReceipt(t, rec), receiptKeys(t, told[0]))
 	assert.Regexp(t, `"session_id":\d+`, told[0])
-	assert.Equal(t, "hook.sh\n", told[1])
+	assert.Regexp(t, `^Script completed\nWall time [0-9.]+ seconds\nOutput:\nhook\.sh\npid\.txt\n$`, told[1]) // pid.txt: the running command noted its process id
 
-	// it ran while the agent worked, and died with the run: no bg.out
-	_, err := os.Stat(filepath.Join(got.Repo, "bg.out"))
+	// it ran while the agent worked (it noted its process id), and died with the run: that process
+	// is gone (or a zombie awaiting reaping) as soon as the run has ended, and it wrote no bg.out
+	raw, err := os.ReadFile(filepath.Join(got.Repo, "pid.txt"))
+	require.NoError(t, err, "the command ran")
+	pid := strings.TrimSpace(string(raw))
+	state, _ := exec.Command("ps", "-o", "stat=", "-p", pid).Output()
+	assert.True(t, strings.TrimSpace(string(state)) == "" || strings.HasPrefix(strings.TrimSpace(string(state)), "Z"), "process %s is still running: %q", pid, state)
+	_, err = os.Stat(filepath.Join(got.Repo, "bg.out"))
 	assert.True(t, os.IsNotExist(err), fmt.Sprint(err))
 }
