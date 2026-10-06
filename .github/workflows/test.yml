@@ -167,7 +167,8 @@ jobs:
             claude) export A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock"; skip=(-skip "$TIMED_REPLAYS") ;;
             cursor) export A10N_CURSOR_MOCK_TEST_BINARY="$PWD/bin/a10n-cursor-mock" ;;
           esac
-          go test -race -count=1 -v "${skip[@]}" ./${{ matrix.mock }}-mock/e2e/...
+          # 30m: claude-mock's 017_session_lifecycle takes 510 to 545 s on these runners (see its Makefile)
+          go test -race -count=1 -timeout 30m -v "${skip[@]}" ./${{ matrix.mock }}-mock/e2e/...
 
   subject-tests:
     name: rule subject tests
