@@ -23,6 +23,7 @@ type toolHost struct {
 	failure, result string
 	res             toolexec.Result
 	read            bool // res is the read Before made
+	prepared        bool // the call is built and its preToolUse has fired
 	// contexts are what the call's after-tool hooks gave the agent, as its
 	// completed frame carries them.
 	contexts []any
@@ -44,16 +45,12 @@ func (h *toolHost) Tool(name string) ([]string, bool) { return toolexec.Required
 //
 // sr:docs https://cursor.com/docs/hooks#pretooluse
 func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
-	h.call = toolexec.FromScript(c.Name, c.Input)
-	useID := c.ID
-	if h.call.Kind == "mcpToolCall" {
-		useID = coresession.NewID() // an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp)
+	if !h.prepared { // a call of a response of several had its preToolUse fired as it started (startedEarly)
+		h.prepare(c)
+		h.firePre(ctx, true)
 	}
-	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: useID}
-	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
-		h.failure, h.result = hooks.PreToolRefusal(msg)
-		h.refused = true
-		h.s.named = true
+	h.s.named = true
+	if h.refused {
 		return true, h.result
 	}
 	h.s.named = true
@@ -88,7 +85,7 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 // Execute runs the call, with the identity of the session in a shell
 // command's environment, and prints its completed frame.
 func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result {
-	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id), childenv.Defaults())
+	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id, h.s.requestID, h.s.cfg.Version), childenv.Defaults())
 	if h.call.Kind == "shellToolCall" && !h.s.cfg.Force {
 		h.res = toolexec.Unapproved(h.call, h.s.cfg.Dir)
 	} else if !h.read {
@@ -111,5 +108,34 @@ func (h *toolHost) Answer(c toolcall.Call, a toolcall.Answer) {
 		h.emit(errorFrame(h.s.id, c.ID, toolexec.Call{Kind: "unknownToolCall"}, "Unknown tool: "+c.Name, nil))
 	case toolcall.Invalid:
 		h.emit(invalidFrame(h.s.id, c, a.Missing))
+	}
+}
+
+// prepare builds the call and the tool its hooks are told of.
+func (h *toolHost) prepare(c toolcall.Call) {
+	h.call = toolexec.FromScript(c.Name, c.Input)
+	h.call.Request = h.s.requestID
+	useID := c.ID
+	if h.call.Kind == "mcpToolCall" || h.call.Kind == "shellToolCall" && !h.call.Background() {
+		// an MCP call's hooks name it by an id of their own (recorded: runs/hook-matchers-mcp),
+		// and so do a foreground command's; a command left in the background is
+		// named by its call (recorded: runs/task-notifications-bg, runs/shell-exit-status)
+		useID = coresession.NewID()
+	}
+	if h.call.HookID != "" && h.call.Kind != "mcpToolCall" { // a script names the id its recording's hooks gave the call
+		useID = h.call.HookID
+	}
+	h.tool = hooks.Tool{Name: h.call.Name(), Input: h.call.HookInput(h.s.cfg.Dir), UseID: useID}
+}
+
+// firePre fires the call's preToolUse hooks; a refusal is the call's.
+func (h *toolHost) firePre(ctx context.Context, name bool) {
+	h.prepared = true
+	if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.PreToolUse, h.tool.Name, hooks.ToolFields(h.tool))); refused {
+		h.failure, h.result = hooks.PreToolRefusal(msg)
+		h.refused = true
+	}
+	if name { // the transcript is named once a call's preToolUse has fired, however it ended
+		h.s.named = true
 	}
 }

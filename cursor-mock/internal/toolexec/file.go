@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
@@ -56,7 +57,7 @@ func read(c Call, dir string) Result {
 		ToolOutput: jsonString(struct {
 			FilePath      string `json:"file_path"`
 			ContentLength int    `json:"content_length"`
-		}{path, len(content)}),
+		}{path, len(utf16.Encode([]rune(content)))}), // content_length counts characters the way the harness does, in UTF-16 units (recorded: runs/schedule-wakeup-ask, a file with non-ASCII text)
 	}
 }
 

@@ -23,6 +23,11 @@ type taskInput struct {
 	Prompt       string `json:"prompt"`
 	SubagentType string `json:"subagent_type"`
 	Script       string `json:"script"`
+	// AgentID is mock-only too: the id the sub-agent's conversation takes, where a
+	// scenario's text quotes it (a replay of a recording); else a fresh one.
+	AgentID string `json:"agent_id"`
+	// HookToolUseID is the id the call's hooks name it by, when it is not its own.
+	HookToolUseID string `json:"hook_tool_use_id"`
 	// Model and RunInBackground are optional: what the model left out the hooks
 	// are not told of either (recorded: runs/subagent-worktree-isolation and
 	// runs/foreground-subagent-result).
@@ -30,9 +35,18 @@ type taskInput struct {
 	RunInBackground *bool   `json:"run_in_background"`
 }
 
+// agentID is the id the sub-agent's conversation takes.
+func (in taskInput) agentID() string {
+	if in.AgentID != "" {
+		return in.AgentID
+	}
+	return coresession.NewID()
+}
+
 // dispatchesSubagent reports whether the call is a foreground Task the mock
-// runs as a sub-agent: one with its description, prompt and the script that
-// plays the sub-agent. A background Task, and a main agent's call that lacks
+// runs as a sub-agent: one with its prompt (the description is optional: a call
+// without it ran, recorded: runs/agent-input-validation-description) and the
+// script that plays the sub-agent. A background Task, and a main agent's call that lacks
 // them, are not modelled (adr/modeled-surface); they end as a call to a tool
 // the mock does not have.
 func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
@@ -40,7 +54,7 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil {
 		return in, false
 	}
-	return in, in.Description != "" && in.Prompt != "" && in.Script != ""
+	return in, in.Prompt != "" && in.Script != ""
 }
 
 // startSubagent is the first half of a foreground Task call: the parent's
@@ -73,11 +87,11 @@ func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in tas
 func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput, typ string, args map[string]any) {
 	started := time.Now()
 	sub := *s
-	sub.id, sub.parent = coresession.NewID(), s
+	sub.id, sub.parent = in.agentID(), s
 	sub.requestID, sub.modelN = coresession.NewID(), 0 // a sub-agent is a model request of its own
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.pending, sub.added, sub.named, sub.owed = nil, nil, nil, false, tasks.Deferred{}
+	sub.texts, sub.pending, sub.added, sub.named, sub.owed, sub.reaped = nil, nil, nil, false, tasks.Deferred{}, nil
 	var err error
 	if sub.tr, err = newSubagentTranscript(s.tr, sub.id); err != nil {
 		sub.tr = s.tr
@@ -98,6 +112,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	// call (recorded: runs/foreground-subagent-bash-ends-with-response)
 	for _, t := range s.registry().EndedAtResponse(sub.owner) {
 		s.owed.Hold(notificationFrame(s.id, t))
+		s.reaped = append(s.reaped, t)
 	}
 }
 

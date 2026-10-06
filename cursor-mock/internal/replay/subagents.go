@@ -21,7 +21,7 @@ type conversation struct {
 // session's: Cursor keeps a sub-agent's in a directory of its own named by its
 // id, beside the session's (agent-transcripts/<id>/<id>.jsonl), and no file that
 // says which call started it.
-func conversations(dir, session string, thoughts map[string]map[int]*core.Thinking) ([]conversation, error) {
+func conversations(dir, session string, thoughts map[string][]thoughtAt) ([]conversation, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil
@@ -30,6 +30,9 @@ func conversations(dir, session string, thoughts map[string]map[int]*core.Thinki
 	for _, e := range entries {
 		if !e.IsDir() || e.Name() == session {
 			continue
+		}
+		if _, project := os.Stat(filepath.Join(dir, e.Name(), session)); project == nil {
+			continue // a project directory holding the session's transcript, not a conversation of a sub-agent
 		}
 		records, err := readJSONL(filepath.Join(dir, e.Name(), e.Name()+".jsonl"))
 		if err != nil {
@@ -98,6 +101,7 @@ func attach(a core.Agent, convs *[]conversation) (core.Agent, error) {
 		if err != nil {
 			return core.Agent{}, err
 		}
+		sub.ID = cv.id
 		out.Calls[i].Sub = &sub
 	}
 	return out, nil

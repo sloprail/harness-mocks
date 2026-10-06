@@ -15,6 +15,8 @@ func mockCall(c core.Call) scriptCall {
 	for k, v := range c.Input {
 		in[k] = v
 	}
+	hookID := in[hookIDKey] // the id the call's hooks name it by, when it is not the call's own
+	delete(in, hookIDKey)
 	name := "Shell"
 	switch c.Tool {
 	case core.ToolSpawn:
@@ -57,6 +59,9 @@ func mockCall(c core.Call) scriptCall {
 			in["__description"] = description
 		}
 	}
+	if hookID != nil && c.Tool != core.ToolMCP { // an MCP call's hooks always name it by an id of their own
+		in["hook_tool_use_id"] = hookID
+	}
 	return scriptCall{Name: name, Input: in}
 }
 
@@ -66,10 +71,10 @@ func mockCall(c core.Call) scriptCall {
 // assistant records as its lines say. Past the last step it prints nothing,
 // which ends the run. Call ids are unique across the run's scripts (tag), as
 // the real ones are.
-func script(tag string, steps []step) string {
+func script(tag string, steps []step, after int) string {
 	var b strings.Builder
 	b.WriteString("#!/bin/sh\nn=$(grep -c '\"role\":\"assistant\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\ncase ${n:-0} in\n")
-	at := 0
+	at := after
 	for i, s := range steps {
 		fmt.Fprintf(&b, "%d) printf '%%s\\n' '%s' ;;\n", at, shellQuote(stepLine(fmt.Sprintf("toolu_%s_%d", tag, i), s)))
 		at += s.lines()

@@ -38,6 +38,9 @@ type Param struct {
 	// implements and no recorded run happens to show; it grounds the parameter in
 	// place of a recording.
 	Doc string
+	// Unmodeled, when set, says of a value the mock does not implement why (a form
+	// of the value no recording shows); "" is a value it does.
+	Unmodeled func(v any) string
 	// Values are the only values of this option the mock implements; none: any value of its type.
 	Values []any
 }

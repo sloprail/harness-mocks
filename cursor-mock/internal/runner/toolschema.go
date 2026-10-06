@@ -16,6 +16,8 @@ var taskParams = []toolspec.Param{
 	{Name: "model", Type: toolspec.String},
 	{Name: "run_in_background", Type: toolspec.Boolean},
 	{Name: "script", Type: toolspec.String, MockOnly: true},
+	{Name: "agent_id", Type: toolspec.String, MockOnly: true},
+	{Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true},
 }
 
 // shellParams are the parameters of a Shell call (recorded: the Shell calls of
@@ -24,9 +26,17 @@ var taskParams = []toolspec.Param{
 // ended in time) run it in the foreground; a foreground command that outlasts its
 // limit moving to the background is not modeled (adr/modeled-surface).
 var shellParams = []toolspec.Param{
-	{Name: "command", Type: toolspec.String, Required: true},
+	{Name: "command", Type: toolspec.String, Required: true, Unmodeled: func(v any) string {
+		line, _ := v.(string)
+		if why := toolexec.UnmodeledSyntax(line); why != "" {
+			return "the command line holds " + why + ", whose frames no recording shows"
+		}
+		return ""
+	}},
 	{Name: "description", Type: toolspec.String},
 	{Name: "block_until_ms", Type: toolspec.Integer, Values: []any{0, 15000, 35000}},
+	{Name: "task_id", Type: toolspec.String, MockOnly: true},
+	{Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true},
 }
 
 // taskAnswers: a Task call without its prompt is answered by Cursor itself
@@ -39,18 +49,20 @@ var taskAnswers = map[toolspec.Kind]string{toolspec.Missing: "agent-input-valida
 var schema = toolspec.Schema{Harness: "cursor", Tools: []toolspec.Tool{
 	{Name: "Shell", Params: shellParams},
 	{Name: "Bash", Recorded: "Shell", Params: shellParams},
-	{Name: "Read", Params: []toolspec.Param{{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true}}},
+	{Name: "Read", Params: []toolspec.Param{{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true}, {Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true}}},
 	{Name: "Write", Params: []toolspec.Param{
 		{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true},
 		{Name: "content", Recorded: "contents", Type: toolspec.String, Required: true},
+		{Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true},
 	}},
 	{Name: "Edit", Recorded: "StrReplace", Params: []toolspec.Param{
 		{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true},
 		{Name: "old_string", Type: toolspec.String, Required: true},
 		{Name: "new_string", Type: toolspec.String, Required: true},
+		{Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true},
 	}},
-	{Name: "Grep", Params: []toolspec.Param{{Name: "pattern", Type: toolspec.String, Required: true}}},
-	{Name: "Delete", Params: []toolspec.Param{{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true}}},
+	{Name: "Grep", Params: []toolspec.Param{{Name: "pattern", Type: toolspec.String, Required: true}, {Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true}}},
+	{Name: "Delete", Params: []toolspec.Param{{Name: "file_path", Recorded: "path", Type: toolspec.String, Required: true}, {Name: "hook_tool_use_id", Type: toolspec.String, MockOnly: true}}},
 	// a search of the harness's tool catalogue, by pattern, or the lookup of one
 	// MCP tool the agent is about to call (recorded: runs/schedule-wakeup-ask, runs/hook-matchers-mcp)
 	{Name: "GetDynamicTools", Params: []toolspec.Param{

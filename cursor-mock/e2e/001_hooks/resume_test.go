@@ -99,7 +99,7 @@ func shape(t *testing.T, path string) (users, ends int, endsLast bool) {
 // sr:proves session-resume/cursor
 // sr:proves session-start-hook/cursor
 func TestResumeByIDContinuesInTheTranscriptOfItsDirectoryOnly(t *testing.T) {
-	setup, rec, _, firstPrompt := recording(t, "session-resume")
+	setup, _, _, firstPrompt := recording(t, "session-resume")
 	secondPrompt := strings.TrimSpace(readFileOrFail(t, filepath.Join(setup, "then-01-prompt.txt")))
 	ws, other, home := workspace(t, setup), workspace(t, setup), t.TempDir()
 	script := filepath.Join(t.TempDir(), "scenario.sh")
@@ -116,29 +116,20 @@ func TestResumeByIDContinuesInTheTranscriptOfItsDirectoryOnly(t *testing.T) {
 		assert.Equal(t, id, fs[0]["session_id"], "a resumed session keeps its id")
 	}
 
-	// the hooks: the same events, in the same order, as the recorded run saw
-	var want, got []string
-	for _, h := range rec.hooks {
-		want = append(want, h["hook_event_name"].(string))
-	}
+	// the hooks: a start hook for the session's beginning only, an end hook for every
+	// run (the payloads compared with the recording are the generated replay's,
+	// e2e/003_replay: the recorded model ran its command twice, the script once)
+	var got []string
 	cwds := map[string]bool{}
-	var gotPayloads []any
 	for _, m := range readJSONL(t, hookLog) {
 		if ev, ok := m["hook_event_name"].(string); ok {
 			got = append(got, ev)
-			gotPayloads = append(gotPayloads, normalize(m, id, ws))
 			assert.Equal(t, id, m["session_id"])
 			roots, _ := m["workspace_roots"].([]any)
 			cwds[roots[0].(string)] = true
 		}
 	}
-	var wantPayloads []any
-	for _, h := range rec.hooks {
-		wantPayloads = append(wantPayloads, h)
-	}
-	assert.Equal(t, wantPayloads, gotPayloads, "the payloads too: reason, final status, the command and its output")
-	assert.Equal(t, []string{"sessionStart", "afterShellExecution", "sessionEnd", "sessionEnd", "sessionEnd"}, want)
-	assert.Equal(t, want, got, "one start hook, for the session's beginning only; an end hook for every run")
+	assert.Equal(t, []string{"sessionStart", "afterShellExecution", "sessionEnd", "sessionEnd", "sessionEnd"}, got, "one start hook, for the session's beginning only; an end hook for every run")
 	assert.Equal(t, map[string]bool{ws: true, other: true}, cwds, "the hooks of the directory it was resumed in fire")
 
 	// the transcripts, as recorded: the session's own continues, the other's is new

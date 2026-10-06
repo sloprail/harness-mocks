@@ -11,7 +11,10 @@ import (
 )
 
 // emptySearches are the catalogue searches a recording shows finding nothing.
-var emptySearches = map[string]bool{"subscribe_timer|cursor-subscriptions": true} // runs/schedule-wakeup-ask
+var emptySearches = map[string]bool{
+	"subscribe_timer|cursor-subscriptions": true, // runs/schedule-wakeup-ask
+	"Task|task|subagent|sub-agent":         true, // runs/catalogue-search-task, the search a sub-agent at the depth limit made (runs/nested-subagents-depth)
+}
 
 // startsHookless starts the calls the harness answers itself, which no hook
 // sees: a search of its tool catalogue (GetDynamicTools) and a wait on a
@@ -50,14 +53,14 @@ func (s *session) startsHookless(ctx context.Context, tu scenario.ToolUse) (func
 		}, true
 	case "AwaitShell":
 		block, _ := in["block_until_ms"].(float64)
-		c := toolexec.Call{Kind: "awaitToolCall", Args: map[string]any{"taskId": "", "blockUntilMs": int64(block)}}
+		id, named := in["shell_id"].(string)
+		c := toolexec.Call{Kind: "awaitToolCall", Args: map[string]any{"taskId": id, "blockUntilMs": int64(block)}}
 		s.forward(startedFrame(s.id, tu.ID, c))
 		s.tr.toolUse(tu.Name, in)
 		return func() {
 			s.named = true
-			if id, named := in["shell_id"]; named {
-				msg := "cursor-mock: a wait on the task " + strconv.Quote(toString(id)) + " is not modeled: only a wait with no task named is recorded"
-				s.forward(errorFrame(s.id, tu.ID, c, s.refuseMsg(msg), nil))
+			if named {
+				s.awaitTask(ctx, tu.ID, c, id, time.Duration(block)*time.Millisecond)
 				return
 			}
 			select {
@@ -70,5 +73,3 @@ func (s *session) startsHookless(ctx context.Context, tu scenario.ToolUse) (func
 	}
 	return nil, false
 }
-
-func toString(v any) string { s, _ := v.(string); return s }

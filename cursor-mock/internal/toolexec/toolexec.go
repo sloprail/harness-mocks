@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"sort"
 )
 
 // Call is a tool call as Cursor names it: the kind of its tool_call frame
@@ -16,6 +17,22 @@ type Call struct {
 	// Replace is a StrReplace's old and new text: the call edits the file by it
 	// and the hooks see the whole file it makes (recorded: runs/file-tools).
 	Replace *[2]string
+	// Unmodeled are the keys of a script's input the mock does not take for the
+	// tool (a Grep's path, glob and the rest): the call fails rather than ignore them.
+	Unmodeled []string
+	// BlockMs is the shell call's block_until_ms, when it gave one, and Described
+	// its description: what the frames show of it (shellargs.go).
+	BlockMs   *int
+	Described string
+	// HookID is the id the call's hooks name it by when it is not the call's own (a
+	// mock-only input of the script, hook_tool_use_id): Cursor's hooks were recorded
+	// naming a call by an id of their own in some runs and by the call's id in others.
+	HookID string
+	// ShellID is the id a background shell is to have (a mock-only input of the script,
+	// task_id): the harness numbers its shells itself, and a later wait names the one it means.
+	ShellID string
+	// Request is the id of the model request the call was made in (the frames' requestId).
+	Request string
 }
 
 func (c Call) str(key string) string { s, _ := c.Args[key].(string); return s }
@@ -44,10 +61,15 @@ func FromScript(name string, input json.RawMessage) Call {
 	_ = json.Unmarshal(input, &in)
 	str := func(k string) string { s, _ := in[k].(string); return s }
 	kind, _, _, _ := lookup(name)
-	c := Call{Kind: kind, Args: map[string]any{}}
+	c := Call{Kind: kind, Args: map[string]any{}, HookID: str("hook_tool_use_id")}
 	switch c.Kind {
 	case "shellToolCall":
 		c.Args["command"] = str("command")
+		c.Described, c.ShellID = str("description"), str("task_id")
+		if v, ok := in["block_until_ms"].(float64); ok && v > 0 {
+			ms := int(v)
+			c.BlockMs = &ms
+		}
 		// block_until_ms 0 (or run_in_background) is a shell left running in the
 		// background (recorded: runs/task-notifications-bg).
 		if v, ok := in["block_until_ms"].(float64); (ok && v == 0) || in["run_in_background"] == true {
@@ -66,6 +88,12 @@ func FromScript(name string, input json.RawMessage) Call {
 		}
 	case "grepToolCall":
 		c.Args["pattern"], c.Args["caseInsensitive"], c.Args["multiline"], c.Args["offset"] = str("pattern"), false, false, 0
+		for k := range in {
+			if k != "pattern" && k != "hook_tool_use_id" {
+				c.Unmodeled = append(c.Unmodeled, k)
+			}
+		}
+		sort.Strings(c.Unmodeled)
 	case "deleteToolCall":
 		c.Args["path"] = str("file_path")
 	case "mcpToolCall":
@@ -90,7 +118,17 @@ func FromScript(name string, input json.RawMessage) Call {
 func (c Call) HookInput(dir string) map[string]any {
 	switch c.Kind {
 	case "shellToolCall":
-		return map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory"), "timeout": 30000}
+		// a command left in the background has no timeout; any other has the one
+		// the model gave (block_until_ms), or the default (recorded:
+		// runs/task-notifications-inturn, runs/task-notifications-bg)
+		in := map[string]any{"command": c.Command(), "cwd": c.str("workingDirectory")}
+		if !c.Background() {
+			in["timeout"] = 30000
+			if c.BlockMs != nil {
+				in["timeout"] = *c.BlockMs
+			}
+		}
+		return in
 	case "readToolCall":
 		return map[string]any{"file_path": c.Path(dir)}
 	case "taskToolCall":

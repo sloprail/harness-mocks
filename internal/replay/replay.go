@@ -61,6 +61,7 @@ type Agent struct {
 	Calls         []Call
 	Final         string
 	FinalThinking *Thinking // what the model thought before its final answer, when recorded
+	ID            string    // the agent's own id, when the recording names it (a sub-agent's conversation)
 	// Unfinished is an agent whose recording holds no final answer: it was still at work when
 	// the run ended (a sub-agent the run did not wait for), and must not end in a replay either.
 	Unfinished bool
@@ -100,6 +101,9 @@ type Observed struct {
 	// Checked is a replay that was a check the adapter made itself, passed, with nothing to compare (a
 	// recording made with a flag the mock refuses replays as the check that the mock refuses it).
 	Checked bool
+	// Exits are how each step ended, one line per step ("exit 0"): a step the
+	// harness refuses, with a status that is not 0, is behaviour too.
+	Exits []string
 }
 
 // Adapter is everything a harness contributes to a replay.
@@ -134,7 +138,7 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	if len(want.Events) == 0 && len(got.Events) == 0 {
 		return "event stream: none recorded and none produced: nothing was compared\n", nil
 	}
-	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks), nil
+	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks) + Diff("exit statuses", want.Exits, got.Exits), nil
 }
 
 // Script is the scenario a generates for the recording in runDir.

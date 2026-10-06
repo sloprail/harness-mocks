@@ -35,7 +35,13 @@ const notificationPrompt = "Briefly inform the user about the task result and pe
 //
 // sr:provides background-bash/cursor
 func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.Result {
-	id := strconv.Itoa(100000 + rand.Intn(900000))
+	if r, refused := toolexec.RefusesRipgrep(c); refused {
+		return r
+	}
+	id := c.ShellID
+	if id == "" {
+		id = strconv.Itoa(100000 + rand.Intn(900000))
+	}
 	folder := s.terminalsFolder()
 	_ = os.MkdirAll(folder, 0o755)
 	failed := func(err error) toolexec.Result {
@@ -52,8 +58,11 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 		t.Description = c.Command()
 	}
 	start := time.Now()
+	title := c.Described
+	trailer, ended := s.finishTerminal(filepath.Join(folder, id+".txt"), start, s.cfg.Dir, c.Command(), title)
+	_, _ = out.WriteString(terminalHeader(0, s.cfg.Dir, c.Command(), title, "running", start, 0)) // the process writes after it
 	if err := s.registry().StartCommand(t, tasks.CommandSpec{
-		Argv: []string{"/bin/sh", "-c", c.Command()}, Dir: s.cfg.Dir, Env: env, Out: out,
+		Argv: []string{"/bin/sh", "-c", c.Command()}, Dir: s.cfg.Dir, Env: env, Out: out, Trailer: trailer, Ended: ended,
 	}); err != nil {
 		return failed(err)
 	}
@@ -61,10 +70,13 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 	pid := t.Pid
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": "", "exitCode": 0, "signal": "", "stdout": "", "stderr": "",
-		"executionTime": time.Since(start).Milliseconds(), "shellId": shellID, "pid": pid,
+		"executionTime": max(time.Since(start).Milliseconds(), 1), "shellId": shellID, "pid": pid,
 		"backgroundReason": "SHELL_BACKGROUND_REASON_USER_REQUEST",
 	}
-	output, _ := json.Marshal(map[string]any{"shell_id": shellID, "pid": pid})
+	output, _ := json.Marshal(struct { // in the order Cursor words it
+		ShellID int `json:"shell_id"`
+		Pid     int `json:"pid"`
+	}{shellID, pid})
 	return toolexec.Result{
 		Background: true,
 		Frame:      map[string]any{"success": body, "isBackground": true, "terminalsFolder": folder},
@@ -99,6 +111,11 @@ func (s *session) registry() *tasks.Registry {
 //
 // sr:provides task-notifications/cursor
 func (s *session) afterTurn(ctx context.Context) (string, bool) {
+	if len(s.reaped) > 0 { // a command a sub-agent's end ended: its frame is out (or owed), the turn is still the agent's
+		s.reaped = s.reaped[1:]
+		s.flushOwed()
+		return notificationPrompt, true
+	}
 	r := s.registry()
 	t := r.AwaitAfterTurn(ctx, "") // a finished shell, at once
 	for t == nil {
