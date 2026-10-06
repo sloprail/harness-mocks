@@ -193,3 +193,30 @@ func TestConcurrentGroupsAThoughtWithThePreToolUseBesideIt(t *testing.T) {
 		t.Fatalf("a thought is not concurrent with what is not a preToolUse: %v", got)
 	}
 }
+
+// A recording whose hooks name its calls by ids of their own has those ids put on
+// the calls whose input the hook saw, matched by that input and not by order; an
+// id that no call matches is not replayed.
+func TestLoadNamesTheCallsTheHooksNameByIdsOfTheirOwn(t *testing.T) {
+	rec, err := Adapter{}.Load(runDir("hook-timeout"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var named int
+	for _, c := range rec.Agent.Calls {
+		if c.Input[hookIDKey] != nil {
+			named++
+			if c.Input["command"] == "" {
+				t.Fatalf("call %+v", c)
+			}
+		}
+	}
+	if named != 1 {
+		t.Fatalf("%d calls got a hook id, want the one whose postToolUseFailure the recording holds", named)
+	}
+	a := core.Agent{Calls: []core.Call{{Tool: core.ToolShell, Input: map[string]any{"command": "a"}}}}
+	payloads := []map[string]any{{"session_id": "s", "tool_use_id": "u1", "tool_input": map[string]any{"command": "b"}}}
+	if err := nameHookIDs(&a, []map[string]any{}, payloads, "s"); err == nil {
+		t.Fatal("an id no call matches must not be replayed")
+	}
+}

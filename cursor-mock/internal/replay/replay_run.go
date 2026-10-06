@@ -26,8 +26,13 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	if len(recStream) == 0 {
 		return want, got, &Unbuildable{Reason: "the recording has no stream to compare"}
 	}
-	if _, err := os.Stat(filepath.Join(sample, "payloads.jsonl")); err != nil {
-		return want, got, &Unbuildable{Reason: "the recording has no hook log to compare"}
+	// No hook log at all is a recording whose hooks never ran (the hook script is what
+	// writes it): the mock must run none either. That proves something only when hooks
+	// were configured, and the stream compared is not empty (checked above).
+	_, statErr := os.Stat(filepath.Join(sample, "payloads.jsonl"))
+	noHooksRan := statErr != nil
+	if noHooksRan && !hooksConfigured(rec.Setup) {
+		return want, got, &Unbuildable{Reason: "the recording has no hook log and configures no hooks: nothing says hooks were left unfired"}
 	}
 	recHooks, err := readJSONL(filepath.Join(sample, "payloads.jsonl"))
 	if err != nil {
@@ -76,7 +81,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	unsettled(recHooks)
 	unsettled(mockHooks)
 	want.Hooks, got.Hooks = concurrent(recHooks, wantC.Lines(recHooks)), concurrent(mockHooks, gotC.Lines(mockHooks))
-	if len(want.Hooks) == 0 && len(got.Hooks) == 0 {
+	if len(want.Hooks) == 0 && len(got.Hooks) == 0 && !noHooksRan {
 		return want, got, &Unbuildable{Reason: "the recording's hook log holds no line the mock models: nothing to compare"}
 	}
 	return want, got, nil

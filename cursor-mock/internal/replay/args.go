@@ -1,6 +1,9 @@
 package replay
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // modelledFlags are the cursor-agent flags a recording's setup/args may hold
 // that the mock models, and whether each takes a value (on the next line). Any
@@ -36,4 +39,23 @@ func flagWords(args string) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// hooksConfigured reports whether the setup's project or user hooks.json configures
+// at least one hook.
+func hooksConfigured(setup map[string]string) bool {
+	for _, name := range []string{"hooks.json", "user-hooks.json"} {
+		var file struct {
+			Hooks map[string][]json.RawMessage `json:"hooks"`
+		}
+		if json.Unmarshal([]byte(setup[name]), &file) != nil {
+			continue
+		}
+		for _, entries := range file.Hooks {
+			if len(entries) > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }

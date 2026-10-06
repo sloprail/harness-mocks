@@ -15,6 +15,8 @@ func mockCall(c core.Call) scriptCall {
 	for k, v := range c.Input {
 		in[k] = v
 	}
+	hookID := in[hookIDKey] // the id the call's hooks name it by, when it is not the call's own
+	delete(in, hookIDKey)
 	name := "Shell"
 	switch c.Tool {
 	case core.ToolSpawn:
@@ -56,6 +58,9 @@ func mockCall(c core.Call) scriptCall {
 		if description != nil { // the mock takes the model's description of the call in a key of its own
 			in["__description"] = description
 		}
+	}
+	if hookID != nil && c.Tool != core.ToolMCP { // an MCP call's hooks always name it by an id of their own
+		in["hook_tool_use_id"] = hookID
 	}
 	return scriptCall{Name: name, Input: in}
 }
