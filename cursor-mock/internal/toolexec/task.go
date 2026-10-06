@@ -13,6 +13,9 @@ import (
 // sr:provides agent-input-validation/cursor
 var taskRequired = subagents.PromptRequired
 
+// TaskRequired is what a Task call must carry.
+func TaskRequired() []string { return taskRequired }
+
 // InvalidArguments is what Cursor tells the agent of a Task call that lacks
 // required parameters: "Invalid arguments:" and a line "<name>: Required" for
 // each (recorded: runs/agent-input-validation). No hook fires for such a call.

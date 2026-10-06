@@ -102,9 +102,12 @@ func rejectedFrame(session, id string, c toolexec.Call, reason string, contexts 
 // mock words the other tools' calls itself.
 func invalidFrame(session string, c toolcall.Call, missing []string) []byte {
 	call := toolexec.FromScript(c.Name, c.Input)
-	if call.Kind == "taskToolCall" {
-		return toolFrame(session, c.ID, "completed", call,
-			map[string]any{"error": map[string]any{"error": toolexec.InvalidArguments(missing)}}, nil)
+	if call.Kind == "taskToolCall" { // its frame carries no args: the call was never started
+		return jsonLine(map[string]any{
+			"type": "tool_call", "subtype": "completed", "call_id": c.ID, "session_id": session,
+			"tool_call": envelope(map[string]any{"taskToolCall": map[string]any{
+				"result": map[string]any{"error": map[string]any{"error": toolexec.InvalidArguments(missing)}}}}, c.ID, nil),
+		})
 	}
 	return errorFrame(session, c.ID, call,
 		fmt.Sprintf("%s: missing required parameter(s): %s", c.Name, strings.Join(missing, ", ")), nil)
