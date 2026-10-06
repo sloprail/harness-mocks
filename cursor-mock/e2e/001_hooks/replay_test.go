@@ -220,8 +220,7 @@ func replay(t *testing.T, run string) (got, want observed) {
 func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	t.Helper()
 	setup, want, calls, prompt := recording(t, run)
-	ws, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	ws := shortTempDir(t)
 	scratch := t.TempDir()
 	copyFile(t, filepath.Join(setup, "hooks.json"), filepath.Join(ws, ".cursor", "hooks.json"), 0o644)
 	home := t.TempDir()
@@ -337,3 +336,19 @@ func hookEnv(v any, ws string) map[string]any {
 }
 
 func itoa(i int) string { return strings.TrimSpace(jsonString(i)) }
+
+// shortTempDir is a workspace whose path is short. The recorded hook scripts
+// log each payload with one printf to a file every hook of an event appends to
+// at once, and macOS's sh writes what is over 1 KiB in more than one write: two
+// hooks' payloads then interleave and neither can be read back. A payload
+// carries the workspace's path several times, so a long path (t.TempDir's, under
+// macOS's /var/folders) takes the longer payloads over that size.
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "hm")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	dir, err = filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	return dir
+}
