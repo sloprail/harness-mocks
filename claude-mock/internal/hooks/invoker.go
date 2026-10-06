@@ -1,7 +1,11 @@
 package hooks
 
 import (
+	"encoding/json"
 	"time"
+
+	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/session"
 )
 
 // defaultTimeout is how long a hook with no timeout of its own may run:
@@ -33,13 +37,34 @@ type Invoker struct {
 	// it is the SESSION's transcript and the sub-agent is named by agent_id.
 	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
 	transcriptPath string
+	scratchpadDir  string
 
 	// recorder, when set, is handed every handler's run — what the harness then
 	// writes into the transcript as a hook attachment record.
 	recorder func(Input, []HandlerRun)
 
 	agentID, agentType string
+
+	// turn is the user prompt the session is on, shared with every invoker of a
+	// sub-agent run inside it; permissionMode is what the session runs in.
+	turn           *corehooks.Turn
+	permissionMode string
 }
+
+// Turn is the prompt this invoker's events belong to; a sub-agent's invoker
+// is given the session's (SetTurn).
+func (inv *Invoker) Turn() *Turn { return inv.turn }
+
+// EnsureTurn puts the session on a prompt when it is on none (a compaction).
+func (inv *Invoker) EnsureTurn() { inv.turn.Ensure(session.NewID) }
+
+// SetTurn makes the invoker share the prompt state of the session it runs inside.
+func (inv *Invoker) SetTurn(t *Turn) { inv.turn = t }
+
+// SetPermissionMode sets the permission_mode the events about a turn carry
+// ("bypassPermissions" for a run with --dangerously-skip-permissions).
+// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+func (inv *Invoker) SetPermissionMode(mode string) { inv.permissionMode = mode }
 
 // SetProjectDir sets the project root every command hook is told as
 // CLAUDE_PROJECT_DIR (docs, Reference scripts by path).
@@ -49,6 +74,17 @@ func (inv *Invoker) SetProjectDir(dir string) { inv.projectDir = dir }
 // SetTranscriptPath sets the transcript_path every payload carries unless the
 // caller names one.
 func (inv *Invoker) SetTranscriptPath(path string) { inv.transcriptPath = path }
+
+// Configured is whether any hook is configured for the event.
+func (inv *Invoker) Configured(event EventName) bool { return inv.settings.Configured(event) }
+
+// Denied is whether a deny rule of the settings refuses the tool call, and the command it names.
+func (inv *Invoker) Denied(tool string, input json.RawMessage) (string, bool) {
+	return inv.settings.Denied(tool, input)
+}
+
+// SetScratchpadDir sets the scratchpad_dir every payload carries ("" for a session that has none).
+func (inv *Invoker) SetScratchpadDir(dir string) { inv.scratchpadDir = dir }
 
 // TranscriptPath is the transcript_path payloads carry by default.
 func (inv *Invoker) TranscriptPath() string { return inv.transcriptPath }
@@ -72,33 +108,6 @@ func (inv *Invoker) WithRecorder(fn func(Input, []HandlerRun)) *Invoker {
 // to, after the handlers have run. See HandlerRun.
 func (inv *Invoker) SetRecorder(fn func(Input, []HandlerRun)) { inv.recorder = fn }
 
-// HandlerRun is what one hook handler did, in the terms real Claude Code
-// records it in a transcript's hook attachment: its command, its streams, its
-// exit code and how long it took. Blocked is an exit 2.
-type HandlerRun struct {
-	Command    string
-	Stdout     string
-	Stderr     string
-	ExitCode   int
-	DurationMs int64
-	Blocked    bool
-	Output     Output
-	// JSONParsed: stdout was a JSON object the mock read; on a non-blocking
-	// exit status it then decides, not the status (docs, "Other exit codes").
-	// JSONError: stdout looked like JSON but did not parse or validate.
-	JSONParsed bool
-	JSONError  string
-	// BlockReason is the blocking reason a blocked handler's JSON gave.
-	BlockReason string
-	// TimedOut: its timeout cancelled it (TimeoutMs is the limit); its output
-	// is discarded.
-	TimedOut  bool
-	TimeoutMs int64
-	// HTTPError: an HTTP hook that failed or answered what cannot be read,
-	// a non-blocking error.
-	HTTPError string
-}
-
 // NewInvoker creates an Invoker backed by the given settings. Every command hook
 // runs with three Claude-Code environment variables the real CLI sets on each
 // session, so a tool the hook shells to sees the same environment it would under
@@ -117,5 +126,5 @@ type HandlerRun struct {
 //
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDE_CODE_SESSION_ID, CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)
 func NewInvoker(settings *Settings, cwd, sessionID string) *Invoker {
-	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID}
+	return &Invoker{settings: settings, cwd: cwd, sessionID: sessionID, turn: &Turn{}}
 }

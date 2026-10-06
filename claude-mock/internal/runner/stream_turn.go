@@ -40,6 +40,9 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 		return turnResult{}, waitErr
 	}
 	pending := sc.pending
+	if cfg.AgentID == "" && (pending.ToolName != "" || sc.lastText != "") {
+		bg.run.turn()
+	}
 	if pending.ToolName == "" {
 		if sc.done || sc.compactSig == "" {
 			return turnResult{done: true, lastText: sc.lastText, resultLine: withSubagentStats(sc.resultLine, bg)}, nil
@@ -50,30 +53,34 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	}
 
 	// Input the tool cannot take: its tool_use_error is the result, and the
-	// turn goes on; no hook fires (recorded: snapshots/runs/tool-invalid-input).
+	// turn goes on; no hook fires (recorded: runs/tool-invalid-input).
 	if pending.Invalid != nil {
 		if err := emitToolResult(cfg, pending, *pending.Invalid, tr); err != nil {
 			return turnResult{}, err
 		}
 		return turnResult{sig: "invalid:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
 	}
-
-	// PreToolUse REFUSED this tool call — an exit-0 permissionDecision deny, or
-	// an exit 2. The tool does not run and no PostToolUse fires; the refusal is
-	// the tool_result, "PreToolUse:<Tool> hook error: <reason>" (for an exit 2,
-	// "[<command>]: <stderr>" as the reason), and the turn goes on: the script
-	// runs again and reads it. Claude 2.1.282 did exactly this for both forms in
-	// a controlled run. The loop guard signature is the blocked tool_use, so an
-	// agent that re-emits the identical blocked call is still bounded.
+	// PreToolUse REFUSED this tool call — an exit-0 permissionDecision deny, or an exit 2. The
+	// tool does not run and no PostToolUse fires; the refusal is the tool_result, "PreToolUse:<Tool>
+	// hook error: <reason>" (an exit 2's reason is "[<command>]: <stderr>"), and the turn goes on
+	// (claude 2.1.282). The loop guard signature is the blocked tool_use, so a re-emitted call is bounded.
 	// sr:docs https://code.claude.com/docs/en/hooks#pretooluse
 	if pending.Blocked {
 		text := "PreToolUse:" + pending.ToolName + " hook error: " + pending.BlockReason
-		blockRes := toolexec.Result{Output: text, IsError: true, ToolUseResult: "Error: " + text}
+		blockRes := toolexec.Result{Output: text, IsError: true, ToolUseResult: "Error: " + text, NonExecution: "permission-rule"}
 		if err := emitToolResult(cfg, pending, blockRes, tr); err != nil {
 			return turnResult{}, err
 		}
+		bg.run.deny(pending)
 		bg.deliverMidTurn(ctx, cfg, inv, tr)
 		return turnResult{sig: "blocked:" + pending.ToolName + ":" + string(pending.ToolInput), lastText: sc.lastText}, nil
+	}
+
+	if err := refuseBackgroundHookFrames(cfg, inv, pending); err != nil {
+		return turnResult{}, err
+	}
+	if text, denied := ruleDenial(inv, pending); denied {
+		return denyByRule(ctx, cfg, inv, tr, bg, pending, text, sc.lastText)
 	}
 
 	// tool_use was seen — execute it.
@@ -112,9 +119,14 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 
 	// Synthesise and emit the tool_result user record.
 	// sr:docs https://docs.anthropic.com/en/docs/claude-code/sdk#stream-json-output-format
+	took := time.Since(toolStarted)
+	if cfg.HookEvents { // its hook frames come ahead of the result frame, its records after the result's (recorded: runs/include-hook-events)
+		firePostTool(ctx, cfg, inv.WithRecorder(tr.holdHookRuns), pending, res, took)
+	}
 	if err := emitToolResult(cfg, pending, res, tr); err != nil {
 		return turnResult{}, err
 	}
+	tr.flushHookRuns()
 
 	// PostToolUse for the synthesised result; PostToolUseFailure instead when
 	// the tool ran and failed (a Bash exiting non-zero, a file tool's error),
@@ -123,8 +135,9 @@ func runOneTurnSig(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	// one, else the text the agent got. Input the tool could not take fires
 	// neither: the tool never ran. Neither leaves a record here.
 	// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure
-	took := time.Since(toolStarted)
-	firePostTool(ctx, cfg, inv, pending, res, took)
+	if !cfg.HookEvents {
+		firePostTool(ctx, cfg, inv, pending, res, took)
+	}
 	if startAgent != nil {
 		startAgent()
 	}

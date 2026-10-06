@@ -43,7 +43,6 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	forkSession, _ := cmd.Flags().GetBool(flagForkSession)
 	isResume := false
 	forkFrom := ""
-
 	// Normalise: --resume takes precedence and sets isResume — except with
 	// --fork-session, where the resumed id is what is continued FROM and the
 	// session runs under --session-id (or a fresh id).
@@ -75,7 +74,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	// that does not exist (see noConversation), whatever is on disk.
 	// sr:invariant no-resume
 	if isResume && os.Getenv("A10N_MOCK_NO_RESUME") == "1" {
-		noConversation(cmd, &runner.ErrNoConversation{SessionID: sessionID})
+		noConversation(cmd, &runner.ErrNoConversation{SessionID: resumeID}) // the session resumed, not the fork's new one
 	}
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
@@ -103,12 +102,12 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = resolved
 	}
-
 	model, _ := cmd.Flags().GetString("model")
 	err := runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:              scriptPath,
 		SessionID:               sessionID,
 		IsResume:                isResume,
+		ResumeLookup:            lookedUp(cmd),
 		ForkFrom:                forkFrom,
 		Prompt:                  prompt,
 		Cwd:                     cwd,
@@ -117,6 +116,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		PluginCacheDir:          pluginCacheDir,
 		PrintMode:               printMode,
 		Model:                   model,
+		Prompting:               runner.Prompting{PermissionMode: permissionMode(cmd), MaxTurns: maxTurns(cmd), HookEvents: hookEvents(cmd), Scratchpad: hasScratchpad()},
 		BgWaitCeiling:           printWaitCeiling(),
 		SpawnLimit:              spawnLimit(),
 		BackgroundTasksDisabled: backgroundTasksDisabled(),

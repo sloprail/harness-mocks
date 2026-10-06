@@ -53,13 +53,12 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 	var stopBlocks int
 	var lastText string
 	var final scenario.Result // the run's one result frame, held until its turn really ends
-	finish := func() {        // a run that refused a call streams no result: it fails
-		if bg.refused.Err() == nil {
-			final.Finish(func(line []byte) { writeStreamLine(cfg, line) })
-		}
-	}
+	finish := finisher(cfg, bg, &final)
 	blockCap := stopHookBlockCap()
 	for {
+		if maxTurnsReached(cfg, bg) {
+			return errRunFailed
+		}
 		turn, err := runOneTurnSig(ctx, cfg, inv, tr, bg)
 		if err != nil {
 			return err
@@ -72,6 +71,10 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			if nested {
 				finish()
 				return nil
+			}
+			if final.Failed() {
+				finish()
+				return errRunFailed
 			}
 			// sr:provides stop-hook-payload/claude
 			stop := corehooks.NewStop(lastText, stopBlocks)
@@ -87,9 +90,9 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				BackgroundTasks:      &running,
 				SessionCrons:         &crons,
 			})
+			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
 			writeStopHookError(cfg, stopRuns)
-			// Its feedback, attachment and stop_hook_summary are written as it
-			// fires (transcript.recordHookRuns).
+			// Its feedback, attachment and stop_hook_summary: transcript.recordHookRuns.
 			// sr:provides stop-block-continuation/claude
 			if turnloop.Continues(stopErr != nil, stopOut.Decision == "block") {
 				stopBlocks++
@@ -128,7 +131,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 				lastSig, repeats = "", 0
 				continue
 			}
-			bg.ReapAtExit(cfg.AgentID, printReapGrace)
+			bg.endRun(cfg)
 			return bg.refused.Err()
 		}
 		sig := turn.sig

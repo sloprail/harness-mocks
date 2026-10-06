@@ -14,6 +14,7 @@ import (
 var version = "dev"
 
 const (
+	flagResumeLookup  = "resume-lookup" // hidden: the --resume value was a name or path, or --continue
 	flagContinue      = "continue"
 	flagNoPersistence = "no-session-persistence"
 )
@@ -44,6 +45,9 @@ func forgetUnpersisted(cmd *cobra.Command, _ []string) error {
 //
 // sr:provides session-resume/claude
 func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
+	if err := refuseUnimplemented(cmd); err != nil {
+		return err
+	}
 	resume, _ := cmd.Flags().GetString(flagResume)
 	projectDir, _ := cmd.Flags().GetString(flagProjectDir)
 	if projectDir == "" {
@@ -53,7 +57,9 @@ func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
 		}
 	}
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
+	lookup := false
 	if cont, _ := cmd.Flags().GetBool(flagContinue); cont && resume == "" {
+		lookup = true
 		if resume = runner.LatestSession(configDir, projectDir); resume == "" {
 			// no session to continue: a new one starts (recorded: snapshots/runs/resume-continue-none)
 			if id, _ := cmd.Flags().GetString(flagSessionID); id == "" {
@@ -64,7 +70,12 @@ func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
 	if resume == "" {
 		return nil
 	}
-	return cmd.Flags().Set(flagResume, runner.ResumeTarget(configDir, projectDir, resume))
+	target := runner.ResumeTarget(configDir, projectDir, resume)
+	// a session named by anything but its id is looked up, and the stream tells the lookup's own id (recorded: runs/resume-name, resume-path, resume-continue)
+	if err := cmd.Flags().Set(flagResumeLookup, fmt.Sprint(lookup || target != resume)); err != nil {
+		return err
+	}
+	return cmd.Flags().Set(flagResume, target)
 }
 
 func main() {
@@ -108,6 +119,8 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 
 	root.SetVersionTemplate("{{.Version}}\n")
 	addRunFlags(root)
+	addRefusedFlags(root)
+	root.SetFlagErrorFunc(flagError)
 	root.AddCommand(newReplay())
 
 	return root

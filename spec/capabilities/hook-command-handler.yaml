@@ -9,6 +9,8 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/hookerrors
+      - claude-mock/snapshots/runs/hook-args
+      - claude-mock/snapshots/runs/hook-shell
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#config-shape

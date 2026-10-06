@@ -37,6 +37,8 @@ type subagentRun struct {
 	// begun is the sub-agent as begun at its launch (subagents.Begin), when it
 	// was begun before its run; nil begins it with the run.
 	begun func(blockCap int, run func() subagents.Outcome) subagents.Outcome
+	// startFrames is the SubagentStart hook's frames that are still to be written (hook_frames).
+	startFrames *pendingFrames
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -106,13 +108,15 @@ func (s *subagentRun) hooks(ctx context.Context, inv *hooks.Invoker, bg *backgro
 		// SubagentStart — cannot block. transcript_path is the SESSION's (the
 		// invoker's default); the sub-agent is named by agent_id.
 		Start: func() {
-			_, _ = sideInv.Fire(ctx, hooks.Input{
+			in := hooks.Input{
 				SessionID:     s.parent.SessionID,
 				Cwd:           s.subCwd,
 				HookEventName: hooks.EventSubagentStart,
 				AgentType:     s.agentType,
 				AgentID:       s.agentID,
-			})
+			}
+			_, runs, _ := sideInv.FireRuns(ctx, in)
+			s.startFrames = startPending(s.parent, in, runs)
 		},
 		// What the hook said is recorded as it fires — into the SUB-AGENT's own
 		// file, where real Claude Code writes a SubagentStop's feedback — so the

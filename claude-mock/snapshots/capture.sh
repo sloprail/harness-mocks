@@ -35,6 +35,7 @@
 #   runs/<name>/setup/hook.sh          optional: the hook every event runs;
 #                                      it appends its stdin to $HOOK_LOG
 #   runs/<name>/setup/args             optional: extra claude flags, one per line
+#   runs/<name>/setup/then-<NN>-prompt.txt  (with then-<NN>-args, then-<NN>-cwd) is the same, as flat files
 #   runs/<name>/setup/then/<NN>/       optional later steps, run in name order in the same
 #                                      repo and HOME: prompt.txt, args, and `cwd` (a directory
 #                                      of the repo to run from). exit.txt has one line per step.
@@ -126,6 +127,14 @@ capture_run() {
   # A step's `cwd` file names a directory of the repo to run it from (a `symlink` file, "<name> <target>", makes <name> a symlink to <target> first); its own settings.json and hook.sh go in that directory.
   : >"$cap/stream.jsonl"; : >"$cap/stderr.txt"; : >"$cap/exit.txt"
   steps=("$run/setup"); [ -d "$run/setup/then" ] && for d in "$run/setup/then"/*/; do steps+=("${d%/}"); done
+  # a later step may also be flat files of setup/ (the structure gate allows no deeper path):
+  # then-<NN>-prompt.txt, then-<NN>-args and then-<NN>-cwd stand for then/<NN>/prompt.txt, args, cwd
+  for p in "$run/setup"/then-*-prompt.txt; do
+    [ -f "$p" ] || continue
+    n="${p##*/then-}"; n="${n%-prompt.txt}"; d="$work/steps/$n"; mkdir -p "$d"; cp "$p" "$d/prompt.txt"
+    for f in args cwd; do [ ! -f "$run/setup/then-$n-$f" ] || cp "$run/setup/then-$n-$f" "$d/$f"; done
+    steps+=("$d")
+  done
   for step in "${steps[@]}"; do
     sargs=(); [ -f "$step/args" ] && while IFS= read -r a; do [ -n "$a" ] && sargs+=("$a"); done <"$step/args"
     # a step's `symlink` file holds "<name> <target>": <name> in the repo is made a symlink

@@ -60,11 +60,19 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	if trigger == "" {
 		trigger = "auto"
 	}
+	events := []hooks.EventName{hooks.EventPreCompact, hooks.EventPostCompact}
+	if trigger == "manual" {
+		events = append(events, hooks.EventSubagentStop) // only a manual compaction's summarizer is a sub-agent that stops
+	}
+	if err := refuseUnrecordedHook(cfg, inv, events...); err != nil {
+		return false, err
+	}
 	preserve := defaultPreserved
 	if rec.Preserve != nil {
 		preserve = *rec.Preserve
 	}
 	started := time.Now()
+	inv.EnsureTurn() // a compaction with no prompt before it acts as one
 	var preRuns, postRuns []hooks.HandlerRun
 	var sum map[string]any
 	var anchor, summaryText string

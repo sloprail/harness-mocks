@@ -17,7 +17,6 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var out scanResult
-
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(bytes.TrimSpace(line)) == 0 {
@@ -57,28 +56,24 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				out.lastText = t
 			}
 		}
-
 		// PreToolUse + turn break on tool_use blocks.
 		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				// a call the mock does not implement ends the run (adr/tool-calls-validated)
-				if _, err := Schema().Check(toolName, toolInput); err != nil {
+				if _, err := Schema().Check(toolName, toolInput); err != nil { // adr/tool-calls-validated
 					return scanResult{}, err
 				}
-				// Forward the assistant record + append to session BEFORE the hook
-				// fires — real Claude Code writes the tool_use first and the
-				// PreToolUse hook's attachment after it, and the tool_use is part
-				// of the trajectory whatever the hook decides.
+				if cfg.AgentID != "" { // the tool_use is written BEFORE the PreToolUse hook fires
+					cfg.progress(cfg, toolName, toolInput)
+				}
 				writeStreamLine(cfg, line)
 				tr.persist(line)
-
 				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
 					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
 					return out, nil
 				}
-				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
+				pre := hooks.Input{
 					SessionID:     cfg.SessionID,
 					AgentID:       cfg.AgentID,
 					Cwd:           cfg.Cwd,
@@ -86,7 +81,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 					ToolName:      toolName,
 					ToolUseID:     toolUseID,
 					ToolInput:     toolInput,
-				})
+				}
+				hookOut, preRuns, hookErr := inv.FireRuns(ctx, pre)
+				writeHookEventFrames(cfg, pre, preRuns)
 				out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput}
 				if err := decidePreTool(cfg, &out.pending, hookOut, hookErr); err != nil {
 					return scanResult{}, err
@@ -125,6 +122,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				toolName = toolNameInTranscript(tr, toolUseID)
 			}
 			if toolName != "" {
+				if err := refuseUnrecordedHook(cfg, inv, hooks.EventPostToolUse); err != nil {
+					return scanResult{}, err // a scenario-written tool_result
+				}
 				_, _ = inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
 					Cwd:           cfg.Cwd,

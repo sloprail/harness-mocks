@@ -1,0 +1,9 @@
+{"event":"hook","hook":null,"payload":{"hook":"with-shell-bash","zero":"/bin/sh"}}
+{"event":"hook","hook":null,"payload":{"hook":"default","zero":"/bin/sh"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"result","subtype":"success"}

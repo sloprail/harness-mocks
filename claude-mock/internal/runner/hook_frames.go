@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
@@ -9,36 +10,6 @@ import (
 
 // The stream frames a stream-json run carries for hooks it fired. Only these
 // write them.
-
-// writeSessionStartFrames streams each SessionStart handler's run as a
-// hook_started frame and a hook_response frame carrying its output, exit code
-// and outcome ("success" on exit 0, else "error"), ahead of everything else
-// the session streams (recorded: snapshots/runs/hook-exit-codes,
-// subprocess-session-env). The handlers have already run; the frames keep the
-// recorded order.
-func writeSessionStartFrames(cfg Config, in hooks.Input, runs []hooks.HandlerRun) {
-	name := hookRunName(in)
-	ids := make([]string, len(runs))
-	for i := range runs {
-		ids[i] = newRecordUUID()
-		writeFrame(cfg, map[string]any{
-			"type": "system", "subtype": "hook_started", "hook_id": ids[i],
-			"hook_name": name, "hook_event": string(in.HookEventName),
-		})
-	}
-	for i, r := range runs {
-		outcome := "success"
-		if r.ExitCode != 0 {
-			outcome = "error"
-		}
-		writeFrame(cfg, map[string]any{
-			"type": "system", "subtype": "hook_response", "hook_id": ids[i],
-			"hook_name": name, "hook_event": string(in.HookEventName),
-			"output": r.Stdout + r.Stderr, "stdout": r.Stdout, "stderr": r.Stderr,
-			"exit_code": r.ExitCode, "outcome": outcome,
-		})
-	}
-}
 
 // writeStopHookError streams the notice a Stop hook that blocked (exit 2) or
 // failed (a non-blocking error) leaves: one notification per firing, whatever
@@ -91,12 +62,9 @@ func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	if held { // what the hooks leave follows the prompt once it is written
 		inv = inv.WithRecorder(tr.holdHookRuns)
 	}
-	out, ferr := inv.Fire(ctx, hooks.Input{
-		SessionID:     cfg.SessionID,
-		Cwd:           cfg.Cwd,
-		HookEventName: hooks.EventUserPromptSubmit,
-		Prompt:        cfg.Prompt,
-	})
+	in := hooks.Input{SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventUserPromptSubmit, Prompt: cfg.Prompt}
+	out, runs, ferr := inv.FireRuns(ctx, in)
+	writeHookEventFrames(cfg, in, runs)
 	refused, extra = corehooks.PromptOutcome(ferr != nil || out.Decision == "block", promptContextFrom(out))
 	if refused {
 		if ferr == nil { // an exit-0 hook that blocked by its JSON decision (recorded: snapshots/runs/prompt-blocked-json)
@@ -117,4 +85,31 @@ func submitPrompt(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 // sr:provides session-start-hook/claude
 func fireCompactedStart(ctx context.Context, cfg Config, inv *hooks.Invoker) {
 	_, _ = fireSessionStart(ctx, cfg, inv, corehooks.SessionStartKind(false, false, true))
+}
+
+// Prompting is what hook payloads tell of the prompt a session is on.
+type Prompting struct {
+	// PermissionMode is the permission_mode the hooks about a turn are told.
+	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+	PermissionMode string
+	// MaxTurns is --max-turns: the model turns a run may take (0: no limit).
+	MaxTurns int
+	// HookEvents is --include-hook-events: the stream carries a hook_started and a
+	// hook_response frame for each hook of the main thread, not only SessionStart's.
+	HookEvents bool
+	// Scratchpad: the session has a scratchpad directory, which the hooks are told of.
+	Scratchpad bool
+	// Turn is the prompt the session is on: the root run makes it, every
+	// sub-agent run inside shares it.
+	Turn *hooks.Turn
+}
+
+// configureInvoker gives the invoker what the payloads of this session carry besides what the
+// event brings: its permission mode and, when it has one, its scratchpad (<session dir>/scratchpad,
+// beside the tasks: recorded in snapshots/runs/nested-session-env).
+func (cfg Config) configureInvoker(inv *hooks.Invoker) {
+	inv.SetPermissionMode(cfg.PermissionMode)
+	if cfg.Scratchpad {
+		inv.SetScratchpadDir(filepath.Join(filepath.Dir(tasksDir(cfg.Cwd, cfg.SessionID)), "scratchpad"))
+	}
 }

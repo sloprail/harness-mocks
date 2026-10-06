@@ -1,0 +1,81 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+)
+
+// lookedUp is whether the run's --resume value was found by lookup.
+func lookedUp(cmd *cobra.Command) bool {
+	b, _ := cmd.Flags().GetBool(flagResumeLookup)
+	return b
+}
+
+// permissionMode is the mode the run's hooks are told it is in:
+// bypassPermissions for --dangerously-skip-permissions, else the
+// --permission-mode given, else default.
+// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
+func permissionMode(cmd *cobra.Command) string {
+	if skip, _ := cmd.Flags().GetBool("dangerously-skip-permissions"); skip {
+		return "bypassPermissions"
+	}
+	if m, _ := cmd.Flags().GetString("permission-mode"); m != "" {
+		return m
+	}
+	return "default"
+}
+
+// refuseUnimplemented is the error for an input the mock does not implement
+// (adr/fail-fast-unimplemented): an output format but stream-json, which a run
+// would otherwise print stream frames for as if it were one;
+// --include-partial-messages; and a piped stdin, which the real run reads.
+func refuseUnimplemented(cmd *cobra.Command) error {
+	if f, _ := cmd.Flags().GetString(flagOutputFormat); f != "stream-json" {
+		return fmt.Errorf("claude-mock: --output-format %s is not implemented by the mock (only stream-json): it is refused rather than ignored", f)
+	}
+	for _, name := range []string{"include-partial-messages", "input-format", "max-budget-usd", "bare", "agent"} {
+		if cmd.Flags().Changed(name) {
+			return fmt.Errorf("claude-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
+		}
+	}
+	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0) {
+		return fmt.Errorf("claude-mock: a piped stdin is not implemented by the mock: it is refused rather than ignored")
+	}
+	return nil
+}
+
+// addRefusedFlags registers the flags of claude the mock refuses by name: --agent (it would put
+// agent_type on main-thread hook payloads) and --bare (it skips hooks, settings discovery and
+// the login; the run recorded without an API key only fails to log in, snapshots/runs/bare, so
+// what a bare run does is not recorded).
+// sr:docs https://code.claude.com/docs/en/headless#start-faster-with-bare-mode
+func addRefusedFlags(cmd *cobra.Command) {
+	cmd.Flags().Bool("bare", false, "Refused: not implemented by the mock")
+	cmd.Flags().String("agent", "", "Refused: not implemented by the mock")
+}
+
+// flagError words a flag the mock does not know as claude does: `error: unknown option '--x'`
+// on stderr, nothing on stdout, exit status 1, before the run starts (recorded: snapshots/runs/invalid-flag).
+// Only a long flag's wording is recorded: a short one (-x) keeps the mock's own.
+// sr:docs https://code.claude.com/docs/en/headless#basic-usage
+func flagError(_ *cobra.Command, err error) error {
+	if name, ok := strings.CutPrefix(err.Error(), "unknown flag: "); ok {
+		return fmt.Errorf("error: unknown option '%s'", name)
+	}
+	return err
+}
+
+// maxTurns is --max-turns (0: none).
+func maxTurns(cmd *cobra.Command) int {
+	n, _ := cmd.Flags().GetInt("max-turns")
+	return n
+}
+
+// hookEvents is --include-hook-events.
+func hookEvents(cmd *cobra.Command) bool {
+	b, _ := cmd.Flags().GetBool("include-hook-events")
+	return b
+}

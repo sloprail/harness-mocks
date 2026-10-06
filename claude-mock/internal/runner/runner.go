@@ -41,10 +41,9 @@ func Run(ctx context.Context, cfg Config) error {
 
 	nested := cfg.SuppressSubagentHooks
 
-	settings, err := hooks.LoadSettings(cfg.ProjectDir, cfg.PluginCacheDir)
+	settings, err := loadRunSettings(cfg)
 	if err != nil {
-		fmt.Fprintf(cfg.Stderr, "claude-mock: warn: loading settings: %v\n", err)
-		settings = &hooks.Settings{Hooks: make(map[hooks.EventName][]hooks.HookEntry)}
+		return err
 	}
 
 	// --resume (with or without --fork-session) of a session no transcript
@@ -72,13 +71,8 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg.sessionFile = tr.path
 	}
 
-	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
-	inv.SetTranscriptPath(tr.reported)
-	inv.SetProjectDir(projectDirOf(cfg))
-	inv.SetRecorder(tr.recordHookRuns)
-	if cfg.AgentID != "" {
-		inv.SetAgent(cfg.AgentID, cfg.AgentType)
-	}
+	var inv *hooks.Invoker
+	inv, cfg.Turn = newInvoker(cfg, settings, tr)
 
 	// SessionStart — once per top-level invocation. Not for a nested sub-agent
 	// run: real Claude Code fires no SessionStart for a sub-agent, which starts

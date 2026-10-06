@@ -16,6 +16,10 @@ type backgroundTasks struct {
 	*tasks.Registry
 	// stats is the session's count of its sub-agents (the result's subagent_stats).
 	stats subagents.Stats
+	// run is what the main agent has done since its last result frame.
+	run runState
+	// results holds the result frames of turns that ended while a background agent worked.
+	results tasks.Results
 	// refused is the first call a scenario script asked for that the mock does not
 	// implement, in any run of the session, a sub-agent's too: it fails the run.
 	refused toolspec.Refusals

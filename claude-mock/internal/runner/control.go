@@ -26,6 +26,17 @@ import (
 // sr:provides worktree-hooks/claude
 // sr:invariant control-records
 func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg Config, inv *hooks.Invoker, tr *transcript) (handled bool, err error) {
+	if rec.Type == "system" && rec.Subtype == "api_retry" {
+		return true, errAPIRetry
+	}
+	if rec.Type == "assistant" {
+		if _, name, _ := extractFirstToolUseWithID(line); refusedTools[name] {
+			return true, fmt.Errorf("claude-mock: the %s tool is not implemented by the mock: it is refused rather than ignored", name)
+		}
+	}
+	if err := refuseUnrecordedControl(cfg, inv, rec.Type); err != nil {
+		return true, err
+	}
 	switch rec.Type {
 	case "worktree_create", "worktree_remove":
 		evt := hooks.EventWorktreeCreate

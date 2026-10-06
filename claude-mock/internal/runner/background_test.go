@@ -133,7 +133,7 @@ func TestLaunchBash_ReceiptAndCompletion(t *testing.T) {
 	cfg := testCfg(t)
 	b := newBackgroundTasks()
 	defer b.Shutdown()
-	res := b.launchBash(cfg, "toolu_1", json.RawMessage(`{"command":"echo hi","run_in_background":true}`))
+	res := b.launchBash(cfg, "toolu_1", json.RawMessage(`{"command":"sleep 1; echo hi","run_in_background":true}`))
 	require.False(t, res.IsError)
 	tur := res.ToolUseResult.(map[string]any)
 	id := tur["backgroundTaskId"].(string)

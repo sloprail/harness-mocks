@@ -1,0 +1,1 @@
+Run these Bash commands one at a time: echo a, then echo b, then echo c. Then reply only DONE.

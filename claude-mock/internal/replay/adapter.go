@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	core "github.com/sloprail/harness-mocks/internal/replay"
@@ -57,38 +56,44 @@ func (Adapter) Script(rec core.Recording) (string, error) {
 // run, and the canonicalisation names it as an id
 const sessionID = "00000000-0000-4000-8000-0000000000a1"
 
-// Replay runs the mock on rec's scenario in a hermetic repository, laid out as
+// runMock runs the mock on rec's scenario in a hermetic repository, laid out as
 // a capture lays out its own (the hook log, the transcripts' home, the temp
-// root), and returns the recording's event stream and hook payloads with the
-// mock's, normalised.
-func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observed, err error) {
-	sample := sampleDir(rec.Dir)
-	work, err := os.MkdirTemp("", "claude-replay-*")
+// root), and returns what it streamed and the hook payloads it logged, with the
+// repository's and the temp root's paths (for scrubbing them).
+func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[string]any, repo, work string, err error) {
+	work, err = os.MkdirTemp("", "claude-replay-*")
 	if err != nil {
-		return want, got, err
+		return nil, nil, "", "", err
 	}
 	defer os.RemoveAll(work)
 	if work, err = filepath.EvalSymlinks(work); err != nil { // canonical, as the capture's paths are
-		return want, got, err
+		return nil, nil, "", "", err
 	}
-	repo, home, tmp, scripts := filepath.Join(work, "repo"), filepath.Join(work, "home"), filepath.Join(work, "tmp"), filepath.Join(work, "scripts")
+	var home, tmp, scripts string
+	repo, home, tmp, scripts = filepath.Join(work, "repo"), filepath.Join(work, "home"), filepath.Join(work, "tmp"), filepath.Join(work, "scripts")
 	for _, d := range []string{filepath.Join(repo, ".claude"), home, scripts} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
-			return want, got, err
+			return nil, nil, "", "", err
 		}
 	}
 	if err := os.Mkdir(tmp, 0o700); err != nil {
-		return want, got, err
+		return nil, nil, "", "", err
 	}
 	s := Denormalize(rec, scripts)
-	env := a.env(home, tmp, filepath.Join(work, "hook.log"))
+	// the recording names its run directory <RUN> (as a capture sanitises it): in the calls it is this replay's repository
+	fill := strings.NewReplacer("<RUN>", repo, "\\u003cRUN\\u003e", repo) // as the script's JSON writes it too
+	s.Script = fill.Replace(s.Script)
+	for name, body := range s.Scripts {
+		s.Scripts[name] = fill.Replace(body)
+	}
+	env := append(a.env(home, tmp, filepath.Join(work, "hook.log")), strings.Fields(rec.Setup["env"])...) // the setup's own
 	ctx := context.Background()
 	for _, argv := range [][]string{
 		{"git", "-C", repo, "init", "-q", "-b", "main"},
 		{"git", "-C", repo, "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "init"},
 	} {
 		if res, err := procexec.Run(ctx, procexec.Spec{Argv: argv, Env: env}); err != nil || res.ExitCode != 0 {
-			return want, got, fmt.Errorf("%s: %v %s", strings.Join(argv, " "), err, res.Stderr)
+			return nil, nil, "", "", fmt.Errorf("%s: %v %s", strings.Join(argv, " "), err, res.Stderr)
 		}
 	}
 	files := map[string]struct {
@@ -106,44 +111,40 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		}{body, 0o755}
 	}
 	for path, f := range files {
+		if f.body == "" && filepath.Base(path) == "settings.json" { // a scenario's preparation may write it
+			continue
+		}
 		if err := os.WriteFile(path, []byte(f.body), f.mode); err != nil {
-			return want, got, err
+			return nil, nil, "", "", err
 		}
 	}
-
-	res, err := procexec.Run(ctx, procexec.Spec{
-		Argv: []string{mock, "-p", "--model", "haiku", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
-			"--script", filepath.Join(work, "main.sh"), "--session-id", sessionID, s.Prompt},
-		Dir: repo, Env: env, Timeout: 3 * time.Minute})
-	if err != nil || res.ExitCode != 0 || res.TimedOut {
-		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
+	if prep := rec.Setup["prepare.sh"]; prep != "" {
+		// a capture runs the scenario's preparation in the scratch repository, before git init and claude
+		if err := os.WriteFile(filepath.Join(work, "prepare.sh"), []byte(prep), 0o644); err != nil {
+			return nil, nil, "", "", err
+		}
+		shims, err := pluginShim(work)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+		prepEnv := withShimsFirst(env, shims)
+		if res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"sh", filepath.Join(work, "prepare.sh")}, Dir: repo, Env: prepEnv}); err != nil || res.ExitCode != 0 {
+			return nil, nil, "", "", fmt.Errorf("prepare.sh: %v %s", err, res.Stderr)
+		}
+	}
+	stdout, err := runSteps(ctx, mock, s, rec, work, repo, env)
+	if err != nil {
+		return nil, nil, "", "", err
 	}
 	hookLog, _ := os.ReadFile(filepath.Join(work, "hook.log"))
 
-	recStream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
+	mockStream, err := parseJSONL(stdout, false)
 	if err != nil {
-		return want, got, err
-	}
-	recHooks, err := readHooks(filepath.Join(sample, "payloads.jsonl"))
-	if err != nil {
-		return want, got, err
-	}
-	mockStream, err := parseJSONL(string(res.Stdout), false)
-	if err != nil {
-		return want, got, fmt.Errorf("the mock's stream: %w", err)
+		return nil, nil, "", "", fmt.Errorf("the mock's stream: %w", err)
 	}
 	mockHooks, err := parseJSONL(string(hookLog), true)
 	if err != nil {
-		return want, got, fmt.Errorf("the mock's hook log: %w", err)
+		return nil, nil, "", "", fmt.Errorf("the mock's hook log: %w", err)
 	}
-
-	// one canonicalisation per side, the event stream first: it names the ids in a fixed order
-	rules := Rules(repo, work, RunIDs(recStream, mockStream, recHooks, mockHooks))
-	wantC, gotC := core.New(rules), core.New(rules)
-	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
-	want.Hooks, got.Hooks = wantC.Lines(recHooks), gotC.Lines(mockHooks)
-	// hooks of one event run at the same time, so the order they log in is not the behaviour
-	sort.Strings(want.Hooks)
-	sort.Strings(got.Hooks)
-	return want, got, nil
+	return mockStream, mockHooks, repo, work, nil
 }

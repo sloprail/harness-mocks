@@ -266,7 +266,12 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"REPORT one\ntwo"}'
 
 	// A foreground sub-agent streams task frames too (F:meta, F:hookerrors),
 	// and has its own tasks/<id>.output symlink.
-	frames := framesOf(t, out, agentID)
+	var frames []map[string]any
+	for _, f := range framesOf(t, out, agentID) {
+		if f["subtype"] != "task_progress" { // its calls' progress frames are T017_92's
+			frames = append(frames, f)
+		}
+	}
 	require.Len(t, frames, 3)
 	assert.Equal(t, false, frames[0]["is_backgrounded"])
 	assert.Equal(t, "REPORT one\ntwo", frames[2]["summary"])

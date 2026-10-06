@@ -10,6 +10,32 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bashfail
+      - claude-mock/snapshots/runs/run-failure
+      - claude-mock/snapshots/runs/max-turns
+      - claude-mock/snapshots/runs/include-hook-events
+      - claude-mock/snapshots/runs/include-hook-events-more
+      - claude-mock/snapshots/runs/invalid-flag
+      - claude-mock/snapshots/runs/bare
+      - claude-mock/snapshots/runs/permission-denied
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock refuses --agent, --output-format text and json, piped stdin
+          and --include-partial-messages (adr fail-fast-unimplemented): only
+          stream-json is produced, from the scenario's own script. It does not
+          model the SIGTERM exit code 143. All of these stay so until a
+          recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock does not model system/api_retry events; it refuses
+          them until a recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock refuses --bare and --agent, and permission deny rules
+          other than an exact Bash command, until a recording drives them.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#basic-usage

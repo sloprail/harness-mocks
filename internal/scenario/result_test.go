@@ -39,3 +39,19 @@ func TestResult_OnlyTheLastHeldResultIsWrittenOnce(t *testing.T) {
 		t.Fatalf("written = %v", out)
 	}
 }
+
+// A held result that is an error means the run failed; none, or a success, does not.
+func TestResultFailed(t *testing.T) {
+	var r Result
+	if r.Failed() {
+		t.Fatal("no result held is not a failure")
+	}
+	r.Hold([]byte(`{"type":"result","is_error":false}`))
+	if r.Failed() {
+		t.Fatal("a success is not a failure")
+	}
+	r.Hold([]byte(`{"type":"result","is_error":true}`))
+	if !r.Failed() {
+		t.Fatal("an error result is a failure")
+	}
+}

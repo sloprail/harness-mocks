@@ -55,7 +55,7 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 	active, last := stop.Continuing, stop.LastMessage
 	tasks := []hooks.BackgroundTask{}
 	crons := []any{}
-	stopOut, stopErr := inv.Fire(ctx, hooks.Input{
+	stopOut, stopRuns, stopErr := inv.FireRuns(ctx, hooks.Input{
 		SessionID:            cfg.SessionID,
 		Cwd:                  cfg.Cwd,
 		HookEventName:        hooks.EventStop,
@@ -64,6 +64,7 @@ func runPrintMode(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *trans
 		BackgroundTasks:      &tasks,
 		SessionCrons:         &crons,
 	})
+	writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns) // as the turn loop's Stop does
 	if runErr != nil {
 		return runErr
 	}

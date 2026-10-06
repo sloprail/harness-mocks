@@ -13,6 +13,8 @@ providers:
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/ctxmulti
+      - claude-mock/snapshots/runs/subagent-post-ctx
+      - claude-mock/snapshots/runs/resume-session-start-ctx
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#sessionstart

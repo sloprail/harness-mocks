@@ -10,6 +10,7 @@ providers:
       - https://code.claude.com/docs/en/plugin-marketplaces#add-plugin-entries
     runs:
       - claude-mock/snapshots/runs/plugin-hooks
+      - claude-mock/snapshots/runs/plugin-hooks-same-command
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#plugin-bundled-hooks

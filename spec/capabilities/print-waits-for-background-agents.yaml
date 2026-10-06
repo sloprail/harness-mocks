@@ -7,6 +7,17 @@ providers:
       - https://code.claude.com/docs/en/headless#background-tasks-at-exit
     runs:
       - claude-mock/snapshots/runs/bgagent
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock does not model the workflow and Monitor tools; it
+          refuses them until a recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock's sub-agent ceiling counts wall time, not only idle
+          time, until a recording shows the difference.
   codex:
     supported: false
     reason: codex exec exits when the turn that spawned a sub-agent ends, the sub-agent unfinished and no further turn started

@@ -9,7 +9,16 @@ providers:
       - https://code.claude.com/docs/en/hooks#common-input-fields
     runs:
       - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/scratchpad-dir
       - claude-mock/snapshots/runs/stops
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock refuses --agent (adr fail-fast-unimplemented), so a session
+          run with it, whose main-thread payloads the docs say carry
+          agent_type, is not modeled: main-thread events never carry
+          agent_type. It stays refused until a recording drives it.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields

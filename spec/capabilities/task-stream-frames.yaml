@@ -10,6 +10,7 @@ providers:
       - https://code.claude.com/docs/en/agent-sdk/typescript#sdktasknotificationmessage
     runs:
       - claude-mock/snapshots/runs/bgbash
+      - claude-mock/snapshots/runs/bgbash-failed
       - claude-mock/snapshots/runs/midturn
       - claude-mock/snapshots/runs/bgagent
       - claude-mock/snapshots/runs/meta

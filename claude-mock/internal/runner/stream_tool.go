@@ -94,12 +94,18 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 
 	// The stream frame carries the tool's structured result as tool_use_result
 	// (the file's record calls it toolUseResult, below).
-	frame := record
-	if res.ToolUseResult != nil {
-		frame = map[string]any{"tool_use_result": res.ToolUseResult}
-		for k, v := range record {
-			frame[k] = v
-		}
+	frame := map[string]any{}
+	for k, v := range record {
+		frame[k] = v
+	}
+	if res.ToolUseResult != nil && cfg.AgentID == "" { // a sub-agent's result frames carry none (recorded: runs/isolated-worktree)
+		frame["tool_use_result"] = res.ToolUseResult
+	}
+	if res.NonExecution != "" {
+		frame["tool_result_meta"] = []any{map[string]any{"id": call.ToolUseID, "non_execution_kind": res.NonExecution}}
+	}
+	if !res.IsError && call.ToolName != "Bash" {
+		frame["message"] = withoutIsError(record["message"].(map[string]any)) // only a Bash result says it is not an error (recorded: 83 results)
 	}
 	line, err := marshalRecord(frame)
 	if err != nil {

@@ -57,6 +57,9 @@ func modelTurns(records []map[string]any) (turns, error) {
 	return t, nil
 }
 
+// toolRead is the unified name of the Read tool (a file read), which only the claude adapter maps.
+const toolRead = "read"
+
 // unify maps a tool_use block onto the unified vocabulary: Bash is a shell
 // command, Agent a spawn (its prompt is the message). Any other tool is not
 // mapped yet.
@@ -70,12 +73,14 @@ func unify(block map[string]any) (core.Call, error) {
 	switch name {
 	case "Bash":
 		return core.Call{Tool: core.ToolShell, Input: in}, nil
+	case "Read":
+		return core.Call{Tool: toolRead, Input: in}, nil
 	case "Agent", "Task":
 		prompt, _ := input["prompt"].(string)
 		in["message"] = prompt
 		return core.Call{Tool: core.ToolSpawn, Input: in}, nil
 	}
-	return core.Call{}, fmt.Errorf("the model called %s: the adapter maps Bash and Agent", name)
+	return core.Call{}, fmt.Errorf("the model called %s: the adapter maps Bash, Read and Agent", name)
 }
 
 // attachSubagents is the main agent's calls with each spawn's sub-agent attached,

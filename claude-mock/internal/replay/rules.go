@@ -28,14 +28,23 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 	}
 	return rp.Rules{
 		DropKeys: []string{
-			"uuid", "request_id", "timestamp", // ids and times that differ in every run
+			"uuid", "request_id", // ids that differ in every run
 			"usage", "modelUsage", "total_cost_usd", "duration_ms", "duration_api_ms", // the model's cost: the mock has no model
-			"signature",                                                              // the model's thinking, signed
-			"script",                                                                 // the mock's own Agent input (the sub-agent's script): the real tool has no such key
-			"first_content_frame_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
+			"signature",                                                                                                                 // the model's thinking, signed
+			"first_content_frame_ms", "ttft_ms", "ttft_stream_ms", "time_to_request_ms", "fast_mode_state", "fast_mode_disabled_reason", // the real service's latency and mode
 		},
-		// the order the capture sanitised in: the repository first, as it holds the temp root
+		// a sub-agent's spend and the model id its alias resolved to: there in both, their values the run's own
+		// and when a task ended, and a resumed start's measures of the conversation (its tokens, its cost, how long ago it ended)
+		MaskKeys: []string{"end_time", "totalTokens", "totalDurationMs", "resolvedModel", "context_tokens", "seconds_since_last_response", "estimated_cache_write_usd"},
+		// when a frame was written differs in every run; that it has one does not
+		Rewrite: map[string]func(string) string{"timestamp": func(string) string { return "<TIME>" }},
 		Scrub: []rp.Scrub{
+			// a sub-agent trailer's usage line is compared; its counts are the model's spend
+			{Re: re(`subagent_tokens: \d+`), With: "subagent_tokens: <MASKED>"},
+			{Re: re(`duration_ms: \d+`), With: "duration_ms: <MASKED>"},
+			// the per-user folder of the temp root, named for the uid the capture and the replay ran under
+			{Re: re(`claude-\d+`), With: "claude-<UID>"},
+			// the order the capture sanitised in: the repository first, as it holds the temp root
 			{Re: re(regexp.QuoteMeta(repo)), With: "<RUN>"},
 			{Re: re(regexp.QuoteMeta(work)), With: "<TMP>"},
 			{Re: re(regexp.QuoteMeta(enc)), With: "<RUN_DIRNAME>"},
@@ -44,79 +53,23 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 	}
 }
 
-// unmodelled are the frames of the real stream that say nothing the mock could
-// be told to say: the real run's own tools, commands and model, the account's
-// rate limits, the model's thinking estimates. They are left out of both sides.
-var unmodelled = map[string]bool{
-	"system/init":             true, // the real run's tools, skills, slash commands and model
-	"system/commands_changed": true, // the account's slash commands
-	"system/thinking_tokens":  true, // the model's estimate of its own thinking
-	"rate_limit_event/":       true, // the account's rate limits
-}
-
-// Frames are the stream's frames as they are compared: the unmodelled ones
-// dropped, and an assistant frame without its thinking blocks (the mock has no
-// model and never thinks; a frame of nothing but thinking is not compared) and
-// without the API response's own bookkeeping (assistantMeta).
-func Frames(frames []map[string]any) []map[string]any {
-	var out []map[string]any
-	for _, f := range frames {
-		typ, _ := f["type"].(string)
-		sub, _ := f["subtype"].(string)
-		if unmodelled[typ+"/"+sub] {
-			continue
-		}
-		if typ == "assistant" {
-			var ok bool
-			if f, ok = assistant(f); !ok {
-				continue
-			}
-		}
-		out = append(out, f)
-	}
-	return out
-}
-
-// assistantMeta are the keys of an assistant frame's message that belong to the
-// model API's response, not to what the model said or called.
-var assistantMeta = map[string]bool{
-	"id": true, "model": true, "type": true, "container": true, "stop_reason": true, "stop_sequence": true,
-	"stop_details": true, "context_management": true, "diagnostics": true, "input_transformations": true,
-}
-
-// assistant is the assistant frame without its thinking blocks and the
-// response's bookkeeping, a copy; false when no block is left.
-func assistant(f map[string]any) (map[string]any, bool) {
-	msg, _ := f["message"].(map[string]any)
-	var content []any
-	blocks, _ := msg["content"].([]any)
-	for _, b := range blocks {
-		block, _ := b.(map[string]any)
-		if block["type"] == "thinking" {
-			continue
-		}
-		kept := map[string]any{}
-		for k, v := range block {
-			if k != "caller" { // how the tool was called (directly, here): not what was called
-				kept[k] = v
-			}
-		}
-		content = append(content, kept)
-	}
-	if len(content) == 0 {
-		return nil, false
-	}
-	message := map[string]any{}
-	for k, v := range msg {
-		if !assistantMeta[k] {
-			message[k] = v
+// Dropped are the names Rules and Frames leave out of the comparison: object
+// keys, assistant message keys that are dropped when empty, and the frames of
+// the real stream that the mock never sends ("type/subtype"). No capability cell
+// may name one (TestNoCellNamesWhatReplayDrops).
+func Dropped() (keys, frames []string) {
+	keys = append(keys, Rules("", "", nil).DropKeys...)
+	keys = append(keys, "script", "caller", "thinking") // dropped from an Agent input, an assistant block, a block type
+	for k := range assistantMeta {
+		if k != "id" && k != "model" && k != "type" { // the response's own id, model and type: common words no cell is about
+			keys = append(keys, k)
 		}
 	}
-	message["content"] = content
-	out := map[string]any{}
-	for k, v := range f {
-		out[k] = v
+	for k := range assistantEmpty {
+		keys = append(keys, k)
 	}
-	out["message"] = message
-	return out, true
+	for f := range unmodelled {
+		frames = append(frames, f)
+	}
+	return keys, frames
 }

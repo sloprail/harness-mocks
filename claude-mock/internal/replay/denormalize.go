@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -18,6 +17,15 @@ type Scenario struct {
 	Scripts map[string]string
 	Script  string
 	Prompt  string
+	// Then are the later runs of claude, each with its own script and the flags to run the mock with.
+	Then []ScenarioStep
+}
+
+// ScenarioStep is a later run: its script, its prompt and the words given before it (a resume's
+// <SESSION> is the first run's session).
+type ScenarioStep struct {
+	Script, Prompt string
+	Args           []string
 }
 
 // scriptCall is one tool call the model made, in the mock's script vocabulary.
@@ -34,8 +42,8 @@ type scriptCall struct {
 func Denormalize(rec core.Recording, dir string) Scenario {
 	scripts := map[string]string{}
 	n := 0
-	var scriptFor func(tag string, a core.Agent) string
-	scriptFor = func(tag string, a core.Agent) string {
+	var scriptFor func(tag string, a core.Agent, skip int) string
+	scriptFor = func(tag string, a core.Agent, skip int) string {
 		calls := make([]scriptCall, len(a.Calls))
 		for i, c := range a.Calls {
 			calls[i] = mockCall(c)
@@ -43,19 +51,36 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 				name := fmt.Sprintf("sub%d.sh", n)
 				subTag := fmt.Sprintf("sub%d", n)
 				n++
-				scripts[name] = scriptFor(subTag, *c.Sub)
+				scripts[name] = scriptFor(subTag, *c.Sub, 0)
 				calls[i].Input["script"] = dir + "/" + name
 			}
 		}
-		return script(tag, calls, a.Final)
+		extra := ""
+		if tag == "main" {
+			extra = rec.Setup["result"]
+		}
+		return script(tag, calls, a.Final, extra, skip)
 	}
-	main := scriptFor("main", rec.Agent)
+	main := scriptFor("main", rec.Agent, 0)
+	var then []ScenarioStep
+	// a run that resumes a session finds the earlier runs' tool results in its file: the script
+	// skips as many calls as they made. (A run of a session of its own skips none.)
+	done := len(rec.Agent.Calls)
+	for i, st := range rec.Then {
+		skip := 0
+		if !startsOwnSession(st.Args) {
+			skip = done
+		}
+		done += len(st.Agent.Calls)
+		then = append(then, ScenarioStep{Script: scriptFor(fmt.Sprintf("step%d", i+1), st.Agent, skip), Prompt: st.Prompt, Args: st.Args})
+	}
 	return Scenario{
 		Settings: rec.Setup["settings.json"],
 		Hook:     rec.Setup["hook.sh"],
 		Scripts:  scripts,
 		Script:   main,
 		Prompt:   rec.Prompt,
+		Then:     then,
 	}
 }
 
@@ -64,8 +89,11 @@ func Denormalize(rec core.Recording, dir string) Scenario {
 // the input already carries.
 func mockCall(c core.Call) scriptCall {
 	name := "Bash"
-	if c.Tool == core.ToolSpawn {
+	switch c.Tool {
+	case core.ToolSpawn:
 		name = "Agent"
+	case toolRead:
+		name = "Read"
 	}
 	in := make(map[string]any, len(c.Input))
 	for k, v := range c.Input {
@@ -81,43 +109,27 @@ func mockCall(c core.Call) scriptCall {
 // file of its own. The mock runs the script once per tool call and the session
 // file holds the results so far, so the script's n-th run makes the n-th call.
 // Call ids are unique across the run's scripts (tag), as the real ones are.
-func script(tag string, calls []scriptCall, final string) string {
+func script(tag string, calls []scriptCall, final, extra string, skip int) string {
 	lines := make([]string, 0, len(calls)+1)
 	for i, c := range calls {
 		lines = append(lines, callLine(fmt.Sprintf("toolu_%s%d", tag, i), c))
 	}
-	lines = append(lines, finalLines(final))
+	lines = append(lines, finalLines(final, extra))
 	return fmt.Sprintf(`#!/bin/sh
 n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
-sed -n "$((n+1))p" <<'CALLS_EOF' | tr '\001' '\n'
+sed -n "$((n+1-%d))p" <<'CALLS_EOF' | tr '\001' '\n'
 %s
 CALLS_EOF
-`, strings.Join(lines, "\n"))
+`, skip, strings.Join(lines, "\n"))
 }
 
-// finalLines is what the script prints to end: the answer and the result.
-func finalLines(final string) string {
-	var parts []string
-	if final != "" {
-		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": final}))
+// startsOwnSession is whether a later run's flags start a session of its own (--session-id), not
+// the earlier one.
+func startsOwnSession(args []string) bool {
+	for _, a := range args {
+		if a == "--session-id" {
+			return true
+		}
 	}
-	result, _ := json.Marshal(map[string]any{"type": "result", "subtype": "success", "result": final})
-	return strings.Join(append(parts, string(result)), "\x01")
-}
-
-func assistantFrame(block map[string]any) string {
-	b, _ := json.Marshal(map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "content": []any{block}}})
-	return string(b)
-}
-
-// callLine is what the script prints for one call: what the model said before
-// it (a frame of its own, as the real stream has it) and the call, joined by
-// the byte \001, which JSON never holds raw; the script splits them again.
-func callLine(id string, c scriptCall) string {
-	var parts []string
-	if c.Text != nil {
-		parts = append(parts, assistantFrame(map[string]any{"type": "text", "text": *c.Text}))
-	}
-	parts = append(parts, assistantFrame(map[string]any{"type": "tool_use", "id": id, "name": c.Name, "input": c.Input}))
-	return strings.Join(parts, "\x01")
+	return false
 }

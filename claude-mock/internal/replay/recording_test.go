@@ -36,7 +36,7 @@ func TestLoadAttachesTheSubagent(t *testing.T) {
 
 // What the adapter does not map is refused, never guessed.
 func TestLoadRefusesATool(t *testing.T) {
-	_, err := Adapter{}.Load(filepath.Join("..", "..", "snapshots", "runs", "tool-errors"))
+	_, err := Adapter{}.Load(filepath.Join("..", "..", "snapshots", "runs", "file-tools"))
 	if _, ok := err.(*Unbuildable); !ok {
 		t.Fatalf("err = %v, want an Unbuildable", err)
 	}

@@ -30,7 +30,8 @@ func TestGeneratedReplay(t *testing.T) {
 	require.NoError(t, err)
 	var names []string
 	for _, d := range dirs {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+		// a run with no captured sample is a scenario authored and not recorded: no recording to replay
+		if samples, _ := filepath.Glob(filepath.Join(d, "samples", "*")); len(samples) > 0 {
 			names = append(names, filepath.Base(d))
 		}
 	}
@@ -47,6 +48,10 @@ func TestGeneratedReplay(t *testing.T) {
 			var unbuildable *claudereplay.Unbuildable
 			reason, listed := notReplaying[name]
 			switch {
+			case errors.As(err, &unbuildable) && strings.HasPrefix(unbuildable.Reason, claudereplay.RefusedPrefix):
+				// a recording of what the mock refuses (fail-fast): there is no run to replay, so the mock is asked to
+				// do what the run did, and must refuse it
+				assertRefuses(t, filepath.Join(runsDir, name))
 			case errors.As(err, &unbuildable) && listed:
 				t.Skipf("not replaying: %s", reason)
 			case errors.As(err, &unbuildable):
@@ -63,4 +68,21 @@ func TestGeneratedReplay(t *testing.T) {
 			}
 		})
 	}
+}
+
+// assertRefuses runs the mock with the flags of the recording's setup/args and
+// requires it to refuse them: a non-zero exit, and the flag named in its error.
+func assertRefuses(t *testing.T, run string) {
+	t.Helper()
+	args, err := os.ReadFile(filepath.Join(run, "setup", "args"))
+	require.NoError(t, err)
+	flags := strings.Fields(string(args))
+	require.NotEmpty(t, flags)
+	script := filepath.Join(t.TempDir(), "s.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\necho RAN\n"), 0o755))
+	out, code := e2etest.RunInDir(t, t.TempDir(), nil, append([]string{"--script", script, "--session-id", "refused-1", "-p", "--output-format", "stream-json"}, append(flags, "go")...)...)
+	require.NotZero(t, code, out)
+	require.Contains(t, out, flags[0], "the refusal names the flag")
+	require.True(t, strings.Contains(out, "is not implemented by the mock") || strings.Contains(out, "unknown option"), out)
+	require.NotContains(t, out, "RAN")
 }
