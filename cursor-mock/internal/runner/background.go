@@ -111,6 +111,11 @@ func (s *session) registry() *tasks.Registry {
 //
 // sr:provides task-notifications/cursor
 func (s *session) afterTurn(ctx context.Context) (string, bool) {
+	if len(s.reaped) > 0 { // a command a sub-agent's end ended: its frame is out (or owed), the turn is still the agent's
+		s.reaped = s.reaped[1:]
+		s.flushOwed()
+		return notificationPrompt, true
+	}
 	r := s.registry()
 	t := r.AwaitAfterTurn(ctx, "") // a finished shell, at once
 	for t == nil {

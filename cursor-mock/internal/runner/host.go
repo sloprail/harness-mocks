@@ -100,7 +100,7 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 		// the order they are taken, before any of them runs (recorded: runs/task-stream-frames)
 		h := &toolHost{s: s}
 		h.prepare(toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input})
-		h.firePre(ctx)
+		h.firePre(ctx, false) // not named yet: the calls beside it are told the same
 		s.early.Store(tu.ID, h)
 	}
 	return func() {
@@ -147,3 +147,8 @@ func (s *session) Order(calls []scenario.ToolUse) []scenario.ToolUse {
 	}
 	return append(rest, tasks...)
 }
+
+// Waits is turnloop.Waiter: a wait (AwaitShell) outlasts the other calls of its
+// response, which are in flight beside it (recorded: runs/nested-subagents-background,
+// where the wait of 60 s is completed after the sub-agent the same response started).
+func (s *session) Waits(tu scenario.ToolUse) bool { return tu.Name == "AwaitShell" }
