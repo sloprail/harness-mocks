@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -106,4 +107,41 @@ func TestAnInterruptedTurnFiresTheInterruptHookAndIsAborted(t *testing.T) {
 	want := []string{"call", "aborted by user after <T>s", "user: turn_aborted", "event: turn_aborted interrupted"}
 	assert.Equal(t, want, interruptShape(t, recordedRollout(t, rec)), "recorded")
 	assert.Equal(t, want, interruptShape(t, got.rollout(t)), "the mock's")
+}
+
+// What an Interrupt hook answers cannot prevent the interruption or be shown: hooks that print a
+// systemMessage as JSON, plain text, or exit 2 with a reason all run, and neither the stream, the
+// transcript nor the run's error output carries what they said; the turn is aborted and the run exits
+// 1 all the same (recorded: runs/interrupt-hook-output, the doc's hooks#interrupt).
+// sr:proves hook-matcher-filter/codex
+func TestWhatAnInterruptHookAnswersCannotPreventTheInterruption(t *testing.T) {
+	rec := loadRecording(t, "interrupt-hook-output")
+	ran := func(log []map[string]any) (out []string) {
+		for _, l := range log {
+			if r, ok := l["ran"].(string); ok {
+				out = append(out, r)
+			}
+		}
+		sort.Strings(out)
+		return
+	}
+	want := []string{"exit2", "json", "none", "plain"}
+	recordedFiles := []string{"stream.jsonl", "stderr.txt"}
+	assert.Equal(t, want, ran(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))), "recorded")
+	assert.Equal(t, "1\n", readFile(t, filepath.Join(rec.sample, "exit.txt")))
+	for _, f := range recordedFiles {
+		assert.NotContains(t, readFile(t, filepath.Join(rec.sample, f)), "INT-", f)
+	}
+	assert.NotContains(t, recordedRollout(t, rec), "INT-")
+
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files:     map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh"))},
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "sleep 30"), InterruptOnCommand: true,
+	})
+	assert.Equal(t, 1, got.Code)
+	assert.Equal(t, want, ran(got.hookLog()), "the mock's")
+	assert.NotContains(t, got.Stdout, "INT-")
+	assert.NotContains(t, got.Stderr, "INT-")
+	assert.NotContains(t, got.rollout(t), "INT-")
 }
