@@ -29,20 +29,6 @@ install_checker() {
   mkdir -p "$GOCACHE" "$GOPATH"
 }
 
-# passes LABEL / refuses LABEL REASON — the rule's outcome over BASE..HEAD, from the events of sr-checks run
-passes() {
-  : > "$SR_EVENTS_FILE"
-  sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
-  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="tests-fail-on-missing-tool")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
-    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1 was not passed by tests-fail-on-missing-tool (sr-checks exit $ran)" >&2; exit 1; }
-}
-refuses() {
-  : > "$SR_EVENTS_FILE"
-  sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
-  jq -es --arg r "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="tests-fail-on-missing-tool" and .outcome=="refused" and (.reason|contains($r)))' "$SR_EVENTS_FILE" >/dev/null ||
-    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1 was not refused with its reason (sr-checks exit $ran)" >&2; exit 1; }
-}
-
 # branch_with NAME FILE-CONTENT — a branch from BASE whose pkg/tool_test.go is FILE-CONTENT
 branch_with() {
   git checkout -q -b "$1" "$BASE"

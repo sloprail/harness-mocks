@@ -11,6 +11,20 @@ printf 'package pkg\n\nimport "testing"\n\nfunc TestTool(t *testing.T) {}\n' > p
 git add -A && git -c user.name=t -c user.email=t@t commit -q -m "base"
 BASE=$(git rev-parse HEAD)
 
+# the rule's outcome over BASE..HEAD, from the events of sr-checks run
+passes() {
+  : > "$SR_EVENTS_FILE"
+  sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+  jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="tests-fail-on-missing-tool")] | length > 0 and all(.[]; .outcome=="passed")' "$SR_EVENTS_FILE" >/dev/null ||
+    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1 was not passed by tests-fail-on-missing-tool (sr-checks exit $ran)" >&2; exit 1; }
+}
+refuses() {
+  : > "$SR_EVENTS_FILE"
+  sr-checks run --base "$BASE" --head HEAD >/dev/null 2>&1 && ran=0 || ran=$?
+  jq -es --arg r "$2" 'any(.[]; .kind=="FileGuardChecked" and .rule=="tests-fail-on-missing-tool" and .outcome=="refused" and (.reason|contains($r)))' "$SR_EVENTS_FILE" >/dev/null ||
+    { jq -c . "$SR_EVENTS_FILE" >&2; echo "$1 was not refused with its reason (sr-checks exit $ran)" >&2; exit 1; }
+}
+
 HEAD_='package pkg
 
 import (
