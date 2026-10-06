@@ -49,7 +49,7 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 	if len(paths) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("no rollout was recorded: the model's turns are unknown"))
 	}
-	stream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
+	stream, err := eventStream(sample, cmdline)
 	if err != nil {
 		return core.Recording{}, err
 	}
@@ -57,6 +57,9 @@ func (Adapter) Load(runDir string) (core.Recording, error) {
 		return core.Recording{}, err
 	}
 	threads := threadsOf(stream)
+	if len(threads) == 0 && !hasFlag(cmdline, "--json") && len(paths) == 1 { // text mode prints no thread: the one rollout is the session's
+		threads = []string{threadOf(paths[0])}
+	}
 	if len(threads) == 0 {
 		return core.Recording{}, unbuildable(fmt.Errorf("the stream starts no thread"))
 	}

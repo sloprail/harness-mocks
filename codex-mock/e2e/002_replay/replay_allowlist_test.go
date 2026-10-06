@@ -8,6 +8,5 @@ package e2e
 // "untriaged:" is a replay that differs and has not been looked at (the mock,
 // the adapter or the recording may be wrong).
 var notReplaying = map[string]string{
-	"noninteractive-run-output-schema": "adapter: the setup has args, which the adapter does not install",
-	"noninteractive-run-text-output":   "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
+	"noninteractive-run-output-schema": "mock gap: the recording ran with --output-schema, which the mock refuses by design (adr/fail-fast-unimplemented); replaying it needs the decision that a refused-flag recording replays as a check that the mock refuses it",
 }

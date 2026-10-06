@@ -51,3 +51,14 @@ func TestPrepareRunsTheRecordedScriptWithTheCodexAndSedStubs(t *testing.T) {
 	err = prepare(context.Background(), "codex exec x\n", root, repo, home, []string{"CODEX_HOME=" + home})
 	assert.Error(t, err, "another codex command is an error")
 }
+
+// A run made without --json prints only the agent's last message: its lines are the compared stream,
+// as raw lines; with --json they are events.
+func TestWithoutJSONTheStreamIsTheRawLines(t *testing.T) {
+	text, err := parseStream("DONE\n", []string{"--skip-git-repo-check"})
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]any{{"raw": "DONE"}}, text)
+	events, err := parseStream("{\"type\":\"turn.started\"}\n", []string{"--json"})
+	require.NoError(t, err)
+	assert.Equal(t, "turn.started", events[0]["type"])
+}

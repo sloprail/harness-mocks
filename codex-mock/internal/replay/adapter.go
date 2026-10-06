@@ -111,7 +111,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	hookLog, _ := os.ReadFile(filepath.Join(tmp, "hook.log"))
 
 	// the mock's output is compared with every sample of the recording, each under a header
-	mockStream, err := parseJSONL(stdout)
+	mockStream, err := parseStream(stdout, s.CmdFlags)
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's stream: %w", err)
 	}
@@ -120,7 +120,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 		return want, got, fmt.Errorf("the mock's hook log: %w", err)
 	}
 	for _, sample := range sampleDirs(rec.Dir) {
-		recStream, err := readJSONL(filepath.Join(sample, "stream.jsonl"))
+		recStream, err := eventStream(sample, s.CmdFlags)
 		if err != nil {
 			return want, got, err
 		}
