@@ -75,7 +75,7 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	frames := frameObserver{cfg}
 	if err := b.StartCommand(task, tasks.CommandSpec{
 		Argv: []string{"/bin/sh", "-c", toolexec.WithSessionEnv(cfg.SessionID, in.Command)}, Dir: cfg.Cwd,
-		Env: procexec.Env(os.Environ(), childenv.Tool(cfg.SessionID), childenv.Defaults()),
+		Env: bashChildEnv(cfg.SessionID),
 		Out: out, Trailer: exitTrailer,
 		Started: func(t *tasks.Task) { tasks.Announce(b.Registry, t, frames) },
 		Ended:   func(t *tasks.Task) { tasks.Conclude(b.Registry, t, frames) },
@@ -109,4 +109,10 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 		tur["backgroundCwdHint"] = hint
 	}
 	return toolexec.Result{Output: text, ToolUseResult: tur}
+}
+
+// bashChildEnv is the environment of a background Bash command: what the process inherited and what a tool's child sees.
+func bashChildEnv(sessionID string) []string {
+	env := os.Environ()
+	return procexec.Env(env, childenv.Tool(sessionID, env), childenv.Defaults())
 }

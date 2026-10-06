@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sloprail/harness-mocks/internal/procexec"
 )
@@ -47,9 +48,19 @@ func prepare(ctx context.Context, script, root, repo, home string, env []string)
 		}
 	}
 	res, err := procexec.Run(ctx, procexec.Spec{Argv: []string{"sh", filepath.Join(stubs, "prepare.sh")}, Dir: repo,
-		Env: append(append([]string{}, env...), "PATH="+stubs+":"+os.Getenv("PATH"), "HOME="+filepath.Join(root, "home"))})
+		Env: append(append([]string{}, env...), "PATH="+stubs+":"+pathIn(env), "HOME="+filepath.Join(root, "home"))})
 	if err != nil || res.ExitCode != 0 {
 		return fmt.Errorf("the recorded prepare.sh: %v (exit %d): %s", err, res.ExitCode, res.Stderr)
 	}
 	return nil
+}
+
+// pathIn is the PATH of an environment (the one the entrypoint read and passed down), "" when it has none.
+func pathIn(env []string) string {
+	for i := len(env) - 1; i >= 0; i-- {
+		if v, ok := strings.CutPrefix(env[i], "PATH="); ok {
+			return v
+		}
+	}
+	return ""
 }

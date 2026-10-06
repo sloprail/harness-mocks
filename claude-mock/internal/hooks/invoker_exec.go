@@ -16,11 +16,12 @@ import (
 // off them), and CLAUDE_CODE_SESSION_ID only when there is one.
 // sr:docs https://code.claude.com/docs/en/env-vars (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID)
 func hookEnv(sessionID, projectDir string) []string {
-	ident := childenv.Identity(sessionID)
+	env := os.Environ()
+	ident := childenv.Identity(sessionID, env)
 	if projectDir != "" {
 		ident["CLAUDE_PROJECT_DIR"] = projectDir
 	}
-	return procexec.Env(os.Environ(), ident, childenv.Defaults())
+	return procexec.Env(env, ident, childenv.Defaults())
 }
 
 // commandRun is the HandlerRun of a command hook that has run: what it

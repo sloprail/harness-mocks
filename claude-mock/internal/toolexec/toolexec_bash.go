@@ -52,10 +52,11 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 // Code session would hand its tool calls the OPERATOR's outer session id. Set
 // only when non-empty, matching the hook invoker (hooks/invoker.go).
 func bashEnv(sessionID, command string) []string {
-	ident := childenv.Tool(sessionID)
+	env := os.Environ()
+	ident := childenv.Tool(sessionID, env)
 	// sloprail's own commands resolve their session elsewhere: keep them out of it
 	if strings.HasPrefix(strings.TrimSpace(command), "sr-") {
 		delete(ident, "CLAUDE_CODE_SESSION_ID")
 	}
-	return procexec.Env(os.Environ(), ident, childenv.Defaults())
+	return procexec.Env(env, ident, childenv.Defaults())
 }
