@@ -56,13 +56,26 @@ func Script(runDir string) (string, error) { return core.Script(Adapter{}, runDi
 func (Adapter) Script(rec core.Recording) (string, error) {
 	s := Denormalize(rec, "<scripts>", nil)
 	out := "# main\n" + s.Script
-	names := make([]string, 0, len(s.Scripts))
-	for name := range s.Scripts {
+	scripts := map[string]string{}
+	for name, body := range s.Scripts {
+		scripts[name] = body
+	}
+	lines := s.Lines
+	for i, st := range rec.Later {
+		sc := DenormalizeStep(st, i+1, "<scripts>", nil, lines)
+		lines += sc.Lines
+		scripts[fmt.Sprintf("main%d.sh", i+1)] = sc.Script
+		for name, body := range sc.Scripts {
+			scripts[name] = body
+		}
+	}
+	names := make([]string, 0, len(scripts))
+	for name := range scripts {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		out += "\n# " + name + "\n" + s.Scripts[name]
+		out += "\n# " + name + "\n" + scripts[name]
 	}
 	return out, nil
 }

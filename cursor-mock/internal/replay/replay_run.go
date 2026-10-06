@@ -1,14 +1,12 @@
 package replay
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
 
-	"github.com/sloprail/harness-mocks/internal/procexec"
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
@@ -50,22 +48,16 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	if err != nil {
 		return want, got, err
 	}
-	argv := []string{mock, "-p"}
-	if _, noForce := rec.Setup["no-force"]; !noForce {
-		argv = append(argv, "--force")
-	}
-	extra, err := flagWords(rec.Setup["args"]) // checked at Load
+	extra, err := flagWords(rec.Setup["args"], false) // checked at Load
 	if err != nil {
 		return want, got, err
 	}
-	argv = append(append(argv, "--trust", "--model", "auto", "--output-format", "stream-json"), extra...)
-	argv = append(argv, "--script", l.main, rec.Prompt)
-	res, err := procexec.Run(context.Background(), procexec.Spec{Argv: argv, Dir: l.cwd, Env: l.env, Timeout: 2 * time.Minute})
-	if err != nil || res.ExitCode != 0 || res.TimedOut {
-		return want, got, &core.MockFailure{Detail: fmt.Sprintf("%v (exit %d): %s", err, res.ExitCode, res.Stderr)}
+	stdout, exits, err := a.runSteps(mock, rec, l, extra)
+	if err != nil {
+		return want, got, err
 	}
 	hookLog, _ := os.ReadFile(l.hookLog)
-	mockStream, err := parseJSONL(string(res.Stdout))
+	mockStream, err := parseJSONL(stdout)
 	if err != nil {
 		return want, got, fmt.Errorf("the mock's stream: %w", err)
 	}
@@ -78,6 +70,13 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	rules := Rules(l.repo, work)
 	wantC, gotC := core.New(rules), core.New(rules)
 	want.Events, got.Events = wantC.Lines(Frames(recStream)), gotC.Lines(Frames(mockStream))
+	recExits, _ := exitsOf(rec.Setup["exit"])
+	for _, c := range recExits {
+		want.Exits = append(want.Exits, "exit "+strconv.Itoa(c))
+	}
+	for _, c := range exits {
+		got.Exits = append(got.Exits, "exit "+strconv.Itoa(c))
+	}
 	unsettled(recHooks)
 	unsettled(mockHooks)
 	want.Hooks, got.Hooks = concurrent(recHooks, wantC.Lines(recHooks)), concurrent(mockHooks, gotC.Lines(mockHooks))

@@ -54,11 +54,14 @@ func TestUnifyRefusesAToolTheMockHasNot(t *testing.T) {
 	}
 }
 
-// A setup the adapter does not install is refused, naming the file.
+// The files of a later step are known; a run whose later step has its transcript in
+// a project directory of its own is not replayed.
 func TestLoadRefusesASetupItDoesNotInstall(t *testing.T) {
-	_, err := Adapter{}.Load(runDir("session-fork"))
-	if u, ok := err.(*Unbuildable); !ok || !strings.Contains(u.Reason, "then-01") {
-		t.Fatalf("err = %v, want an Unbuildable naming the later step", err)
+	if _, err := (Adapter{}).Load(runDir("session-resume")); err == nil {
+		t.Fatal("a run whose later step runs from another directory has its transcript elsewhere: it is not replayed yet")
+	}
+	if !stepFile("then-02-args") || !stepFile("then-10-cwd") || stepFile("then-x-args") || stepFile("prompt.txt") {
+		t.Fatal("a later step's files are then-<NN>-prompt.txt, -args and -cwd")
 	}
 }
 
@@ -69,9 +72,13 @@ func TestScriptStepsAdvanceByTheRecordsTheyAdd(t *testing.T) {
 	s := script("t", []step{
 		{said: &said, calls: []scriptCall{{Name: "Shell", Input: map[string]any{"command": "a"}}, {Name: "Shell", Input: map[string]any{"command": "b"}}}},
 		{said: &said},
-	})
+	}, 0)
 	if !strings.Contains(s, "\n0) printf") || !strings.Contains(s, "\n2) printf") {
 		t.Fatalf("script:\n%s", s)
+	}
+	// a later step that resumes the session starts after the records it already holds
+	if later := script("t", []step{{said: &said}}, 3); !strings.Contains(later, "\n3) printf") {
+		t.Fatalf("later step:\n%s", later)
 	}
 }
 
@@ -120,12 +127,12 @@ func TestLoadReadsTheNamedSample(t *testing.T) {
 // A flag of a setup's args the mock models is passed on with its value; any
 // other is refused, and so is a value that names an earlier step's session.
 func TestFlagWordsPassOnWhatTheMockModelsAndRefuseTheRest(t *testing.T) {
-	got, err := flagWords("--add-dir\n../second-root\n--approve-mcps\n")
+	got, err := flagWords("--add-dir\n../second-root\n--approve-mcps\n", false)
 	if err != nil || strings.Join(got, " ") != "--add-dir ../second-root --approve-mcps" {
 		t.Fatalf("got %v, %v", got, err)
 	}
 	for _, bad := range []string{"--sandbox\nx\n", "--add-dir\n", "--resume\n<SESSION>\n"} {
-		if _, err := flagWords(bad); err == nil {
+		if _, err := flagWords(bad, false); err == nil {
 			t.Errorf("%q must be refused", bad)
 		}
 	}
@@ -231,5 +238,21 @@ func TestLoadLaysOutTheHarnessSkillsTheRunRead(t *testing.T) {
 	body := rec.Setup[homeFilePrefix+".cursor/skills-cursor/loop/SKILL.md"]
 	if !strings.Contains(body, "# Loop") {
 		t.Fatalf("setup: %v", len(rec.Setup))
+	}
+}
+
+// The steps of a run are told apart by their prompts, a step the harness refused
+// has no turns, and each step's exit status is recorded: session-fork has three
+// steps and the last was refused.
+func TestLoadReadsTheStepsOfARun(t *testing.T) {
+	rec, err := Adapter{}.Load(runDir("session-fork"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.Later) != 2 || rec.Agent.Final != "OK" || rec.Later[0].Agent.Final != "ORIGINAL" || len(rec.Later[1].Agent.Calls) != 0 || rec.Later[1].Agent.Final != "" {
+		t.Fatalf("later steps: %+v", rec.Later)
+	}
+	if exits, _ := exitsOf(rec.Setup["exit"]); len(exits) != 3 || exits[2] != 1 {
+		t.Fatalf("exits %v", exits)
 	}
 }
