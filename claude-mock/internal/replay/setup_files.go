@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	core "github.com/sloprail/harness-mocks/internal/replay"
 )
 
 // A sample may have been recorded when a file of the setup read otherwise than it does now: the model's
@@ -79,4 +81,16 @@ func changedSetupFiles(setup, sample string) map[string]string {
 		}
 	}
 	return out
+}
+
+// withChangedFiles installs the setup files the sample's model read otherwise than the setup has them now
+// (see changedSetupFiles; only the hook is read back).
+func (s *Scenario) withChangedFiles(rec core.Recording) {
+	var changed map[string]string
+	if text := rec.Setup["files"]; text != "" {
+		_ = json.Unmarshal([]byte(text), &changed)
+	}
+	if body, ok := changed["hook.sh"]; ok {
+		s.Hook = body
+	}
 }

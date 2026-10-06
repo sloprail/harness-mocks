@@ -7,7 +7,6 @@ package replay
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -97,13 +96,7 @@ func (a Adapter) runMock(mock string, rec core.Recording) (stream, hooks []map[s
 			return nil, nil, "", "", fmt.Errorf("%s: %v %s", strings.Join(argv, " "), err, res.Stderr)
 		}
 	}
-	var changed map[string]string
-	if text := rec.Setup["files"]; text != "" {
-		_ = json.Unmarshal([]byte(text), &changed)
-	}
-	if body, ok := changed["hook.sh"]; ok { // the sample was recorded with the hook as the model read it
-		s.Hook = body
-	}
+	s.withChangedFiles(rec)
 	files := map[string]struct {
 		body string
 		mode os.FileMode
