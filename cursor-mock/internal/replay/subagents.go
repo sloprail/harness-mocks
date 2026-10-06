@@ -98,6 +98,7 @@ func attach(a core.Agent, convs *[]conversation) (core.Agent, error) {
 		if err != nil {
 			return core.Agent{}, err
 		}
+		sub.ID = cv.id
 		out.Calls[i].Sub = &sub
 	}
 	return out, nil
