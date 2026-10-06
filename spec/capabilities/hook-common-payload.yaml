@@ -32,6 +32,7 @@ providers:
       - cursor-mock/snapshots/runs/multiroot-workspace
       - cursor-mock/snapshots/runs/add-dir-access
       - cursor-mock/snapshots/runs/no-add-dir-access
+      - cursor-mock/snapshots/runs/workspace-open
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -89,11 +90,9 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock fires no workspaceOpen event (an app-lifecycle event outside
-          any session, whose payload omits the conversation id, the session id
-          and the transcript path) and has no setting that disables
-          transcripts (which makes the transcript path null throughout), so
-          those two variants of the common schema are not modeled.
+          The mock has no setting that disables transcripts (which makes the
+          transcript path null throughout), so that variant of the common schema
+          is not modeled.
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
@@ -103,3 +102,22 @@ providers:
           sessionStart and on the first preToolUse with transcripts on
           (recorded: runs/tool-failure, runs/symlinked-cwd,
           runs/file-tools). The recordings decide.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor in print mode does not run a multiroot workspace: the common
+          schema (#common-schema) says workspace_roots lists every root folder
+          ("multiroot workspaces can have multiple"), and a run with a second
+          root added with --add-dir, and one started from a workspace file,
+          still named one root in every payload (recorded:
+          runs/multiroot-workspace, runs/add-dir-access; --workspace takes a
+          directory, not a workspace file). The mock names the one root.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor's payloads carry model_id and model_params (the common schema's
+          optional fields) only on one hook that reports what the agent
+          did between calls, which the mock does not fire, and on no other event of any recording: the events the mock
+          fires carry model "default" and neither field (recorded:
+          runs/file-tools, runs/hook-exit-codes, runs/background-agent and the
+          other runs).
