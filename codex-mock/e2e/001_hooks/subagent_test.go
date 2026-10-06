@@ -81,6 +81,7 @@ func keysOf(m map[string]any) []string {
 // sub-agent's own, with the sub-agent's last message. A stop payload lists no
 // background tasks (runs/subagent-lifecycle-hooks).
 // sr:proves subagent-lifecycle-hooks/codex
+// sr:proves hook-common-payload/codex
 func TestSubagentStartAndStopHooks(t *testing.T) {
 	rec, got := replaySubagent(t, "subagent-lifecycle-hooks")
 	want := byEvent(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
