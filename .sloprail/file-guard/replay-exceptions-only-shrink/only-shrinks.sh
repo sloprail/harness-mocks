@@ -36,6 +36,12 @@ printf '%s' "$payload" | jq -e '.changeset.files | type == "array"' >/dev/null 2
 count="$(printf '%s' "$payload" | jq -r '.changeset.files | length')" || count=""
 case "$count" in '' | *[!0-9]*) refuse_error "the changeset's files could not be read, so they could not be checked" ;; esac
 
+# two_line_empty — stdin with a one-line `var notReplaying = map[string]string{}` written as the declaration line and a
+# closing brace line, the form the rest of the rule reads
+two_line_empty() {
+  awk '/^var notReplaying = map\[string\]string\{\}[ \t]*$/ { print "var notReplaying = map[string]string{"; print "}"; next } { print }'
+}
+
 tab="$(printf '\t')"
 # the reasons start with one of these categories (the user's words: a reason with none of them is refused)
 known='^(adapter:|mock gap:|untriaged:|flaky:)'
@@ -116,6 +122,9 @@ while [ "$i" -lt "$count" ]; do
   fi
   new="$(printf '%s' "$payload" | jq -r --argjson i "$((i - 1))" '.changeset.files[$i].newContent')" ||
     refuse_error "could not read $path from the changeset, so it could not be checked"
+  # the empty map gofmt writes on one line is the same empty list as the two-line form
+  old="$(two_line_empty <<<"$old")" || refuse_error "could not read the base of $path, so it could not be checked"
+  new="$(two_line_empty <<<"$new")" || refuse_error "could not read $path, so it could not be checked"
   grep -qx 'var notReplaying = map\[string\]string{' <<<"$new" ||
     refuse "$path: the notReplaying map could not be found; keep it as 'var notReplaying = map[string]string{' with one \"run\": \"reason\" per line"
   # exactly one declaration: a second one (inside a block comment or a raw string, with the real map
