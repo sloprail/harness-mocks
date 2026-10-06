@@ -48,6 +48,7 @@ providers:
       - cursor-mock/snapshots/runs/hook-matchers-grep-delete
       - cursor-mock/snapshots/runs/hook-matchers-mcp
       - cursor-mock/snapshots/runs/nested-subagents
+      - cursor-mock/snapshots/runs/hook-matchers-thought
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
@@ -58,3 +59,13 @@ providers:
           and afterAgentThought), so the matchers of the other events
           (subagentStart, subagentStop, beforeSubmitPrompt, stop,
           afterAgentResponse and the rest) are not modeled.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#matcher-configuration) lists
+          Task among the tool values a postToolUse matcher is tested against, and
+          the recording shows a hook matched on Task never running after a Task
+          call that completed, though the one matched on Task ran before it, since
+          no postToolUse fires for a Task call (recorded:
+          runs/hook-matchers-task-read). The recording decides; the mock does the
+          same.
