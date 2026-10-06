@@ -84,6 +84,14 @@ providers:
           runs/nested-subagents-depth),
           rather than a dispatch ending in an error. The mock answers a Task
           call there as an unknown tool and nests two layers.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor fires neither subagentStart nor subagentStop for a sub-agent
+          or its own sub-agent in print mode, though both were configured
+          (recorded: runs/nested-subagents, whose hook log has no event of
+          either), so the documented parent_conversation_id of those hooks
+          does not apply, and the mock fires neither.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
