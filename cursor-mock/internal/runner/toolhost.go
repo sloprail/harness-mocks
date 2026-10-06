@@ -72,6 +72,7 @@ func (h *toolHost) Before(ctx context.Context, c toolcall.Call) (bool, string) {
 		// (recorded: runs/before-read-refusal: exit 2, a JSON deny and invalid
 		// JSON refuse it, exit 1 does not).
 		h.res, h.read = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, nil), true
+		h.s.refuseResult(h.res)
 		if r := h.res.Read; r != nil {
 			own := map[string]any{"file_path": r.Path, "content": r.Content, "attachments": []any{}}
 			if refused, msg := hooks.Refusal(h.s.hooks.Fire(ctx, hooks.BeforeReadFile, "Read", own)); refused {
@@ -92,6 +93,7 @@ func (h *toolHost) Execute(ctx context.Context, _ toolcall.Call) toolcall.Result
 		h.res = toolexec.Unapproved(h.call, h.s.cfg.Dir)
 	} else if !h.read {
 		h.res = toolexec.Execute(ctx, h.call, h.s.cfg.Dir, env)
+		h.s.refuseResult(h.res)
 	}
 	return toolcall.Result{Output: h.res.Output, Failed: h.res.Failed}
 }
