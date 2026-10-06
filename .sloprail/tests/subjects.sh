@@ -292,7 +292,7 @@ eq "cap-rigor: an unmarked function added in the file touches no capability" "$(
 eq "cap-rigor: removing B's marked declaration touches b (its old marker), not a" "$(ids "$(keys capability-rigor "$X5")")" "b/claude "
 # a doc problem is the refusal reason, never an unbound-variable crash: doc_copy's DOC_ERROR must reach
 # prepare.sh (it once ran in a $(...) subshell and died with "DOC_ERROR: unbound variable")
-back; cap z rz; w spec/capabilities/z.yaml <<<$'statement: z works\nproviders:\n  claude:\n    docs: [https://d.example/unfrozen#s]\n    runs: [claude-mock/snapshots/runs/rz]\n  codex: pending'; run rz '{"e":1}'; w claude-mock/e2e/z_test.go <<<'// sr:proves z/claude'; HZ="$(step unfrozen-doc)"
+back; cap z rz; w spec/capabilities/z.yaml <<<$'statement: z works\nproviders:\n  claude:\n    docs: [https://d.example/unfrozen#s]\n    runs: [claude-mock/snapshots/runs/rz]\n  codex: pending'; run rz '{"e":1}'; w claude-mock/e2e/z_test.go <<<'// sr:proves z/claude'; w claude-mock/e2e/018_replay/replay_allowlist_test.go <<<$'package e2e\n\nvar notReplaying = map[string]string{\n}'; HZ="$(step unfrozen-doc)"
 for rule in capability-grounded capability-rigor; do
   ZP="$("$SR" changeset --rule $rule --base "$BASE" --head "$HZ" | jq -c '.subjects[] | select(.id | startswith("z")) | .payload' | head -n1)"
   git checkout -q "$HZ"

@@ -31,6 +31,7 @@ for h in claude codex; do
   printf '{"e":1}\n' >"$h-mock/snapshots/runs/c/samples/20240101-000000/events.jsonl"
   (cd "$h-mock/snapshots/runs/c/samples/20240101-000000" && shasum -a 256 ./events.jsonl >SEAL)
   printf '// sr:proves c/%s\n' "$h" >"$h-mock/e2e/c_test.go"
+  mkdir -p "$h-mock/e2e/018_replay"; printf 'package e2e\n\nvar notReplaying = map[string]string{\n}\n' >"$h-mock/e2e/018_replay/replay_allowlist_test.go"
 done
 cap "c works"
 printf '// sr:capability c\nfunc C() {}\n' >internal/c/c.go

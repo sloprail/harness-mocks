@@ -35,6 +35,8 @@ printf 'version: 1\n' >claude-mock/snapshots/runs/c/run.yaml
 printf '{"e":1}\n' >claude-mock/snapshots/runs/c/samples/20240101-000000/events.jsonl
 (cd claude-mock/snapshots/runs/c/samples/20240101-000000 && shasum -a 256 ./events.jsonl >SEAL)
 printf 'package e2e\n\n// sr:proves c/claude\nfunc TestC() {}\n' >claude-mock/e2e/c_test.go
+# the harness has a replay exception list (empty): every run replays
+mkdir -p claude-mock/e2e/018_replay; printf 'package e2e\n\nvar notReplaying = map[string]string{\n}\n' >claude-mock/e2e/018_replay/replay_allowlist_test.go
 cap() { printf 'statement: %s\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: [claude-mock/snapshots/runs/c]\n' "$1" >spec/capabilities/c.yaml; }
 cap "c works"
 git add -A && git commit -q -m base
@@ -61,9 +63,9 @@ inject() {   # MARKER [SKIP] — the lookups whose jq program carries MARKER fai
   rm -f "$TMPDIR/shim.count"
   run_rule "PATH=$PWD/shim:$PATH" "SHIM_JQ_FAIL=$1" "SHIM_JQ_SKIP=${2:-0}" "SHIM_JQ_COUNT=$TMPDIR/shim.count" SHIM_JQ_IN=capability-rigor
 }
-inject_exact() {   # PROGRAM — the lookups whose jq program is exactly PROGRAM fail, for this run only
+inject_exact() {   # PROGRAM [SKIP] — the lookups whose jq program is exactly PROGRAM fail, after SKIP of them went through, for this run only
   rm -f "$TMPDIR/shim.count"
-  run_rule "PATH=$PWD/shim:$PATH" "SHIM_JQ_FAIL=" "SHIM_JQ_FAIL_EXACT=$1" "SHIM_JQ_SKIP=0" "SHIM_JQ_COUNT=$TMPDIR/shim.count" SHIM_JQ_IN=capability-rigor
+  run_rule "PATH=$PWD/shim:$PATH" "SHIM_JQ_FAIL=" "SHIM_JQ_FAIL_EXACT=$1" "SHIM_JQ_SKIP=${2:-0}" "SHIM_JQ_COUNT=$TMPDIR/shim.count" SHIM_JQ_IN=capability-rigor
 }
 
 # control: nothing injected, the statement change is judged (by the mock) and passes
@@ -76,8 +78,8 @@ expect_refused "the cited runs listing fails (prepare)" "c/claude: its cited run
 scenario; inject '(.docs // [])[]' 1
 expect_refused "the cited docs listing fails (prepare)" "c/claude: its cited docs could not be listed, so it could not be prepared for the judge"
 
-# a run: its samples listed (the one `jq -R` of the first pipeline), the runs assembled
-scenario; inject_exact '-R'
+# a run: its samples listed (the `jq -R` of the first pipeline; the exception list's own `jq -R` goes first and is let through), the runs assembled
+scenario; inject_exact '-R' 1
 expect_refused "the samples listing fails" "c/claude: the samples of claude-mock/snapshots/runs/c could not be listed, so it could not be prepared for the judge"
 scenario; inject 'samples: $sm[0]'
 expect_refused "the runs assembly fails" "c/claude: the run claude-mock/snapshots/runs/c could not be listed, so it could not be prepared for the judge"
