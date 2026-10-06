@@ -44,13 +44,9 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock does not model --name, naming a session when it starts: the
-          sessions it writes carry its fixed title and no agent-name record. It
-          finds a session by the name its transcript records (the real
-          harness's, as in runs/resume-name) and tells the resume's SessionStart
-          that name as session_title, with the stream's session_title_changed
-          frame. The recorded resume's UserPromptSubmit carries the name as
-          well, which the mock's does not.
+          The mock models --name only on a session it starts, which then carries
+          the name as its title and an agent-name record (recorded: runs/resume-name).
+          --name with --resume or --continue, which renames a session, is refused.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#resume-a-non-interactive-session

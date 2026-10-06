@@ -14,8 +14,8 @@ import (
 )
 
 // The mock fails fast on what it does not implement (adr/fail-fast-unimplemented):
-// an output format other than stream-json, and --agent (which would put
-// agent_type on main-thread hook payloads), are refused with an error naming
+// an output format other than stream-json, --agent (which would put
+// agent_type on main-thread hook payloads) and --name that renames a resumed session, are refused with an error naming
 // them, and the script never runs.
 // sr:proves noninteractive-run/claude
 // sr:proves hook-common-payload/claude
@@ -32,6 +32,7 @@ func TestT001_09_UnimplementedInputsAreRefused(t *testing.T) {
 		"partial": {[]string{"--include-partial-messages"}, "--include-partial-messages is not implemented by the mock"},
 		"input":   {[]string{"--input-format", "stream-json"}, "--input-format is not implemented by the mock"},
 		"budget":  {[]string{"--max-budget-usd", "5"}, "--max-budget-usd is not implemented by the mock"},
+		"rename":  {[]string{"--name", "n", "--continue"}, "--name with --resume or --continue is not implemented by the mock"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			out, code := e2etest.RunWithScript(t, script, append(tc.args, "--session-id", "s-1", "-p", "go")...)

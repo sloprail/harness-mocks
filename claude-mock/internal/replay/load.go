@@ -99,14 +99,14 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 	if _, err := readJSONL(filepath.Join(sample, "payloads.jsonl")); err != nil {
 		return core.Recording{}, err
 	}
-	agent, then, err := agentsOf(setup, sample, stream)
+	agent, then, earlier, err := agentsOf(setup, sample, stream)
 	if err != nil {
 		return core.Recording{}, err
 	}
 	if len(then) > 0 && failedResult(stream) != "" {
 		return core.Recording{}, unbuildable(fmt.Errorf("a run of several steps whose model API failed"))
 	}
-	args, err := parseArgs(readFile(filepath.Join(setup, "args")))
+	first, err := parseStepArgs(readFile(filepath.Join(setup, "args")))
 	if err != nil {
 		return core.Recording{}, err
 	}
@@ -118,7 +118,9 @@ func (Adapter) LoadSample(runDir, sample string) (core.Recording, error) {
 			"hook.sh":       readFile(filepath.Join(setup, "hook.sh")),
 			"prepare.sh":    readFile(filepath.Join(setup, "prepare.sh")),
 			"env":           readFile(filepath.Join(setup, "env")),
-			"args":          strings.Join(args, "\n"),
+			"args":          strings.Join(mainMockArgs(first), "\n"),
+			"session":       first.newID,
+			"earlier":       earlierJSON(earlier),
 			"exit":          code,
 			"result":        failedResult(stream),
 		},

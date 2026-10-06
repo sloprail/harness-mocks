@@ -47,6 +47,8 @@ func addRunFlags(cmd *cobra.Command) {
 	// --include-hook-events: stream the main thread's hook frames, not only SessionStart's (headless; recorded: snapshots/runs/include-hook-events)
 	cmd.Flags().Bool("include-hook-events", false, "Stream a hook_started and hook_response frame for every hook of the main thread")
 	cmd.Flags().Int("max-turns", 0, "Limit the model turns of the run (0: no limit)")
+	// --name: the session carries a name, and --resume <name> finds it (cli-reference#--name; recorded: snapshots/runs/resume-name)
+	cmd.Flags().StringP("name", "n", "", "Name the session (--name, -n, as used by claude CLI)")
 	cmd.Flags().Bool(flagNoPersistence, false, "Leave no session to resume (--no-session-persistence, as used by claude CLI)")
 	// --fork-session: when resuming, continue under a NEW session id in a new
 	// transcript instead of appending to the original. The new id is

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,18 +17,31 @@ import (
 // (a resume), in the same repository and home, so a later run finds the session an earlier one
 // left; it returns what they streamed, one after the other as the recording's stream is.
 func runSteps(ctx context.Context, mock string, s Scenario, rec core.Recording, work, repo string, env []string) (string, error) {
-	base := []string{mock, "-p", "--model", "haiku", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"}
+	base := append([]string{mock, "-p", "--model", "haiku", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"}, mockFlags(work)...)
 	type invocation struct {
 		script string
 		args   []string
 		prompt string
 	}
-	runs := []invocation{{filepath.Join(work, "main.sh"), append([]string{"--session-id", sessionID}, strings.Fields(rec.Setup["args"])...), s.Prompt}}
+	first := strings.Fields(rec.Setup["args"])
+	if !hasFlag(first, "--session-id") && !resumes(first) {
+		first = append([]string{"--session-id", sessionID}, first...)
+	}
+	main := sessionID // what a later run's <SESSION> is: the id the first run started under
+	if id := rec.Setup["session"]; id != "" {
+		main = id
+	}
+	// @TRANSCRIPTS@ is where the sessions' transcripts are (the capture's own placeholder)
+	transcripts := filepath.Join(work, "home", ".claude", "projects", regexp.MustCompile(`[^A-Za-z0-9]`).ReplaceAllString(repo, "-"))
+	for i, a := range first {
+		first[i] = strings.ReplaceAll(a, "@TRANSCRIPTS@", transcripts)
+	}
+	runs := []invocation{{filepath.Join(work, "main.sh"), first, s.Prompt}}
 	for i, st := range s.Then {
 		var args []string
 		for _, a := range st.Args {
 			if a == "<SESSION>" {
-				a = sessionID
+				a = main
 			}
 			args = append(args, a)
 		}
@@ -47,4 +61,10 @@ func runSteps(ctx context.Context, mock string, s Scenario, rec core.Recording, 
 		out.Write(res.Stdout)
 	}
 	return out.String(), nil
+}
+
+// mockFlags are the dirs the replay's mock is given: where claude keeps its config and its plugins
+// (under the home a capture gives it, by default, so they are flags here, not environment).
+func mockFlags(work string) []string {
+	return []string{"--config-dir", filepath.Join(work, "home", ".claude"), "--plugin-cache-dir", filepath.Join(work, "plugins")}
 }
