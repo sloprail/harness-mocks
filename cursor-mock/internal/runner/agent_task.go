@@ -91,7 +91,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	sub.requestID, sub.modelN = coresession.NewID(), 0 // a sub-agent is a model request of its own
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.pending, sub.added, sub.named, sub.owed = nil, nil, nil, false, tasks.Deferred{}
+	sub.texts, sub.pending, sub.added, sub.named, sub.owed, sub.reaped = nil, nil, nil, false, tasks.Deferred{}, nil
 	var err error
 	if sub.tr, err = newSubagentTranscript(s.tr, sub.id); err != nil {
 		sub.tr = s.tr
@@ -112,6 +112,7 @@ func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 	// call (recorded: runs/foreground-subagent-bash-ends-with-response)
 	for _, t := range s.registry().EndedAtResponse(sub.owner) {
 		s.owed.Hold(notificationFrame(s.id, t))
+		s.reaped = append(s.reaped, t)
 	}
 }
 

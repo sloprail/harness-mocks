@@ -46,6 +46,10 @@ type session struct {
 	// owed: stream frames reporting what ended at a sub-agent's final response,
 	// printed after the next tool call of this session, or at the end of its run.
 	owed tasks.Deferred
+	// reaped: the commands that ended at a sub-agent's final response, whose
+	// notifications the stream has (owed) but which still give this session a turn
+	// of its own, after the one it is in (recorded: runs/foreground-subagent-bash-ends-with-response).
+	reaped []*tasks.Task
 }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
