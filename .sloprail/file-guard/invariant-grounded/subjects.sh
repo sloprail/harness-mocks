@@ -10,5 +10,6 @@ payload="$(cat)"
 slim_payload
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 arr="$(cs_json '[.changeset.files[] | select(.path | test("^spec/invariants/[a-z0-9-]+\\.yaml$"))
-  | {id: (.path | ltrimstr("spec/invariants/") | rtrimstr(".yaml")), files: [.path], bdeps: [.path]}]')"
+  | {id: (.path | ltrimstr("spec/invariants/") | rtrimstr(".yaml")), files: [.path], bdeps: [.path]}]')" ||
+  refuse_error "the changed invariant files could not be listed, so no subject could be made"
 sub_finish unclaimed "$arr"

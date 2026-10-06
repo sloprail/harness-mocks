@@ -43,3 +43,11 @@ git add -A && git commit -q -m "cite an unfrozen page"
 run
 jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="snapshots-current")] | length==1 and .[0].outcome=="refused" and (.[0].reason | contains("which no snapshot in claude-mock/snapshots/MANIFEST.yaml freezes"))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; cat out >&2; echo "an unfrozen cited page was not refused" >&2; exit 1; }
+
+# recovery: the capability cites the frozen page again, and the same range passes
+printf 'statement: c works\nproviders:\n  claude:\n    docs: [https://d.example/p#s]\n    runs: [claude-mock/snapshots/runs/r]\n' >spec/capabilities/c.yaml
+git add -A && git commit -q -m "cite the frozen page again"
+: >"$SR_EVENTS_FILE"
+run
+jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="snapshots-current")] | length==1 and .[0].outcome=="passed"' "$SR_EVENTS_FILE" >/dev/null ||
+  { jq -c . "$SR_EVENTS_FILE" >&2; cat out >&2; echo "citing the frozen page again was not passed by snapshots-current" >&2; exit 1; }

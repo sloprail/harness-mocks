@@ -35,9 +35,13 @@ load_adrs() {
               inside && $0 == "---" { inside = 0; next }
               inside { print }' "${files[@]}" | yq -o=json -I=0 '{"path": .__path, "frontmatter": (del(.__path) | . // {})}' 2>&1)" ||
     refuse "an ADR.md has frontmatter that is not valid YAML: $out"
-  texts="$(jq -Rn 'reduce inputs as $l ({}; .[input_filename] += $l + "\n")' "${files[@]}")"
-  ADRS="$(jq -sc --argjson t "$texts" --arg want "$want" --arg root "$(adr_root)/" '
+  # a failed lookup refuses (an empty ADR list would be "no decision to enforce"); the texts go
+  # to jq through a file, not argv (Linux caps one argument at 128 KB)
+  texts="$(jq -Rn 'reduce inputs as $l ({}; .[input_filename] += $l + "\n")' "${files[@]}")" ||
+    refuse_error "the ADR texts could not be read, so no ADR could be checked"
+  ADRS="$(jq -sc --slurpfile t0 <(printf '%s' "$texts") --arg want "$want" --arg root "$(adr_root)/" '
     [.[] | .path as $f | (($f | ltrimstr($root)) | split("/")[0]) as $id
      | select($want == "" or ((.frontmatter | type) == "object" and ((.frontmatter.sloprails // []) | index($want))))
-     | {id: $id, path: ("adr/" + $id + "/ADR.md"), frontmatter: (if (.frontmatter | type) == "object" then .frontmatter else {} end), text: ($t[$f] // "")}]' <<<"$out")"
+     | {id: $id, path: ("adr/" + $id + "/ADR.md"), frontmatter: (if (.frontmatter | type) == "object" then .frontmatter else {} end), text: ($t0[0][$f] // "")}]' <<<"$out")" ||
+    refuse_error "the ADRs could not be listed, so no ADR could be checked"
 }

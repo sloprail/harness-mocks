@@ -13,7 +13,9 @@ payload="$(cat)"
 slim_payload
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/spec.sh"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
-arr="$(printf '%s' "$payload" | jq -c --arg hs "$(harnesses)" '
+hs="$(harnesses)"
+[ -n "$hs" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness could be checked (an incomplete tree?)"
+arr="$(printf '%s' "$payload" | jq -c --arg hs "$hs" '
   [.changeset.files[].path] as $changed
   | [$changed[] | select(startswith("spec/capabilities/"))] as $caps
   | ([$hs | split("\n")[] | select(length > 0)] + [$changed[] | capture("^(?<h>[a-z0-9]+)-mock/snapshots/") | .h] | unique) as $all

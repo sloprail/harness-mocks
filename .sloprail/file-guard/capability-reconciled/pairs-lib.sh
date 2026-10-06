@@ -11,8 +11,7 @@
 # spec.sh and cells.sh, with $provides set (load_markers provides).
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/cells.sh"
 reconcile_pairs() {
-  load_touched
-  load_spec capabilities
+  load_touched   # $SPEC is loaded by the caller (load_spec at top level: a refusal inside $(...) would not end the check)
   printf '%s' "$payload" | jq -r --slurpfile caps0 <(printf '%s' "$SPEC") --arg tt "$TOUCHED_TSV" --arg head "$provides" --arg hs "$(harnesses)" --arg want "$(subject_id)" '
     ($hs | split("\n") | map(select(length > 0))) as $H
     | def idof: split("/")[0];
