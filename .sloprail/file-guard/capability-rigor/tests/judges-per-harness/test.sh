@@ -72,5 +72,5 @@ git checkout -q -b statement "$BASE"
 cap "c works, said another way"
 git add -A && git commit -q -m "the statement changes"
 run
-jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-rigor")] | length==1 and .[0].outcome=="refused"' "$SR_EVENTS_FILE" >/dev/null ||
+jq -es '[.[] | select(.kind=="FileGuardChecked" and .rule=="capability-rigor")] | length==1 and .[0].outcome=="refused" and (.[0].reason | contains("do not drive the mock"))' "$SR_EVENTS_FILE" >/dev/null ||
   { jq -c . "$SR_EVENTS_FILE" >&2; cat out >&2; echo "a change to the shared statement did not judge every harness" >&2; exit 1; }
