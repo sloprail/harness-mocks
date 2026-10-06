@@ -2,6 +2,8 @@ package replay
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -117,5 +119,56 @@ func TestStopFeedbackIsAReply(t *testing.T) {
 	s := Denormalize(core.Recording{Agent: core.Agent{Calls: got.agent.Calls, Final: got.agent.Final}}, "/d")
 	if !strings.Contains(s.Script, "Stop hook feedback:") || !strings.Contains(s.Script, `"text":"DONE"`) || !strings.Contains(s.Script, `"text":"DONE2"`) {
 		t.Fatal(s.Script)
+	}
+}
+
+// A run that starts in a directory of the repository (through a symlink, say) has its project files
+// there, and the symlink is made first.
+func TestPrepareDir(t *testing.T) {
+	repo := t.TempDir()
+	dir, err := prepareDir(repo, ScenarioStep{Cwd: "link", Symlink: "link real", Settings: "{}", Hook: "#!/bin/sh\n"})
+	if err != nil || dir != filepath.Join(repo, "link") {
+		t.Fatalf("%v %v", dir, err)
+	}
+	if target, err := os.Readlink(filepath.Join(repo, "link")); err != nil || target != filepath.Join(repo, "real") {
+		t.Fatalf("%v %v", target, err)
+	}
+	for _, f := range []string{"real/.claude/settings.json", "real/hook.sh"} {
+		if _, err := os.Stat(filepath.Join(repo, f)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if dir, err = prepareDir(repo, ScenarioStep{Cwd: "sub"}); err != nil || dir != filepath.Join(repo, "sub") {
+		t.Fatalf("%v %v", dir, err)
+	}
+	if _, err = prepareDir(repo, ScenarioStep{Symlink: "one"}); err == nil {
+		t.Fatal("a symlink needs a name and a target")
+	}
+}
+
+func TestStepSpecsReadsDirectoriesAndLinks(t *testing.T) {
+	setup := t.TempDir()
+	write := func(name, text string) {
+		p := filepath.Join(setup, name)
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("prompt.txt", "one")
+	write("cwd", "link")
+	write("symlink", "link real\n")
+	write("then/01/prompt.txt", "two")
+	write("then/01/cwd", "sub")
+	write("then/01/hook.sh", "#!/bin/sh\n")
+	write("then-02-prompt.txt", "three")
+	got, err := stepSpecs(setup)
+	if err != nil || len(got) != 3 || got[0].cwd != "link" || got[0].symlink != "link real" || got[1].cwd != "sub" || got[1].hook == "" || got[2].prompt != "three" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	write("then/01/other", "x")
+	var u *Unbuildable
+	if _, err = stepSpecs(setup); !errors.As(err, &u) {
+		t.Fatalf("a file the adapter does not install: %v", err)
 	}
 }
