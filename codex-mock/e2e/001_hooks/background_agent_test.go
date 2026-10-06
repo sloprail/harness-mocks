@@ -194,6 +194,14 @@ func TestSubAgentSpawnedGivesReceiptAndRunsConcurrently(t *testing.T) {
 	assert.Less(t, postSpawn, parentPre)
 	assert.Less(t, subPost, parentPost, "the sub-agent's command ended while the agent's was still running")
 	assert.Less(t, parentPre, parentPost)
+	recorded := jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl")))
+	for _, p := range recorded { // as recorded
+		if p["agent_id"] != nil {
+			assert.NotEqual(t, recorded[0]["transcript_path"], p["transcript_path"], "recorded: the sub-agent's transcript is its own")
+			assert.Contains(t, p["transcript_path"], str(p["agent_id"])+".jsonl")
+			assert.Equal(t, "<RUN>", p["cwd"], "recorded: the sub-agent's hooks run in the run's directory")
+		}
+	}
 	// every hook, the sub-agent's too, carries the session's own id (the doc: a
 	// sub-agent's hooks use the parent session id); the sub-agent's is told apart
 	// by agent_id, which the main thread's hooks do not have
@@ -202,6 +210,10 @@ func TestSubAgentSpawnedGivesReceiptAndRunsConcurrently(t *testing.T) {
 		if l["tool_name"] == "Bash" && strings.Contains(str(l["tool_input"].(map[string]any)["command"]), subCmd) {
 			assert.Equal(t, agent, l["agent_id"])
 			assert.Equal(t, "default", l["agent_type"])
+			// its transcript is its own rollout, named by its id, not the session's; its directory the run's
+			assert.NotEqual(t, log[0]["transcript_path"], l["transcript_path"], "the sub-agent's transcript is its own")
+			assert.Contains(t, l["transcript_path"], agent+".jsonl")
+			assert.Equal(t, got.Repo, evalDir(t, str(l["cwd"])))
 			if l["hook_event_name"] == "PostToolUse" {
 				assert.Equal(t, "SUBDONE\n", l["tool_response"])
 			}
@@ -210,4 +222,12 @@ func TestSubAgentSpawnedGivesReceiptAndRunsConcurrently(t *testing.T) {
 			assert.NotContains(t, l, "agent_type", "nor a type")
 		}
 	}
+}
+
+// evalDir is dir with symlinks resolved, as the mock reports its working directory.
+func evalDir(t *testing.T, dir string) string {
+	t.Helper()
+	d, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	return d
 }
