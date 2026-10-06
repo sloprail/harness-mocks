@@ -57,14 +57,12 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 				out.lastText = t
 			}
 		}
-
 		// PreToolUse + turn break on tool_use blocks.
 		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				// The tool_use is written BEFORE the PreToolUse hook fires (the hook's
-				// attachment follows it): it is part of the trajectory whatever the hook decides.
+				// The tool_use is written BEFORE the PreToolUse hook fires: it is part of the trajectory.
 				if cfg.AgentID != "" {
 					cfg.progress(cfg, toolName, toolInput)
 				}
@@ -125,7 +123,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			}
 			if toolName != "" {
 				if err := refuseUnrecordedHook(cfg, inv, hooks.EventPostToolUse); err != nil {
-					return scanResult{}, err // a scenario-written tool_result: its frames are not recorded
+					return scanResult{}, err // a scenario-written tool_result
 				}
 				_, _ = inv.Fire(ctx, hooks.Input{
 					SessionID:     cfg.SessionID,
