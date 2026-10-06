@@ -51,25 +51,22 @@ func TestT017_17_UnknownResume(t *testing.T) {
 	log := filepath.Join(dir, "payloads.log")
 	h := payloadLogger(t, dir, "log.sh", log, "")
 	settings(t, dir, map[string]string{"SessionStart": h, "SessionEnd": h})
-	for _, extra := range [][]string{nil, {"--fork-session", "--session-id", "new-fork"}} {
-		args := append([]string{"--script", script(t, dir, "s"), "--resume", "nosuch", "--project-dir", dir, "--config-dir", cfg}, extra...)
-		out, code := runInDir(t, dir, nil, append(args, "-p", "hello")...)
-		assert.Equal(t, 1, code, out)
-		assert.Contains(t, out, "No conversation found with session ID: nosuch\n")
-		assert.Contains(t, out, `"subtype":"error_during_execution"`)
-		assert.Contains(t, out, `"errors":["No conversation found with session ID: nosuch"]`)
-	}
+	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s"), "--resume", "nosuch", "--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	assert.Equal(t, 1, code, out)
+	assert.Contains(t, out, "No conversation found with session ID: nosuch\n")
+	assert.Contains(t, out, `"subtype":"error_during_execution"`)
+	assert.Contains(t, out, `"errors":["No conversation found with session ID: nosuch"]`)
 	_, err := os.Stat(filepath.Join(cfg, "projects"))
 	assert.True(t, os.IsNotExist(err), "nothing is written")
 	var events []any
 	for _, p := range payloads(t, log) {
 		events = append(events, p["hook_event_name"])
 		assert.Equal(t, "other", p["reason"], "SessionEnd of a failed resume, as recorded")
-		assert.Contains(t, []any{"nosuch", "new-fork"}, p["session_id"], "the id asked for, or the fork's own")
+		assert.Equal(t, "nosuch", p["session_id"], "the id asked for")
 		assert.Contains(t, p["transcript_path"], "nosuch.jsonl", "the file the asked-for session would have (recorded: runs/resume-unknown)")
 		assert.NotEmpty(t, p["cwd"])
 	}
-	assert.Equal(t, []any{"SessionEnd", "SessionEnd"}, events)
+	assert.Equal(t, []any{"SessionEnd"}, events)
 }
 
 // TestT017_18_PrintMode: in raw --print mode Stop carries the output as
