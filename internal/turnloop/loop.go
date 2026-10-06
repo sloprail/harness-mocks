@@ -52,8 +52,10 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 			return "", err
 		}
 		if n, ok := h.(Noticer); ok {
-			if text, found := n.Notice(); found {
-				n.Told(text)
+			if texts := n.Notice(true); len(texts) > 0 {
+				for _, text := range texts {
+					n.Told(text)
+				}
 				continue
 			}
 		}
@@ -132,7 +134,7 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		}
 		perform(ctx, h, calls)
 		if n, ok := h.(Noticer); ok && len(calls) > 0 && !calls[len(calls)-1].More {
-			if text, found := n.Notice(); found {
+			for _, text := range n.Notice(false) {
 				n.Told(text)
 			}
 		}

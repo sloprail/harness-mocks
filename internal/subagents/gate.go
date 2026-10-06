@@ -22,6 +22,16 @@ type Progress struct {
 // NewProgress is an agent that has done nothing yet.
 func NewProgress() *Progress { return &Progress{changed: make(chan struct{})} }
 
+// Started is how many calls the agent has started. A nil Progress has none.
+func (p *Progress) Started() int {
+	if p == nil {
+		return 0
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.started
+}
+
 // Move counts calls started and finished. A nil Progress counts nothing.
 func (p *Progress) Move(started, done int) {
 	if p == nil {
