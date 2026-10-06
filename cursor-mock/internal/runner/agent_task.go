@@ -23,6 +23,9 @@ type taskInput struct {
 	Prompt       string `json:"prompt"`
 	SubagentType string `json:"subagent_type"`
 	Script       string `json:"script"`
+	// AgentID is mock-only too: the id the sub-agent's conversation takes, where a
+	// scenario's text quotes it (a replay of a recording); else a fresh one.
+	AgentID string `json:"agent_id"`
 	// HookToolUseID is the id the call's hooks name it by, when it is not its own.
 	HookToolUseID string `json:"hook_tool_use_id"`
 	// Model and RunInBackground are optional: what the model left out the hooks
@@ -30,6 +33,14 @@ type taskInput struct {
 	// runs/foreground-subagent-result).
 	Model           *string `json:"model"`
 	RunInBackground *bool   `json:"run_in_background"`
+}
+
+// agentID is the id the sub-agent's conversation takes.
+func (in taskInput) agentID() string {
+	if in.AgentID != "" {
+		return in.AgentID
+	}
+	return coresession.NewID()
 }
 
 // dispatchesSubagent reports whether the call is a foreground Task the mock
@@ -76,7 +87,7 @@ func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in tas
 func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput, typ string, args map[string]any) {
 	started := time.Now()
 	sub := *s
-	sub.id, sub.parent = coresession.NewID(), s
+	sub.id, sub.parent = in.agentID(), s
 	sub.requestID, sub.modelN = coresession.NewID(), 0 // a sub-agent is a model request of its own
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt

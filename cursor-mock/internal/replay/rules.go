@@ -27,7 +27,7 @@ func Rules(repo, work string) rp.Rules {
 			"durationMs": measuredText, "runtimeMs": measuredText,
 			"startedAtMs": measuredText, "completedAtMs": measuredText, // when a call began and ended: that it says so, not when
 			"model_call_id": masked("<model call>"), "request_id": masked("<request>"), // the service's ids of its own calls: that they are named
-			"task_id": maskedNumber("<shell>"), // a background shell's id is a number of the harness's own
+			"task_id": maskedNumber("<shell>"), "taskId": maskedNumber("<shell>"), // a background shell's id is a number of the harness's own
 		},
 		// the order the capture sanitised in: the repository first, as it holds the temp root
 		Scrub: append([]rp.Scrub{
