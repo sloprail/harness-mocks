@@ -1,0 +1,10 @@
+{"type":"thread.started","thread_id":"01a11033-350b-70b2-b12b-63917adddd4e"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a11033-350b-70b2-b12b-63917adddd4e","receiver_thread_ids":[],"prompt":"Reply only SUBDONE. If you are told to continue, reply only SUBDONE2.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a11033-350b-70b2-b12b-63917adddd4e","receiver_thread_ids":["01a11033-5230-7e20-a2f0-7b6b91dc6b33"],"prompt":"Reply only SUBDONE. If you are told to continue, reply only SUBDONE2.","agents_states":{"01a11033-5230-7e20-a2f0-7b6b91dc6b33":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a11033-350b-70b2-b12b-63917adddd4e","receiver_thread_ids":["01a11033-5230-7e20-a2f0-7b6b91dc6b33"],"prompt":null,"agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a11033-350b-70b2-b12b-63917adddd4e","receiver_thread_ids":["01a11033-5230-7e20-a2f0-7b6b91dc6b33"],"prompt":null,"agents_states":{"01a11033-5230-7e20-a2f0-7b6b91dc6b33":{"status":"completed","message":"SUBDONE"}},"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"DONE"}}
+{"type":"turn.completed","usage":{"input_tokens":76349,"cached_input_tokens":63488,"cache_write_input_tokens":0,"output_tokens":222,"reasoning_output_tokens":63}}

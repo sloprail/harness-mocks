@@ -21,14 +21,21 @@ providers:
     runs:
       - codex-mock/snapshots/runs/task-stream-frames
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Codex's stream has no frame for a background task starting or
+          ending: the sub-agent is shown by the items of the spawn_agent and
+          wait calls, and a shell command asked to run detached runs as an
+          ordinary command_execution item that starts and completes, exit code
+          0 (recorded: runs/task-stream-frames, item_4 for
+          `sh -c 'sleep 5; echo BGDONE'`). The doc lists only generic item.*
+          events and command executions.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
           The mock runs no model: a sub-agent's work is the scenario script
-          the spawn_agent call names, and the mock waits for it inside that
-          call, showing the wait item right after the spawn's. A separate
-          wait call, and a sub-agent running while the agent does something
-          else, are not modelled.
+          the spawn_agent call names.
   cursor:
     docs:
       - https://cursor.com/docs/cli/headless#real-time-progress-tracking

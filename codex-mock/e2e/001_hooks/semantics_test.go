@@ -50,6 +50,12 @@ func TestOneDenyAmongHooksRefusesAndAskDoesNot(t *testing.T) {
 	cmds, _ := r.commands()
 	assert.Equal(t, []string{"echo ONLYALLOW", "echo ASKME"}, cmds)
 	assert.Contains(t, r.Stderr, "Command blocked by PreToolUse hook: deny by hook deny. Command: echo ALLOWDENY")
+	// an allow or an ask leaves no record, in the recorded rollout or in the mock's
+	for name, rollout := range map[string]string{"recorded": readFile(t, transcriptOf(t, rec)), "mock": r.rollout(t)} {
+		assert.NotContains(t, rollout, "by hook ask", name)
+		assert.NotContains(t, rollout, "by hook allow", name)
+		assert.Contains(t, rollout, "deny by hook deny", name)
+	}
 }
 
 // A hook that exits 1 with a deny printed does not refuse the call (recorded

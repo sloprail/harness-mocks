@@ -14,7 +14,7 @@ import (
 func TestUnimplementedFlagsAreRefused(t *testing.T) {
 	for _, args := range [][]string{
 		{"--enable", "multi_agent_v2"}, {"--disable", "multi_agent_v2"},
-		{"--output-schema", "schema.json"}, {"-o", "last.txt"}, {"--ephemeral"},
+		{"--output-schema", "schema.json"}, {"-o", "last.txt"},
 		{"--sandbox", "read-only"}, {"--profile", "p"}, {"--color", "never"},
 		{"--ignore-user-config"}, {"--ignore-rules"}, {"--strict-config"}, {"--approve-for-me"}, {"--thread-source", "x"},
 		{"-c", "model_reasoning_effort=high"},

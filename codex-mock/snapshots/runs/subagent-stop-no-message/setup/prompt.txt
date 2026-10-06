@@ -1,0 +1,1 @@
+Use the spawn_agent tool to start one sub-agent whose task is: do nothing at all and end without writing any message, no text, not even a word. Wait for it to finish, then reply only DONE.

@@ -23,6 +23,10 @@ if [ "$n" = 0 ]; then
   printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_spawn","name":"spawn_agent","input":{"message":"Run the shell command echo SUB-DONE and reply only SUB-DONE.","script":"sub.sh"}}]}}'
   exit 0
 fi
+if [ "$n" = 1 ]; then
+  printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_wait","name":"wait_agent","input":{"targets":["%s"],"timeout_ms":60000}}]}}\n' "$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | head -1)"
+  exit 0
+fi
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}' '{"type":"result","subtype":"success","result":"DONE"}'
 `
 	subScript = `#!/bin/sh
@@ -77,6 +81,7 @@ func keysOf(m map[string]any) []string {
 // sub-agent's own, with the sub-agent's last message. A stop payload lists no
 // background tasks (runs/subagent-lifecycle-hooks).
 // sr:proves subagent-lifecycle-hooks/codex
+// sr:proves hook-common-payload/codex
 func TestSubagentStartAndStopHooks(t *testing.T) {
 	rec, got := replaySubagent(t, "subagent-lifecycle-hooks")
 	want := byEvent(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
@@ -97,6 +102,14 @@ func TestSubagentStartAndStopHooks(t *testing.T) {
 
 	for name, p := range map[string][2]map[string]any{"recorded": {ws, we}, "mock": {ps, pe}} {
 		start, stop := p[0], p[1]
+		session := want["Stop"][0]["session_id"]
+		if name == "mock" {
+			session = have["Stop"][0]["session_id"]
+		}
+		for _, ev := range []map[string]any{start, stop} { // the parent session's id, and the run's directory
+			assert.Equal(t, session, ev["session_id"], name+": the sub-agent's hooks carry the parent session's id")
+			assert.Contains(t, []any{"<RUN>", got.Repo}, evalIf(t, ev["cwd"]), name+": the run's directory")
+		}
 		assert.Equal(t, start["transcript_path"], stop["agent_transcript_path"], name+": the sub-agent's own transcript")
 		assert.NotEqual(t, stop["transcript_path"], stop["agent_transcript_path"], name+": not the session's")
 	}
@@ -135,6 +148,7 @@ func TestSubagentStartAndStopHooks(t *testing.T) {
 // The start hook cannot refuse the sub-agent: with it exiting 2 and stating a
 // reason, the sub-agent still runs, and still stops (runs/subagent-start-refused).
 // sr:proves subagent-lifecycle-hooks/codex
+// sr:proves hook-exit-code-semantics/codex
 func TestSubagentStartCannotRefuse(t *testing.T) {
 	rec, got := replaySubagent(t, "subagent-start-refused")
 	want := byEvent(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
@@ -146,11 +160,22 @@ func TestSubagentStartCannotRefuse(t *testing.T) {
 	assert.Equal(t, "SUB-DONE", have["SubagentStop"][0]["last_assistant_message"])
 	assert.Equal(t, want["SubagentStop"][0]["last_assistant_message"], have["SubagentStop"][0]["last_assistant_message"])
 	assert.Contains(t, got.Stdout, `"SUB-DONE"`, "the wait reports what the sub-agent said")
+	// the reason the refusing hook gives on stderr is surfaced nowhere: not in the recorded stream,
+	// stderr or transcripts, and not in the mock's
+	files, _ := filepath.Glob(filepath.Join(rec.sample, "transcript", "*.jsonl"))
+	files = append(files, filepath.Join(rec.sample, "stream.jsonl"), filepath.Join(rec.sample, "stderr.txt"))
+	for _, f := range files {
+		assert.NotContains(t, readFile(t, f), "NO-SUBAGENT-REASON", f)
+	}
+	assert.NotContains(t, got.Stdout, "NO-SUBAGENT-REASON")
+	assert.NotContains(t, got.Stderr, "NO-SUBAGENT-REASON")
+	assert.NotContains(t, got.rollout(t), "NO-SUBAGENT-REASON")
 }
 
 // A sub-agent hook's matcher is applied to the sub-agent's type, and a start
 // hook's continue:false does not stop the sub-agent (hooks#subagentstart).
 // sr:proves subagent-lifecycle-hooks/codex
+// sr:proves hook-matcher-filter/codex
 func TestSubagentHookMatcherAndContinueFalse(t *testing.T) {
 	group := func(matcher string) string {
 		return `[{"matcher":"` + matcher + `","hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]`
@@ -205,4 +230,13 @@ func TestSubagentStartContextAndNoSessionEndForIt(t *testing.T) {
 			assert.Len(t, byEvent(got.hookLog())["probe"], 1, "the SessionEnd hook could read the session's transcript")
 		})
 	}
+}
+
+// evalIf is a directory with symlinks resolved, or the value as it is when it is not a real path (the recording's <RUN>).
+func evalIf(t *testing.T, v any) any {
+	s, _ := v.(string)
+	if d, err := filepath.EvalSymlinks(s); err == nil {
+		return d
+	}
+	return v
 }

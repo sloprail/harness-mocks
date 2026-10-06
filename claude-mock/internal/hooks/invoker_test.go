@@ -310,9 +310,8 @@ func TestInvokeCommand_HookRunsInItsOwnProcessGroup(t *testing.T) {
 // child sees as its parent) and an attempt to open the terminal fails.
 // sr:proves hook-command-handler/claude
 func TestInvokeCommand_HookHasNoControllingTerminal(t *testing.T) {
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("python3 reports the hook's session id")
-	}
+	_, err := exec.LookPath("python3") // it reports the hook's session id
+	require.NoError(t, err, "python3 is not installed: the test needs it")
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.txt")
 	hook := "cat >/dev/null; python3 -c 'import os; print(os.getsid(0)==os.getppid())' > " + out +
@@ -320,7 +319,7 @@ func TestInvokeCommand_HookHasNoControllingTerminal(t *testing.T) {
 	settings := &Settings{Hooks: map[EventName][]HookEntry{
 		EventStop: {{Matcher: "*", Hooks: []HandlerSpec{{Type: "command", Command: hook, Timeout: 30}}}},
 	}}
-	_, err := NewInvoker(settings, dir, "sid").Fire(context.Background(), Input{HookEventName: EventStop})
+	_, err = NewInvoker(settings, dir, "sid").Fire(context.Background(), Input{HookEventName: EventStop})
 	require.NoError(t, err)
 	got, err := os.ReadFile(out)
 	require.NoError(t, err)

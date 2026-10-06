@@ -1,0 +1,16 @@
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","agent_transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T09-52-41-01a11033-5230-7e20-a2f0-7b6b91dc6b33.jsonl","hook_event_name":"SubagentStop","permission_mode":"bypassPermissions","stop_hook_active":false,"agent_id":"01a11033-5230-7e20-a2f0-7b6b91dc6b33","agent_type":"default"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"call":1}}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","agent_transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T09-52-41-01a11033-5230-7e20-a2f0-7b6b91dc6b33.jsonl","hook_event_name":"SubagentStop","permission_mode":"bypassPermissions","stop_hook_active":true,"agent_id":"01a11033-5230-7e20-a2f0-7b6b91dc6b33","agent_type":"default"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"call":2}}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","agent_transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T09-52-41-01a11033-5230-7e20-a2f0-7b6b91dc6b33.jsonl","hook_event_name":"SubagentStop","permission_mode":"bypassPermissions","stop_hook_active":true,"agent_id":"01a11033-5230-7e20-a2f0-7b6b91dc6b33","agent_type":"default"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"call":3}}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

@@ -7,20 +7,25 @@
 // in what order output is comparable) is an Adapter's.
 package replay
 
-import (
-	"fmt"
-	"strings"
-)
+import "time"
 
 // The unified tool vocabulary of a recorded turn. An adapter maps its
 // harness's tools onto these, and a tool it cannot map makes the recording
 // unbuildable.
 const (
-	// ToolShell runs a command: Input "command" (string), optionally "yield_time_ms" (int); any other
-	// option of the harness's own tool goes on as given (a string, number or boolean); what the mock does with it is the mock's.
+	// ToolShell runs a command: Input "command" (string), "yield_time_ms" (int) and any other
+	// option of the harness's own tool, as given (a string, number or boolean).
 	ToolShell = "shell"
-	// ToolSpawn starts a sub-agent: Input "message" (string), and Call.Sub is the sub-agent's turns.
+	// ToolSpawn starts a sub-agent: Input "message"; Call.Sub is its turns.
 	ToolSpawn = "spawn_agent"
+	// ToolWait waits for sub-agents: "targets" ([]int, positions among the agent's spawns), "timeout_ms".
+	ToolWait = "wait_agent"
+	// ToolCompact is a compaction of the session the harness made on its own (a context limit): Input
+	// "trigger" ("auto").
+	ToolCompact = "compact"
+	// ToolAnswer is the end of a turn: the model's answer, with no call: Input "text" (string).
+	// A turn that a hook continues is followed by more steps, so an agent can hold several.
+	ToolAnswer = "answer"
 )
 
 // Call is one tool call the model made.
@@ -29,13 +34,28 @@ type Call struct {
 	Tool  string
 	Input map[string]any
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
+	Ref   string // the harness's id of that agent (what its receipt named), when known
+	More  bool   // another call of the same script follows: the model is not sampled between them
+	// At is when the harness made the call (an answer: gave it), and Done when the call's output
+	// was given back, as recorded: how one agent's steps are ordered against another's.
+	At, Done time.Time
 }
 
 // Agent is what one agent (the main one, or a sub-agent) did: its calls in
-// order, then its final answer.
+// order, then its final answer. A turn that a hook continues is followed by more
+// steps, so an answer can sit among the calls (ToolAnswer): the final answer is
+// the last one.
 type Agent struct {
 	Calls []Call
 	Final string
+	// Unfinished is an agent whose recording holds no final answer: it was still at work when
+	// the run ended (a sub-agent the run did not wait for), and must not end in a replay either.
+	Unfinished bool
+	// FinalAt is when the final answer was given, as recorded.
+	FinalAt time.Time
+	// Interrupted is a run the user interrupted while the agent's last call ran (the call's output
+	// says so): a replay interrupts it when that call has started, and the agent has no final answer.
+	Interrupted bool
 }
 
 // Recording is a recorded run in unified form.
@@ -43,6 +63,19 @@ type Recording struct {
 	Dir    string            // the recorded run: an adapter reads what it needs of it here
 	Prompt string            // what the agent was asked
 	Setup  map[string]string // the run's own setup, by name: opaque to the core
+	Agent  Agent
+	// Then are the later runs of the harness against the same session store (a resume, a fork),
+	// in order, after the first.
+	Then []Step
+}
+
+// Step is a later run of the harness against the store an earlier one left: what it was asked, the
+// words it was given (a resume or a fork of the first session; opaque to the core), the directory it
+// was run from (empty: the first run's), and what the model did in it.
+type Step struct {
+	Prompt string
+	Args   []string
+	Cwd    string
 	Agent  Agent
 }
 
@@ -89,6 +122,9 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if len(want.Events) == 0 && len(got.Events) == 0 {
+		return "event stream: none recorded and none produced: nothing was compared\n", nil
+	}
 	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks), nil
 }
 
@@ -99,50 +135,4 @@ func Script(a Adapter, runDir string) (string, error) {
 		return "", err
 	}
 	return a.Script(rec)
-}
-
-// Diff is empty when want and got are the same lines; otherwise it shows the
-// first lines that differ and the counts.
-func Diff(what string, want, got []string) string {
-	if len(want) == len(got) {
-		same := true
-		for i := range want {
-			if want[i] != got[i] {
-				same = false
-				break
-			}
-		}
-		if same {
-			return ""
-		}
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s: recording has %d lines, mock has %d\n", what, len(want), len(got))
-	shown := 0
-	for i := 0; i < len(want) || i < len(got) && shown < 3; i++ {
-		var w, g string
-		if i < len(want) {
-			w = want[i]
-		}
-		if i < len(got) {
-			g = got[i]
-		}
-		if w != g {
-			fmt.Fprintf(&b, "line %d differs\n  recording: %s\n  mock:      %s\n", i+1, clip(w), clip(g))
-			if shown++; shown == 3 {
-				break
-			}
-		}
-	}
-	return b.String()
-}
-
-func clip(s string) string {
-	if len(s) > 600 {
-		return s[:600] + "…"
-	}
-	if s == "" {
-		return "(none)"
-	}
-	return s
 }

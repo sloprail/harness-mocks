@@ -1,0 +1,1 @@
+Spawn two sub-agents with your multi-agent tool (not a shell command): the first must reply with exactly the word PINEAPPLE-7 and nothing else, the second with exactly the word MANGO-3 and nothing else. Make a single wait call that lists both of them as targets, and wait for it to return. Then reply with the reports that wait call gave you, verbatim, and nothing else.

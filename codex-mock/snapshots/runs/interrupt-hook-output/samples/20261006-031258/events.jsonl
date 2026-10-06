@@ -1,0 +1,13 @@
+{"event":"hook","hook":"Interrupt","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Interrupt","permission_mode":"bypassPermissions"}}
+{"event":"hook","hook":null,"payload":{"ran":"plain"}}
+{"event":"hook","hook":"Interrupt","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Interrupt","permission_mode":"bypassPermissions"}}
+{"event":"hook","hook":null,"payload":{"ran":"exit2"}}
+{"event":"hook","hook":"Interrupt","payload":{"session_id":"<SESSION_ID>","hook_event_name":"Interrupt","permission_mode":"bypassPermissions"}}
+{"event":"hook","hook":null,"payload":{"ran":"json"}}
+{"event":"hook","hook":"SessionEnd","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionEnd","reason":"other"}}
+{"event":"hook","hook":null,"payload":{"ran":"none"}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
 	"syscall"
 	"time"
@@ -24,6 +25,11 @@ type Spec struct {
 	Timeout time.Duration
 	// Stderr, when set, receives the child's stderr as well as Result.Stderr.
 	Stderr io.Writer
+	// Stdout, when set, receives the child's stdout as well as Result.Stdout, as it is written.
+	Stdout io.Writer
+	// OnStart, when set, is given, once the child has started, a function that sends it a signal
+	// (a user's Ctrl-C, say, when its output shows what the test waits for).
+	OnStart func(signal func(os.Signal) error)
 	// NewSession runs the child in a session of its own, so it has no
 	// controlling terminal; its process group is still its own.
 	NewSession bool
@@ -69,6 +75,9 @@ func Run(ctx context.Context, s Spec) (Result, error) {
 	}
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out
+	if s.Stdout != nil {
+		cmd.Stdout = io.MultiWriter(&out, s.Stdout)
+	}
 	cmd.Stderr = &errb
 	if s.Stderr != nil {
 		cmd.Stderr = io.MultiWriter(&errb, s.Stderr)
@@ -78,6 +87,9 @@ func Run(ctx context.Context, s Spec) (Result, error) {
 		return res, err
 	}
 	res.Started = true
+	if s.OnStart != nil {
+		s.OnStart(cmd.Process.Signal)
+	}
 	err := cmd.Wait()
 	res.Stdout, res.Stderr = out.Bytes(), errb.Bytes()
 	res.TimedOut = errors.Is(ctx.Err(), context.DeadlineExceeded)
