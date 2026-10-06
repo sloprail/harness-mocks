@@ -28,6 +28,9 @@ type Call struct {
 	// mock-only input of the script, hook_tool_use_id): Cursor's hooks were recorded
 	// naming a call by an id of their own in some runs and by the call's id in others.
 	HookID string
+	// ShellID is the id a background shell is to have (a mock-only input of the script,
+	// task_id): the harness numbers its shells itself, and a later wait names the one it means.
+	ShellID string
 	// Request is the id of the model request the call was made in (the frames' requestId).
 	Request string
 }
@@ -62,7 +65,7 @@ func FromScript(name string, input json.RawMessage) Call {
 	switch c.Kind {
 	case "shellToolCall":
 		c.Args["command"] = str("command")
-		c.Described = str("description")
+		c.Described, c.ShellID = str("description"), str("task_id")
 		if v, ok := in["block_until_ms"].(float64); ok && v > 0 {
 			ms := int(v)
 			c.BlockMs = &ms

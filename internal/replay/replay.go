@@ -50,21 +50,6 @@ type Agent struct {
 	ID            string    // the agent's own id, when the recording names it (a sub-agent's conversation)
 }
 
-// Recording is a recorded run in unified form.
-type Recording struct {
-	Dir    string            // the recorded run: an adapter reads what it needs of it here
-	Prompt string            // what the agent was asked
-	Setup  map[string]string // the run's own setup, by name: opaque to the core
-	Agent  Agent
-}
-
-// Observed is what a run left that is compared, normalised: one line per
-// event, in an order that is the behaviour.
-type Observed struct {
-	Events []string
-	Hooks  []string
-}
-
 // Adapter is everything a harness contributes to a replay.
 type Adapter interface {
 	// Load reads the recorded run into unified form; an *Unbuildable says what the adapter cannot reproduce.
@@ -91,7 +76,7 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks), nil
+	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks) + Diff("exit statuses", want.Exits, got.Exits), nil
 }
 
 // Script is the scenario a generates for the recording in runDir.

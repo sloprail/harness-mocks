@@ -43,6 +43,18 @@ func (r *Registry) has(id string) bool {
 	return false
 }
 
+// Find is the task with this id, finished or not; nil when there is none.
+func (r *Registry) Find(id string) *Task {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, t := range r.tasks {
+		if t.ID == id {
+			return t
+		}
+	}
+	return nil
+}
+
 // Add registers a task, in launch order.
 func (r *Registry) Add(t *Task) {
 	r.mu.Lock()
