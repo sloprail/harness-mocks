@@ -27,7 +27,7 @@ func shell(ctx context.Context, c Call, dir string, env []string) Result {
 	took := time.Since(start)
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": c.str("workingDirectory"), "exitCode": res.ExitCode, "signal": "",
-		"stdout": res.Stdout, "stderr": res.Stderr, "executionTime": took.Milliseconds(), "interleavedOutput": res.Output,
+		"stdout": res.Stdout, "stderr": res.Stderr, "executionTime": max(took.Milliseconds(), 1), "localExecutionTimeMs": max(took.Milliseconds(), 1), "interleavedOutput": res.Output,
 	}
 	r := Result{Output: res.Output, Took: took, ToolOutput: jsonString(struct {
 		Output   string `json:"output"`
