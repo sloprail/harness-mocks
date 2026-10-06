@@ -72,3 +72,95 @@ func countLabel(labels []string, want string) (n int) {
 	}
 	return
 }
+
+// What a SubagentStart hook prints as JSON, a systemMessage included, steers and shows nothing: the
+// sub-agent runs and stops, and the message is in neither the stream nor the transcript (recorded:
+// runs/subagent-start-systemmessage).
+// sr:proves subagent-lifecycle-hooks/codex
+func TestASubagentStartSystemMessageIsNotShown(t *testing.T) {
+	rec, got := replaySubagent(t, "subagent-start-systemmessage")
+	require.Equal(t, 0, got.Code, got.Stderr)
+	recordedStream := readFile(t, filepath.Join(rec.sample, "stream.jsonl"))
+	assert.NotContains(t, recordedStream, "SA-SYSMSG")
+	files, _ := filepath.Glob(filepath.Join(rec.sample, "transcript", "*.jsonl"))
+	require.Len(t, files, 2, "the session's and the sub-agent's")
+	for _, f := range files {
+		assert.NotContains(t, readFile(t, f), "SA-SYSMSG")
+	}
+	assert.Equal(t, []string{"SubagentStart", "SubagentStop"}, eventNames(got.hookLog()), "the sub-agent ran and stopped")
+	assert.NotContains(t, got.Stdout, "SA-SYSMSG")
+	assert.NotContains(t, got.Stderr, "SA-SYSMSG")
+	assert.NotContains(t, got.rollout(t), "SA-SYSMSG")
+}
+
+// A sub-agent that ends with no message stops with last_assistant_message null, and the wait
+// reports it completed with null, though it has a transcript of its own (recorded:
+// runs/subagent-stop-no-message).
+// sr:proves subagent-lifecycle-hooks/codex
+func TestASubagentThatEndsWithNoMessageStopsWithANullMessage(t *testing.T) {
+	rec := loadRecording(t, "subagent-stop-no-message")
+	stop := func(log []map[string]any) map[string]any {
+		var out map[string]any
+		for _, l := range log {
+			if l["hook_event_name"] == "SubagentStop" {
+				out = l
+			}
+		}
+		require.NotNil(t, out)
+		return out
+	}
+	recorded := stop(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
+	assert.Nil(t, recorded["last_assistant_message"], "recorded")
+	assert.NotNil(t, recorded["agent_transcript_path"])
+
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files: map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh")),
+			"sub.sh": "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"\"}]}}' '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"\"}'\n"},
+		Script: spawnThenResult, Prompt: "go",
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	mock := stop(got.hookLog())
+	assert.Nil(t, mock["last_assistant_message"], "the mock's")
+	assert.NotNil(t, mock["agent_transcript_path"])
+	assert.Contains(t, got.rollout(t), `\"completed\":null`)
+}
+
+// A PreToolUse or PostToolUse matcher on one of the sub-agent tools matches that tool's own name
+// (hooks#tool-coverage): a matcher of spawn_agent runs for the spawn and not for the sub-agent's own
+// shell command or the wait, and one of wait_agent for the wait only, whose name in the payload is
+// the one the harness gives it (recorded: runs/foreground-subagent-result, tool_name
+// "multi_agent_v1wait_agent").
+// sr:proves hook-matcher-filter/codex
+func TestAToolMatcherOnASubagentToolMatchesThatToolsName(t *testing.T) {
+	rec := loadRecording(t, "foreground-subagent-result")
+	var names []string
+	for _, l := range jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))) {
+		if n, ok := l["tool_name"].(string); ok {
+			names = append(names, n)
+		}
+	}
+	assert.Contains(t, names, "spawn_agent")
+	assert.Contains(t, names, "multi_agent_v1wait_agent")
+
+	for matcher, want := range map[string]string{"spawn_agent": "spawn_agent", "wait_agent": "multi_agent_v1wait_agent"} {
+		t.Run(matcher, func(t *testing.T) {
+			group := func(ev string) string {
+				return `"` + ev + `":[{"matcher":"` + matcher + `","hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}]`
+			}
+			got := execMock(t, scenario{
+				HooksJSON: `{"hooks":{` + group("PreToolUse") + `,` + group("PostToolUse") + `}}`,
+				Files:     map[string]string{"sub.sh": subScript},
+				Script:    spawnThenResult, Prompt: "go",
+			})
+			require.Equal(t, 0, got.Code, got.Stderr)
+			var seen []string
+			for _, l := range got.hookLog() {
+				seen = append(seen, fmt.Sprint(l["hook_event_name"], ":", l["tool_name"]))
+			}
+			sort.Strings(seen)
+			wantEvents := []string{"PostToolUse:" + want, "PreToolUse:" + want}
+			assert.Equal(t, wantEvents, seen, "the hooks ran for that tool's calls only: not for the sub-agent's Bash")
+		})
+	}
+}

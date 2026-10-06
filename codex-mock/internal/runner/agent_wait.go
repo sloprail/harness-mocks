@@ -61,8 +61,14 @@ func (h toolHost) waitAgent(ctx context.Context, c toolcall.Call) toolcall.Resul
 	for _, st := range res.States {
 		switch st.Status {
 		case subagents.WaitCompleted:
-			states[st.ID] = events.AgentState{Status: "completed", Message: st.Report}
-			status = append(status, fmt.Sprintf("%q:{\"completed\":%q}", st.ID, st.Report))
+			// a sub-agent that ended with no message is completed with null (recorded: runs/subagent-stop-no-message)
+			var msg any = st.Report
+			completed := fmt.Sprintf("%q", st.Report)
+			if st.Report == "" {
+				msg, completed = nil, "null"
+			}
+			states[st.ID] = events.AgentState{Status: "completed", Message: msg}
+			status = append(status, fmt.Sprintf("%q:{\"completed\":%s}", st.ID, completed))
 		case subagents.WaitNotFound:
 			status = append(status, fmt.Sprintf("%q:%q", st.ID, st.Status))
 		default: // still running: a wait that returned at the first to finish does not list it (recorded: runs/foreground-subagent-wait-many)

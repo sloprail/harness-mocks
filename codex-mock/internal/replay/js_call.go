@@ -100,4 +100,4 @@ func argString(args []any, i int) (string, bool) {
 // follow (the tool list, a regular expression, JSON, a string it was told): the
 // ones the recorded scripts use to look at what they were given, which make no
 // tool call and tell the replay nothing. Any other is refused, never guessed.
-var lookAround = map[string]bool{"filter": true, "test": true, "stringify": true, "includes": true, "toLowerCase": true}
+var lookAround = map[string]bool{"filter": true, "test": true, "stringify": true, "includes": true, "toLowerCase": true, "trim": true}

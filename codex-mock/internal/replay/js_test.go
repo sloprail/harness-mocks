@@ -179,7 +179,9 @@ func TestAMethodOnAValueNotFollowedIsRefusedUnlessItOnlyLooksAround(t *testing.T
 	assert.NoError(t, err)
 	_, err = newJSRun().script("ALL_TOOLS.forEach(x => text(x));")
 	assert.Error(t, err)
-	_, err = newJSRun().script("const r = await tools.exec_command({cmd:\"a\"}); text(r.output.trim());")
+	_, err = newJSRun().script("const r = await tools.exec_command({cmd:\"a\"}); text(r.output.trim());") // recorded: runs/subagent-start-systemmessage
+	assert.NoError(t, err)
+	_, err = newJSRun().script("const r = await tools.exec_command({cmd:\"a\"}); text(r.output.padStart(3));")
 	assert.Error(t, err)
 }
 

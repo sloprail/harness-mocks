@@ -59,8 +59,12 @@ func (h toolHost) runSpawned(ctx context.Context, subID string, subRollout *sess
 			}
 		},
 		Stop: func(active bool, last string) (bool, string) {
+			var message any = last
+			if last == "" { // no message: null, as for the session's own stop (recorded: runs/subagent-stop-no-message)
+				message = nil
+			}
 			own := map[string]any{"turn_id": h.turnID, "agent_id": subID, "agent_type": agentType,
-				"agent_transcript_path": subRollout.Path, "stop_hook_active": active, "last_assistant_message": last}
+				"agent_transcript_path": subRollout.Path, "stop_hook_active": active, "last_assistant_message": message}
 			outs := h.hooks.Fire(ctx, hooks.SubagentStop, agentType, own)
 			for _, o := range outs {
 				if stopsFor(o.Stdout) { // continue:false outranks any block (hooks#subagentstop)
