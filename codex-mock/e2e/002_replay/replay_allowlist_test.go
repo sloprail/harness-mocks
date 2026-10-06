@@ -8,13 +8,11 @@ package e2e
 // "untriaged:" is a replay that differs and has not been looked at (the mock,
 // the adapter or the recording may be wrong).
 var notReplaying = map[string]string{
-	"bg-bash-reaped-at-exit":               "adapter: an exec_command whose cmd is not a string literal",
-	"file-tools":                           "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
-	"file-tools-failure":                   "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
-	"nested-session-env":                   "adapter: the setup has env, which the adapter does not install",
-	"noninteractive-run-output-schema":     "adapter: the setup has args, which the adapter does not install",
-	"noninteractive-run-text-output":       "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
-	"plugin-hooks":                         "adapter: the setup has prepare.sh, which the adapter does not install",
-	"subagent-stop-block-loop-cap":         "adapter: the model called wait: the adapter maps only exec",
-	"task-stream-frames":                   "adapter: the model called tools.write_stdin: the adapter maps exec_command, spawn_agent and wait_agent",
+	"bg-bash-reaped-at-exit":           "adapter: an exec_command whose cmd is not a string literal",
+	"file-tools":                       "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
+	"file-tools-failure":               "adapter: the model called tools.apply_patch: the adapter maps exec_command, spawn_agent and wait_agent",
+	"noninteractive-run-output-schema": "adapter: the setup has args, which the adapter does not install",
+	"noninteractive-run-text-output":   "adapter: recorded with another command line: \"codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust -m gpt-5.6-luna\"",
+	"subagent-stop-block-loop-cap":     "adapter: the model called wait: the adapter maps only exec",
+	"task-stream-frames":               "adapter: the model called tools.write_stdin: the adapter maps exec_command, spawn_agent and wait_agent",
 }

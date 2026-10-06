@@ -49,6 +49,8 @@ func setupOf(setup, sample string, cmdline []string) map[string]string {
 		"cmdflags":           strings.Join(cmdline, " "),
 		"no-git":             fmt.Sprint(noGit == nil),
 		"exit":               exitOf(sample),
+		"env":                strings.TrimSpace(readFile(filepath.Join(setup, "env"))),
+		"prepare.sh":         readFile(filepath.Join(setup, "prepare.sh")),
 	}
 }
 

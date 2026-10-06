@@ -1,6 +1,9 @@
 package replay
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,4 +32,22 @@ func TestRunFlagsGivesAResumeByItsID(t *testing.T) {
 	pass, err := runFlags("resume\n00000000-0000-4000-8000-0000000000ff\n")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"resume", "00000000-0000-4000-8000-0000000000ff"}, pass)
+}
+
+// A recorded run's env file is given to the mock's process and its prepare.sh is run before the mock, with
+// the stubs: `codex plugin` writes the config.toml the mock reads, and `sed -i ”` works on any sed.
+func TestPrepareRunsTheRecordedScriptWithTheCodexAndSedStubs(t *testing.T) {
+	dir := func() string { d, _ := filepath.EvalSymlinks(t.TempDir()); return d } // as the script's $PWD is
+	root, repo, home := dir(), dir(), dir()
+	require.NoError(t, os.MkdirAll(filepath.Join(repo, "mk", ".agents", "plugins"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(repo, "mk", ".agents", "plugins", "marketplace.json"), []byte(`{"name":"mk"}`), 0o644))
+	script := "set -e\ncodex plugin marketplace add \"$PWD/mk\"\ncodex plugin add p1@mk\nsed -i '' 's/true/false/' \"$CODEX_HOME/config.toml\"\n"
+	require.NoError(t, prepare(context.Background(), script, root, repo, home, []string{"CODEX_HOME=" + home}))
+	b, err := os.ReadFile(filepath.Join(home, "config.toml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "[marketplaces.mk]\nsource_type = \"local\"\nsource = \""+filepath.Join(repo, "mk")+"\"")
+	assert.Contains(t, string(b), "[plugins.\"p1@mk\"]\nenabled = false", "the sed rewrote it")
+
+	err = prepare(context.Background(), "codex exec x\n", root, repo, home, []string{"CODEX_HOME=" + home})
+	assert.Error(t, err, "another codex command is an error")
 }

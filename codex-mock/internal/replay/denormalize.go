@@ -28,6 +28,10 @@ type Scenario struct {
 	CmdFlags []string
 	NoGit    bool
 	Exit     string
+	// Env is what the recorded run's process was given beyond the hermetic environment (setup/env).
+	Env []string
+	// Prepare is the recorded run's prepare.sh, run in the repository before the mock (prepare.go).
+	Prepare string
 	// ProjectHooksJSON is the project layer's hooks, written to <repo>/.codex/hooks.json.
 	ProjectHooksJSON string
 	// Interrupt is a run the user interrupted: the mock is sent SIGINT once its last command has started.
@@ -85,6 +89,8 @@ func Denormalize(rec core.Recording) Scenario {
 		CmdFlags:         strings.Fields(rec.Setup["cmdflags"]),
 		NoGit:            rec.Setup["no-git"] == "true",
 		Exit:             rec.Setup["exit"],
+		Env:              strings.Fields(rec.Setup["env"]),
+		Prepare:          rec.Setup["prepare.sh"],
 		ProjectHooksJSON: rec.Setup["project-hooks.json"],
 		Interrupt:        rec.Agent.Interrupted,
 	}
