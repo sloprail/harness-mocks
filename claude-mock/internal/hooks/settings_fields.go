@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
 // Args is the arguments of an exec-form command hook, held as one string so that
@@ -70,8 +72,8 @@ func (s *Settings) addDeny(p Permissions) error {
 	return nil
 }
 
-// Denied is whether a deny rule refuses the call: a Bash call whose command is exactly a denied one.
-// sr:provides noninteractive-run/claude
+// Denied is whether a deny rule refuses the call: a Bash call whose command is exactly a denied one
+// (the rules are claude's syntax, parsed above; that they refuse is the core's, toolcall.DeniedByRule).
 func (s *Settings) Denied(tool string, input json.RawMessage) (command string, denied bool) {
 	var in struct {
 		Command string `json:"command"`
@@ -79,12 +81,7 @@ func (s *Settings) Denied(tool string, input json.RawMessage) (command string, d
 	if tool != "Bash" || json.Unmarshal(input, &in) != nil {
 		return "", false
 	}
-	for _, d := range s.Deny {
-		if d == in.Command {
-			return in.Command, true
-		}
-	}
-	return "", false
+	return in.Command, toolcall.DeniedByRule(s.Deny, in.Command)
 }
 
 // accept takes a settings file's modelled parts: its deny rules. allowManagedHooksOnly, which blocks
