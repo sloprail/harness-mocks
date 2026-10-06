@@ -63,6 +63,9 @@ func (t Tool) issues(input json.RawMessage) []Issue {
 	if err := json.Unmarshal(input, &in); err != nil || in == nil {
 		return []Issue{{Kind: WrongType, Tool: t.Name, Detail: "the input is not a JSON object"}}
 	}
+	if t.Open {
+		return nil
+	}
 	var out []Issue
 	for _, p := range t.Params {
 		raw, given := in[p.Name]

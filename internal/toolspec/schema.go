@@ -5,7 +5,10 @@
 // parameter, whatever the schema does not allow.
 package toolspec
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Type is the JSON type of a parameter.
 type Type string
@@ -41,11 +44,15 @@ type Param struct {
 
 // Tool is one tool the mock implements.
 type Tool struct {
-	// Name is the tool's name in a script's call.
+	// Name is the tool's name in a script's call; one ending in "*" stands for
+	// every name with that prefix (the tools of MCP servers, named by the script).
 	Name string
 	// Recorded is its name in the recordings, when they say it another way ("" is the same).
 	Recorded string
 	Params   []Param
+	// Open: the tool takes whatever arguments its caller names, which the harness
+	// does not fix (an MCP server's tool); the input need only be an object.
+	Open bool
 	// Answers are the kinds of mistake the real harness answers itself, each with the
 	// recorded run that shows its answer: the mock answers it as recorded instead of
 	// refusing it. A kind with no recording behind it is not listed.
@@ -87,7 +94,7 @@ func (i Issue) String() string {
 // Tool is the schema's tool of that name.
 func (s Schema) Tool(name string) (Tool, bool) {
 	for _, t := range s.Tools {
-		if t.Name == name {
+		if t.Name == name || strings.HasSuffix(t.Name, "*") && strings.HasPrefix(name, strings.TrimSuffix(t.Name, "*")) {
 			return t, true
 		}
 	}
