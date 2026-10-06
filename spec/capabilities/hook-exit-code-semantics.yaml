@@ -68,7 +68,6 @@ providers:
       - codex-mock/snapshots/runs/subagent-stop-block-loop
       - codex-mock/snapshots/runs/subagent-stop-continue-false
       - codex-mock/snapshots/runs/subagent-stop-plain-text
-      - codex-mock/snapshots/runs/subagent-stop-exit2-continue-false
       - codex-mock/snapshots/runs/subagent-start-refused
       - codex-mock/snapshots/runs/manual-compaction-auto-blocked
       - codex-mock/snapshots/runs/manual-compaction-auto-post-stopped
