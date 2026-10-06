@@ -40,7 +40,7 @@ func runCall(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	//     every tool_use, which IS the "wake-up fired, resume" behaviour.
 	// sr:docs https://code.claude.com/docs/en/sub-agents
 	var res toolexec.Result
-	var startAgent func(answered <-chan struct{})
+	var startAgent func(answered <-chan struct{}) <-chan struct{}
 	toolStarted := time.Now()
 	switch {
 	case isAgentTool(pending.ToolName) && agentRunsInBackground(cfg, pending.ToolInput):
@@ -67,8 +67,9 @@ func runCall(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 		firePostTool(ctx, cfg, inv.WithRecorder(tr.holdHookRuns), pending, res, took)
 	}
 	answered := make(chan struct{})
+	var began <-chan struct{}
 	if startAgent != nil { // a background agent's start is announced ahead of the result that answers its launch
-		startAgent(answered)
+		began = startAgent(answered)
 	}
 	if err := emitToolResult(cfg, pending, res, tr); err != nil {
 		close(answered)
@@ -92,6 +93,12 @@ func runCall(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 		firePostTool(ctx, cfg, inv, pending, res, took)
 	}
 	close(answered) // the sub-agent's run begins now
+	if began != nil {
+		select { // and its SubagentStart fires before the next call of the message is taken
+		case <-began:
+		case <-ctx.Done():
+		}
+	}
 
 	// A background task that finished while this tool ran is handed over now,
 	// inside the turn.

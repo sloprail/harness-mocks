@@ -36,6 +36,9 @@ type Call struct {
 	Sub   *Agent // the turns of the agent a ToolSpawn started, when they were recorded
 	Ref   string // the harness's id of that agent (what its receipt named), when known
 	More  bool   // another call of the same script follows: the model is not sampled between them
+	// ExecEarly is that the call was carried out before the next step of the agents above it, as the
+	// recording's stream shows: its gate does not wait for those steps.
+	ExecEarly bool
 	// At is when the harness made the call (an answer: gave it), and Done when the call's output
 	// was given back, as recorded: how one agent's steps are ordered against another's.
 	At, Done time.Time

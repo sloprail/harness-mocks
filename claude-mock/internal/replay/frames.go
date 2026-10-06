@@ -113,7 +113,7 @@ func isAgentTool(name any) bool { return name == "Agent" || name == "Task" }
 func withoutScript(input map[string]any) map[string]any {
 	out := map[string]any{}
 	for k, v := range input {
-		if k != "script" {
+		if k != "script" && k != "mock_start_after_post" {
 			out[k] = v
 		}
 	}

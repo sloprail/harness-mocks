@@ -104,3 +104,38 @@ echo '{"type":"result","subtype":"success","result":"NOW VISIBLE"}'
 	assert.Len(t, payloads(t, log), 1, "one Stop, for the answer that was visible")
 	assert.Contains(t, readString(t, transcriptPath(t, cfg, dir, "nv-1")), `"turnCompanion":true`)
 }
+
+// TestT017_121_ASubagentStartedAfterTheLaunchingCallsPostToolUse: the order of a background
+// sub-agent's SubagentStart and its launching call's PostToolUse is the harness's race; the mock
+// follows the scenario's mock-only "mock_start_after_post" (the replay reads it from each sample),
+// and the SubagentStart then comes before the next call of the message is taken.
+// sr:proves background-agent/claude
+func TestT017_121_ASubagentStartedAfterTheLaunchingCallsPostToolUse(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "payloads.log")
+	h := payloadLogger(t, dir, "log.sh", log, "")
+	settings(t, dir, map[string]string{"PostToolUse": h, "SubagentStart": h})
+	sub := script(t, dir, "sub")
+	order := func(late bool) []string {
+		os.Remove(log)
+		sc := write(t, filepath.Join(dir, "s.sh"), `#!/bin/sh
+n=$(grep -c '"type":"tool_result"' "$A10N_MOCK_SESSION_FILE")
+if [ "$n" = 0 ]; then
+echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a1","name":"Agent","input":{"prompt":"p","description":"d","run_in_background":true,"script":"`+sub+`","mock_start_after_post":`+map[bool]string{true: "true", false: "false"}[late]+`}}]}}'
+else
+echo '{"type":"assistant","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"DONE"}]}}'
+echo '{"type":"result","subtype":"success","result":"DONE"}'
+fi
+`, 0o755)
+		out, code := runInDir(t, dir, nil, "--script", sc, "--session-id", "sa-"+map[bool]string{true: "l", false: "e"}[late], "--project-dir", dir,
+			"--config-dir", filepath.Join(dir, "config"), "--output-format", "stream-json", "-p", "go")
+		require.Equal(t, 0, code, out)
+		var ev []string
+		for _, p := range payloads(t, log) {
+			ev = append(ev, p["hook_event_name"].(string))
+		}
+		return ev
+	}
+	assert.Equal(t, []string{"SubagentStart", "PostToolUse"}, order(false), "at the launch, ahead of the call's PostToolUse")
+	assert.Equal(t, []string{"PostToolUse", "SubagentStart"}, order(true), "after it, as the sample shows")
+}

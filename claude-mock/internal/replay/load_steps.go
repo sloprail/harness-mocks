@@ -40,7 +40,7 @@ func stepThreads(specs []stepSpec, first string) ([]string, error) {
 // session's transcript, so each is what follows its prompt there. A session that left no
 // transcript (--no-session-persistence) is read from the stream, when it holds the main thread's
 // turns only.
-func agentsOf(setup, sample string, stream []map[string]any) (core.Agent, []core.Step, []earlierRun, error) {
+func agentsOf(setup, sample string, stream, payloads []map[string]any) (core.Agent, []core.Step, []earlierRun, error) {
 	specs, err := stepSpecs(setup)
 	if err != nil {
 		return core.Agent{}, nil, nil, err
@@ -101,13 +101,14 @@ func agentsOf(setup, sample string, stream []map[string]any) (core.Agent, []core
 			return core.Agent{}, nil, nil, err
 		}
 	}
+	early, late := execEarly(stream), startAfterPost(payloads, subs)
 	var agents []core.Agent
 	for _, recs := range records {
 		t, err := modelTurns(recs)
 		if err != nil {
 			return core.Agent{}, nil, nil, unbuildable(err)
 		}
-		agents = append(agents, attachSubagents(withWireInputs(t, wire), subs))
+		agents = append(agents, attachSubagents(withWireInputs(t, wire), subs, early, late))
 	}
 	if len(subs) > 0 {
 		return core.Agent{}, nil, nil, unbuildable(fmt.Errorf("a sub-agent whose starting call is in no transcript"))
