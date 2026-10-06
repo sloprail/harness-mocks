@@ -110,7 +110,8 @@ func TestASubagentThatEndsWithNoMessageStopsWithANullMessage(t *testing.T) {
 		return out
 	}
 	recorded := stop(jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))))
-	assert.Nil(t, recorded["last_assistant_message"], "recorded")
+	assert.Contains(t, recorded, "last_assistant_message", "recorded: the key is there")
+	assert.Nil(t, recorded["last_assistant_message"], "recorded: and explicitly null")
 	assert.NotNil(t, recorded["agent_transcript_path"])
 
 	got := execMock(t, scenario{
@@ -121,7 +122,8 @@ func TestASubagentThatEndsWithNoMessageStopsWithANullMessage(t *testing.T) {
 	})
 	require.Equal(t, 0, got.Code, got.Stderr)
 	mock := stop(got.hookLog())
-	assert.Nil(t, mock["last_assistant_message"], "the mock's")
+	assert.Contains(t, mock, "last_assistant_message", "the mock's: the key is there")
+	assert.Nil(t, mock["last_assistant_message"], "the mock's: and explicitly null")
 	assert.NotNil(t, mock["agent_transcript_path"])
 	assert.Contains(t, got.rollout(t), `\"completed\":null`)
 }
