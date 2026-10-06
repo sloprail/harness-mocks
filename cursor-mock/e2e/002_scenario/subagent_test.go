@@ -122,6 +122,30 @@ fi
 	require.NotNil(t, gotHook, "the preToolUse hook ran for the Task call")
 	assert.Equal(t, wantHook, gotHook)
 
+	// the hooks the run's hooks.json registers for the sub-agent's end and the
+	// call's end never fire: only the call's preToolUse does, recorded and mock
+	fired := func(ps []map[string]any) (events []string, sessions map[string]bool) {
+		sessions = map[string]bool{}
+		for _, p := range ps {
+			if e, ok := p["hook_event_name"].(string); ok {
+				events = append(events, e)
+				if s, ok := p["session_id"].(string); ok {
+					sessions[s] = true
+				}
+			}
+		}
+		return
+	}
+	recEvents, recSessions := fired(jsonLines(t, filepath.Join(sample, "payloads.jsonl")))
+	gotEvents, _ := fired(jsonLines(t, log))
+	for name, events := range map[string][]string{"recorded": recEvents, "mock": gotEvents} {
+		for _, e := range []string{"postToolUse", "postToolUseFailure", "subagentStart", "subagentStop"} {
+			assert.NotContains(t, events, e, name+": "+e+" does not fire for a foreground Task call")
+		}
+		assert.Contains(t, events, "preToolUse", name)
+	}
+	assert.Greater(t, len(recSessions), 1, "recorded: the sub-agent's own events carry a session id of their own")
+
 	// the call's args: the values the recording shows for what the mock carries
 	// (the agent id is the call's own, a fresh one)
 	gotArgs := gotTask["started"]["args"].(map[string]any)
