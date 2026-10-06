@@ -3,10 +3,11 @@
 # per line: "<id>/<harness>\t<cell json>\t<capability json>". Touched: the
 # capability file changed in that harness's cell (cells.sh; its statement, or
 # the whole file, changing touches every providing harness); a marker naming it changed
-# (sr:capability → every harness; sr:provides/sr:proves <id>/<h> → that harness);
+# (sr:provides/sr:proves <id>/<h> → that harness; the shared sr:capability marker touches no harness's pair:
+# one harness's tests are never judged, or refused, for a change to the core that carries it);
 # or a recording it cites for <h> changed (a run). A doc page re-frozen is none of these: docs
 # follow recordings and never re-judge alone. touched.sh narrows a marker to its declaration,
-# so a change to one function leaves another's capability alone. Only the capability this check's subject names, when the rule is split (subjects.sh).
+# so a change to one function leaves another's capability alone. Only the pair this check's subject names ("<id>/<harness>"), when the rule is split (subjects.sh).
 # Fails (non-zero) when the pairs cannot be worked out: an empty list is "nothing touched", a failure is not,
 # so a caller captures `pairs="$(rigor_pairs)" || refuse ...` and never reads a failed lookup as an empty one.
 # The catalog and the tables go to jq through files, not the command line (one argv entry is capped at 128 KB on Linux).
@@ -21,10 +22,11 @@ rigor_pairs() {
     | [.changeset.files[].path] as $changed
     | [$tm | split("\n")[] | select(length > 0) | split("\t") | .[2]] as $fq
     | [$tt | split("\n")[] | select(length > 0) | split("\t") | {p: .[0], h: .[1]}] as $tr
-    | $caps[] | select($want == "" or .id == $want) | . as $c | .id as $id | "spec/capabilities/\($id).yaml" as $cp
+    | $caps[] | . as $c | .id as $id | "spec/capabilities/\($id).yaml" as $cp
     | (.doc.providers // {}) | to_entries[] | select(.value | type == "object" and .supported == null) | .key as $h | .value as $cell
+    | select($want == "" or $want == "\($id)/\($h)")
     | select(any($tr[]; .p == $cp and (.h == "*" or .h == $h))
-             or any($fq[]; . == $id or . == "\($id)/\($h)")
+             or any($fq[]; . == "\($id)/\($h)")
              or any(($cell.runs // [])[]; . as $r | any($changed[]; startswith($r + "/"))))
     | ["\($id)/\($h)", ($cell | tojson), ($c | tojson)] | join("\t")'
 }

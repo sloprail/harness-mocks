@@ -75,14 +75,14 @@ expect_refused "a failed deviation read" "capability 'x' × 'claude': its deviat
 inject '(.doc.providers | type) == "object"'
 expect_refused "a failed shape test" "capability 'x': its cells could not be read, so it could not be checked"
 
-# the sr:proves check reads the cell too: the proof stays, so the first (cell loop) read goes through and the second fails
+# the sr:proves check reads the cell too: the proving test changes (its marker is touched), so the first (cell loop) read goes through and the second fails
 git checkout -q -b proof-kept "$BASE"
-printf 'package internal\n\n// sr:provides x/claude\n// the adapter, changed\nfunc adapter() {}\n' > claude-mock/internal/x.go; c "the adapter changes"
+printf 'package e2e\n\n// sr:proves x/claude\n// the proof, changed\nfunc TestX() {}\n' > claude-mock/e2e/x_test.go; c "the proving test changes"
 run_rule SHIM_JQ_FAIL=
 expect_not_refused "control: the proof is kept" "could not be"
 # (a passed verdict is cached by content, so the injected run is its own commit)
 git checkout -q -b proof-kept-2 "$BASE"
-printf 'package internal\n\n// sr:provides x/claude\n// the adapter, changed again\nfunc adapter() {}\n' > claude-mock/internal/x.go; c "the adapter changes again"
+printf 'package e2e\n\n// sr:proves x/claude\n// the proof, changed again\nfunc TestX() {}\n' > claude-mock/e2e/x_test.go; c "the proving test changes again"
 inject '[0].doc.providers' 1
 expect_refused "a failed cell read for a sr:proves marker" "the cell 'x' × 'claude' could not be read, so sr:proves x/claude could not be checked"
 

@@ -107,8 +107,8 @@ git checkout -q -b direct "$BASE"
 mkdir -p internal
 printf 'package core\n\n// sr:capability c\nfunc C() {}\n' >internal/c.go
 git add -A && git commit -q -m "c, with its marker" && DBASE=$(git rev-parse HEAD)
-printf 'package core\n\n// sr:capability c\nfunc C() { _ = 1 }\n' >internal/c.go
-git add -A && git commit -q -m "c's declaration changes"
+printf 'package e2e\n\n// sr:proves c/claude\nfunc TestC() { _ = 1 }\n' >claude-mock/e2e/c_test.go
+git add -A && git commit -q -m "c's proving test changes"
 sr-checks changeset --rule capability-rigor --base "$DBASE" --head HEAD | jq -c '.subjects[0].payload' >direct.payload
 jq -e '.changeset.files | length > 0' direct.payload >/dev/null || { echo "no payload for the direct scripts" >&2; exit 1; }
 printf '#!/bin/bash\ncase " $* " in *" diff "*) [ -n "${SHIM_GIT_DIFF_FAIL:-}" ] && exit 5 ;; esac\nexec "%s" "$@"\n' "$(command -v git)" >shim/git
@@ -132,7 +132,7 @@ for s in inputs-ready.sh prepare.sh; do
     inputs-ready.sh) tail_reason="so the judge's inputs could not be checked" ;;
     prepare.sh) tail_reason="so nothing could be prepared for the judge" ;;
   esac
-  direct "$s" "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=select($want == "" or .id == $want)' SHIM_JQ_IN=capability-rigor SHIM_JQ_COUNT="$TMPDIR/direct.count"
+  direct "$s" "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=select($want == "" or $want == "\($id)/\($h)")' SHIM_JQ_IN=capability-rigor SHIM_JQ_COUNT="$TMPDIR/direct.count"
   expect_direct_refused "$s: the pairs lookup fails" "the touched capability pairs could not be worked out, $tail_reason"
   direct "$s" "PATH=$PWD/shim:$PATH" 'SHIM_JQ_FAIL=(.newMarkers // [])' SHIM_JQ_IN=capability-rigor SHIM_JQ_COUNT="$TMPDIR/direct.count"
   expect_direct_refused "$s: the markers read fails" "the capability markers this change touches could not be worked out, $tail_reason"
