@@ -1,5 +1,5 @@
 ---
-concern: which captured samples of a recorded run a mock's replay command checks
+concern: which captured samples of a recorded run a mock's replay test checks
 sloprails: [file-guard/adr-conformance]
 ---
 
@@ -9,12 +9,10 @@ sloprails: [file-guard/adr-conformance]
 
 A recorded run (`<harness>-mock/snapshots/runs/<name>/`) can hold several
 captured samples (`samples/<ts>/`), each one real capture of the harness. If a
-mock's replay command checks only some of them, "replays green" promises
-different things from one mock to the next, and a sample that differs from the
-mock is never noticed.
+replay checks only some of them, "replays green" promises different things from
+one mock to the next, and a sample that differs from the mock is never noticed.
 
 ## Decision
 
-- A mock's replay command replays every captured sample of a recorded run, and
-  "replays green" means all of them do; a mock that replays only the newest
-  sample is a gap to close, not a convention.
+- Each mock's replay test replays every captured sample of a recorded run; a run
+  counts as replaying green only when every sample does.
