@@ -3,10 +3,8 @@ package hooks
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 )
@@ -26,11 +24,7 @@ type HookEntry struct {
 type HandlerSpec struct {
 	Type    string `json:"type"`
 	Command string `json:"command,omitempty"`
-	// Args makes a command hook run its program directly, without a shell, with
-	// these arguments (recorded: snapshots/runs/hook-args: each its own argument,
-	// "two words" one of them). Shell names a shell the real harness is told to use;
-	// recorded as changing nothing on this machine (snapshots/runs/hook-shell: both
-	// hooks ran under /bin/sh), so the mock accepts and ignores it.
+	// Args: the program run directly, no shell (runs/hook-args); Shell: ignored (runs/hook-shell).
 	Args    Args   `json:"args,omitempty"`
 	Shell   string `json:"shell,omitempty"`
 	URL     string `json:"url,omitempty"`
@@ -152,48 +146,4 @@ func matcherSubject(in Input) string {
 		return in.Error
 	}
 	return ""
-}
-
-// Args is the arguments of an exec-form command hook, held as one string so that
-// a handler stays comparable (two copies of a hook are one hook).
-type Args string
-
-// UnmarshalJSON reads a JSON array of strings.
-func (a *Args) UnmarshalJSON(b []byte) error {
-	var list []string
-	if err := json.Unmarshal(b, &list); err != nil {
-		return err
-	}
-	*a = Args(strings.Join(list, "\x00"))
-	return nil
-}
-
-// List is the arguments, nil for a hook that has none (a shell command line).
-func (a Args) List() []string {
-	if a == "" {
-		return nil
-	}
-	return strings.Split(string(a), "\x00")
-}
-
-// UnimplementedError is a settings field the mock does not implement: the run is
-// refused rather than the field ignored (adr/fail-fast-unimplemented).
-type UnimplementedError struct{ What string }
-
-func (e *UnimplementedError) Error() string {
-	return "claude-mock: " + e.What + " is not implemented by the mock: it is refused rather than ignored"
-}
-
-// refuseUnmodelledFields refuses a hook's `shell` other than "bash", the one
-// value recorded (snapshots/runs/hook-shell: it changed nothing there); any other
-// stays refused until a recording covers it.
-func refuseUnmodelledFields(evt EventName, entries []HookEntry) error {
-	for _, e := range entries {
-		for _, h := range e.Hooks {
-			if h.Shell != "" && h.Shell != "bash" {
-				return &UnimplementedError{What: fmt.Sprintf("the %s hook's shell %q (only \"bash\" is recorded)", evt, h.Shell)}
-			}
-		}
-	}
-	return nil
 }

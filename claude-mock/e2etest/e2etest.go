@@ -2,12 +2,15 @@
 package e2etest
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // MockBinaryPath is the a10n-claude-mock binary path, set by Main.
@@ -71,6 +74,14 @@ func RunWithScript(t *testing.T, scriptContent string, extraArgs ...string) (str
 // sr:docs https://code.claude.com/docs/en/env-vars#environment-variables (CLAUDE_CODE_PLUGIN_CACHE_DIR)
 const SharedPluginCacheDir = "/tmp/a10n-mock-plugins"
 
+// testEnv is the environment a test runs the mock in: the process's own, with the shared plugin
+// cache and a config dir and temp root under dir.
+func testEnv(dir string) []string {
+	return append(os.Environ(), "CLAUDE_CODE_PLUGIN_CACHE_DIR="+SharedPluginCacheDir,
+		"CLAUDE_CONFIG_DIR="+filepath.Join(dir, ".claude-config"),
+		"CLAUDE_CODE_TMPDIR="+filepath.Join(dir, ".claude-tmp"))
+}
+
 // RunInDir invokes the mock binary from dir with optional extra env and args.
 // CLAUDE_CODE_PLUGIN_CACHE_DIR is always injected so every test run shares the
 // same plugin cache and avoids re-cloning plugins on each test. The Claude
@@ -82,9 +93,7 @@ func RunInDir(t *testing.T, dir string, env []string, args ...string) (string, i
 	t.Helper()
 	cmd := exec.Command(MockBinaryPath, args...)
 	cmd.Dir = dir
-	baseEnv := append(os.Environ(), "CLAUDE_CODE_PLUGIN_CACHE_DIR="+SharedPluginCacheDir,
-		"CLAUDE_CONFIG_DIR="+filepath.Join(dir, ".claude-config"),
-		"CLAUDE_CODE_TMPDIR="+filepath.Join(dir, ".claude-tmp"))
+	baseEnv := testEnv(dir)
 	if len(env) > 0 {
 		cmd.Env = append(baseEnv, env...)
 	} else {
@@ -123,16 +132,6 @@ func WriteScript(t *testing.T, content string) string {
 // RunSplit invokes the mock like RunInDir, keeping its stdout and stderr apart.
 func RunSplit(t *testing.T, dir string, env []string, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
-	cmd := exec.Command(MockBinaryPath, args...)
-	cmd.Dir = dir
-	cmd.Env = append(append(os.Environ(), "CLAUDE_CODE_PLUGIN_CACHE_DIR="+SharedPluginCacheDir,
-		"CLAUDE_CONFIG_DIR="+filepath.Join(dir, ".claude-config"),
-		"CLAUDE_CODE_TMPDIR="+filepath.Join(dir, ".claude-tmp")), env...)
-	var out, errb strings.Builder
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	_ = cmd.Run()
-	if cmd.ProcessState != nil {
-		code = cmd.ProcessState.ExitCode()
-	}
-	return out.String(), errb.String(), code
+	res, _ := procexec.Run(context.Background(), procexec.Spec{Argv: append([]string{MockBinaryPath}, args...), Dir: dir, Env: append(testEnv(dir), env...)})
+	return string(res.Stdout), string(res.Stderr), res.ExitCode
 }

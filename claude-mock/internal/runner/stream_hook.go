@@ -92,8 +92,7 @@ func streamAndHook(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *tran
 			})
 			writeHookEventFrames(cfg, hooks.Input{HookEventName: hooks.EventStop}, stopRuns)
 			writeStopHookError(cfg, stopRuns)
-			// Its feedback, attachment and stop_hook_summary are written as it
-			// fires (transcript.recordHookRuns).
+			// Its feedback, attachment and stop_hook_summary: transcript.recordHookRuns.
 			// sr:provides stop-block-continuation/claude
 			if turnloop.Continues(stopErr != nil, stopOut.Decision == "block") {
 				stopBlocks++

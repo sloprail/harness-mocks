@@ -63,10 +63,8 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				// Forward the assistant record + append to session BEFORE the hook
-				// fires — real Claude Code writes the tool_use first and the
-				// PreToolUse hook's attachment after it, and the tool_use is part
-				// of the trajectory whatever the hook decides.
+				// The tool_use is written BEFORE the PreToolUse hook fires (the hook's
+				// attachment follows it): it is part of the trajectory whatever the hook decides.
 				if cfg.AgentID != "" {
 					cfg.progress(cfg, toolName, toolInput)
 				}
