@@ -137,16 +137,3 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	}
 	return want, got, nil
 }
-
-// observe is a recording's event stream and hook payloads with the mock's, each
-// side canonicalised under rules, the event stream first: it names the ids in a fixed order.
-func observe(rules core.Rules, async map[string]bool, recStream, recHooks, mockStream, mockHooks []map[string]any) (want, got core.Observed) {
-	wantC, gotC := core.New(rules), core.New(rules)
-	want.Events, got.Events = wantC.Lines(recStream), gotC.Lines(mockStream)
-	want.Hooks, got.Hooks = wantC.Lines(recHooks), gotC.Lines(mockHooks)
-	// hooks of one event run at the same time, so the order they log in is not the behaviour:
-	// the order of the groups of hooks that run together is (hookorder.go)
-	want.Hooks = sortWithinGroups(want.Hooks, concurrentGroups(recHooks, async))
-	got.Hooks = sortWithinGroups(got.Hooks, concurrentGroups(mockHooks, async))
-	return want, got
-}

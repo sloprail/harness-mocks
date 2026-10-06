@@ -33,10 +33,6 @@ func Run(mock, runDir string, environ []string) (string, error) {
 	return core.Run(Adapter{Environ: environ}, mock, runDir)
 }
 
-// Script is the generated scenario for debugging: the main script and each
-// sub-agent's.
-func Script(runDir string) (string, error) { return core.Script(Adapter{}, runDir) }
-
 // Script is the scenario Denormalize makes of rec, as text.
 func (Adapter) Script(rec core.Recording) (string, error) {
 	s := Denormalize(rec, "<scripts>")
@@ -51,10 +47,6 @@ func (Adapter) Script(rec core.Recording) (string, error) {
 	}
 	return out, nil
 }
-
-// the session id every replay runs under: the recording's own differs in every
-// run, and the canonicalisation names it as an id
-const sessionID = "00000000-0000-4000-8000-0000000000a1"
 
 // runMock runs the mock on rec's scenario in a hermetic repository, laid out as
 // a capture lays out its own (the hook log, the transcripts' home, the temp
