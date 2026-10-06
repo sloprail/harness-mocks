@@ -108,6 +108,10 @@ type Config struct {
 	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
 	// after its final turn; zero waits without a limit.
 	BgWaitCeiling time.Duration
+	// Tools is --tools: the only tools the run has (RestrictTools; nil Tools with it set: none). A call to
+	// another is refused by the mock.
+	Tools         []string
+	RestrictTools bool
 	// SpawnLimit is how many layers of sub-agents nest below the main thread;
 	// 0 is the default.
 	SpawnLimit int

@@ -36,6 +36,11 @@ func parseArgs(text string) ([]string, error) {
 		if refused[flag] {
 			return nil, unbuildable(fmt.Errorf("%s%s", RefusedPrefix, flag))
 		}
+		if strings.HasPrefix(flag, "--tools=") { // the tools the run has, in one word as recorded
+			out = append(out, flag)
+			i++
+			continue
+		}
 		n, ok := modelled[flag]
 		if !ok {
 			return nil, unbuildable(fmt.Errorf("the setup's args have %s, which the adapter does not map to a mock flag", flag))

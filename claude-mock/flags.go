@@ -83,3 +83,16 @@ func hookEvents(cmd *cobra.Command) bool {
 	b, _ := cmd.Flags().GetBool("include-hook-events")
 	return b
 }
+
+// toolsFlag is --tools: the names it lists, and whether it restricts the run's tools at all ("default"
+// does not).
+func toolsFlag(cmd *cobra.Command) (names []string, restrict bool) {
+	if !cmd.Flags().Changed("tools") {
+		return nil, false
+	}
+	value, _ := cmd.Flags().GetString("tools")
+	if value == "default" {
+		return nil, false
+	}
+	return strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' }), true
+}

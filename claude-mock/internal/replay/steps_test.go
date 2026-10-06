@@ -172,3 +172,16 @@ func TestStepSpecsReadsDirectoriesAndLinks(t *testing.T) {
 		t.Fatalf("a file the adapter does not install: %v", err)
 	}
 }
+
+// A call the harness filled a default into is replayed as the model sent it: the stream names it.
+func TestWireInputsReplaceTheTranscriptsInputs(t *testing.T) {
+	stream := []map[string]any{{"type": "assistant", "wire_tool_inputs": map[string]any{"c1": map[string]any{"file_path": "/f"}}}}
+	turns := turns{agent: core.Agent{Calls: []core.Call{{Tool: toolEdit, Input: map[string]any{"file_path": "/f", "replace_all": false}}, {Tool: core.ToolShell, Input: map[string]any{"command": "x"}}}}, ids: []string{"c1", "c2"}}
+	got := withWireInputs(turns, wireInputs(stream))
+	if _, has := got.agent.Calls[0].Input["replace_all"]; has || got.agent.Calls[1].Input["command"] != "x" {
+		t.Fatalf("%+v", got.agent.Calls)
+	}
+	if _, has := turns.agent.Calls[0].Input["replace_all"]; !has {
+		t.Fatal("the recording's own calls are left as they were")
+	}
+}
