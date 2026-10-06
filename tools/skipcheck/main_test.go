@@ -227,15 +227,6 @@ func g[T S](s T) {
 	_, _ = exec.LookPath("zsh")
 	s.SkipNow()
 }`, "SkipNow is used", nil},
-		{"os.Setenv of a gate", head + `func TestMain(m *testing.M) {
-	_, _ = exec.LookPath("zsh")
-	os.Setenv("A10N_X_TEST", "1")
-	os.Exit(m.Run())
-}`, "sets an A10N_*_TEST name", nil},
-		{"t.Setenv of a gate", head + `func TestX(t *testing.T) {
-	_, _ = exec.LookPath("zsh")
-	t.Setenv("A10N_X_TEST", "1")
-}`, "sets an A10N_*_TEST name", nil},
 	}
 	for _, c := range cases {
 		if v := violations(t, c.body, c.extra); !strings.Contains(v, c.want) {

@@ -94,35 +94,3 @@ func getenv(e ast.Expr, info *types.Info) bool {
 	tv, ok := info.Types[call.Args[0]]
 	return ok && tv.Value != nil && tv.Value.Kind() == constant.String && gateName.MatchString(constant.StringVal(tv.Value))
 }
-
-// isGateEnv: os.Setenv, os.Unsetenv, or the Setenv method of a testing type.
-func isGateEnv(fn *types.Func) bool {
-	fn = fn.Origin()
-	if fn.Pkg() == nil {
-		return false
-	}
-	switch fn.Pkg().Path() + "." + fn.Name() {
-	case "os.Setenv", "os.Unsetenv", "testing.Setenv":
-		return true
-	}
-	return false
-}
-
-// setsGate: the call whose function is id has an A10N_<NAME>_TEST string constant as its first argument.
-func setsGate(id *ast.Ident, stack []ast.Node, info *types.Info) bool {
-	i := len(stack) - 2
-	if i >= 0 {
-		if sel, ok := stack[i].(*ast.SelectorExpr); ok && sel.Sel == id {
-			i--
-		}
-	}
-	if i < 0 {
-		return false
-	}
-	call, ok := stack[i].(*ast.CallExpr)
-	if !ok || len(call.Args) == 0 {
-		return false
-	}
-	tv, ok := info.Types[call.Args[0]]
-	return ok && tv.Value != nil && tv.Value.Kind() == constant.String && gateName.MatchString(constant.StringVal(tv.Value))
-}

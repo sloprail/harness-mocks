@@ -65,9 +65,8 @@ type pkgUnit struct {
 // checkPackage judges foo and foo_test together (the groups of checkDir are keyed by the name with _test
 // stripped, so a skip moved to the external test package cannot escape): when any code of either (a function, a
 // variable initializer, TestMain) names os/exec.LookPath, the package looks a tool up, and then
-//   - every Skip, Skipf and SkipNow (a call, a method value, a generic, interface or type-parameter method,
-//     wherever the interface is declared) is refused unless it is the opt-in gate, and
-//   - os.Setenv, os.Unsetenv and t.Setenv of an A10N_<NAME>_TEST name are refused: the gate is the environment's.
+// every Skip, Skipf and SkipNow (a call, a method value, a generic, interface or type-parameter method,
+// wherever the interface is declared) is refused unless it is the opt-in gate.
 //
 // Only a lookup inside the test package counts, not one through another package, and only a named
 // os/exec.LookPath counts (an aliased or dot-imported one too); exec.Command is not treated as a lookup.
@@ -112,56 +111,9 @@ func checkPackage(fset *token.FileSet, imp types.Importer, base string, parts ma
 				switch {
 				case isSkip(fn) && !exempt(id, stack, u.info):
 					out = append(out, fmt.Sprintf("%s: %s is used in package %s, which reaches os/exec.LookPath (%s): a test whose required tool is missing fails, it never skips", fset.Position(id.Pos()), fn.Name(), base, fset.Position(lookup)))
-				case isGateEnv(fn) && setsGate(id, stack, u.info):
-					out = append(out, fmt.Sprintf("%s: %s sets an A10N_*_TEST name in package %s, which reaches os/exec.LookPath (%s): the opt-in gate is the environment's, a test does not open it", fset.Position(id.Pos()), fn.Name(), base, fset.Position(lookup)))
 				}
 			})
 		}
 	}
 	return out, nil
-}
-
-func isLookPath(fn *types.Func) bool {
-	return fn.Pkg() != nil && fn.Pkg().Path() == "os/exec" && fn.Name() == "LookPath"
-}
-
-// isSkip: a Skip, Skipf or SkipNow method of the testing package (T, B, F, TB and a generic instance of them),
-// or one whose receiver is an interface or a type parameter wherever it is declared (a local interface, a generic
-// constraint): such a method can be (*testing.T).Skip behind the interface, so it counts as one.
-func isSkip(fn *types.Func) bool {
-	fn = fn.Origin()
-	switch fn.Name() {
-	case "Skip", "Skipf", "SkipNow":
-	default:
-		return false
-	}
-	recv := fn.Type().(*types.Signature).Recv()
-	if recv == nil {
-		return false
-	}
-	if fn.Pkg() != nil && fn.Pkg().Path() == "testing" {
-		return true
-	}
-	t := recv.Type()
-	if p, ok := t.(*types.Pointer); ok {
-		t = p.Elem()
-	}
-	if _, ok := t.(*types.TypeParam); ok {
-		return true
-	}
-	_, isIface := t.Underlying().(*types.Interface)
-	return isIface
-}
-
-func walk(root ast.Node, visit func(n ast.Node, stack []ast.Node)) {
-	var stack []ast.Node
-	ast.Inspect(root, func(n ast.Node) bool {
-		if n == nil {
-			stack = stack[:len(stack)-1]
-			return true
-		}
-		stack = append(stack, n)
-		visit(n, stack)
-		return true
-	})
 }

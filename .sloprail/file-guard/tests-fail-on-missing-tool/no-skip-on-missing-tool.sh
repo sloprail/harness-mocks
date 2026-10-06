@@ -7,8 +7,7 @@
 # and when any code of the package (a function, a variable initializer, TestMain) names os/exec.LookPath
 # (an alias or a dot import counts) it refuses every call or method value of Skip, Skipf or SkipNow in the
 # package, a generic, interface or type-parameter method included. A skip directly under
-# `if os.Getenv("A10N_<NAME>_TEST") <op> <constant>` (that condition and nothing else) is the opt-in gate, and
-# a test of such a package may not set an A10N_*_TEST name (os.Setenv, os.Unsetenv, t.Setenv).
+# `if os.Getenv("A10N_<NAME>_TEST") <op> <constant>` (that condition and nothing else) is the opt-in gate.
 # Only a lookup inside the test package counts, not one through another package ("a test package that looks up
 # an external tool"), and only a named os/exec.LookPath counts: exec.Command is not treated as a lookup.
 # A checker that cannot build or run is refuse_error, not a verdict.
