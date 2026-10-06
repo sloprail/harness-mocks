@@ -40,3 +40,27 @@ func TestT001_13_AnUnknownResumeKeepsItsMessageOnStderrAndItsFrameOnStdout(t *te
 		assert.Contains(t, want, k, "the mock's field is one the recorded frame has")
 	}
 }
+
+// A flag the mock does not know is reported on stderr before the run starts, in claude's
+// words, with nothing on stdout and exit status 1 (runs/invalid-flag: stderr.txt, stream.jsonl,
+// exit.txt); --bare, which the mock refuses, ends the same way.
+// sr:proves noninteractive-run/claude
+func TestT001_16_AnInvalidFlagFailsOnStderrBeforeAnyFrame(t *testing.T) {
+	run := filepath.Join("..", "..", "snapshots", "runs", "invalid-flag", "samples", "*")
+	recErr, err := os.ReadFile(recordedFile(t, filepath.Join(run, "stderr.txt")))
+	require.NoError(t, err)
+	recOut, err := os.ReadFile(recordedFile(t, filepath.Join(run, "stream.jsonl")))
+	require.NoError(t, err)
+	require.Empty(t, recOut, "recorded: nothing on stdout")
+	dir := t.TempDir()
+	script := filepath.Join(dir, "s.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\necho RAN\n"), 0o755))
+	stdout, stderr, code := runSplit(t, dir, nil, "--script", script, "--session-id", "if-1", "--project-dir", dir, "--output-format", "stream-json", "--verbose", "--no-such-flag", "-p", "hello")
+	assert.Equal(t, 1, code)
+	assert.Empty(t, stdout, "no frame comes first")
+	assert.Equal(t, strings.TrimSpace(string(recErr)), strings.TrimSpace(stderr), "claude's words, on stderr")
+	stdout, stderr, code = runSplit(t, dir, nil, "--script", script, "--session-id", "if-2", "--project-dir", dir, "--output-format", "stream-json", "--bare", "-p", "hello")
+	assert.Equal(t, 1, code)
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "--bare is not implemented")
+}

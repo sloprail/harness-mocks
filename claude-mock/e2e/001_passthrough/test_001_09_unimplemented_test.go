@@ -27,7 +27,8 @@ func TestT001_09_UnimplementedInputsAreRefused(t *testing.T) {
 	}{
 		"text":    {[]string{"--output-format", "text"}, "--output-format text is not implemented by the mock"},
 		"json":    {[]string{"--output-format", "json"}, "--output-format json is not implemented by the mock"},
-		"agent":   {[]string{"--agent", "reviewer"}, "unknown flag: --agent"},
+		"agent":   {[]string{"--agent", "reviewer"}, "--agent is not implemented by the mock"},
+		"bare":    {[]string{"--bare"}, "--bare is not implemented by the mock"},
 		"partial": {[]string{"--include-partial-messages"}, "--include-partial-messages is not implemented by the mock"},
 		"input":   {[]string{"--input-format", "stream-json"}, "--input-format is not implemented by the mock"},
 		"budget":  {[]string{"--max-budget-usd", "5"}, "--max-budget-usd is not implemented by the mock"},

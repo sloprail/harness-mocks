@@ -13,6 +13,9 @@ providers:
       - claude-mock/snapshots/runs/run-failure
       - claude-mock/snapshots/runs/max-turns
       - claude-mock/snapshots/runs/include-hook-events
+      - claude-mock/snapshots/runs/invalid-flag
+      - claude-mock/snapshots/runs/bare
+      - claude-mock/snapshots/runs/permission-denied
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled

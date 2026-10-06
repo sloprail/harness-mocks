@@ -83,6 +83,6 @@ func assertRefuses(t *testing.T, run string) {
 	out, code := e2etest.RunInDir(t, t.TempDir(), nil, append([]string{"--script", script, "--session-id", "refused-1", "-p", "--output-format", "stream-json"}, append(flags, "go")...)...)
 	require.NotZero(t, code, out)
 	require.Contains(t, out, flags[0], "the refusal names the flag")
-	require.True(t, strings.Contains(out, "is not implemented by the mock") || strings.Contains(out, "unknown flag"), out)
+	require.True(t, strings.Contains(out, "is not implemented by the mock") || strings.Contains(out, "unknown option"), out)
 	require.NotContains(t, out, "RAN")
 }

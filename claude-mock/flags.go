@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -35,7 +36,7 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 	if f, _ := cmd.Flags().GetString(flagOutputFormat); f != "stream-json" {
 		return fmt.Errorf("claude-mock: --output-format %s is not implemented by the mock (only stream-json): it is refused rather than ignored", f)
 	}
-	for _, name := range []string{"include-partial-messages", "input-format", "max-budget-usd"} {
+	for _, name := range []string{"include-partial-messages", "input-format", "max-budget-usd", "bare", "agent"} {
 		if cmd.Flags().Changed(name) {
 			return fmt.Errorf("claude-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
 		}
@@ -44,6 +45,26 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 		return fmt.Errorf("claude-mock: a piped stdin is not implemented by the mock: it is refused rather than ignored")
 	}
 	return nil
+}
+
+// addRefusedFlags registers the flags of claude the mock refuses by name: --agent (it would put
+// agent_type on main-thread hook payloads) and --bare (it skips hooks, settings discovery and
+// the login; the run recorded without an API key only fails to log in, snapshots/runs/bare, so
+// what a bare run does is not recorded).
+// sr:docs https://code.claude.com/docs/en/headless#start-faster-with-bare-mode
+func addRefusedFlags(cmd *cobra.Command) {
+	cmd.Flags().Bool("bare", false, "Refused: not implemented by the mock")
+	cmd.Flags().String("agent", "", "Refused: not implemented by the mock")
+}
+
+// flagError words a flag the mock does not know as claude does: `error: unknown option '--x'`
+// on stderr, nothing on stdout, exit status 1, before the run starts (recorded: snapshots/runs/invalid-flag).
+// sr:docs https://code.claude.com/docs/en/headless#basic-usage
+func flagError(_ *cobra.Command, err error) error {
+	if name, ok := strings.CutPrefix(err.Error(), "unknown flag: "); ok {
+		return fmt.Errorf("error: unknown option '%s'", name)
+	}
+	return err
 }
 
 // maxTurns is --max-turns (0: none).

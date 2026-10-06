@@ -119,6 +119,8 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 
 	root.SetVersionTemplate("{{.Version}}\n")
 	addRunFlags(root)
+	addRefusedFlags(root)
+	root.SetFlagErrorFunc(flagError)
 	root.AddCommand(newReplay())
 
 	return root

@@ -18,7 +18,8 @@ var modelled = map[string]int{"--max-turns": 1, "--model": 1, "--include-hook-ev
 // listed as a replay that fails (see RefusedPrefix).
 var refused = map[string]bool{
 	"--max-budget-usd": true, "--input-format": true,
-	"--include-partial-messages": true, "--agent": true,
+	"--include-partial-messages": true, "--agent": true, "--bare": true,
+	"--no-such-flag": true, // a flag claude itself does not know (recorded: snapshots/runs/invalid-flag)
 }
 
 // RefusedPrefix starts the reason of a recording the mock refuses by design.
