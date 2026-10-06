@@ -62,7 +62,17 @@ func TestAFileReadReturnsItsContentAndAWriteReplacesItWhole(t *testing.T) {
 		}
 	}
 	require.Equal(t, []any{"hi\n", "bye\n"}, written)
-	require.Len(t, edits, 2)
+	var recordedEdits []any
+	for _, h := range recordedRaw(t, "file-tools") {
+		if h["hook_event_name"] == "afterFileEdit" {
+			recordedEdits = append(recordedEdits, h["edits"])
+		}
+	}
+	require.Equal(t, []any{
+		[]any{map[string]any{"old_string": "", "new_string": "hi\n"}},
+		[]any{map[string]any{"old_string": "hi", "new_string": "bye"}},
+	}, recordedEdits, "recorded: the edits the two writes made")
+	require.Equal(t, recordedEdits, edits, "the mock reports the same edits")
 	require.Contains(t, got.frames, "tool_call/completed/readToolCall/success")
 	// a read's structured result is its file and the length of the content it
 	// returned, as the postToolUse hook's tool_output
