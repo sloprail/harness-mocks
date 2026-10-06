@@ -22,7 +22,8 @@ type execOptions struct {
 // unimplemented is what an exec_command asks for that the mock does not carry
 // out, refused instead of ignored (adr/fail-fast-unimplemented): a working
 // directory other than the run's, a shell other than zsh (the one the
-// recordings name), zsh when it is not installed, and a login without a shell.
+// recordings name), zsh when it is not installed, and a login shell with no shell named
+// (login:false with none is the default shell, which the recordings show accepted).
 //
 // shellArgv is what runs the shell: the command by the shell the call names,
 // zsh -c, or zsh -lc for a login shell. A tty is carried out as far as the
@@ -38,7 +39,7 @@ func (h toolHost) unimplemented(c toolcall.Call) string {
 	switch {
 	case o.Shell != nil && *o.Shell != "zsh":
 		return "shell " + *o.Shell + " (only zsh, the recorded one, is accepted)"
-	case o.Shell == nil && o.Login != nil:
+	case o.Shell == nil && o.Login != nil && *o.Login: // login:false with no shell is the default shell, as recorded (runs/exec-login-false)
 		return "login without a shell"
 	case o.Shell != nil && zsh() == "":
 		return "shell zsh: zsh is not installed on this machine (it is not replaced by /bin/sh)"

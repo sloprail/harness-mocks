@@ -89,7 +89,7 @@ func Run(ctx context.Context, cfg Config) error {
 	defer s.bg.Shutdown()
 	s.hooks = &hooks.Invoker{Config: hookCfg, Dir: cfg.Cwd, Environ: cfg.Environ, Ident: childenv.HookIdentity(),
 		Common: hooks.Common{SessionID: id, TranscriptPath: rollout.Path, Cwd: cfg.Cwd, Model: cfg.Model,
-			PermissionMode: "bypassPermissions"}}
+			PermissionMode: "bypassPermissions"}, Later: &corehooks.Later{}, Step: s.prog.Started}
 	if !cfg.JSON {
 		s.events.Progress(cfg.Stderr, events.Header{Version: childenv.Version, Cwd: cfg.Cwd, Model: cfg.Model, Prompt: cfg.Prompt})
 	}
@@ -121,6 +121,7 @@ func Run(ctx context.Context, cfg Config) error {
 	s.reapAtExit()
 	// The session ends with the run, for the one reason a non-interactive run has;
 	// what the hook prints is not read.
+	s.hooks.Later.Wait() // what ran in the background is over before the session ends
 	s.hooks.Fire(ctx, hooks.SessionEnd, "other", map[string]any{"reason": "other"})
 	if !cfg.JSON && last != "" {
 		fmt.Fprintln(cfg.Stdout, last)

@@ -43,6 +43,7 @@ func (h toolHost) runSpawned(ctx context.Context, subID string, subRollout *sess
 	sub.id, sub.turnID, sub.rollout = subID, coresession.NewID(), subRollout
 	sub.events = events.New(io.Discard)
 	invoker := *h.hooks
+	invoker.Later, invoker.Step = nil, nil // a sub-agent's hooks are all waited for: no recording shows otherwise
 	invoker.Common.TranscriptPath, invoker.Common.AgentID, invoker.Common.AgentType = subRollout.Path, subID, agentType
 	sub.hooks = &invoker
 	sub.prog, sub.parent, sub.spawned = subagents.NewProgress(), h.prog, &subagents.SpawnLog{} // its own progress, read against the parent's

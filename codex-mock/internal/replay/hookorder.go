@@ -10,16 +10,21 @@ import (
 // one session and one agent, with the lines the hooks print themselves between
 // them. Hooks of a group log in whatever order they finish, so only the order
 // within a group is not behaviour: the order of the groups is.
-func concurrentGroups(objs []map[string]any) []int {
+//
+// Hooks marked async run in the background and log in whatever order they finish, whichever event
+// started them (the real harness logged a start hook and a prompt hook in either order, recorded
+// twice): the lines of events whose hooks are async, with nothing else between them, are one group.
+func concurrentGroups(objs []map[string]any, async map[string]bool) []int {
 	group := make([]int, len(objs))
-	prev, n := "", -1
+	prev, n, inAsync := "", -1, false
 	for i, o := range objs {
-		if _, isPayload := o["hook_event_name"]; isPayload {
-			k := fmt.Sprint(o["hook_event_name"], "|", o["turn_id"], "|", o["tool_use_id"], "|", o["session_id"], "|", o["agent_id"], "|", o["stop_hook_active"])
-			if k != prev || n < 0 {
+		if ev, isPayload := o["hook_event_name"]; isPayload {
+			k := fmt.Sprint(ev, "|", o["turn_id"], "|", o["tool_use_id"], "|", o["session_id"], "|", o["agent_id"], "|", o["stop_hook_active"])
+			isAsync := async[fmt.Sprint(ev)]
+			if n < 0 || (k != prev && !(isAsync && inAsync)) {
 				n++
 			}
-			prev = k
+			prev, inAsync = k, isAsync
 		} else if n < 0 {
 			n = 0
 		}

@@ -28,6 +28,8 @@ type Handler struct {
 	Command string
 	// Timeout is in seconds; zero is Codex's default of 600.
 	Timeout int
+	// Async is a hook that runs in the background: the agent does not wait for it.
+	Async bool
 }
 
 // Group is a matcher and the handlers that run when it matches.
@@ -47,6 +49,7 @@ type fileGroup struct {
 		Type    string `json:"type"`
 		Command string `json:"command"`
 		Timeout int    `json:"timeout"`
+		Async   bool   `json:"async"`
 	} `json:"hooks"`
 }
 
@@ -93,7 +96,7 @@ func (cfg Config) addFile(path string) error {
 			out := Group{Matcher: g.Matcher}
 			for _, h := range g.Hooks {
 				if h.Type == "command" {
-					out.Handlers = append(out.Handlers, Handler{Command: h.Command, Timeout: h.Timeout})
+					out.Handlers = append(out.Handlers, Handler{Command: h.Command, Timeout: h.Timeout, Async: h.Async})
 				}
 			}
 			cfg[ev] = append(cfg[ev], out)
