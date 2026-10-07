@@ -1,0 +1,1 @@
+Read each of these files with your Read tool, one file per call, one call at a time, in this order, and run no other command: f7602.txt, f8000.txt, f9249.txt, f12000.txt, f16000.txt, f24000.txt, f32000.txt, f48000.txt. Then reply only DONE.

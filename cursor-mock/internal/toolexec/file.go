@@ -2,7 +2,6 @@ package toolexec
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -51,17 +50,13 @@ func read(c Call, dir string) Result {
 		msg := "cursor-mock: Read of a file that exists with a limit is not modeled"
 		return failed(msg, msg)
 	}
-	if n := len(content); n > ReadCarriedBytes && n < ReadOmittedBytes {
-		msg := fmt.Sprintf("cursor-mock: Read of a file of %d bytes is not modeled (recorded: %d carried, %d not)", n, ReadCarriedBytes, ReadOmittedBytes)
-		return failed(msg, msg)
-	}
 	total := strings.Count(content, "\n") + 1
 	body := map[string]any{
 		"content": content, "isEmpty": content == "", "exceededLimit": false, "totalLines": total, "fileSize": len(content),
 		"path": filepath.Clean(path), "readRange": map[string]any{"startLine": 1, "endLine": total}, // the result names the file resolved; the hooks, as given (recorded: runs/no-add-dir-access)
 		"relatedCursorRulePaths": []string{}, "relatedCursorRules": []string{},
 	}
-	if len(content) >= ReadOmittedBytes { // too big for the frame: it names the content by an id instead
+	if len(content) > ReadCarriedBytes { // too big for the frame: it names the content by an id instead
 		delete(body, "content")
 		body["contentBlobId"] = contentBlobID(content)
 	}
