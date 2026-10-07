@@ -18,3 +18,6 @@ docs:
   https://cursor.com/docs/cli/reference/parameters:
     sha256: b50b48d66f4f420a8d1d4a6c3087aa74d3fa37f2c5363933ac30754ef10a8c78
     fetched: "2026-10-03"
+  https://cursor.com/docs/skills:
+    sha256: 5ccb25304f16e82a7f58c0241a0a16a072adb33f7697e43c5704c46738e002ac
+    fetched: "2026-10-07"

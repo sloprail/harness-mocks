@@ -14,6 +14,7 @@ import (
 var emptySearches = map[string]bool{
 	"subscribe_timer|cursor-subscriptions": true, // runs/schedule-wakeup-ask
 	"Task|task|subagent|sub-agent":         true, // runs/catalogue-search-task, the search a sub-agent at the depth limit made (runs/nested-subagents-depth)
+	"skill|greet|launch":                   true, // runs/skill-tool-ask, the search for a skill-launching tool
 }
 
 // startsHookless starts the calls the harness answers itself, which no hook
