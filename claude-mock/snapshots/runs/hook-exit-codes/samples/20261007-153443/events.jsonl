@@ -1,12 +1,12 @@
 {"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","source":"startup"}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"SessionStart","tool":"","exit":2}}}
-{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Do these steps in order. 1) Run exactly this Bash command: echo one. 2) Run exactly this Bash command: ls /nonexistent-dir-for-this-run. 3) Read the file hook.sh with the Read tool. 4) Reply with the secret word you were given, and nothing else."}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"UserPromptSubmit","prompt":"Do these steps in order. 1) Run exactly this Bash command: echo one. 2) Run exactly this Bash command: cat /nonexistent-dir-for-this-run. 3) Read the file hook.sh with the Read tool. 4) Reply with the secret word you were given, and nothing else."}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"UserPromptSubmit","tool":"","exit":0}}}
 {"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo one"}}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","tool":"Bash","exit":2}}}
-{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls /nonexistent-dir-for-this-run"}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"cat /nonexistent-dir-for-this-run"}}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","tool":"Bash","exit":0}}}
-{"event":"hook","hook":"PostToolUseFailure","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_input":{"command":"ls /nonexistent-dir-for-this-run"},"error":"Exit code 1\nls: /nonexistent-dir-for-this-run: No such file or directory","is_interrupt":false}}
+{"event":"hook","hook":"PostToolUseFailure","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_input":{"command":"cat /nonexistent-dir-for-this-run"},"error":"Exit code 1\ncat: /nonexistent-dir-for-this-run: No such file or directory","is_interrupt":false}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PostToolUseFailure","tool":"Bash","exit":2}}}
 {"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"<RUN>/hook.sh"}}}
 {"event":"hook","hook":null,"payload":{"hook_result":{"event":"PreToolUse","tool":"Read","exit":0}}}
@@ -22,14 +22,14 @@
 {"event":"stream","type":"system","subtype":"hook_response"}
 {"event":"stream","type":"system","subtype":"init"}
 {"event":"stream","type":"system","subtype":"commands_changed"}
-{"event":"stream","type":"system","subtype":"commands_changed"}
 {"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
 {"event":"stream","type":"system","subtype":"thinking_tokens"}
 {"event":"stream","type":"rate_limit_event","subtype":null}
 {"event":"stream","type":"system","subtype":"thinking_tokens"}
 {"event":"stream","type":"system","subtype":"thinking_tokens"}
 {"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
 {"event":"stream","type":"system","subtype":"notification"}
-{"event":"stream","type":"system","subtype":"thinking_tokens"}
-{"event":"stream","type":"system","subtype":"thinking_tokens"}
 {"event":"stream","type":"result","subtype":"success"}
