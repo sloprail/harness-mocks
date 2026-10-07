@@ -1,0 +1,13 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) V=hi; echo $V ${V} ${V:-d} 2) cat > out.txt <<'EOF'\nfile body $V\nEOF\n3) cat <<EOF | tr a-z A-Z\npiped body\nEOF\n4) (cd . && echo in-sub) 2>&1 5) echo a && cat < in.txt > copy.txt && cat copy.txt 6) echo ok || echo no && echo after 7) cat in.txt | grep IN || echo none 8) echo x > /dev/null && echo y 9) echo err >&2 && false 10) echo $(echo a && echo b) \"$V\". Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the ten commands one at a time, in order."},{"type":"tool_use","name":"Shell","input":{"command":"V=hi; echo $V ${V} ${V:-d}","description":"Echo V with parameter expansion"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat > out.txt <<'EOF'\nfile body $V\nEOF\n","description":"Write heredoc to out.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat <<EOF | tr a-z A-Z\npiped body\nEOF\n","description":"Pipe heredoc through tr uppercase"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"(cd . && echo in-sub) 2>&1","description":"Subshell echo with stderr redirect"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo a && cat < in.txt > copy.txt && cat copy.txt","description":"Echo a, copy in.txt, show copy"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo ok || echo no && echo after","description":"Echo ok or no then after"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat in.txt | grep IN || echo none","description":"Grep IN from in.txt or none"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo x > /dev/null && echo y","description":"Echo x to null then echo y"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo err >&2 && false","description":"Echo err to stderr then false"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo $(echo a && echo b) \"$V\"","description":"Echo command substitution and V"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

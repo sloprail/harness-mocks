@@ -28,3 +28,7 @@ providers:
       - cursor-mock/snapshots/runs/shell-exit-status
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/shell-syntax
+      - cursor-mock/snapshots/runs/shell-compound
+      - cursor-mock/snapshots/runs/shell-compound-forms
+      - cursor-mock/snapshots/runs/shell-compound-more
+      - cursor-mock/snapshots/runs/shell-compound-test

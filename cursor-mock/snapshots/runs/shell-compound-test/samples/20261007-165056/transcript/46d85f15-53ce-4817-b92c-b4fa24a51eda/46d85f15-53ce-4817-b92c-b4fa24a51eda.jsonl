@@ -1,0 +1,10 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) [ -f in.txt ] && echo yes 2) test -f in.txt && echo t 3) if [ -f in.txt ]; then echo cond; fi 4) echo $((1+2)) 5) echo \"a$((1+2))b\" 6) cat <<EOF > heredoc-out.txt\nbody\nEOF\n7) cat -n <<EOF\nnumbered\nEOF\nThen reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll run each command exactly as written, one shell call at a time, in order."},{"type":"tool_use","name":"Shell","input":{"command":"[ -f in.txt ] && echo yes","description":"Check in.txt exists, echo yes"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"test -f in.txt && echo t","description":"test -f in.txt and echo t"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"if [ -f in.txt ]; then echo cond; fi","description":"if in.txt exists echo cond"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo $((1+2))","description":"Arithmetic expansion echo 3"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo \"a$((1+2))b\"","description":"Echo a3b with arithmetic"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat <<EOF > heredoc-out.txt\nbody\nEOF","description":"Write heredoc body to file"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat -n <<EOF\nnumbered\nEOF","description":"Numbered heredoc via cat -n"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}
