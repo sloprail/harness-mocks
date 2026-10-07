@@ -115,7 +115,7 @@ func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
 		s.readsMcpTool(ctx, tu, c)
 	}
 	s.forward(startedFrame(s.id, tu.ID, c))
-	s.tr.toolUse(tu.Name, c.Args)
+	s.tr.toolUse(c.TranscriptName(tu.Name), c.TranscriptInput(s.cfg.Dir))
 	if _, several := s.batched.Load(tu.ID); several && c.Kind != "taskToolCall" && c.Kind != "mcpToolCall" {
 		// a response of several calls has every call's preToolUse fired as it starts, in
 		// the order they are taken, before any of them runs (recorded: runs/task-stream-frames)

@@ -157,3 +157,27 @@ func TestACommandUsingTheHarnessRipgrepIsRefused(t *testing.T) {
 		t.Errorf("an ordinary command was refused")
 	}
 }
+
+func TestTranscriptInputIsTheRecordedShape(t *testing.T) {
+	w := FromScript("Write", []byte(`{"file_path":"n.txt","content":"hi\n"}`))
+	got := w.TranscriptInput("/ws")
+	if len(got) != 2 || got["path"] != "/ws/n.txt" || got["contents"] != "hi\n" {
+		t.Errorf("a Write: %v, want an absolute path and contents (no streamContent)", got)
+	}
+	if got := FromScript("Write", []byte(`{"file_path":"/abs/n.txt","content":"x"}`)).TranscriptInput("/ws"); got["path"] != "/abs/n.txt" {
+		t.Errorf("an absolute path is kept: %v", got)
+	}
+	e := FromScript("Edit", []byte(`{"file_path":"n.txt","old_string":"hi","new_string":"bye"}`))
+	if got := e.TranscriptInput("/ws"); got["path"] != "/ws/n.txt" || got["old_string"] != "hi" || got["new_string"] != "bye" || got["contents"] != nil {
+		t.Errorf("an Edit: %v", got)
+	}
+	if e.TranscriptName("Edit") != "StrReplace" || w.TranscriptName("Write") != "Write" {
+		t.Errorf("names: %s, %s", e.TranscriptName("Edit"), w.TranscriptName("Write"))
+	}
+	if got := FromScript("Read", []byte(`{"file_path":"n.txt"}`)).TranscriptInput("/ws"); got["path"] != "/ws/n.txt" {
+		t.Errorf("a Read: %v", got)
+	}
+	if w.Args["path"] != "n.txt" || w.Args["streamContent"] != "hi\n" {
+		t.Errorf("the frame args changed: %v", w.Args)
+	}
+}

@@ -38,6 +38,7 @@ providers:
       - cursor-mock/snapshots/runs/shell-exit-status
       - cursor-mock/snapshots/runs/hook-json-nonzero
       - cursor-mock/snapshots/runs/workspace-open
+      - cursor-mock/snapshots/runs/file-tools
     deviations:
       - adr: capability-grounding
         kind: harness-lacks

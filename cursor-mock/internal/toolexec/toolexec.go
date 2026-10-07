@@ -88,6 +88,38 @@ func (c Call) HookInput(dir string) map[string]any {
 	}
 }
 
+// TranscriptName is the tool's name in the transcript, which is not the script's:
+// an edit by an exact string is a StrReplace (recorded: runs/file-tools).
+func (c Call) TranscriptName(scripted string) string {
+	if c.Replace != nil {
+		return "StrReplace"
+	}
+	return scripted
+}
+
+// TranscriptInput is the call's input as Cursor writes it into the conversation's
+// transcript, which is not the frame's args: a file's path is the absolute one, a
+// write's text is "contents" (the frame's streamContent), and a StrReplace keeps
+// its old_string and new_string (recorded: runs/file-tools, runs/tool-failure,
+// runs/pretool-refusal-file-tools).
+func (c Call) TranscriptInput(dir string) map[string]any {
+	switch c.Kind {
+	case "editToolCall":
+		if c.Replace != nil {
+			return map[string]any{"path": c.Path(dir), "old_string": c.Replace[0], "new_string": c.Replace[1]}
+		}
+		return map[string]any{"path": c.Path(dir), "contents": c.str("streamContent")}
+	case "readToolCall", "deleteToolCall":
+		in := map[string]any{}
+		for k, v := range c.Args {
+			in[k] = v
+		}
+		in["path"] = c.Path(dir)
+		return in
+	}
+	return c.Args
+}
+
 // Execute runs the call: a shell command in dir with env, or a file tool on
 // the file it names.
 func Execute(ctx context.Context, c Call, dir string, env []string) Result {
