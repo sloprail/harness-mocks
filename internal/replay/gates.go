@@ -1,6 +1,7 @@
 package replay
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/sloprail/harness-mocks/internal/scenario"
@@ -25,28 +26,37 @@ func Gates(a Agent, parent *Agent, ancestors ...*Agent) []scenario.Gate {
 		return a.FinalAt
 	}
 	k := 0
-	wanted := map[int]int{} // calls of each sub-agent a step is already told to wait for
+	wanted := map[string]int{}     // calls of each sub-agent a step is already told to wait for
+	wantedExec := map[string]int{} // and calls carried out
 	for i, c := range a.Calls {
 		if c.Tool != ToolSpawn || c.Sub == nil {
 			continue
 		}
 		// A step waits for the calls of a sub-agent that it had started by then, so that the two agents'
-		// frames come in the order they came: the sub-agent was ahead of this step, whatever it took.
+		// frames come in the order they came: the sub-agent was ahead of this step, whatever it took. So
+		// it does for the calls of the sub-agents that one started in turn, and theirs.
 		for j := i + 1; j < steps; j++ {
 			t := at(j)
 			if t.IsZero() {
 				continue
 			}
-			started := 0
-			for _, sc := range c.Sub.Calls {
-				if sc.Tool != ToolAnswer && !sc.At.IsZero() && sc.At.Before(t) {
+			descendants(c.Sub, nil, func(sub *Agent, via []int) {
+				started, executed := 0, 0
+				for _, sc := range sub.Calls {
+					if sc.Tool == ToolAnswer || sc.At.IsZero() || !sc.At.Before(t) {
+						continue
+					}
 					started++
+					if sc.ExecEarly {
+						executed = started // the recording has it carried out ahead of this step
+					}
 				}
-			}
-			if started > wanted[k] && (c.Sub.Unfinished || c.Sub.FinalAt.IsZero() || c.Sub.FinalAt.After(t)) {
-				out[j].ChildStarted = append(out[j].ChildStarted, scenario.ChildCalls{Sub: k, Calls: started})
-				wanted[k] = started
-			}
+				key := fmt.Sprint(k, via)
+				if (started > wanted[key] || executed > wantedExec[key]) && (sub.Unfinished || sub.FinalAt.IsZero() || sub.FinalAt.After(t)) {
+					out[j].ChildStarted = append(out[j].ChildStarted, scenario.ChildCalls{Sub: k, Via: via, Calls: started, Executed: executed})
+					wanted[key], wantedExec[key] = started, executed
+				}
+			})
 		}
 		if end := c.Sub.FinalAt; !c.Sub.Unfinished && !end.IsZero() {
 			for j := i + 1; j < steps; j++ {
@@ -89,6 +99,21 @@ func Gates(a Agent, parent *Agent, ancestors ...*Agent) []scenario.Gate {
 				}
 			}
 		}
+		for i, anc := range ancestors { // a step of this agent comes after the calls of the agents above that had finished
+			done := 0
+			for j := range out {
+				t := at(j)
+				if t.IsZero() {
+					continue
+				}
+				if _, d := progressBy(*anc, t); d > done {
+					for len(out[j].AncestorDone) <= i {
+						out[j].AncestorDone = append(out[j].AncestorDone, 0)
+					}
+					out[j].AncestorDone[i], done = d, d
+				}
+			}
+		}
 		var started, done int
 		for j := range out {
 			t := at(j)
@@ -105,33 +130,4 @@ func Gates(a Agent, parent *Agent, ancestors ...*Agent) []scenario.Gate {
 		}
 	}
 	return out
-}
-
-// progressBy is how many calls of the agent had been started, and how many finished, before t.
-func progressBy(a Agent, t time.Time) (started, done int) {
-	for _, c := range a.Calls {
-		if c.Tool == ToolAnswer {
-			continue
-		}
-		if !c.At.IsZero() && c.At.Before(t) {
-			started++
-		}
-		if !c.Done.IsZero() && c.Done.Before(t) {
-			done++
-		}
-	}
-	return
-}
-
-// stepsBy is how many steps the agent had taken before t: its calls started and its answers given.
-func stepsBy(a Agent, t time.Time) (n int) {
-	for _, c := range a.Calls {
-		if !c.At.IsZero() && c.At.Before(t) {
-			n++
-		}
-	}
-	if !a.FinalAt.IsZero() && a.FinalAt.Before(t) {
-		n++
-	}
-	return n
 }

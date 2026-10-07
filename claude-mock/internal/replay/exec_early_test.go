@@ -28,6 +28,20 @@ func TestExecEarlyFollowsTheStreamsOrder(t *testing.T) {
 	}
 }
 
+// A sub-agent started by a sub-agent's call is started after that call's PostToolUse too when the payloads
+// show it (recorded: runs/bgagent-nested-launcher), as one started by the main agent's is.
+func TestStartAfterPostCountsASubAgentsOwnCalls(t *testing.T) {
+	subs := map[string]turns{"toolu_inner": {agentID: "inner"}}
+	post := map[string]any{"hook_event_name": "PostToolUse", "tool_use_id": "toolu_inner", "agent_id": "outer"}
+	start := map[string]any{"hook_event_name": "SubagentStart", "agent_id": "inner"}
+	if got := startAfterPost([]map[string]any{post, start}, subs); !got["toolu_inner"] {
+		t.Fatalf("started after the post: %v", got)
+	}
+	if got := startAfterPost([]map[string]any{start, post}, subs); got["toolu_inner"] {
+		t.Fatalf("started before the post: %v", got)
+	}
+}
+
 // The recorded samples of bgagent-concurrent-limit show both orders of the sub-agent's shell and of
 // SubagentStart against the launching call's PostToolUse; each sample's own is read.
 func TestTheSamplesOfARacyRunEachCarryTheirOwnOrder(t *testing.T) {

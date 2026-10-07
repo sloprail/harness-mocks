@@ -59,3 +59,30 @@ func TestGatesOrderACallAgainstTheAgentsAboveItsParent(t *testing.T) {
 	g := Gates(inner, &outer, &main)
 	assert.Equal(t, []int{2}, g[0].ExecAncestorSteps, "the main agent's call and answer came while the inner call ran")
 }
+
+// A step also waits for the calls that a sub-agent of its sub-agent had started by then: the inner agent's
+// first call was ahead of the main agent's answer (recorded: claude bgagent-nested-launcher), though the
+// main agent started only the outer one.
+func TestGatesWaitForTheCallsOfSubAgentsBelowASubAgent(t *testing.T) {
+	t0 := time.Unix(1000, 0)
+	at := func(s int) time.Time { return t0.Add(time.Duration(s) * time.Second) }
+	inner := Agent{Calls: []Call{{Tool: ToolShell, At: at(7), Done: at(13)}}, FinalAt: at(14)}
+	outer := Agent{Calls: []Call{{Tool: ToolSpawn, Sub: &inner, At: at(4), Done: at(5)}}, FinalAt: at(6)}
+	main := Agent{Calls: []Call{{Tool: ToolSpawn, Sub: &outer, At: at(2), Done: at(6)}}, FinalAt: at(9)}
+	g := Gates(main, nil)
+	require.Len(t, g, 2)
+	assert.Equal(t, []scenario.ChildCalls{{Sub: 0, Via: []int{0}, Calls: 1}}, g[1].ChildStarted)
+}
+
+// A step also waits for a call of its sub-agent that the recording carried out ahead of it, not only for
+// the call to have started: the shell's own frame was ahead of the main agent's answer (recorded: claude
+// bgagent-concurrent-limit); a call that ran after the answer is waited for by nothing.
+func TestGatesWaitForTheCallsRunAheadOfAStep(t *testing.T) {
+	t0 := time.Unix(1000, 0)
+	at := func(s int) time.Time { return t0.Add(time.Duration(s) * time.Second) }
+	sub := Agent{Calls: []Call{{Tool: ToolShell, At: at(3), Done: at(9), ExecEarly: true}}, FinalAt: at(10)}
+	parent := Agent{Calls: []Call{{Tool: ToolSpawn, Sub: &sub, At: at(1), Done: at(2)}}, FinalAt: at(5)}
+	assert.Equal(t, []scenario.ChildCalls{{Sub: 0, Calls: 1, Executed: 1}}, Gates(parent, nil)[1].ChildStarted)
+	sub.Calls[0].ExecEarly = false
+	assert.Equal(t, []scenario.ChildCalls{{Sub: 0, Calls: 1}}, Gates(parent, nil)[1].ChildStarted)
+}

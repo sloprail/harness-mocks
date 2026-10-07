@@ -14,6 +14,17 @@ import (
 func runCall(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, bg *backgroundTasks, sc scanResult) (turnResult, error) {
 	pending := sc.pending
 	defer cfg.steps.finished() // the call's result is given: what another agent's gate may wait for
+	// the call counts as carried out once its own frames are written (a shell's task_started), which
+	// is what a gate of another agent's step waits for when the recording ran it ahead of that step; a
+	// call that has none counts when it returns
+	executed := false
+	markExecuted := func() {
+		if !executed {
+			executed = true
+			cfg.steps.executed()
+		}
+	}
+	defer markExecuted()
 	if res, refused, err := answerRefusedCall(ctx, cfg, inv, tr, bg, sc); refused || err != nil {
 		return res, err
 	}
@@ -58,6 +69,7 @@ func runCall(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 		// A subagent's nested run carries the PARENT's session id (subagentRun.run), the
 		// same id its hooks get — real claude shares one session_id across subagents.
 		owned := ownedBashFrames(cfg, pending)
+		markExecuted()
 		res = toolexec.Execute(toolexec.WithAgent(ctx, cfg.AgentID), pending.ToolName, pending.ToolInput, cfg.Cwd, cfg.SessionID)
 		owned(res)
 	}

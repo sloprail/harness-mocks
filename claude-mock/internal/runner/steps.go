@@ -37,6 +37,7 @@ func newAgentSteps(parent *agentSteps) *agentSteps {
 func (s *agentSteps) child(id string, c *agentSteps) {
 	if s != nil && c != nil {
 		s.spawned.SetProgress(id, c.prog)
+		s.spawned.SetSpawns(id, c.spawned) // a gate may wait on what the sub-agent started in turn
 	}
 }
 
@@ -76,6 +77,13 @@ func (s *agentSteps) started() {
 	}
 }
 
+// executed counts a call the agent has begun to carry out (its own frames are written).
+func (s *agentSteps) executed() {
+	if s != nil {
+		s.prog.Executed()
+	}
+}
+
 func (s *agentSteps) finished() {
 	if s != nil {
 		s.prog.Move(0, 1)
@@ -100,6 +108,7 @@ func (s *agentSteps) hold(ctx context.Context, cfg Config, g *scenario.Gate) {
 	if s == nil || g == nil || g.None() {
 		return
 	}
+	subagents.HoldAncestors(ctx, *g, s.above)
 	for _, p := range subagents.Hold(ctx, *g, cfg.bg.Registry, s.spawned, s.parent) {
 		fmt.Fprintf(cfg.Stderr, "ERROR claude_mock: %s\n", p)
 	}

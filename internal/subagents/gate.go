@@ -3,8 +3,6 @@ package subagents
 import (
 	"context"
 	"sync"
-
-	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // Progress is how far an agent has got through its tool calls: how many it has
@@ -14,6 +12,7 @@ import (
 type Progress struct {
 	mu            sync.Mutex
 	started, done int
+	executed      int // calls carried out (begun to run, or answered with no run)
 	answers       int
 	ended         bool
 	changed       chan struct{} // closed and replaced when either count moves, or the agent ends
@@ -45,19 +44,6 @@ func (p *Progress) WaitSteps(ctx context.Context, n int) {
 		case <-changed:
 		case <-ctx.Done():
 			return
-		}
-	}
-}
-
-// HoldExec holds the carrying out of a step's call until what its gate names for that moment has
-// happened: the agent that started it (parent) having taken as many steps as the gate says.
-func HoldExec(ctx context.Context, g scenario.Gate, parent *Progress, ancestors []*Progress) {
-	if g.ExecParentSteps > 0 && parent != nil {
-		parent.WaitSteps(ctx, g.ExecParentSteps)
-	}
-	for i, n := range g.ExecAncestorSteps {
-		if n > 0 && i < len(ancestors) && ancestors[i] != nil {
-			ancestors[i].WaitSteps(ctx, n)
 		}
 	}
 }
