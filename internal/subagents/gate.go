@@ -3,8 +3,6 @@ package subagents
 import (
 	"context"
 	"sync"
-
-	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // Progress is how far an agent has got through its tool calls: how many it has
@@ -46,29 +44,6 @@ func (p *Progress) WaitSteps(ctx context.Context, n int) {
 		case <-changed:
 		case <-ctx.Done():
 			return
-		}
-	}
-}
-
-// HoldExec holds the carrying out of a step's call until what its gate names for that moment has
-// happened: the agent that started it (parent) having taken as many steps as the gate says.
-func HoldExec(ctx context.Context, g scenario.Gate, parent *Progress, ancestors []*Progress) {
-	if g.ExecParentSteps > 0 && parent != nil {
-		parent.WaitSteps(ctx, g.ExecParentSteps)
-	}
-	for i, n := range g.ExecAncestorSteps {
-		if n > 0 && i < len(ancestors) && ancestors[i] != nil {
-			ancestors[i].WaitSteps(ctx, n)
-		}
-	}
-}
-
-// HoldAncestors holds an agent's step back until the agents above the one that started it have finished
-// as many calls as its gate says.
-func HoldAncestors(ctx context.Context, g scenario.Gate, ancestors []*Progress) {
-	for i, n := range g.AncestorDone {
-		if n > 0 && i < len(ancestors) && ancestors[i] != nil {
-			ancestors[i].Wait(ctx, 0, n)
 		}
 	}
 }
@@ -134,35 +109,6 @@ func (p *Progress) Wait(ctx context.Context, started, done int) {
 	for {
 		p.mu.Lock()
 		ok, changed := p.started >= started && p.done >= done, p.changed
-		p.mu.Unlock()
-		if ok {
-			return
-		}
-		select {
-		case <-changed:
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-// Executed counts a call the agent has begun to carry out: its own frames are written. A nil Progress counts nothing.
-func (p *Progress) Executed() {
-	if p == nil {
-		return
-	}
-	p.mu.Lock()
-	p.executed++
-	close(p.changed)
-	p.changed = make(chan struct{})
-	p.mu.Unlock()
-}
-
-// WaitExecuted returns when at least n calls of the agent have been carried out, or when ctx ends.
-func (p *Progress) WaitExecuted(ctx context.Context, n int) {
-	for {
-		p.mu.Lock()
-		ok, changed := p.executed >= n, p.changed
 		p.mu.Unlock()
 		if ok {
 			return
