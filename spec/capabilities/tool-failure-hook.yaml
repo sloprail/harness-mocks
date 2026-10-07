@@ -17,10 +17,10 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock has no MCP tools and never aborts a running tool, so an
-          MCP tool's error result and an interrupt (is_interrupt true) are not
-          modeled, nor are the truncation marker and timeout lines Claude Code
-          adds to a long or timed-out command's error. Only a missing file's
+          The mock never aborts a running tool, so an interrupt
+          (is_interrupt true) is not modeled, nor are the truncation marker
+          and timeout lines Claude Code adds to a long or timed-out command's
+          error. Only a missing file's
           Read error is worded as Claude Code words it; other file tools'
           errors are the mock's own text.
       - adr: modeled-surface

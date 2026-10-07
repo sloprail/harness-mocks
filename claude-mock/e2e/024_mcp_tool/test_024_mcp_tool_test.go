@@ -64,6 +64,7 @@ func TestT024_01_AToolResultIsTheServersTextBlocks(t *testing.T) {
 // as its text alone, as an error, with the structured result "Error: <text>", and PostToolUseFailure fires
 // with that text and the server (recorded: runs/mcp-tool, the refused download).
 // sr:proves mcp-tool/claude
+// sr:proves tool-failure-hook/claude
 func TestT024_02_AnErrorResultIsItsTextAndFailsTheCall(t *testing.T) {
 	code, out, hooks := callMCP(t, "mcp__browser__download_file",
 		`{"url":"http://example.com/f","mock_result":{"isError":true,"content":[{"type":"text","text":"only https is allowed"}]}}`)

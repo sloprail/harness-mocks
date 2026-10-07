@@ -13,7 +13,7 @@ providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/hooks#match-mcp-tools
-      - https://code.claude.com/docs/en/mcp
+      - https://code.claude.com/docs/en/mcp#option-3-add-a-local-stdio-server
     runs:
       - claude-mock/snapshots/runs/mcp-tool
   codex: pending
