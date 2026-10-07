@@ -1,0 +1,17 @@
+statement: >-
+  The agent can search the contents of files for a regular expression: a search
+  lists the files with a match, or the matching lines with their line numbers,
+  or the number of matches in each file with a total, and can be narrowed to a
+  path, to the files a glob keeps, or made to ignore case. A search that matches
+  nothing says so, and a pattern that does not parse or a path that is not there
+  surfaces as an error result. (Context lines around a match, file types,
+  multiline matching, limits and offsets, printing only the matched part, the
+  rules of ignore files and the files hidden by default are not part of this.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#grep-tool-behavior
+    runs:
+      - claude-mock/snapshots/runs/grep-tool
+  codex: pending
+  cursor: pending

@@ -15,6 +15,7 @@ var required = map[string][]string{
 	"Write": {"file_path", "content"},
 	"Edit":  {"file_path", "old_string", "new_string"},
 	"Glob":  {"pattern"},
+	"Grep":  {"pattern"},
 	// a sub-agent dispatch, whichever name it goes by (Task is Agent's old name)
 	// sr:provides agent-input-validation/claude
 	"Agent": subagents.DispatchRequired,

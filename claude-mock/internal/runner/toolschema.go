@@ -57,6 +57,15 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "pattern", Type: toolspec.String, Required: true},
 		{Name: "path", Type: toolspec.String, Doc: toolsDoc},
 	}},
+	// the parameters of the search the mock implements: where, which files, what is shown (recorded: runs/grep-tool)
+	{Name: "Grep", Params: []toolspec.Param{
+		{Name: "pattern", Type: toolspec.String, Required: true},
+		{Name: "path", Type: toolspec.String},
+		{Name: "glob", Type: toolspec.String},
+		{Name: "output_mode", Type: toolspec.String, Values: []any{"content", "files_with_matches", "count"}},
+		{Name: "-i", Type: toolspec.Boolean},
+		{Name: "-n", Type: toolspec.Boolean},
+	}},
 	// the only answer the mock gives is that no deferred tool matches (recorded:
 	// runs/fgsub-tool-stats): it has none
 	{Name: "ToolSearch", Params: []toolspec.Param{

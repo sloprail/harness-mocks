@@ -62,6 +62,8 @@ func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd, s
 		return executeEdit(ctx, input, cwd, sessionID)
 	case "Glob":
 		return executeGlob(input, cwd)
+	case "Grep":
+		return executeGrep(input, cwd)
 	case "ToolSearch":
 		// The mock has no deferred tools, so none matches (recorded: runs/fgsub-tool-stats).
 		return executeToolSearch(input)
