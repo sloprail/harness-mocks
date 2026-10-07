@@ -28,7 +28,7 @@ func TestReadTooBigForTheFrameNamesItsContentByAnID(t *testing.T) {
 	if small["content"] != "hello\n" || small["contentBlobId"] != nil {
 		t.Fatalf("a small file is carried whole: %v", small)
 	}
-	big := readFrame(t, strings.Repeat("x", ReadOmittedBytes), nil)
+	big := readFrame(t, strings.Repeat("x", ReadCarriedBytes+1), nil)
 	if _, has := big["content"]; has {
 		t.Fatal("a file over the threshold is not carried in the frame")
 	}
@@ -49,14 +49,11 @@ func TestReadWithALimitOfAFileThatExistsIsNotModeled(t *testing.T) {
 	}
 }
 
-func TestReadBetweenTheRecordedSizesIsNotModeled(t *testing.T) {
-	if b := readFrame(t, strings.Repeat("x", ReadCarriedBytes), nil); b["content"] == nil {
-		t.Fatal("a file of the recorded carried size is carried")
+func TestReadCutOffIsAtTheRecordedSize(t *testing.T) {
+	if b := readFrame(t, strings.Repeat("x", ReadCarriedBytes), nil); b["content"] == nil || b["contentBlobId"] != nil {
+		t.Fatalf("a file of the recorded carried size is carried: %v", b)
 	}
-	if b := readFrame(t, strings.Repeat("x", ReadCarriedBytes+1), nil); b != nil {
-		t.Fatalf("a size nobody recorded is refused, not guessed: %v", b)
-	}
-	if b := readFrame(t, strings.Repeat("x", ReadOmittedBytes-1), nil); b != nil {
-		t.Fatal("one byte under the recorded omitted size is refused")
+	if b := readFrame(t, strings.Repeat("x", ReadCarriedBytes+1), nil); b["content"] != nil || b["contentBlobId"] == nil {
+		t.Fatalf("one byte over names its content by an id: %v", b)
 	}
 }

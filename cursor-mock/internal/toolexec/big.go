@@ -11,14 +11,10 @@ import (
 const BigBytes = 40000
 
 // A Read carries the content of a file up to ReadCarriedBytes and names it by an id
-// from ReadOmittedBytes on: the two sizes recorded (runs/compaction-transcript-continuity:
-// a 7602-byte file, in runs/schedule-wakeup-ask, read whole, 53900-byte files not). Where between them a read stops
-// carrying its content is not recorded, and the Shell frame's threshold is not shown to
-// apply to Read, so the call fails rather than guess.
-const (
-	ReadCarriedBytes = 7602
-	ReadOmittedBytes = 53900
-)
+// above that (recorded: runs/read-size-cutoff, runs/read-size-cutoff-fine and
+// runs/read-size-cutoff-edge: 10000 bytes carried whole, 10001 not, whatever the line
+// lengths). The Shell frame's threshold does not apply to Read.
+const ReadCarriedBytes = 10000
 
 // contentBlobID is the id a frame gives the content it does not carry: the base64 of
 // the content's SHA-256, as the recording's own contents show it.
