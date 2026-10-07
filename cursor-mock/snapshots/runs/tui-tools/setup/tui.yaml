@@ -1,0 +1,16 @@
+# Tool calls in a TUI turn, started with --force (the TUI otherwise asks before it runs a command):
+# a shell command, a file written, read and edited, each with its tool hooks. The prompt is typed
+# once the session has started and the input is live; the run waits for the turn's stop hook, then
+# for the idle screen, and quits (Ctrl+C twice).
+timeout: 400s
+steps:
+  - wait: {screen: "Plan, search, build anything.*<\\?2004h>", timeout: 60s}
+  - wait: {hook: sessionStart, timeout: 30s}
+  - send: {text_file: prompt.txt, echo: "→ Do these as separate", keys: [enter]}
+  - wait: {hook: stop, timeout: 240s}
+  - wait: {screen: "Add a follow-up Auto"}
+exit:
+  - send: {keys: [ctrl-c]}
+  - wait: {screen: "Press Ctrl\\+C again to exit"}
+  - send: {keys: [ctrl-c]}
+  - wait: {hook: sessionEnd, timeout: 30s}

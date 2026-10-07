@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -96,7 +97,7 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 func Run(ctx context.Context, cfg Config) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID(), batched: &sync.Map{}, early: &sync.Map{}, refusal: &refusal{cancel: cancel}}
+	s := &session{turns: turns{ctx: ctx}, cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID(), batched: &sync.Map{}, early: &sync.Map{}, refusal: &refusal{cancel: cancel}}
 	first := s.requestID // the result frame names the run's first request, whatever turns follow
 	if s.id == "" {
 		s.id = coresession.NewID()
@@ -105,7 +106,11 @@ func Run(ctx context.Context, cfg Config) error {
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
-	conf, err := hooks.Load(cfg.Dir, cfg.Home, cfg.PluginDirs...)
+	load := hooks.Load
+	if cfg.Interactive { // the TUI also loads the user's local plugins
+		load = hooks.LoadInteractive
+	}
+	conf, err := load(cfg.Dir, cfg.Home, cfg.PluginDirs...)
 	if err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
@@ -114,6 +119,7 @@ func Run(ctx context.Context, cfg Config) error {
 		_ = coresession.ContinueTranscript(s.tr.path, func(l string) bool { return strings.Contains(l, `"turn_ended"`) })
 	}
 	if cfg.Interactive { // a TUI session: no stream, and the hooks around each turn (interactive.go)
+		s.cfg.Stdout = io.Discard // the TUI draws a screen: nothing of it is a stream
 		return s.interactive(ctx)
 	}
 	s.forward(initFrame(s.id, cfg.Dir, cfg.Model))
@@ -123,7 +129,7 @@ func Run(ctx context.Context, cfg Config) error {
 		s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	}
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
-	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
+	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context, BlockCap: s.blockCap()})
 	if msg := s.refusal.message(); msg != "" { // a refusal of something not modeled fails the run, wherever it was made
 		return errors.New(msg)
 	}

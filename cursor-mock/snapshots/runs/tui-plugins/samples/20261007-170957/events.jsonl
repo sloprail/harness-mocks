@@ -1,0 +1,19 @@
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionStart","hook":"p3","ran_in":"<RUN>/plugins/p3","plugin_root_set":true}}}
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeSubmitPrompt","hook":"p3","ran_in":"<RUN>/plugins/p3","plugin_root_set":true}}}
+{"event":"hook","hook":"beforeSubmitPrompt","payload":{"prompt":"Run exactly this shell command: echo TUIPLUGINS . Then reply only DONE.","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeSubmitPrompt"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeSubmitPrompt","hook":"p4","ran_in":"<TMP>/home/.cursor/plugins/local/.store/p4","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeSubmitPrompt","hook":"p1","ran_in":"<TMP>/home/.cursor/plugins/local/p1","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","hook":"p3","ran_in":"<RUN>/plugins/p3","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","hook":"p1","ran_in":"<TMP>/home/.cursor/plugins/local/p1","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"beforeShellExecution","hook":"p4","ran_in":"<TMP>/home/.cursor/plugins/local/.store/p4","plugin_root_set":true}}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo TUIPLUGINS","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentResponse","hook":"p1","ran_in":"<TMP>/home/.cursor/plugins/local/p1","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentResponse","hook":"p3","ran_in":"<RUN>/plugins/p3","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"afterAgentResponse","hook":"p4","ran_in":"<TMP>/home/.cursor/plugins/local/.store/p4","plugin_root_set":true}}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"DONE","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":0,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","hook":"p3","ran_in":"<RUN>/plugins/p3","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","hook":"p4","ran_in":"<TMP>/home/.cursor/plugins/local/.store/p4","plugin_root_set":true}}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","hook":"p1","ran_in":"<TMP>/home/.cursor/plugins/local/p1","plugin_root_set":true}}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}

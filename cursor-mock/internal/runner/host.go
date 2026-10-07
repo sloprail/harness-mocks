@@ -10,9 +10,8 @@ import (
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
-// SubmitPrompt fires nothing in print mode: cursor-agent -p was recorded not
-// firing beforeSubmitPrompt, so no hook blocks the prompt or adds context. A TUI
-// session fires it (interactive.go).
+// SubmitPrompt fires nothing in print mode (recorded: cursor-agent -p never fires
+// beforeSubmitPrompt); a TUI session fires it (interactive.go).
 func (s *session) SubmitPrompt(ctx context.Context) (string, bool) {
 	if s.cfg.Interactive {
 		return s.submitPrompt(ctx)
@@ -20,31 +19,33 @@ func (s *session) SubmitPrompt(ctx context.Context) (string, bool) {
 	return "", false
 }
 
-// Say prints what the agent said, and records it; a TUI session also fires
-// afterAgentResponse for it.
+// Say prints what the agent said, and records it; a TUI session tells it to
+// afterAgentResponse when the turn ends.
 func (s *session) Say(text string) {
 	s.texts = append(s.texts, text)
 	s.tr.text(text)
 	s.pending = append(s.pending, text)
-	if s.cfg.Interactive {
-		s.responded(text)
+	if s.firesStop() {
+		s.said = append(s.said, text)
 	}
 }
 
-// EndOfTurn fires no hook: cursor-agent in print mode was recorded not firing
-// the stop hook, so nothing blocks the end of the turn. What can continue it is
-// a background shell's end (afterTurn).
+// EndOfTurn fires no hook in print mode (recorded: cursor-agent -p never fires stop), unless
+// run with the opt-in; what can continue the turn is a background shell's end (afterTurn).
 //
 // What the agent said in the turn is not brought out when the turn ends: a
 // turn a finished background shell gives the agent follows, and everything said
 // since the last call comes out as one frame at the end of the run, after the
 // task's notification (recorded: runs/background-bash-start,
 // runs/bg-bash-reaped-at-exit).
-//
-// A TUI session fires the stop hook instead, which can ask for a follow-up.
 func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
 	if s.cfg.Interactive {
 		return s.stopped(ctx)
+	}
+	if s.cfg.Stop && s.owner == "" { // the opt-in: the TUI's stop, in print mode (interactive.go)
+		if follow, again := s.stopped(ctx); again {
+			return follow, true
+		}
 	}
 	if s.owner != "" { // a sub-agent ends with its final response: its parent goes on
 		return "", false
@@ -57,13 +58,12 @@ func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool
 func (s *session) Continue(prompt string) {
 	s.tr.user(prompt)
 	s.requestID, s.modelN = coresession.NewID(), 0 // a turn of its own is a model request of its own
-	if s.cfg.Interactive {                         // the follow-up a stop hook gave
+	if s.stopFollowUp {                            // the follow-up a stop hook gave
 		s.followedUp()
 	}
 }
 
-// CapOverridden is never asked for: no end-of-turn hook blocks, so there is no
-// cap to reach.
+// CapOverridden: a stop hook asked for more than the cap; the turn ends.
 func (s *session) CapOverridden(int) {}
 
 // SessionFile is the conversation's transcript so far.
@@ -81,8 +81,8 @@ func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) { s.Start(ctx, 
 // refused at the depth limit is done at its start; a background Task is
 // launched when it is completed.
 func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
-	if s.cfg.Interactive {
-		return s.refuseTool()
+	if s.refusesTUITool(tu) {
+		return func() {}
 	}
 	if s.refusesTaskAtTheLimit(ctx, tu) || s.refusesTaskModel(ctx, tu) {
 		return func() {}

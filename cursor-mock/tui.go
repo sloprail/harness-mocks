@@ -6,26 +6,32 @@ import (
 	"strings"
 )
 
-// typedPrompt is what the user types in a TUI session (cursor-agent started without -p), which
-// here is stdin: one prompt, then the slash commands typed at the idle input after its turn. Only
-// /compress was recorded (runs/tui-manual-compaction); a prompt argument (the TUI's initial
-// prompt), a second prompt and any other command were not, so they are refused.
-func typedPrompt(args []string, stdin io.Reader) (string, []string, error) {
+// typedInputs is what the user types in a TUI session (cursor-agent started without -p), which
+// here is stdin, one line each: prompts, each a turn of the one conversation (runs/tui-multi-turn),
+// and /compress typed at the idle input after a turn (runs/tui-manual-compaction). A prompt
+// argument (the TUI's initial prompt), an empty line and any other slash command were not
+// recorded, so they are refused.
+func typedInputs(args []string, stdin io.Reader) ([]string, error) {
 	if len(args) > 0 {
-		return "", nil, errors.New("cursor-mock: a prompt argument without -p is not modeled: the prompt is read from stdin")
+		return nil, errors.New("cursor-mock: a prompt argument without -p is not modeled: the prompts are read from stdin")
 	}
 	b, err := io.ReadAll(stdin)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
 	if lines[0] == "" {
-		return "", nil, errors.New("cursor-mock: a TUI session is modeled with a prompt line on stdin")
+		return nil, errors.New("cursor-mock: a TUI session is modeled with a prompt line on stdin")
 	}
-	for _, l := range lines[1:] {
-		if l != "/compress" {
-			return "", nil, errors.New("cursor-mock: a TUI session is modeled with one prompt line on stdin, then only /compress lines: " + l)
+	for i, l := range lines {
+		switch {
+		case l == "":
+			return nil, errors.New("cursor-mock: an empty line typed in a TUI session is not modeled")
+		case strings.HasPrefix(l, "/") && l != "/compress":
+			return nil, errors.New("cursor-mock: a TUI session is modeled with prompts on stdin, one per line, and /compress lines after the first prompt: " + l)
+		case i == 0 && l == "/compress":
+			return nil, errors.New("cursor-mock: /compress typed before any prompt is not modeled")
 		}
 	}
-	return lines[0], lines[1:], nil
+	return lines, nil
 }

@@ -43,11 +43,14 @@ visible and deliberate, not a test nobody wrote.
   interrupt a running tool when a recording drives it. The code is
   `codex-mock/internal/runner/interrupt.go`.
 - The cursor mock models what its TUI recordings drive (`tools/tui-record`, runs
-  `tui-*`): cursor-agent without `-p`, one prompt on stdin, turns of text, the
-  hooks only a TUI fires (beforeSubmitPrompt, afterAgentResponse, stop) and
-  `/compress` typed at the idle input. A tool call in a TUI session, a second
-  prompt and any other slash command stay out. The code is
-  `cursor-mock/internal/runner/interactive.go` and `compress.go`.
+  `tui-*`): cursor-agent without `-p`, prompts on stdin, turns of text and of
+  the Shell, Write, Edit and Read tools (with `--force`), the hooks only a TUI
+  fires (beforeSubmitPrompt, afterAgentResponse, stop), a stop hook's follow-up,
+  and `/compress` typed at the idle input. Its print mode can fire the TUI's
+  afterAgentResponse and stop hooks, and go on with a stop hook's follow-up,
+  when run with `A10N_CURSOR_MOCK_STOP=1` (a deviation: `cursor-agent -p` fires
+  neither). The code is `cursor-mock/internal/runner/interactive.go` and
+  `compress.go`.
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.

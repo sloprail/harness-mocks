@@ -1,0 +1,16 @@
+# A stop hook that blocks, in a turn that uses tools: the prompt is typed once the session has started
+# and the input is live; the first stop hook answers with a followup_message asking for a shell command,
+# which the agent takes as its next message and does, and the run waits for that
+# turn's stop too (loop_count 1), then for the idle screen, and quits (Ctrl+C twice). Started with --force.
+timeout: 500s
+steps:
+  - wait: {screen: "Plan, search, build anything.*<\\?2004h>", timeout: 60s}
+  - wait: {hook: sessionStart, timeout: 30s}
+  - send: {text_file: prompt.txt, echo: "→ Run exactly this shell command", keys: [enter]}
+  - wait: {hook: stop, nth: 2, timeout: 240s}
+  - wait: {screen: "Add a follow-up Auto"}
+exit:
+  - send: {keys: [ctrl-c]}
+  - wait: {screen: "Press Ctrl\\+C again to exit"}
+  - send: {keys: [ctrl-c]}
+  - wait: {hook: sessionEnd, timeout: 30s}
