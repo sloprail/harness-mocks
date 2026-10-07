@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sloprail/harness-mocks/codex-mock/internal/hooks"
+	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
 	"github.com/sloprail/harness-mocks/internal/compaction"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
@@ -37,8 +38,10 @@ func (h turnHost) Compact(ctx context.Context, trigger string) error {
 	}
 	startStopped := false
 	res := compaction.Do(false, compaction.Steps{
-		Before:     func() bool { return stops(hooks.PreCompact) },
-		Boundary:   s.rollout.Compacted,
+		Before: func() bool { return stops(hooks.PreCompact) },
+		Boundary: func() {
+			s.rollout.Compacted(session.Turn{SessionID: s.id, TurnID: s.turnID, Cwd: s.cfg.Cwd, Model: s.cfg.Model, Sandbox: s.cfg.Sandbox})
+		},
 		Summary:    func() {},
 		AfterStops: func() bool { return stops(hooks.PostCompact) },
 		Resume: func() {
