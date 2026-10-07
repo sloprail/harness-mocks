@@ -137,6 +137,8 @@ jobs:
   # required e2e jobs above are run 1 of 3 and these two more replicas run next to them, in
   # parallel on separate runners: three runs of every e2e test under CI load for the same wall time.
   e2e-repeat:
+    # disabled: too slow on macOS; flakes tracked in #273
+    if: false
     name: e2e repeat (${{ matrix.mock }}, run ${{ matrix.run }} of 3)
     runs-on: macos-latest
     env:
