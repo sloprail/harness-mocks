@@ -39,7 +39,7 @@ jobs:
             sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
             sudo chmod +x /usr/local/bin/yq
           fi
-      - run: go test -count=1 ./tools/capcells/ ./tools/harness-bin/ ./tools/repoguard/
+      - run: go test -count=1 ./tools/capcells/ ./tools/harness-bin/ ./tools/repoguard/ ./tools/tui-record/
 
   # The e2e jobs run on macOS: the recordings the replay packages (claude-mock/e2e/018_replay,
   # cursor-mock/e2e/003_replay, codex-mock/e2e/002_replay) replay were captured on macOS, and a
