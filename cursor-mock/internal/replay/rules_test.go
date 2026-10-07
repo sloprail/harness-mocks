@@ -27,13 +27,9 @@ func TestNothingDroppedIsWhatACellIsAbout(t *testing.T) {
 	for _, path := range cells {
 		var cell struct {
 			Statement string `yaml:"statement"`
+			// a cell is a mapping, or the bare string `pending` (adr/capability-once)
 			Providers struct {
-				Cursor struct {
-					Deviations []struct {
-						Kind      string `yaml:"kind"`
-						Statement string `yaml:"statement"`
-					} `yaml:"deviations"`
-				} `yaml:"cursor"`
+				Cursor yaml.Node `yaml:"cursor"`
 			} `yaml:"providers"`
 		}
 		b, err := os.ReadFile(path)
@@ -44,7 +40,18 @@ func TestNothingDroppedIsWhatACellIsAbout(t *testing.T) {
 			t.Fatalf("%s: %v", path, err)
 		}
 		text := cell.Statement
-		for _, d := range cell.Providers.Cursor.Deviations {
+		var cursor struct {
+			Deviations []struct {
+				Kind      string `yaml:"kind"`
+				Statement string `yaml:"statement"`
+			} `yaml:"deviations"`
+		}
+		if cell.Providers.Cursor.Kind == yaml.MappingNode {
+			if err := cell.Providers.Cursor.Decode(&cursor); err != nil {
+				t.Fatalf("%s: %v", path, err)
+			}
+		}
+		for _, d := range cursor.Deviations {
 			if d.Kind != "mock-not-modeled" { // a cell that says the mock does not model it is not asking for it
 				text += " " + d.Statement
 			}
