@@ -83,6 +83,18 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	for _, c := range exits {
 		got.Exits = append(got.Exits, "exit "+strconv.Itoa(c))
 	}
+	// what the transcript records of a Write is compared too: its absolute path and its
+	// "contents" (recorded: runs/file-tools), not the frame's relative path and streamContent
+	recWrites, err := transcriptWrites(filepath.Join(sample, "transcript"))
+	if err != nil {
+		return want, got, err
+	}
+	mockWrites, err := transcriptWrites(filepath.Join(work, "home", ".cursor", "projects"))
+	if err != nil {
+		return want, got, err
+	}
+	want.Events = append(want.Events, sortedLines(wantC.Lines(recWrites))...)
+	got.Events = append(got.Events, sortedLines(gotC.Lines(mockWrites))...)
 	recHooks, mockHooks = inOrder(recHooks), inOrder(mockHooks)
 	unsettled(recHooks)
 	unsettled(mockHooks)
