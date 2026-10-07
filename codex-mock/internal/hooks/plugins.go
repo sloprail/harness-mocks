@@ -71,7 +71,7 @@ func readPluginTables(path string) (pluginTables, error) {
 // sr:docs https://developers.openai.com/codex/hooks#plugin-bundled-hooks
 // sr:docs https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli
 // sr:provides plugin-hooks/codex
-func (cfg Config) addPlugins(codexHome string) error {
+func (cfg Config) addPlugins(codexHome string, tr trust) error {
 	if codexHome == "" {
 		return nil
 	}
@@ -88,7 +88,11 @@ func (cfg Config) addPlugins(codexHome string) error {
 		if dir == "" {
 			continue
 		}
-		if err := cfg.addFile(filepath.Join(dir, "hooks", "hooks.json")); err != nil {
+		// a plugin's hook command is told where the plugin is and where it may keep data, under the
+		// names of Claude Code's plugins and its own (recorded: runs/plugin-hook-env)
+		data := filepath.Join(codexHome, "plugins", "data", p.name+"-"+p.marketplace)
+		env := []string{"CLAUDE_PLUGIN_ROOT=" + dir, "CLAUDE_PLUGIN_DATA=" + data, "PLUGIN_ROOT=" + dir, "PLUGIN_DATA=" + data}
+		if err := cfg.addFile(filepath.Join(dir, "hooks", "hooks.json"), p.name+"@"+p.marketplace+":hooks/hooks.json", env, tr); err != nil {
 			return err
 		}
 	}

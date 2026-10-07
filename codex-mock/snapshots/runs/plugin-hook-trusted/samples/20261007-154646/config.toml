@@ -1,0 +1,12 @@
+[marketplaces.mk]
+source_type = "local"
+source = "<RUN>/mk"
+
+[plugins."p1@mk"]
+enabled = true
+[hooks.state."p1@mk:hooks/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:fe3f03a50e11d3b7f4025f25814efc0619b572337af9b0724eddd2582ea6eb56"
+
+[projects."<RUN>"]
+trust_level = "trusted"
+

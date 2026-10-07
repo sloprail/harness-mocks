@@ -18,12 +18,18 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock keeps only the last user message of the rollout as the kept
-          message, writes a placeholder for the encrypted summary, and does not
-          write the records Codex adds around a compaction (turn_context,
-          retained_context, resume_metadata). It compacts when a scenario's
-          compact record asks for it, not at a context limit, as in the
-          manual-compaction cell.
+          The rollout only grows across a compaction, as recorded: what came
+          before stays in the file, and the session, the turn and the
+          transcript path are the same before and after. The mock writes what
+          Codex writes around it (the compacted record with its retained
+          context, resume metadata and response id, then the turn's context
+          and the thread's settings), but keeps only the last user message as
+          the kept message, without the developer and environment messages
+          Codex's replacement history opens with (the mock's rollout has none
+          at its start), writes a placeholder for the encrypted summary, zeros
+          for the token usage, and leaves out the model's hash and reasoning
+          effort. It compacts when a scenario's compact record asks for it, not
+          at a context limit, as in the manual-compaction cell.
   cursor:
     supported: false
     reason: >-

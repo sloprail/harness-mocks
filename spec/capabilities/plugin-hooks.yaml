@@ -17,6 +17,9 @@ providers:
       - https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli
     runs:
       - codex-mock/snapshots/runs/plugin-hooks
+      - codex-mock/snapshots/runs/plugin-hook-env
+      - codex-mock/snapshots/runs/plugin-hook-trusted
+      - codex-mock/snapshots/runs/plugin-hook-untrusted
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
@@ -25,10 +28,11 @@ providers:
           [marketplaces.<name>] table with the directory of a local marketplace,
           a [plugins."<plugin>@<marketplace>"] table with enabled) and the
           plugin's hooks/hooks.json found through the marketplace's
-          .agents/plugins/marketplace.json, in place. It does not model a
-          plugin's install into Codex's cache, git marketplaces, a hooks entry
-          in the plugin manifest, the PLUGIN_ROOT and PLUGIN_DATA variables a
-          plugin's hook command gets, or the trust review of a plugin's hooks.
+          .agents/plugins/marketplace.json, in place. A plugin's hook command
+          is told PLUGIN_ROOT and PLUGIN_DATA, each also under CLAUDE_
+          (recorded: runs/plugin-hook-env), and runs only when trusted like any
+          hook. It does not model a plugin's install into Codex's cache, git
+          marketplaces or a hooks entry in the plugin manifest.
   cursor:
     docs:
       - https://cursor.com/docs/reference/plugins#hooks-format

@@ -13,9 +13,19 @@ import (
 // not implement, and for a -c override of a key it does not read.
 func refuseUnimplemented(f *pflag.FlagSet) error {
 	for _, name := range unimplemented.Flags {
-		if f.Changed(name) {
-			return fmt.Errorf("codex-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
+		if !f.Changed(name) {
+			continue
 		}
+		if name == "enable" || name == "disable" { // --disable is implemented for one feature only
+			values, _ := f.GetStringArray(name)
+			for _, v := range values {
+				if name == "enable" || v != unimplemented.Feature {
+					return fmt.Errorf("codex-mock: --%s %s is not implemented by the mock (only the %s feature is): it is refused rather than ignored", name, v, unimplemented.Feature)
+				}
+			}
+			continue
+		}
+		return fmt.Errorf("codex-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
 	}
 	overrides, _ := f.GetStringArray("config")
 	for _, o := range overrides {
@@ -24,4 +34,28 @@ func refuseUnimplemented(f *pflag.FlagSet) error {
 		}
 	}
 	return nil
+}
+
+// sandboxOf is the sandbox the run asked for: -s, or danger-full-access when it bypasses the sandbox
+// (both together are refused); an unknown mode is an error as Codex's is. Empty when it asked for none.
+func sandboxOf(f *pflag.FlagSet) (string, error) {
+	mode, _ := f.GetString("sandbox")
+	if bypass, _ := f.GetBool("dangerously-bypass-approvals-and-sandbox"); bypass {
+		if mode != "" { // which of the two wins is not recorded
+			return "", fmt.Errorf("codex-mock: -s together with --dangerously-bypass-approvals-and-sandbox is not implemented by the mock: which wins is not recorded, so it is refused rather than guessed")
+		}
+		return "danger-full-access", nil
+	}
+	switch mode {
+	case "", "read-only", "workspace-write", "danger-full-access":
+		return mode, nil
+	}
+	return "", fmt.Errorf("invalid value '%s' for '--sandbox <SANDBOX_MODE>' [possible values: read-only, workspace-write, danger-full-access]", mode)
+}
+
+// hooksDisabled is whether --disable hooks was given. --enable hooks is refused with the other features:
+// it is not recorded to be a no-op.
+func hooksDisabled(f *pflag.FlagSet) (bool, error) {
+	off, _ := f.GetStringArray("disable")
+	return len(off) > 0, nil
 }

@@ -1,0 +1,9 @@
+[hooks.state."<TMP>/home/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:d978dfb3851e6eb6af88fd8323e578998edac8eb593f6b962c2ede394cbe6b41"
+
+[hooks.state."<RUN>/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+[projects."<RUN>"]
+trust_level = "trusted"
+

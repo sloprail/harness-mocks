@@ -24,7 +24,38 @@ providers:
       - codex-mock/snapshots/runs/hooks-all-matching-run-blockers-slow-first
       - codex-mock/snapshots/runs/hooks-all-matching-run-blockers-fast-first
       - codex-mock/snapshots/runs/hooks-all-matching-run-same-hook-two-files
+      - codex-mock/snapshots/runs/hook-trust-untrusted
+      - codex-mock/snapshots/runs/hook-trust-config
+      - codex-mock/snapshots/runs/hook-trust-listed
+      - codex-mock/snapshots/runs/hook-hashes
+      - codex-mock/snapshots/runs/plugin-hook-trusted
+      - codex-mock/snapshots/runs/plugin-hook-untrusted
+      - codex-mock/snapshots/runs/project-hooks-trust-workspace-write
+      - codex-mock/snapshots/runs/project-hooks-trust-read-only
+      - codex-mock/snapshots/runs/project-hooks-trust-no-sandbox
+      - codex-mock/snapshots/runs/disable-hooks
+      - codex-mock/snapshots/runs/ignore-user-config
+      - codex-mock/snapshots/runs/ignore-user-config-bypass
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Codex runs a matching hook only when it is trusted, and skips an
+          untrusted one without a word (recorded: runs/hook-trust-untrusted).
+          A hook is trusted when its hash is the trusted_hash of its key in
+          config.toml (recorded: runs/hook-trust-config, where a stale hash
+          leaves the project's hook out; a plugin's hook too,
+          runs/plugin-hook-trusted and runs/plugin-hook-untrusted) or the run passes
+          --dangerously-bypass-hook-trust. The project layer's hooks.json
+          loads only in a trusted project: one the run's sandbox trusts
+          (workspace-write, danger-full-access, the bypass of the sandbox),
+          not a read-only run or one that names none (recorded:
+          runs/project-hooks-trust-workspace-write, -read-only, -no-sandbox).
+          --disable hooks loads no hook (runs/disable-hooks), and
+          --ignore-user-config leaves config.toml unread, its trust with it,
+          while the user layer's hooks.json still loads
+          (runs/ignore-user-config, runs/ignore-user-config-bypass). The mock
+          does the same.
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-

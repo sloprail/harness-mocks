@@ -1,0 +1,9 @@
+[marketplaces.mk]
+source_type = "local"
+source = "<RUN>/mk"
+
+[plugins."p1@mk"]
+enabled = true
+
+[projects."<RUN>"]
+trust_level = "trusted"
