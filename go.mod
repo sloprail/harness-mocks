@@ -3,6 +3,7 @@ module github.com/sloprail/harness-mocks
 go 1.26.0
 
 require (
+	github.com/creack/pty v1.1.24
 	github.com/dop251/goja v0.0.0-20261004200024-481fdb442bb4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
