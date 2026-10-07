@@ -38,7 +38,11 @@ func (h *Hooks) Fire(ctx context.Context, e Event, subject string, own map[strin
 	for _, entry := range h.Config.Entries(e) {
 		if subject == NoSubject || corehooks.Matches(entry.Matcher, subject) {
 			entries = append(entries, entry)
-			cmds = append(cmds, corehooks.Command{Line: entry.Command, Timeout: entry.Timeout})
+			c := corehooks.Command{Line: entry.Command, Timeout: entry.Timeout}
+			if entry.PluginRoot != "" { // a plugin's hook runs in the plugin, which it is told of (runs/plugin-hook-cwd-env)
+				c.Dir, c.Env = entry.PluginRoot, []string{"CURSOR_PLUGIN_ROOT=" + entry.PluginRoot}
+			}
+			cmds = append(cmds, c)
 		}
 	}
 	if len(cmds) == 0 {
