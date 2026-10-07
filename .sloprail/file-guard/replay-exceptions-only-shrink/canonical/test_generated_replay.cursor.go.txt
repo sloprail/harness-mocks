@@ -1,29 +1,3 @@
-package e2e
-
-import (
-	"errors"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	cursorreplay "github.com/sloprail/harness-mocks/cursor-mock/internal/replay"
-)
-
-// runsDir is where the recorded runs are.
-var runsDir = filepath.Join("..", "..", "snapshots", "runs")
-
-// Every recorded run, replayed by the mock's own replay (cursorreplay.Run, which
-// `a10n-cursor-mock replay <run-dir>` runs too): the mock is given the run's own
-// setup and the model's own turns, as a scenario script it generates in the
-// format any scenario has, and its whole event stream and hook payloads are
-// compared with what the real cursor-agent left. The table is the recording
-// folders themselves: a recording without a replay, or a replay without a
-// recording, cannot exist. A run that does not replay green is listed in
-// notReplaying with its reason (replay_allowlist_test.go).
 func TestGeneratedReplay(t *testing.T) {
 	dirs, err := filepath.Glob(filepath.Join(runsDir, "*"))
 	require.NoError(t, err)
@@ -75,18 +49,4 @@ func TestGeneratedReplay(t *testing.T) {
 			}
 		})
 	}
-}
-
-// flakyRuns is how many times a "flaky:" entry is replayed: it is green in some runs and not in
-// others, so it must be green in at least one, and it is never skipped outright.
-const flakyRuns = 3
-
-// replayUntilGreen runs a replay up to attempts times and returns the first green result, or the
-// last run's when none is green.
-func replayUntilGreen(run func() (string, error), attempts int) (string, error) {
-	diff, err := run()
-	for i := 1; i < attempts && (err != nil || diff != ""); i++ {
-		diff, err = run()
-	}
-	return diff, err
 }
