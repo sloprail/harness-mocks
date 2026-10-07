@@ -77,7 +77,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		if hooked {
 			subCwd, hookMade = path, true
 		} else {
-			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd, worktreeBaseRef(cfg)))
+			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd, inv.WorktreeBaseRef()))
 			subCwd = iso.Cwd
 			cleanup = iso.Cleanup
 			if iso.Worktree != nil {
