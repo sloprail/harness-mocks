@@ -1,0 +1,18 @@
+statement: >-
+  The agent can fetch a web page by its URL with a prompt saying what to
+  extract from it, and is given the answer as the result of the call. A fetch
+  of localhost, or of a host name without a dot, is refused before any request,
+  as an error result that points the agent at the shell. (Where a page cannot
+  be reached offline, a mock answers a fetch with the answer the test gives
+  that call, in the shape the real tool returns it: the page and the answer
+  drawn from it are given, not fetched. Redirects, the cache, the upgrade of
+  http to https, the truncation of large pages and the permission prompt are
+  not part of this.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#webfetch-tool-behavior
+    runs:
+      - claude-mock/snapshots/runs/web-fetch-tool
+  codex: pending
+  cursor: pending

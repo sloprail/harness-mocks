@@ -1,6 +1,9 @@
 package runner
 
-import "github.com/sloprail/harness-mocks/internal/toolspec"
+import (
+	"github.com/sloprail/harness-mocks/internal/tools"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
+)
 
 // toolsDoc names the parameters of Claude Code's tools that the mock implements and no
 // recorded run shows the model pass (a Glob path, an Agent model).
@@ -61,6 +64,12 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "skill", Type: toolspec.String, Required: true},
 		{Name: "args", Type: toolspec.String},
 	}},
+	// the mock fetches no page: mock_result is the answer a script gives the call (recorded: runs/web-fetch-tool)
+	{Name: "WebFetch", Params: []toolspec.Param{
+		{Name: "url", Type: toolspec.String, Required: true, Unmodeled: unfetchable},
+		{Name: "prompt", Type: toolspec.String, Required: true},
+		{Name: "mock_result", Type: toolspec.Object, MockOnly: true},
+	}},
 	// the parameters of the search the mock implements: where, which files, what is shown (recorded: runs/grep-tool)
 	{Name: "Grep", Params: []toolspec.Param{
 		{Name: "pattern", Type: toolspec.String, Required: true},
@@ -94,6 +103,14 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "stop", Type: toolspec.Boolean},
 	}},
 }}
+
+// unfetchable says why a url is not one a fetch can be asked for: it is not an http(s) address with a host.
+func unfetchable(v any) string {
+	if s, _ := v.(string); !tools.FetchableURL(s) {
+		return "not an http or https address with a host"
+	}
+	return ""
+}
 
 // Schema is the tools claude-mock implements.
 func Schema() toolspec.Schema { return schema }

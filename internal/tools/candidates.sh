@@ -5,7 +5,7 @@
 #
 # Candidates: the tool names a tool executor switches on and the input fields only the file and shell tools read. Comments, test support and repo tooling are not candidates.
 set -uo pipefail
-patterns='case "(Bash|Read|Write|Edit|Glob|Grep|Skill)"|"old_string"|"noOutputExpected"'
+patterns='case "(Bash|Read|Write|Edit|Glob|Grep|Skill|WebFetch)"|"old_string"|"noOutputExpected"'
 git grep -n -I -E "$patterns" -- '*.go' ':!proposals/**' ':!tools/**' ':!*/e2etest/**' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'
 rc=${PIPESTATUS[0]}
 [ "$rc" -le 1 ]    # 1 = no match: fine
