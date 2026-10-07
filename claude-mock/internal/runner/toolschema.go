@@ -70,6 +70,13 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "prompt", Type: toolspec.String, Required: true},
 		{Name: "mock_result", Type: toolspec.Object, MockOnly: true},
 	}},
+	// the mock searches no web: mock_result is the result a script gives the call (recorded: runs/web-search-tool)
+	{Name: "WebSearch", Params: []toolspec.Param{
+		{Name: "query", Type: toolspec.String, Required: true},
+		{Name: "allowed_domains", Type: toolspec.Array},
+		{Name: "mode", Type: toolspec.String, Values: []any{"standard"}},
+		{Name: "mock_result", Type: toolspec.Object, MockOnly: true},
+	}},
 	// the parameters of the search the mock implements: where, which files, what is shown (recorded: runs/grep-tool)
 	{Name: "Grep", Params: []toolspec.Param{
 		{Name: "pattern", Type: toolspec.String, Required: true},

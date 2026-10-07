@@ -14,7 +14,7 @@ type recorded struct {
 
 // scriptedTools are the tools whose effect the mock cannot produce (it reaches no web): a script gives
 // the call the result to answer with, in its own mock_result input, and the replay gives it the recorded one.
-var scriptedTools = map[string]bool{toolPrefix + "WebFetch": true}
+var scriptedTools = map[string]bool{toolPrefix + "WebFetch": true, toolPrefix + "WebSearch": true}
 
 // recordedResults are the results of the calls, by call id, from the stream's tool_result frames.
 func recordedResults(stream []map[string]any) map[string]recorded {
@@ -70,6 +70,18 @@ func mockResult(tool string, r recorded) map[string]any {
 			if v, ok := r.structured[k]; ok {
 				out[k] = v
 			}
+		}
+		return out
+	case toolPrefix + "WebSearch":
+		out := map[string]any{}
+		if results, _ := r.structured["results"].([]any); len(results) == 2 {
+			if found, _ := results[0].(map[string]any); found != nil {
+				out["links"] = found["content"]
+			}
+			out["findings"] = results[1]
+		}
+		if n, ok := r.structured["searchCount"]; ok {
+			out["searchCount"] = n
 		}
 		return out
 	}
