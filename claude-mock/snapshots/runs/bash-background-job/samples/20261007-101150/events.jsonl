@@ -1,0 +1,8 @@
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"task_started"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"result","subtype":"success"}
