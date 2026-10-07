@@ -30,7 +30,9 @@ func Bash(ctx context.Context, command, dir string, env []string) BashResult {
 }
 
 // BashDetached is Bash for a harness whose shell lets a background job (`cmd &`) outlive the
-// command that started it.
+// command that started it, and the run too.
+//
+// sr:capability bash-background-job
 func BashDetached(ctx context.Context, command, dir string, env []string) BashResult {
 	return bashRun(ctx, procexec.Spec{Argv: []string{"/bin/sh", "-c", command}, Dir: dir, Env: env, LeaveGroup: true})
 }

@@ -22,6 +22,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 		return Result{Output: "Bash: missing or invalid 'command' field", IsError: true}
 	}
 
+	// sr:provides bash-background-job/claude
 	ran := tools.BashDetached(ctx, WithSessionEnv(sessionID, inp.Command), cwd, bashEnv(sessionID))
 	text, failedRun := ran.MessageFor(inp.Command, tools.BenignExit1)
 	// toolUseResult/tool_response: the structured result real Claude Code

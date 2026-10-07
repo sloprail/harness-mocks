@@ -7,3 +7,13 @@ providers:
       - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
     runs:
       - claude-mock/snapshots/runs/bash-background-job
+    deviations:
+      - adr: child-processes
+        kind: mock-not-modeled
+        statement: >-
+          Real claude -p leaves such a job running after the run exits: a
+          twenty-second job's process was alive in the next run and wrote its
+          file. The mock ends every such job when it exits, without waiting for
+          it, so no grandchild outlives the mock.
+  codex: pending
+  cursor: pending
