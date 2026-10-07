@@ -57,6 +57,10 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "pattern", Type: toolspec.String, Required: true},
 		{Name: "path", Type: toolspec.String, Doc: toolsDoc},
 	}},
+	{Name: "Skill", Params: []toolspec.Param{
+		{Name: "skill", Type: toolspec.String, Required: true},
+		{Name: "args", Type: toolspec.String},
+	}},
 	// the parameters of the search the mock implements: where, which files, what is shown (recorded: runs/grep-tool)
 	{Name: "Grep", Params: []toolspec.Param{
 		{Name: "pattern", Type: toolspec.String, Required: true},

@@ -42,3 +42,6 @@ docs:
   https://code.claude.com/docs/en/scheduled-tasks:
     sha256: bd61138121e36e5e0b888c7e2ad15df0d65d735cfcdcc46e35b950b0ce80846e
     fetched: "2026-10-01"
+  https://code.claude.com/docs/en/skills:
+    sha256: cf869f4c734b4094b0eaacb308b79447c9ebd5587ec30e186fc54441e8b11147
+    fetched: "2026-10-07"

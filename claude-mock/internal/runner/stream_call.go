@@ -89,6 +89,7 @@ func runCall(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 		close(answered)
 		return turnResult{}, err
 	}
+	writeMetaMessages(cfg, bg, pending, res, tr)
 	tr.flushHookRuns()
 	if m, ok := res.ToolUseResult.(map[string]any); ok && isAgentTool(pending.ToolName) {
 		if id, _ := m["agentId"].(string); id != "" {

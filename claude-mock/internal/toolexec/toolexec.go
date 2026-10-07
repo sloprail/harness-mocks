@@ -42,6 +42,16 @@ type Result struct {
 	// rather than a string — the shape real Claude Code gives some tools'
 	// results (an async Agent receipt).
 	ContentAsBlocks bool
+	// Meta are the messages the harness puts before the agent after the tool's result, in order, as
+	// meta user records (a launched skill's instructions).
+	Meta []MetaMessage
+}
+
+// MetaMessage is a meta user message beside a tool's result: its text, and whether the transcript
+// holds it as a plain string rather than a list of text blocks.
+type MetaMessage struct {
+	Text  string
+	Plain bool
 }
 
 // Execute runs the named tool with the given JSON input and returns its result.
@@ -62,6 +72,8 @@ func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd, s
 		return executeEdit(ctx, input, cwd, sessionID)
 	case "Glob":
 		return executeGlob(input, cwd)
+	case "Skill":
+		return executeSkill(ctx, input, cwd, sessionID)
 	case "Grep":
 		return executeGrep(input, cwd)
 	case "ToolSearch":
