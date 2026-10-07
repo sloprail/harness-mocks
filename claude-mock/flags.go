@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -56,26 +54,6 @@ func refuseUnimplemented(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("claude-mock: a piped stdin together with a prompt argument is not implemented by the mock: it is refused rather than ignored")
 	}
 	return nil
-}
-
-// stdinGiven is whether stdin is a pipe or a file with content rather than a terminal or /dev/null.
-func stdinGiven() bool {
-	fi, err := os.Stdin.Stat()
-	return err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0)
-}
-
-// stdinPrompt is the prompt `claude -p` reads from a piped stdin when it is given no prompt
-// argument, minus the trailing newline of the pipe.
-// sr:docs https://code.claude.com/docs/en/headless#basic-usage
-func stdinPrompt() (string, error) {
-	if !stdinGiven() {
-		return "", nil
-	}
-	b, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return "", fmt.Errorf("claude-mock: read stdin: %w", err)
-	}
-	return strings.TrimRight(string(b), "\r\n"), nil
 }
 
 // addRefusedFlags registers the flags of claude the mock refuses by name: --agent (it would put
