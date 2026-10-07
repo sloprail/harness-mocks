@@ -63,13 +63,17 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 	case corehooks.AfterFailure:
 		notInterrupted := false
 		ms := took.Milliseconds()
+		input := pending.ToolInput
+		if acceptsMockResult(pending.ToolName) {
+			input = withoutMockResult(input)
+		}
 		in := hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUseFailure,
 			ToolName:      pending.ToolName,
 			ToolUseID:     pending.ToolUseID,
-			ToolInput:     pending.ToolInput,
+			ToolInput:     input,
 			Error:         res.Output,
 			IsInterrupt:   &notInterrupted,
 			DurationMs:    &ms,

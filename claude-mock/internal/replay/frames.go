@@ -1,5 +1,7 @@
 package replay
 
+import "github.com/sloprail/harness-mocks/internal/tools"
+
 // unmodelled are the frames of the real stream that say nothing the mock could
 // be told to say: the real run's own tools, commands and model, the account's
 // rate limits, the model's thinking estimates. They are left out of both sides.
@@ -107,15 +109,18 @@ func assistant(f map[string]any) (map[string]any, bool) {
 }
 
 // hasMockKeys is a tool whose input may carry a key of the mock's own: the sub-agent's script of an
-// Agent call, whether a Bash call leaves task frames.
-func hasMockKeys(name any) bool { return name == "Agent" || name == "Task" || name == "Bash" }
+// Agent call, whether a Bash call leaves task frames, the result a script gives a web call.
+func hasMockKeys(name any) bool {
+	n, _ := name.(string)
+	return name == "Agent" || name == "Task" || name == "Bash" || name == "WebFetch" || name == "WebSearch" || tools.IsMCPName(n)
+}
 
 // withoutScript is a call's input without the mock's own keys, `script` (the sub-agent's script) and
 // `task_frames` (whether a Bash call leaves task frames), which the real tools have no key for; a copy.
 func withoutScript(input map[string]any) map[string]any {
 	out := map[string]any{}
 	for k, v := range input {
-		if k != "script" && k != "mock_start_after_post" && k != "task_frames" {
+		if k != "script" && k != "mock_start_after_post" && k != "task_frames" && k != "mock_result" {
 			out[k] = v
 		}
 	}

@@ -39,7 +39,7 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 			// the harness's pid and its messaging secret, as a child's environment names them (a hook's payload): the run's own
 			"CLAUDE_PID", "CLAUDE_CODE_MESSAGING_TOKEN", "ref",
 			// how long a tool took (Glob's durationMs): measured, there in both
-			"durationMs",
+			"durationMs", "durationSeconds",
 			// the hash of a sub-agent's report, which names the run's own ids and paths where the replay's words
 			// name the recording's
 			"harnessSectionHash"},
@@ -79,7 +79,7 @@ func Rules(repo, work string, taskIDs []string) rp.Rules {
 // may name one (TestNoCellNamesWhatReplayDrops).
 func Dropped() (keys, frames []string) {
 	keys = append(keys, Rules("", "", nil).DropKeys...)
-	keys = append(keys, "script", "mock_start_after_post", "task_frames", "caller", "thinking") // dropped from an Agent input, an assistant block, a block type
+	keys = append(keys, "script", "mock_start_after_post", "task_frames", "mock_result", "caller", "thinking") // dropped from an Agent input, an assistant block, a block type
 	for k := range assistantMeta {
 		if k != "id" && k != "model" && k != "type" { // the response's own id, model and type: common words no cell is about
 			keys = append(keys, k)

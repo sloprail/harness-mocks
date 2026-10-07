@@ -1,6 +1,9 @@
 package runner
 
-import "github.com/sloprail/harness-mocks/internal/toolspec"
+import (
+	"github.com/sloprail/harness-mocks/internal/tools"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
+)
 
 // toolsDoc names the parameters of Claude Code's tools that the mock implements and no
 // recorded run shows the model pass (a Glob path, an Agent model).
@@ -57,6 +60,40 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "pattern", Type: toolspec.String, Required: true},
 		{Name: "path", Type: toolspec.String, Doc: toolsDoc},
 	}},
+	{Name: "Skill", Params: []toolspec.Param{
+		{Name: "skill", Type: toolspec.String, Required: true},
+		{Name: "args", Type: toolspec.String},
+	}},
+	// the mock fetches no page: mock_result is the answer a script gives the call (recorded: runs/web-fetch-tool)
+	{Name: "WebFetch", Params: []toolspec.Param{
+		{Name: "url", Type: toolspec.String, Required: true, Unmodeled: unfetchable},
+		{Name: "prompt", Type: toolspec.String, Required: true},
+		{Name: "mock_result", Type: toolspec.Object, MockOnly: true},
+	}},
+	// the questions as the model asks them; answers come from a hook's updatedInput (recorded: runs/ask-user-question-tool)
+	{Name: "AskUserQuestion", Params: []toolspec.Param{
+		{Name: "questions", Type: toolspec.Array, Required: true},
+		{Name: "answers", Type: toolspec.Object, Doc: "https://code.claude.com/docs/en/hooks#askuserquestion"},
+	}},
+	// the mock searches no web: mock_result is the result a script gives the call (recorded: runs/web-search-tool)
+	{Name: "WebSearch", Params: []toolspec.Param{
+		{Name: "query", Type: toolspec.String, Required: true},
+		{Name: "allowed_domains", Type: toolspec.Array},
+		{Name: "mode", Type: toolspec.String, Values: []any{"standard"}},
+		{Name: "mock_result", Type: toolspec.Object, MockOnly: true},
+	}},
+	// an MCP server's tool, named mcp__<server>__<tool> by a script; its arguments are the server's, and the mock's
+	// own mock_result is the result the script gives the call (recorded: runs/mcp-tool)
+	{Name: "mcp__*", Open: true, Valid: tools.IsMCPName},
+	// the parameters of the search the mock implements: where, which files, what is shown (recorded: runs/grep-tool)
+	{Name: "Grep", Params: []toolspec.Param{
+		{Name: "pattern", Type: toolspec.String, Required: true},
+		{Name: "path", Type: toolspec.String},
+		{Name: "glob", Type: toolspec.String},
+		{Name: "output_mode", Type: toolspec.String, Values: []any{"content", "files_with_matches", "count"}},
+		{Name: "-i", Type: toolspec.Boolean},
+		{Name: "-n", Type: toolspec.Boolean},
+	}},
 	// the only answer the mock gives is that no deferred tool matches (recorded:
 	// runs/fgsub-tool-stats): it has none
 	{Name: "ToolSearch", Params: []toolspec.Param{
@@ -81,6 +118,14 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "stop", Type: toolspec.Boolean},
 	}},
 }}
+
+// unfetchable says why a url is not one a fetch can be asked for: it is not an http(s) address with a host.
+func unfetchable(v any) string {
+	if s, _ := v.(string); !tools.FetchableURL(s) {
+		return "not an http or https address with a host"
+	}
+	return ""
+}
 
 // Schema is the tools claude-mock implements.
 func Schema() toolspec.Schema { return schema }

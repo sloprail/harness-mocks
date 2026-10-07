@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // Recorded is a tool call as a recording shows it, in the recording's own names.
@@ -58,7 +59,7 @@ func (s Schema) Ungrounded(calls []Recorded) []string {
 
 func (s Schema) byRecorded(name string) (found []Tool) {
 	for _, t := range s.Tools {
-		if t.recorded() == name {
+		if t.recorded() == name || t.Open && strings.HasSuffix(t.Name, "*") && t.Recorded == "" && strings.HasPrefix(name, strings.TrimSuffix(t.Name, "*")) && (t.Valid == nil || t.Valid(name)) {
 			found = append(found, t)
 		}
 	}

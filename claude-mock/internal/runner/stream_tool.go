@@ -78,6 +78,9 @@ func emitToolResult(cfg Config, call pendingToolUse, res toolexec.Result, tr *tr
 	if res.ContentAsBlocks {
 		content = []map[string]any{{"type": "text", "text": res.Output}}
 	}
+	if res.Blocks != nil {
+		content = res.Blocks
+	}
 
 	record := map[string]any{
 		"type": "user",

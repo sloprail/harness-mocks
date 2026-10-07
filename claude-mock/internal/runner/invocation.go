@@ -8,4 +8,7 @@ type Invocation struct {
 	// to another is refused by the mock.
 	Tools         []string
 	RestrictTools bool
+	// PermissionHost is --permission-prompt-tool stdio: the run has someone to ask for permission, so
+	// the tools that need a user (AskUserQuestion) are offered to it.
+	PermissionHost bool
 }

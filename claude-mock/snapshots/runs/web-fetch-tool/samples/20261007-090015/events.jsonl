@@ -1,0 +1,11 @@
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"WebFetch","tool_input":{"url":"https://example.com","prompt":"State the page's heading, in one short sentence."}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"WebFetch","tool_input":{"url":"https://example.com","prompt":"State the page's heading, in one short sentence."},"tool_response":{"bytes":577,"code":200,"codeText":"OK","result":"The page's heading is \"Example Domain,\" which serves as an informational notice that this domain exists for documentation purposes.","url":"https://example.com"}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"WebFetch","tool_input":{"url":"http://localhost:1/","prompt":"Summarize the page."}}}
+{"event":"hook","hook":"PostToolUseFailure","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUseFailure","tool_name":"WebFetch","tool_input":{"url":"http://localhost:1/","prompt":"Summarize the page."},"error":"WebFetch cannot fetch localhost or other hostnames without a dot. To reach a local server, use Bash with curl instead.","is_interrupt":false}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"result","subtype":"success"}

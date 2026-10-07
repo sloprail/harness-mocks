@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
@@ -30,6 +32,11 @@ func hookedWorktree(ctx context.Context, cfg Config, inv *hooks.Invoker, name st
 		stdout := ""
 		if len(runs) > 0 {
 			stdout = runs[0].Stdout
+			// An HTTP hook has no stdout: it returns the path as
+			// hookSpecificOutput.worktreePath (hooks#worktreecreate-output).
+			if o := runs[0].Output.HookSpecificOutput; runs[0].JSONParsed && o != nil && o.WorktreePath != "" {
+				stdout = o.WorktreePath
+			}
 		}
 		return stdout, true, e
 	})
@@ -39,7 +46,11 @@ func hookedWorktree(ctx context.Context, cfg Config, inv *hooks.Invoker, name st
 	if !filepath.IsAbs(printed) {
 		printed = filepath.Join(cfg.Cwd, printed)
 	}
-	return filepath.Clean(printed), true, nil
+	printed = filepath.Clean(printed)
+	if st, e := os.Stat(printed); e != nil || !st.IsDir() {
+		return "", true, fmt.Errorf("the worktree hook returned %s, which is not a directory that can be entered", printed)
+	}
+	return printed, true, nil
 }
 
 // worktreeTrailer is the lines of the hand-back that name the worktree an

@@ -113,11 +113,11 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 	assert.Contains(t, out, `"type":"result"`)
 }
 
-// TestT014_03_RejectsNonexistentPermissionPromptTool guards the grounding
-// decision: --permission-prompt-tool does NOT exist in real Claude Code, so the
-// mock must NOT silently accept it. (If a future change adds it, this test
-// fails and forces a re-grounding against the CC docs.)
-func TestT014_03_RejectsNonexistentPermissionPromptTool(t *testing.T) {
+// TestT014_03_RefusesAPermissionPromptToolOtherThanStdio: --permission-prompt-tool is a flag real
+// claude has (recorded: runs/ask-user-question-tool, with stdio). The mock models only stdio; a
+// value naming an MCP tool (mcp__<server>__<tool>) is refused, not ignored, since what claude does
+// with a server that is not configured is not recorded (adr/fail-fast-unimplemented).
+func TestT014_03_RefusesAPermissionPromptToolOtherThanStdio(t *testing.T) {
 	script := `#!/bin/sh
 printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":false}'
 `
@@ -126,8 +126,8 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"ok","is_error":fal
 		"--permission-prompt-tool", "mcp__x__approve",
 		"--session-id", "x", "--", "go",
 	)
-	assert.NotEqual(t, 0, code, "mock must reject a flag real claude does not have")
-	assert.Contains(t, out, "unknown option", "output should name the unknown flag; got:\n%s", out)
+	assert.NotEqual(t, 0, code, "mock must refuse a permission host it does not model")
+	assert.Contains(t, out, "--permission-prompt-tool mcp__x__approve is not implemented by the mock", "got:\n%s", out)
 }
 
 // TestT014_04_AuthoredToolResultEnvelopeAccepted proves a scenario may emit a

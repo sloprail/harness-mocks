@@ -1,0 +1,31 @@
+statement: >-
+  The agent can launch a skill of the project by name: the call is answered
+  that the skill is launching, and the skill's instructions (its file without
+  the front matter, with the arguments the call gave after them) are put before
+  the agent as a message of their own. A skill that is not there is an error
+  result. (Skills of the user and of plugins, the substitution of argument
+  placeholders, skills that run in a sub-agent and the permissions a skill
+  grants are not part of this.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/skills#pass-arguments-to-skills
+      - https://code.claude.com/docs/en/skills#skill-content-lifecycle
+    runs:
+      - claude-mock/snapshots/runs/skill-tool
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the skills page, section "Skill content
+          lifecycle", says "When Claude re-invokes a skill whose rendered
+          content is identical to the copy already in context, Claude Code adds
+          a short note that the skill is already loaded rather than a second
+          copy of the content." The recording shows claude 2.1.285 giving, for
+          a launch of a skill launched before, a notice ("(Re-invocation of
+          /greet — the skill instructions were previously loaded; the arguments
+          or dynamic output below are new.)") and then the instructions in full
+          again, whether the arguments changed or the very same call was made
+          (recorded: runs/skill-tool, steps 3 and 4).
+  codex: pending
+  cursor: pending

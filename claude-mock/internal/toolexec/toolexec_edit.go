@@ -25,6 +25,9 @@ type editInput struct {
 // for every other call, and for an Edit that can go ahead (or whose file cannot
 // be read: that call fails when it runs).
 func CheckInput(toolName string, raw json.RawMessage, cwd string) (Result, bool) {
+	if res, unknown := unknownSkill(toolName, raw, cwd); unknown {
+		return res, true
+	}
 	var inp editInput
 	if toolName != "Edit" || json.Unmarshal(raw, &inp) != nil || inp.FilePath == "" {
 		return Result{}, false
