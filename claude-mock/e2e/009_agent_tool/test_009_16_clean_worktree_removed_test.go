@@ -15,7 +15,7 @@ import (
 // leaves its worktree as it found it has the worktree and its branch removed when it
 // finishes, and its sidecar loses worktreePath, spawnedWithWorktree and worktreeBranch
 // and gains worktreeCleanlyRemoved: true (recorded: snapshots/runs/meta, the "iso"
-// sub-agent). One that left a file or committed (on its branch or a new one) keeps its worktree, its branch and the fields.
+// sub-agent). One that left a file, edited a tracked file or committed (on its branch or a new one) keeps its worktree, its branch and the fields.
 // sr:proves subagent-worktree-isolation/claude
 func TestT009_16_CleanWorktreeIsRemovedAndTheSidecarSaysSo(t *testing.T) {
 	for _, tc := range []struct {
@@ -24,6 +24,7 @@ func TestT009_16_CleanWorktreeIsRemovedAndTheSidecarSaysSo(t *testing.T) {
 	}{
 		{"clean", "true", false},
 		{"left-a-file", "touch left-behind.txt", true},
+		{"edited-tracked-file", "echo changed > f", true},
 		{"committed", "git -c user.email=t@t -c user.name=t commit -q --allow-empty -m work", true},
 		{"committed-on-new-branch", "git switch -q -c other && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m work", true},
 	} {
