@@ -1,0 +1,14 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"<RUN>","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Ask me one multiple-choice question (\"Which color?\", options \"Red\" and \"Blue\") with a structured question tool for asking the user, if one is among the tools you are given right now. Do not search for tools and do not use any tool that is not already given to you. If you have no such tool, reply with exactly NO-QUESTION-TOOL; otherwise reply with the answer you were given."}]},"session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c"}
+{"type":"thinking","subtype":"delta","text":"Checking for a structured","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379656850}
+{"type":"thinking","subtype":"delta","text":" question tool to ask","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379656950}
+{"type":"thinking","subtype":"delta","text":" the user a multiple-choice","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379657117}
+{"type":"thinking","subtype":"delta","text":" question.","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379657207}
+{"type":"thinking","subtype":"delta","text":"\n\nNone of the available","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379660069}
+{"type":"thinking","subtype":"delta","text":" tools appear to be ","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379660069}
+{"type":"thinking","subtype":"delta","text":"a structured question","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379660069}
+{"type":"thinking","subtype":"delta","text":" tool. I will reply ","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379660069}
+{"type":"thinking","subtype":"delta","text":"with exactly NO-QUESTION-TOOL.","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379660069}
+{"type":"thinking","subtype":"completed","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","timestamp_ms":1791379660069}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"NO-QUESTION-TOOL"}]},"session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c"}
+{"type":"result","subtype":"success","duration_ms":10677,"duration_api_ms":10677,"is_error":false,"result":"NO-QUESTION-TOOL","session_id":"f9285cd3-2c8b-4832-995c-1061b7d6295c","request_id":"77f0396a-4f8b-4e64-866b-de4b8cef56c9","usage":{"inputTokens":4703,"outputTokens":215,"cacheReadTokens":9472,"cacheWriteTokens":0}}
