@@ -20,6 +20,7 @@ providers:
       - codex-mock/snapshots/runs/plugin-hook-env
       - codex-mock/snapshots/runs/plugin-hook-trusted
       - codex-mock/snapshots/runs/plugin-hook-untrusted
+      - codex-mock/snapshots/runs/plugin-install
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
@@ -31,8 +32,15 @@ providers:
           .agents/plugins/marketplace.json, in place. A plugin's hook command
           is told PLUGIN_ROOT and PLUGIN_DATA, each also under CLAUDE_
           (recorded: runs/plugin-hook-env), and runs only when trusted like any
-          hook. It does not model a plugin's install into Codex's cache, git
-          marketplaces or a hooks entry in the plugin manifest.
+          hook. It installs an enabled plugin into $CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>
+          when a run starts (the manifest's version, "local" with none; the
+          directory copied whole but for symbolic links; a new version replaces
+          the cached one), and runs its hooks from there (recorded:
+          runs/plugin-install). It has no `codex plugin` commands, so the
+          install happens at the run, not when the plugin is added, and nothing
+          removes the cache entry of a plugin that is removed. It
+          does not model git marketplaces or a hooks entry in the plugin
+          manifest.
   cursor:
     docs:
       - https://cursor.com/docs/reference/plugins#hooks-format
