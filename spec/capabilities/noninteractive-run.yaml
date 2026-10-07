@@ -69,9 +69,10 @@ providers:
         kind: mock-not-modeled
         statement: >-
           The mock refuses -o/--output-last-message, --output-schema,
-          --ignore-rules, --enable and --disable of any feature but hooks, the
-          deprecated --full-auto and the other flags it implements nothing of
-          (adr fail-fast-unimplemented):
+          --ignore-rules, every --enable, --disable of any feature but hooks, -s
+          together with the bypass of the sandbox (which wins is not recorded),
+          the deprecated --full-auto and the other flags it implements nothing
+          of (adr fail-fast-unimplemented):
           it has no model, so the final message is the scenario's own, not
           shaped by a schema (the real run's message conforms to it and the
           stream is otherwise unchanged, as recorded in
@@ -85,16 +86,6 @@ providers:
           stream's item types are the agent message and the command execution
           only: reasoning, file changes, MCP tool calls, web searches and plan
           updates are not modeled.
-      - adr: modeled-surface
-        kind: mock-not-modeled
-        statement: >-
-          The mock takes -s/--sandbox (read-only, workspace-write,
-          danger-full-access), --disable hooks and --ignore-user-config for
-          what they decide of hooks (runs/project-hooks-trust-workspace-write,
-          runs/project-hooks-trust-read-only, runs/disable-hooks,
-          runs/ignore-user-config). It does not confine a command to the
-          sandbox: a command the agent runs is not blocked from writing under
-          read-only, nor from the network.
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-

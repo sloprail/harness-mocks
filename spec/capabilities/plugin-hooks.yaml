@@ -18,6 +18,8 @@ providers:
     runs:
       - codex-mock/snapshots/runs/plugin-hooks
       - codex-mock/snapshots/runs/plugin-hook-env
+      - codex-mock/snapshots/runs/plugin-hook-trusted
+      - codex-mock/snapshots/runs/plugin-hook-untrusted
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
@@ -29,11 +31,8 @@ providers:
           .agents/plugins/marketplace.json, in place. A plugin's hook command
           is told PLUGIN_ROOT and PLUGIN_DATA, each also under CLAUDE_
           (recorded: runs/plugin-hook-env), and runs only when trusted like any
-          hook. It does not model a plugin's install into Codex's cache, so
-          the root it names is the plugin's directory in the marketplace, not
-          the cache's plugins/cache/<marketplace>/<plugin>/<version> a real
-          run names, nor git marketplaces nor a hooks entry in the plugin
-          manifest.
+          hook. It does not model a plugin's install into Codex's cache, git
+          marketplaces or a hooks entry in the plugin manifest.
   cursor:
     docs:
       - https://cursor.com/docs/reference/plugins#hooks-format
