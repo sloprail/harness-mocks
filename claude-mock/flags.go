@@ -43,6 +43,9 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 			return fmt.Errorf("claude-mock: --%s is not implemented by the mock: it is refused rather than ignored", name)
 		}
 	}
+	if v, _ := cmd.Flags().GetString("permission-prompt-tool"); v != "" && v != "stdio" {
+		return fmt.Errorf("claude-mock: --permission-prompt-tool %s is not implemented by the mock (only stdio): it is refused rather than ignored", v)
+	}
 	// --name names a session this run starts; naming a resumed one (a rename) is not recorded
 	if cmd.Flags().Changed("name") && (cmd.Flags().Changed(flagResume) || cmd.Flags().Changed(flagContinue)) {
 		return fmt.Errorf("claude-mock: --name with --resume or --continue is not implemented by the mock: it is refused rather than ignored")
@@ -91,10 +94,11 @@ func hookEvents(cmd *cobra.Command) bool {
 func invocation(cmd *cobra.Command) runner.Invocation {
 	name, _ := cmd.Flags().GetString("name")
 	value, _ := cmd.Flags().GetString("tools")
+	host, _ := cmd.Flags().GetString("permission-prompt-tool")
 	if !cmd.Flags().Changed("tools") || value == "default" {
-		return runner.Invocation{Name: name}
+		return runner.Invocation{Name: name, PermissionHost: host == "stdio"}
 	}
-	return runner.Invocation{Name: name, RestrictTools: true, Tools: strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' })}
+	return runner.Invocation{Name: name, PermissionHost: host == "stdio", RestrictTools: true, Tools: strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' })}
 }
 
 // noConversationResult is the result frame of a run that resumed a session with no transcript: no turn
@@ -113,4 +117,8 @@ func noConversationResult(sessionID, msg string) map[string]any {
 func addInvocationFlags(cmd *cobra.Command) {
 	cmd.Flags().String("tools", "", `The only tools the run has: "default" for all, "" for none, else names separated by commas or spaces`)
 	cmd.Flags().StringP("name", "n", "", "Name the session (--name, -n, as used by claude CLI)")
+	// --permission-prompt-tool stdio: the run has a permission host, which is what offers AskUserQuestion to a
+	// non-interactive run (hooks#defer-a-tool-call-for-later, recorded in snapshots/runs/ask-user-question-tool).
+	// Another tool (an MCP one) is not implemented.
+	cmd.Flags().String("permission-prompt-tool", "", `The permission host of the run: "stdio" (an MCP tool is not implemented)`)
 }

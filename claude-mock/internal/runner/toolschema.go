@@ -70,6 +70,11 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "prompt", Type: toolspec.String, Required: true},
 		{Name: "mock_result", Type: toolspec.Object, MockOnly: true},
 	}},
+	// the questions as the model asks them; answers come from a hook's updatedInput (recorded: runs/ask-user-question-tool)
+	{Name: "AskUserQuestion", Params: []toolspec.Param{
+		{Name: "questions", Type: toolspec.Array, Required: true},
+		{Name: "answers", Type: toolspec.Object, Doc: "https://code.claude.com/docs/en/hooks#askuserquestion"},
+	}},
 	// the mock searches no web: mock_result is the result a script gives the call (recorded: runs/web-search-tool)
 	{Name: "WebSearch", Params: []toolspec.Param{
 		{Name: "query", Type: toolspec.String, Required: true},

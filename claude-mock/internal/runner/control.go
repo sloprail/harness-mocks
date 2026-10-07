@@ -35,6 +35,9 @@ func handleControlRecord(ctx context.Context, rec *cliRecord, line []byte, cfg C
 		if refusedTools[name] {
 			return true, fmt.Errorf("claude-mock: the %s tool is not implemented by the mock: it is refused rather than ignored", name)
 		}
+		if name == "AskUserQuestion" && !cfg.PermissionHost {
+			return true, fmt.Errorf("claude-mock: the AskUserQuestion tool is offered only to a run with a permission host (--permission-prompt-tool stdio), as a non-interactive claude does: this run has none, so the mock refuses the call rather than ignoring it")
+		}
 		if name != "" && cfg.RestrictTools && !slices.Contains(cfg.Tools, name) {
 			return true, fmt.Errorf("claude-mock: the %s tool is not among the --tools of this run: what claude answers a call to a tool it was not given is not recorded, so the mock refuses it rather than ignoring it", name)
 		}

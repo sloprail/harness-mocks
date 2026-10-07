@@ -38,7 +38,24 @@ func preTool(ctx context.Context, cfg Config, inv *hooks.Invoker, call *pendingT
 	}
 	hookOut, runs, hookErr := inv.FireRuns(ctx, pre)
 	writeHookEventFrames(cfg, pre, runs)
-	return decidePreTool(cfg, call, hookOut, hookErr)
+	if err := decidePreTool(cfg, call, hookOut, hookErr); err != nil {
+		return err
+	}
+	answerFromHook(call, hookOut)
+	return nil
+}
+
+// answerFromHook puts the answers a PreToolUse hook gave an AskUserQuestion (allow, with an updatedInput that
+// holds the questions and their answers: the way a run with no terminal has them answered) into the call: the
+// tool runs on that input, and PostToolUse sees it; the transcript keeps the call as the model made it
+// (recorded: snapshots/runs/ask-user-question-tool).
+// sr:docs https://code.claude.com/docs/en/hooks#allow-with-updatedinput
+func answerFromHook(call *pendingToolUse, out hooks.Output) {
+	h := out.HookSpecificOutput
+	if call.ToolName != "AskUserQuestion" || call.Blocked || h == nil || h.PermissionDecision != "allow" || len(h.UpdatedInput) == 0 {
+		return
+	}
+	call.ToolInput = h.UpdatedInput
 }
 
 // withoutMore is the line without the scenario's "more" marker on its tool_use block: it is no part of

@@ -72,6 +72,8 @@ func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd, s
 		return executeEdit(ctx, input, cwd, sessionID)
 	case "Glob":
 		return executeGlob(input, cwd)
+	case "AskUserQuestion":
+		return executeAskUserQuestion(input)
 	case "WebSearch":
 		return executeWebSearch(input)
 	case "WebFetch":

@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
 # No core yet (internal/tools): the code lives in the claude-mock files below, until it moves.
-concern: "executing the built-in tools (Bash, Read, Write, Edit, Glob, Grep, Skill, WebFetch, WebSearch)"
+concern: "executing the built-in tools (Bash, Read, Write, Edit, Glob, Grep, Skill, WebFetch, WebSearch, AskUserQuestion)"
 home: ["internal/tools/**", "claude-mock/internal/toolexec/**", "claude-mock/internal/runner/schedulewakeup.go", "cursor-mock/internal/toolexec/**", "codex-mock/internal/toolexec/**", "codex-mock/internal/runner/patch_tool.go", "codex-mock/internal/runner/exec_options.go", "codex-mock/internal/events/filechange.go", "cursor-mock/internal/runner/offload.go", "claude-mock/internal/runner/bash_foreground.go", "claude-mock/internal/runner/tool_defaults.go", "codex-mock/internal/runner/stdin_session.go"]   # everything about the concern lives here
 api: ["internal/tools", "claude-mock/internal/toolexec", "cursor-mock/internal/toolexec", "codex-mock/internal/toolexec"]      # the only packages others may import
