@@ -22,6 +22,11 @@ type Decision struct {
 	// Context is the additional_context the hook gave, for an event that takes
 	// it (sessionStart, postToolUse, postToolUseFailure).
 	Context string
+	// Refused: a beforeSubmitPrompt hook answered continue:false, so the prompt is not
+	// submitted (Message is its user_message). Followup is the followup_message a stop
+	// hook gave, which the agent is to take as its next message. See turn.go.
+	Refused  bool
+	Followup string
 }
 
 // failClosedNote opens what a fail-closed hook's failure says.
@@ -65,6 +70,9 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		return Decision{}
 	}
 	out := strings.TrimSpace(o.Stdout)
+	if e == BeforeSubmitPrompt || e == Stop {
+		return interpretTurn(e, out)
+	}
 	if e.addsContext() {
 		// sr:provides hook-additional-context/cursor
 		// sr:docs https://cursor.com/docs/hooks#posttooluse
@@ -110,7 +118,7 @@ func validPermission(p string) bool { return p == "" || p == "allow" || p == "de
 // isOutputField reports whether a key is one a Cursor hook's output sets.
 func isOutputField(key string) bool {
 	switch key {
-	case "permission", "user_message", "agent_message", "continue", "env", "additional_context":
+	case "permission", "user_message", "agent_message", "continue", "env", "additional_context", "followup_message":
 		return true
 	}
 	return false

@@ -17,7 +17,7 @@ func (s *session) hookEnv() []string {
 // common is what every hook payload carries now: the transcript path only once
 // the conversation has a transcript.
 func (s *session) common() hooks.Common {
-	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version, Model: s.cfg.Model}
+	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version, Model: s.cfg.Model, Generation: s.gen}
 	if s.named && s.tr.exists() {
 		c.TranscriptPath = s.tr.path
 	}

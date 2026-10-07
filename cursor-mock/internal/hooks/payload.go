@@ -13,6 +13,11 @@ type Common struct {
 	Version string
 	// Model is the model the run was started with (--model); "" is the default.
 	Model string
+	// Generation names the turn an interactive session is in: each prompt, and each
+	// follow-up a stop hook gave, is a generation of its own (recorded:
+	// runs/tui-stop-followup), and the session's own events (start and end) name the
+	// session. "" is a print run, whose one generation is the session's.
+	Generation string
 }
 
 // Tool names a tool call as the hooks see it.
@@ -42,6 +47,9 @@ func (c Common) Payload(e Event, own map[string]any) []byte {
 	}
 	if c.TranscriptPath != "" {
 		p["transcript_path"] = c.TranscriptPath
+	}
+	if c.Generation != "" && e != SessionStart && e != SessionEnd {
+		p["generation_id"] = c.Generation
 	}
 	if e == SessionEnd && c.Model != "" && c.Model != "auto" { // the end of a run names the model it was started with (recorded: runs/hook-matchers-thought)
 		p["model"] = c.Model

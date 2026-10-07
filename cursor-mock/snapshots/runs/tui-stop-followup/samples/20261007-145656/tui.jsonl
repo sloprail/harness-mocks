@@ -1,0 +1,10 @@
+{"step":1,"wait_screen":"Plan, search, build anything.*\u003c\\?2004h\u003e"}
+{"nth":1,"step":2,"wait_hook":"sessionStart"}
+{"send_keys":["enter"],"send_text":"Reply only DONE.","step":3}
+{"nth":2,"step":4,"wait_hook":"stop"}
+{"step":5,"wait_screen":"Add a follow-up Auto"}
+{"send_keys":["ctrl-c"],"send_text":"","step":6}
+{"step":7,"wait_screen":"Press Ctrl\\+C again to exit"}
+{"send_keys":["ctrl-c"],"send_text":"","step":8}
+{"nth":1,"step":9,"wait_hook":"sessionEnd"}
+{"end":true,"killed":false}

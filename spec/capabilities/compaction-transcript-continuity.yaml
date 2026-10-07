@@ -42,8 +42,16 @@ providers:
       second re-written prompt, is a `<dynamic_tools>` tool-discovery message,
       which is not a summary. Its records hold only role and message (plus a
       final turn_ended status line), so no record links to another and the
-      harness keeps no chain of its own.
+      harness keeps no chain of its own. Nothing is lost either: in the TUI's
+      /compress (runs/tui-manual-compaction) every conversation record the
+      transcript held at preCompact was still, byte for byte, the start of the
+      same file when the session ended (no prompt is written again there, and
+      the turn_ended line moves behind what follows), and the session id, the
+      conversation id and the transcript path (once it is named, from the first
+      response) were the same in every payload before and after; only the generation_id differs, as each compaction is a
+      generation of its own.
     docs:
       - https://cursor.com/docs/hooks#precompact
     runs:
       - cursor-mock/snapshots/runs/compaction-transcript-continuity
+      - cursor-mock/snapshots/runs/tui-manual-compaction

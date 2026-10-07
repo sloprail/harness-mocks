@@ -28,7 +28,7 @@ const (
 // the files of a recording's setup the adapter installs, besides the hook
 // scripts (*.sh); any other (extra flags, a preparation script, later steps) is
 // something of the recording the adapter cannot reproduce yet
-var installed = map[string]bool{"hooks.json": true, "user-hooks.json": true, "prompt.txt": true, "no-force": true, "env": true, "symlink": true, "prepare.sh": true, "args": true}
+var installed = map[string]bool{"hooks.json": true, "user-hooks.json": true, "prompt.txt": true, "no-force": true, "env": true, "tui.yaml": true, "symlink": true, "prepare.sh": true, "args": true}
 
 // sampleDir is the latest sample of the run in dir; empty when it has none.
 func sampleDir(dir string) string {
@@ -42,10 +42,8 @@ func sampleDir(dir string) string {
 
 // Load reads the recorded run in runDir (run.yaml, setup/, samples/) into the
 // unified form: the main session's calls from its transcript, with the
-// sub-agents it started attached. Only the transcripts' assistant records are
-// read (the model's turns); a replay compares the stream and the hook payloads,
-// whose files are only checked to be readable here. An *Unbuildable says what
-// the adapter cannot reproduce.
+// sub-agents it started attached (only its assistant records, the model's turns,
+// are read). An *Unbuildable says what the adapter cannot reproduce.
 func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if fi, err := os.Stat(runDir); err != nil || !fi.IsDir() {
 		return core.Recording{}, fmt.Errorf("%s is not a recorded run", runDir)
@@ -71,7 +69,7 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if _, err := flagWords(rec.Setup["args"], false); err != nil {
 		return core.Recording{}, err
 	}
-	if _, noForce := rec.Setup["no-force"]; noForce != (command == unforcedCommand) || command != forcedCommand && command != unforcedCommand {
+	if !commandOK(rec.Setup, command) {
 		return core.Recording{}, unbuildable("recorded with another command line: %q", command)
 	}
 	if sample == "" {
@@ -93,11 +91,14 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	if err != nil {
 		return core.Recording{}, err
 	}
-	session := sessionOf(stream)
+	session := sessionOfRun(stream, payloads)
 	if session == "" {
-		return core.Recording{}, unbuildable("the stream names no session")
+		return core.Recording{}, unbuildable("the run names no session")
 	}
 	dir := filepath.Join(sample, "transcript")
+	if refused, ok := untranscribed(rec, dir); ok { // a refused prompt: no turn, no transcript
+		return refused, nil
+	}
 	files, err := transcriptsOf(dir, session)
 	if err != nil {
 		return core.Recording{}, err

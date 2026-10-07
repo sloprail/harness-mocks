@@ -38,7 +38,8 @@ providers:
           mock does the same.
   cursor:
     supported: false
-    reason: In print mode cursor-agent never fires a configured beforeSubmitPrompt hook; one that tries to refuse the prompt is not run and the prompt reaches the agent, which acts on it.
+    reason: In print mode cursor-agent never fires a configured beforeSubmitPrompt hook; one that tries to refuse the prompt is not run and the prompt reaches the agent, which acts on it. The TUI fires it and a hook answering continue false refuses the prompt (runs/tui-prompt-blocked, which the mock models), but no recording shows it adding context or firing for a background-task notification, so the statement is not shown to hold.
     runs:
       - cursor-mock/snapshots/runs/user-prompt-submit-hook
       - cursor-mock/snapshots/runs/hook-exit-codes
+      - cursor-mock/snapshots/runs/tui-prompt-blocked

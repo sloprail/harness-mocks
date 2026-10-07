@@ -19,8 +19,26 @@ providers:
       - codex-mock/snapshots/runs/hook-exit-codes
       - codex-mock/snapshots/runs/stop-continue-false
   cursor:
-    supported: false
-    reason: cursor-agent in print mode never fires the stop hook (the run configured one answering with a followup_message), so nothing is handed back and the turn ends once with a single result.
+    docs:
+      - https://cursor.com/docs/hooks#stop
     runs:
-      - cursor-mock/snapshots/runs/stop-block-continuation
-      - cursor-mock/snapshots/runs/hook-exit-codes
+      - cursor-mock/snapshots/runs/tui-stop
+      - cursor-mock/snapshots/runs/tui-stop-followup
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Only Cursor's TUI fires the stop hook: cursor-agent in print mode never
+          does (the runs configured one answering with a followup_message, and the
+          turn ended once with a single result: runs/stop-block-continuation,
+          runs/hook-exit-codes), so a print-mode run (-p) is never handed a reason
+          and never continues. In the TUI (runs/tui-stop-followup) the hook blocks
+          the end of the turn with {"followup_message": ...}, which the agent takes
+          as its next message (with no beforeSubmitPrompt), and the next stop says
+          loop_count 1.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          A TUI session has no result for a caller to see: recorded, it prints
+          a screen, not a stream, so there is no single result at the turn's real
+          end (runs/tui-stop-followup); the mock prints none either.

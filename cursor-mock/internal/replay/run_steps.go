@@ -22,6 +22,9 @@ func (a Adapter) runSteps(mock string, rec core.Recording, l layout, flags []str
 		base = append(base, "--force")
 	}
 	base = append(base, "--trust", "--model", "auto", "--output-format", "stream-json")
+	if isTUI(rec.Setup) { // no -p and no stream: the prompt is typed, so it is on stdin
+		base = []string{mock, "--trust", "--model", "auto"}
+	}
 	steps := append([]laterStep{{script: l.main, prompt: rec.Prompt, dir: l.cwd, flags: flags}}, l.later...)
 	session := ""
 	var out strings.Builder
@@ -36,8 +39,14 @@ func (a Adapter) runSteps(mock string, rec core.Recording, l layout, flags []str
 			}
 			argv = append(argv, f)
 		}
-		argv = append(argv, "--script", st.script, st.prompt)
-		res, err := procexec.Run(context.Background(), procexec.Spec{Argv: argv, Dir: st.dir, Env: l.env, Timeout: 2 * time.Minute})
+		spec := procexec.Spec{Dir: st.dir, Env: l.env, Timeout: 2 * time.Minute}
+		if isTUI(rec.Setup) {
+			argv, spec.Stdin = append(argv, "--script", st.script), typedInput(rec.Setup, st.prompt)
+		} else {
+			argv = append(argv, "--script", st.script, st.prompt)
+		}
+		spec.Argv = argv
+		res, err := procexec.Run(context.Background(), spec)
 		if err != nil || res.TimedOut || res.ExitCode < 0 {
 			return "", nil, &core.MockFailure{Detail: fmt.Sprintf("step %d: %v (exit %d): %s", i+1, err, res.ExitCode, res.Stderr)}
 		}

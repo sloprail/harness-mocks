@@ -22,7 +22,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	if err != nil {
 		return want, got, err
 	}
-	if len(recStream) == 0 {
+	if len(recStream) == 0 && !isTUI(rec.Setup) { // a TUI has no stream: its hook payloads are what is compared
 		return want, got, &Unbuildable{Reason: "the recording has no stream to compare"}
 	}
 	// No hook log at all is a recording whose hooks never ran (the hook script is what
@@ -86,6 +86,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 	recHooks, mockHooks = inOrder(recHooks), inOrder(mockHooks)
 	unsettled(recHooks)
 	unsettled(mockHooks)
+	want.NoStream, got.NoStream = isTUI(rec.Setup), isTUI(rec.Setup)
 	want.Hooks, got.Hooks = concurrent(recHooks, wantC.Lines(recHooks)), concurrent(mockHooks, gotC.Lines(mockHooks))
 	if len(want.Hooks) == 0 && len(got.Hooks) == 0 && !noHooksRan {
 		return want, got, &Unbuildable{Reason: "the recording's hook log holds no line the mock models: nothing to compare"}
