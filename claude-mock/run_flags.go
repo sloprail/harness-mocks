@@ -106,8 +106,6 @@ func addRunFlags(cmd *cobra.Command) {
 	// its own tests ('{"max-budget-usd":5}'), so a judge caller may pass it.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--max-budget-usd
 	cmd.Flags().String("max-budget-usd", "", "Refused: not implemented by the mock")
-	// NOTE on --permission-prompt-tool: it does NOT exist in the real Claude Code
-	// CLI (confirmed absent from `claude --help` and the CLI reference), so it is
-	// deliberately NOT declared here — the mock accepts only flags real claude
-	// accepts.
+	// --permission-prompt-tool is declared with the flags that name a run's tools (flags.go): real claude
+	// accepts it (recorded: runs/ask-user-question-tool), and the mock models only the value stdio.
 }
