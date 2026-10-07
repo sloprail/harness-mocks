@@ -13,8 +13,11 @@ docs:
     sha256: 6dec20e0f916ad689f9fe6dde8f259835725ca5e3fd07c8bf6222b9bc5659ef7
     fetched: "2026-10-03"
   https://developers.openai.com/plugins/build/plugins:
-    sha256: 41410752fccb74bac5fafeb61a0e5c223b0e7f30d86da5da176f0ff1fa06b71f
-    fetched: "2026-10-05"
+    sha256: bf1ea909edc7fc0bedde1219ff9c066ea2fddcd080817374536020eb48769da0
+    fetched: "2026-10-07"
   https://developers.openai.com/codex/subagents:
     sha256: c5ef4eda3d9f876c8f35c697e720a3e7c760b5cf8c4943c97e82d1d8fe1b0054
     fetched: "2026-10-03"
+  https://developers.openai.com/codex/skills:
+    sha256: d15791562748e64a53dfec534b8558aa522e732cec0fdedcf7257fa4ef486a20
+    fetched: "2026-10-07"

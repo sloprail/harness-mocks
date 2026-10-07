@@ -27,5 +27,17 @@ providers:
           or dynamic output below are new.)") and then the instructions in full
           again, whether the arguments changed or the very same call was made
           (recorded: runs/skill-tool, steps 3 and 4).
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: Codex exec has no tool that launches a skill. It lists the skills it finds (.agents/skills) to the agent in a developer message and the agent is meant to read a skill's SKILL.md itself; asked to launch the greet skill with its own skill-launching tool it said it has no such tool and made no call.
+    docs:
+      - https://developers.openai.com/codex/skills#how-codex-uses-skills
+    runs:
+      - codex-mock/snapshots/runs/skill-tool-ask
+  cursor:
+    supported: false
+    reason: Cursor's agent has no tool that launches a skill (skills are picked by the agent from the list it is given, or by the user with a slash command); asked to launch the greet skill with its own skill-launching tool it searched its tools for one, found none, made no skill call and said it has no such tool.
+    docs:
+      - https://cursor.com/docs/skills#how-skills-work
+    runs:
+      - cursor-mock/snapshots/runs/skill-tool-ask
