@@ -62,9 +62,11 @@ func Isolate(parentCwd, id string, l WorktreeLayout, bind func(dir, branch strin
 	}
 }
 
-// BindGit makes dir a real git worktree of parentCwd's HEAD on a new branch. It
-// fails when parentCwd is not a git repository with a commit.
-func BindGit(ctx context.Context, parentCwd string) func(dir, branch string) error {
+// BindGit makes dir a real git worktree on a new branch. The branch starts from the
+// repository's default branch (origin/HEAD) unless baseRef is "head", which starts it
+// from parentCwd's HEAD; with no origin/HEAD it falls back to HEAD. It fails when
+// parentCwd is not a git repository with a commit.
+func BindGit(ctx context.Context, parentCwd, baseRef string) func(dir, branch string) error {
 	git := func(args ...string) (procexec.Result, error) {
 		res, err := procexec.Run(ctx, procexec.Spec{Argv: append([]string{"git", "-C", parentCwd}, args...)})
 		if err == nil && res.ExitCode != 0 {
@@ -82,7 +84,13 @@ func BindGit(ctx context.Context, parentCwd string) func(dir, branch string) err
 		if _, err := git("rev-parse", "--verify", "HEAD"); err != nil {
 			return fmt.Errorf("no HEAD (no commits yet): %w", err)
 		}
-		if _, err := git("worktree", "add", "-b", branch, dir, "HEAD"); err != nil {
+		start := "HEAD"
+		if baseRef != "head" {
+			if _, err := git("rev-parse", "--verify", "--quiet", "origin/HEAD"); err == nil {
+				start = "origin/HEAD"
+			}
+		}
+		if _, err := git("worktree", "add", "-b", branch, dir, start); err != nil {
 			return fmt.Errorf("git worktree add: %w", err)
 		}
 		return nil

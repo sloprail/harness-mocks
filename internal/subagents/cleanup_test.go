@@ -12,7 +12,7 @@ func TestCleanupWorktree_RemovesACleanOneAndKeepsOneWithWork(t *testing.T) {
 	repo := t.TempDir()
 	git(t, repo, "init", "-q")
 	git(t, repo, "commit", "-q", "--allow-empty", "-m", "init")
-	bind := BindGit(context.Background(), repo)
+	bind := BindGit(context.Background(), repo, "")
 
 	clean := Isolate(repo, "clean", wl(), bind)
 	if !clean.Cleanup(context.Background()) {
@@ -50,7 +50,7 @@ func TestCleanupWorktree_KeepsOneWhoseHeadMovedToACommittedBranch(t *testing.T) 
 	repo := t.TempDir()
 	git(t, repo, "init", "-q")
 	git(t, repo, "commit", "-q", "--allow-empty", "-m", "init")
-	bind := BindGit(context.Background(), repo)
+	bind := BindGit(context.Background(), repo, "")
 
 	switched := Isolate(repo, "switched", wl(), bind)
 	git(t, switched.Cwd, "switch", "-q", "-c", "other")
