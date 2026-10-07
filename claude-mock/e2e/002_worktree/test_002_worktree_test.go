@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,6 +137,31 @@ printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":f
 	data, err := os.ReadFile(logFile)
 	require.NoError(t, err, "WorktreeRemove hook must fire")
 	assert.Contains(t, string(data), "feat/old")
+}
+
+// TestT002_05a_WorktreeRemovePayloadCarriesTheAbsolutePath: the WorktreeRemove payload names the worktree by
+// worktree_path, an absolute path (the one removed), and carries no name field.
+// sr:proves worktree-hooks/claude
+func TestT002_05a_WorktreeRemovePayloadCarriesTheAbsolutePath(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "payload.json")
+	hook := writeScript(t, dir, "payload.sh", "#!/bin/sh\ncat > "+logFile+"\n")
+	writeSettings(t, dir, "WorktreeRemove", hook)
+	script := writeScript(t, dir, "s.sh", `#!/bin/sh
+printf '%s\n' '{"type":"worktree_remove","worktree_name":"feat/old"}'
+printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
+`)
+	_, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir, "-p", "go")
+	require.Equal(t, 0, code)
+	data, err := os.ReadFile(logFile)
+	require.NoError(t, err, "WorktreeRemove hook must fire")
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(data, &payload))
+	path, _ := payload["worktree_path"].(string)
+	assert.True(t, filepath.IsAbs(path), "worktree_path %q is absolute", path)
+	assert.True(t, strings.HasSuffix(path, "/.claude/worktrees/feat/old"), "worktree_path %q is the worktree removed", path)
+	assert.NotContains(t, payload, "name")
+	assert.NotContains(t, payload, "worktree_name")
 }
 
 // TestT002_05b_WorktreeRemoveFailsOnAnyNonZeroExit: any non-zero exit of a
