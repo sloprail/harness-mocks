@@ -60,7 +60,7 @@ func (s *session) launch(c toolexec.Call, useID string, env []string) toolexec.R
 	trailer, ended := s.finishTerminal(filepath.Join(folder, id+".txt"), start, s.cfg.Dir, c.Command(), title)
 	_, _ = out.WriteString(terminalHeader(0, s.cfg.Dir, c.Command(), title, "running", start, 0)) // the process writes after it
 	if err := s.registry().StartCommand(t, tasks.CommandSpec{
-		Argv: []string{"/bin/sh", "-c", c.Command()}, Dir: s.cfg.Dir, Env: env, Out: out, Trailer: trailer, Ended: ended,
+		Argv: []string{toolexec.Shell, "-c", c.Command()}, Dir: s.cfg.Dir, Env: env, Out: out, Trailer: trailer, Ended: ended,
 	}); err != nil {
 		return failed(err)
 	}

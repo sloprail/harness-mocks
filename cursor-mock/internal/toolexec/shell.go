@@ -9,6 +9,12 @@ import (
 	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
+// Shell is the shell a Shell call's command line runs in, the same on every OS:
+// cursor-agent runs the user's shell (bash or zsh, never POSIX sh), and recorded
+// runs/shell-compound-more has `[[ ]]` and `<<<` working. /bin/sh is dash on Linux
+// and bash on macOS, so it is named explicitly.
+const Shell = "/bin/bash"
+
 // shell runs a Shell call. A command exiting non-zero failed, whatever its
 // status (grep finding nothing is a failure too): the result is a failure
 // carrying the exit code and both streams, and the failure hook's
@@ -26,7 +32,7 @@ func shell(ctx context.Context, c Call, dir string, env []string) Result {
 		cwd = wd
 	}
 	start := time.Now()
-	res := tools.Bash(ctx, c.Command(), cwd, env)
+	res := tools.BashArgv(ctx, []string{Shell, "-c", c.Command()}, cwd, env)
 	took := time.Since(start)
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": c.str("workingDirectory"), "exitCode": res.ExitCode, "signal": "",

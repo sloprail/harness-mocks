@@ -1,0 +1,7 @@
+Do these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) [ -f in.txt ] && echo yes 2) test -f in.txt && echo t 3) if [ -f in.txt ]; then echo cond; fi 4) echo $((1+2)) 5) echo "a$((1+2))b" 6) cat <<EOF > heredoc-out.txt
+body
+EOF
+7) cat -n <<EOF
+numbered
+EOF
+Then reply only DONE.

@@ -89,12 +89,17 @@ func TestShellFrameArgsModelTheRecordedSyntax(t *testing.T) {
 
 // What no recording shows is refused by name, and what the recordings show is not.
 func TestUnmodeledSyntax(t *testing.T) {
-	for _, ok := range []string{`echo "a" 'b' c`, `cat < in.txt`, `echo x >> f`, `ls y 2>&1`, `echo $(echo z)`, `a | b; c`, `sh -c 'echo $HOME && ls *'`, `pgrep -f "sleep 2; [t]ouch x"`} {
+	for _, ok := range []string{`echo "a" 'b' c`, `cat < in.txt`, `echo x >> f`, `ls y 2>&1`, `echo $(echo z)`, `a | b; c`, `sh -c 'echo $HOME && ls *'`, `pgrep -f "sleep 2; [t]ouch x"`,
+		// runs/shell-compound*: the command line runs in a shell, whatever its shape
+		`a && b || c`, `X=7 sh -c 'echo $X'`, `for i in 1 2; do echo "n$i"; done`, `for f in *.txt; do echo "$f"; done`,
+		`(echo a; exit 2)`, `{ echo a; echo b >&2; }`, `! false`, `sleep 1 & wait`, `V=hi; echo $V ${V:-d} "$V"`,
+		`f() { echo fn; }; f`, "cat > out <<'EOF'\nx\nEOF", "cat <<-EOF\n\tx\n\tEOF", `cat <<< "s"`, `[ -f x ] && echo $((1+2))`,
+		`case x in x) echo m;; *) echo n;; esac`, `while [ $i -lt 2 ]; do i=$((i+1)); done`, `echo $1 $@ $?`} {
 		if why := UnmodeledSyntax(ok); why != "" {
 			t.Errorf("%q refused: %s", ok, why)
 		}
 	}
-	for _, bad := range []string{`echo $HOME`, `a && b`, `a || b`, "cat <<EOF\nx\nEOF", `ls *.txt`, `(cd x)`, `for i in 1; do :; done`, `X=1 cmd`, "echo `x`", `sleep 1 &`, `echo ~`} {
+	for _, bad := range []string{`ls *.txt`, "echo `x`", `echo ~`, `diff <(a) <(b)`, `((i++))`, `a &> out`, `a >| out`, "{ a; } <<EOF\nx\nEOF"} {
 		if UnmodeledSyntax(bad) == "" {
 			t.Errorf("%q must be refused", bad)
 		}
