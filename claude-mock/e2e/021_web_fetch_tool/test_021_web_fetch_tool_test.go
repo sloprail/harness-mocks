@@ -3,6 +3,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func fetch(t *testing.T, input string) (code int, out, hookLog string) {
 	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat >> "+log+"\necho >> "+log+"\n"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"),
-		[]byte(`{"hooks":{"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}],"PostToolUseFailure":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
+		[]byte(`{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}],"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}],"PostToolUseFailure":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
 	script := filepath.Join(dir, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
 if [ -n "$A10N_MOCK_SESSION_FILE" ] && grep -q "tool_result" "$A10N_MOCK_SESSION_FILE" 2>/dev/null; then
@@ -44,6 +45,9 @@ func TestT021_01_AFetchIsAnsweredWithTheScriptedResult(t *testing.T) {
 	assert.Contains(t, out, `"tool_use_result":{"bytes":577,"code":200,"codeText":"OK","durationMs":0,"result":"The heading is Example Domain.","url":"https://example.com"}`)
 	assert.NotContains(t, out, `"is_error":true`)
 	assert.Contains(t, hooks, `"tool_response":{"bytes":577,"code":200,"codeText":"OK","durationMs":0,"result":"The heading is Example Domain.","url":"https://example.com"}`)
+	assert.Equal(t, 2, strings.Count(hooks, `"hook_event_name"`), "PreToolUse and PostToolUse")
+	assert.NotContains(t, hooks, "mock_result", "the hooks are told the real tool's input")
+	assert.NotContains(t, out, "mock_result", "nor does a frame of the call show it")
 }
 
 // TestT021_02_ALocalAddressIsRefusedBeforeAnyRequest: localhost and a host name without a dot are an error

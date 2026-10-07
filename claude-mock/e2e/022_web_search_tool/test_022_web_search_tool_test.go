@@ -3,6 +3,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func search(t *testing.T, input string) (code int, out, hookLog string) {
 	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat >> "+log+"\necho >> "+log+"\n"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".claude"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".claude", "settings.json"),
-		[]byte(`{"hooks":{"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
+		[]byte(`{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}],"PostToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"`+hook+`"}]}]}}`), 0o644))
 	script := filepath.Join(dir, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
 if [ -n "$A10N_MOCK_SESSION_FILE" ] && grep -q "tool_result" "$A10N_MOCK_SESSION_FILE" 2>/dev/null; then
@@ -47,6 +48,9 @@ func TestT022_01_ASearchIsAnsweredWithTheScriptedResult(t *testing.T) {
 	assert.Regexp(t, `"tool_use_result":\{"durationSeconds":0,"query":"iana example domains","results":\[\{"content":\[\{"title":"Example Domains","url":"https://www.iana.org/help/example-domains"\},\{"title":".INT Policy & Procedures","url":"https://www.iana.org/domains/int/policy"\}\],"tool_use_id":"srvtoolu_[0-9A-Za-z]{24}"\},"Based on the search results, example.com is reserved."\],"searchCount":1\}`, out)
 	assert.NotContains(t, out, `"is_error":true`)
 	assert.Contains(t, hooks, `"tool_response":{"durationSeconds":0,"query":"iana example domains"`)
+	assert.Equal(t, 2, strings.Count(hooks, `"hook_event_name"`), "PreToolUse and PostToolUse")
+	assert.NotContains(t, hooks, "mock_result", "the hooks are told the real tool's input")
+	assert.NotContains(t, out, "mock_result", "nor does a frame of the call show it")
 }
 
 // TestT022_02_AllowedDomainsAreTheCallsOwn: a search that names the domains to keep is answered the same way; the

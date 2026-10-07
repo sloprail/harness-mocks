@@ -15,8 +15,8 @@ func writeCall(cfg Config, tr *transcript, line []byte, id, name string, input j
 		return pendingToolUse{}, err
 	}
 	line, streamed, input := withToolDefaults(cfg, withoutMore(line))
-	writeToolUse(cfg, streamed, name, input)
-	tr.persist(line)
+	writeToolUse(cfg, withoutMockResults(streamed), name, input) // the call keeps its mock_result for the tool; the frames do not show it
+	tr.persist(withoutMockResults(line))
 	call := pendingToolUse{ToolUseID: id, ToolName: name, ToolInput: input}
 	if res := invalidCall(name, input, cfg.Cwd); res != nil {
 		call.Invalid = res

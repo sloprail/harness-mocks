@@ -50,16 +50,8 @@ func messageDefaults(in map[string]any) (filled bool) {
 // call as filled in with a summary of the message, its PostToolUse hook only to, message and summary
 // (recorded: runs/fgsub-maxturns).
 func hookInput(before bool, tool string, input json.RawMessage) json.RawMessage {
-	if tools.IsMCPName(tool) { // the arguments the server's tool takes: the mock's own mock_result is not among them
-		var in map[string]json.RawMessage
-		if json.Unmarshal(input, &in) != nil || in["mock_result"] == nil {
-			return input
-		}
-		delete(in, "mock_result")
-		if b, err := marshalRecord(in); err == nil {
-			return b
-		}
-		return input
+	if acceptsMockResult(tool) { // the arguments of the real tool: the mock's own mock_result is not among them
+		return withoutMockResult(input)
 	}
 	if tool != "SendMessage" {
 		return input
