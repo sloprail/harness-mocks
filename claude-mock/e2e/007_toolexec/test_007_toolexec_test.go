@@ -93,6 +93,27 @@ func TestT007_11_BashToolSeesMockSessionID(t *testing.T) {
 	assert.Regexp(t, `^SID=s1 CC=1 EP=decoy CS=1 AT=0 PID=[0-9]+$`, string(got), "Bash tool must see this run's identity, not the inherited decoys")
 }
 
+// TestT007_12_BashToolSeesSessionIDWhateverTheCommand: CLAUDE_CODE_SESSION_ID is
+// exported into every Bash tool subprocess, whatever the command is: a command
+// starting with `sr-` gets this run's id as any other does (runs/subprocess-session-env
+// records it for a plain command; real Claude Code does not look at the command).
+// sr:proves subprocess-session-env/claude
+func TestT007_12_BashToolSeesSessionIDWhateverTheCommand(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "decoy-outer-session")
+	logPath := filepath.Join(dir, "sr.log")
+	// an executable named sr-probe on PATH, so the command itself starts with "sr-"
+	bin := filepath.Join(dir, "bin")
+	require.NoError(t, os.MkdirAll(bin, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "sr-probe"), []byte("#!/bin/sh\nprintf %s \"SID=$CLAUDE_CODE_SESSION_ID\" > "+logPath+"\n"), 0o755))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	out, code := runTool(t, dir, "Bash", `{"command":"sr-probe"}`)
+	require.Equal(t, 0, code, "output:\n%s", out)
+	got, err := os.ReadFile(logPath)
+	require.NoError(t, err, "bash command must have run; output:\n%s", out)
+	assert.Equal(t, "SID=s1", string(got))
+}
+
 // --- Read ---
 
 // TestT007_04_ReadToolReturnsFileContent: Read returns the file contents.
