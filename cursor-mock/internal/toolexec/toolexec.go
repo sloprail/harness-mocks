@@ -88,6 +88,15 @@ func (c Call) HookInput(dir string) map[string]any {
 	}
 }
 
+// TranscriptName is the tool's name in the transcript, which is not the script's:
+// an edit by an exact string is a StrReplace (recorded: runs/file-tools).
+func (c Call) TranscriptName(scripted string) string {
+	if c.Replace != nil {
+		return "StrReplace"
+	}
+	return scripted
+}
+
 // TranscriptInput is the call's input as Cursor writes it into the conversation's
 // transcript, which is not the frame's args: a file's path is the absolute one, a
 // write's text is "contents" (the frame's streamContent), and a StrReplace keeps

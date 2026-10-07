@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// transcriptWrites are the Write calls the conversations under root left in
+// transcriptWrites are the Write and StrReplace calls the conversations under root left in
 // their transcripts, one object per call: the input as Cursor records it
 // (an absolute path and the file's "contents"). Several conversations (the
 // main session and its sub-agents) are one set, in their own order of file
@@ -34,8 +34,8 @@ func transcriptWrites(root string) ([]map[string]any, error) {
 			blocks, _ := msg["content"].([]any)
 			for _, b := range blocks {
 				blk, _ := b.(map[string]any)
-				if in, ok := blk["input"].(map[string]any); ok && blk["type"] == "tool_use" && blk["name"] == "Write" {
-					out = append(out, map[string]any{"transcriptWrite": in})
+				if in, ok := blk["input"].(map[string]any); ok && blk["type"] == "tool_use" && (blk["name"] == "Write" || blk["name"] == "StrReplace") {
+					out = append(out, map[string]any{"transcriptFileTool": blk["name"], "input": in})
 				}
 			}
 		}

@@ -171,6 +171,9 @@ func TestTranscriptInputIsTheRecordedShape(t *testing.T) {
 	if got := e.TranscriptInput("/ws"); got["path"] != "/ws/n.txt" || got["old_string"] != "hi" || got["new_string"] != "bye" || got["contents"] != nil {
 		t.Errorf("an Edit: %v", got)
 	}
+	if e.TranscriptName("Edit") != "StrReplace" || w.TranscriptName("Write") != "Write" {
+		t.Errorf("names: %s, %s", e.TranscriptName("Edit"), w.TranscriptName("Write"))
+	}
 	if got := FromScript("Read", []byte(`{"file_path":"n.txt"}`)).TranscriptInput("/ws"); got["path"] != "/ws/n.txt" {
 		t.Errorf("a Read: %v", got)
 	}
