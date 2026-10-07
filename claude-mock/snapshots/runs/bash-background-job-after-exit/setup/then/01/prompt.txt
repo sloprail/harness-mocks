@@ -1,0 +1,1 @@
+Run exactly one Bash command, the text between the backticks: `sleep 2; if kill -0 $(cat job.pid); then echo ALIVE; else echo GONE; fi; sleep 20; cat landed.txt` Then reply only DONE.

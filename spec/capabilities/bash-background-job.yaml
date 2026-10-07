@@ -1,0 +1,13 @@
+statement: >-
+  A background job that a foreground shell command starts with `&` is not ended
+  when the command returns, nor when the run ends: the call is answered, and
+  the job runs on.
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
+    runs:
+      - claude-mock/snapshots/runs/bash-background-job
+      - claude-mock/snapshots/runs/bash-background-job-after-exit
+  codex: pending
+  cursor: pending

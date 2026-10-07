@@ -1,0 +1,1 @@
+Do these in order. Step 1: run exactly this Bash command: (sleep 2; echo LANDED > landed.txt) >/dev/null 2>&1 & . Step 2: run exactly this Bash command: sleep 5; cat landed.txt . Then reply only DONE.

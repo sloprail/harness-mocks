@@ -3,7 +3,11 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -238,4 +242,76 @@ func TestT007_21_ToolsRestrictTheRunsTools(t *testing.T) {
 			assert.NotContains(t, out, "hello-bash")
 		})
 	}
+}
+
+// bashTwice is a scenario that calls Bash with first, then, once that is answered, with second.
+func bashTwice(t *testing.T, dir, first, second string) string {
+	t.Helper()
+	call := func(id, cmd string) string {
+		return `printf '%s\n' '{"type":"assistant","message":{"role":"assistant","stop_reason":null,"content":[{"type":"tool_use","id":"` + id + `","name":"Bash","input":{"command":"` + cmd + `"}}]}}'`
+	}
+	p := filepath.Join(dir, "twice.sh")
+	require.NoError(t, os.WriteFile(p, []byte(`#!/bin/sh
+n=$(grep -c tool_result "$A10N_MOCK_SESSION_FILE" 2>/dev/null)
+if [ "${n:-0}" -ge 2 ]; then
+  printf '%s\n' '{"type":"result","subtype":"success","result":"done","is_error":false}'
+elif [ "${n:-0}" -ge 1 ]; then
+  `+call("tu_2", second)+`
+else
+  `+call("tu_1", first)+`
+fi
+`), 0o755))
+	return p
+}
+
+// A job a foreground Bash command puts in the background (`cmd &`) does not hold the call: the
+// call is answered while the job is still running, and the job then finishes, to be seen by a
+// later call (recorded: snapshots/runs/bash-background-job). A job that still holds the command's
+// output open does not hold the call either.
+// sr:proves bash-background-job/claude
+func TestT007_13_BashBackgroundJobOutlivesTheCall(t *testing.T) {
+	for name, tc := range map[string]struct{ job, file string }{
+		"output redirected": {`(sleep 3; echo LANDED > landed.txt) >/dev/null 2>&1 &`, "landed.txt"},
+		"output held open":  {`(sleep 3; echo LANDED > held.txt) &`, "held.txt"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			script := bashTwice(t, dir, tc.job, "if [ -e "+tc.file+" ]; then echo EARLY; else echo ABSENT; fi; sleep 4; cat "+tc.file)
+			started := time.Now()
+			out, code := runInDir(t, dir, nil, "--script", script, "--session-id", "s1", "--project-dir", dir,
+				"--config-dir", filepath.Join(dir, "cfg"), "-p", "go")
+			require.Equal(t, 0, code, out)
+			assert.NotContains(t, out, `"is_error":true`)
+			assert.Contains(t, out, `ABSENT\nLANDED`, "the call was answered only after the job had finished, or the job was ended with the call")
+			assert.NotContains(t, out, `EARLY\\nLANDED`)
+			assert.Less(t, time.Since(started), 8*time.Second)
+		})
+	}
+}
+
+// The job outlives the mock too: the mock exits without waiting for it or killing it, and it goes
+// on to finish (adr/child-processes; recorded: snapshots/runs/bash-background-job-after-exit,
+// where a job's process was alive in the next run and wrote its file).
+// sr:proves bash-background-job/claude
+func TestT007_14_BashBackgroundJobOutlivesTheMock(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "job.sh"), []byte("echo $$ > job.pid\nsleep 2\necho LANDED > landed.txt\n"), 0o755))
+	t.Cleanup(func() {
+		if b, err := os.ReadFile(filepath.Join(dir, "job.pid")); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+				_ = syscall.Kill(-pid, syscall.SIGKILL)
+				_ = syscall.Kill(pid, syscall.SIGKILL)
+			}
+		}
+	})
+	started := time.Now()
+	out, code := runTool(t, dir, "Bash", `{"command":"sh job.sh >/dev/null 2>&1 &"}`)
+	require.Equal(t, 0, code, out)
+	assert.Less(t, time.Since(started), 2*time.Second, "the mock waited for the job at exit")
+	_, err := os.Stat(filepath.Join(dir, "landed.txt"))
+	assert.True(t, os.IsNotExist(err), "the job had finished before the mock exited")
+	assert.Eventually(t, func() bool {
+		b, err := os.ReadFile(filepath.Join(dir, "landed.txt"))
+		return err == nil && string(b) == "LANDED\n"
+	}, 5*time.Second, 50*time.Millisecond, "the job was ended with the mock")
 }

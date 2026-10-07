@@ -33,5 +33,11 @@ same session facts to all of them (for Claude Code: `CLAUDE_CODE_SESSION_ID`,
   group, so no grandchild outlives the mock.
 - No other code calls `exec.Command`, `exec.CommandContext` or assigns
   `cmd.Env`.
+- One exception: claude's Bash tool (`procexec.Spec.LeaveGroup`) leaves a `&`
+  job it started running past the call and past the mock's exit, neither
+  waiting for it nor killing it, as real Claude Code does
+  (`bash-background-job`). Only a timeout or cancel of the call itself kills
+  its group. Hooks, scripts, other tools and the codex and cursor mocks keep
+  the rule above.
 - Where killing the group differs from what a harness does, the capability it
   affects records it under `deviations`, citing this ADR.

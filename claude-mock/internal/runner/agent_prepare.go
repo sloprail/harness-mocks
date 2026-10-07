@@ -69,7 +69,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 	branch := ""
 	var cleanup func(context.Context) bool
 	hookMade := false
-	if in.Isolation == "worktree" {
+	if agentIsolation(cfg, in) == "worktree" {
 		path, hooked, err := hookedWorktree(ctx, cfg, inv, "agent-"+agentID)
 		if hooked && err != nil {
 			return nil, in, toolexec.Result{Output: "Error: could not create the worktree: " + err.Error(), IsError: true}
@@ -77,7 +77,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		if hooked {
 			subCwd, hookMade = path, true
 		} else {
-			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd))
+			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd, inv.WorktreeBaseRef()))
 			subCwd = iso.Cwd
 			cleanup = iso.Cleanup
 			if iso.Worktree != nil {

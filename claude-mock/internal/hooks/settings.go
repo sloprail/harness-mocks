@@ -11,8 +11,9 @@ import (
 
 // Settings mirrors the subset of Claude Code settings.json that configures hooks.
 type Settings struct {
-	Hooks map[EventName][]HookEntry `json:"hooks"`
-	Deny  []string                  `json:"-"` // the Bash commands deny rules refuse (Permissions)
+	Hooks           map[EventName][]HookEntry `json:"hooks"`
+	Deny            []string                  `json:"-"` // the Bash commands deny rules refuse (Permissions)
+	WorktreeBaseRef string                    `json:"-"` // worktree.baseRef ("fresh" or "head"), "" when unset
 }
 
 // HookEntry is one matcher+handler group under an event name.
