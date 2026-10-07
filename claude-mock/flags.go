@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -33,8 +32,9 @@ func permissionMode(cmd *cobra.Command) string {
 // refuseUnimplemented is the error for an input the mock does not implement
 // (adr/fail-fast-unimplemented): an output format but stream-json, which a run
 // would otherwise print stream frames for as if it were one;
-// --include-partial-messages; and a piped stdin, which the real run reads.
-func refuseUnimplemented(cmd *cobra.Command) error {
+// --include-partial-messages; and a piped stdin beside a prompt argument (real
+// claude combines the two; a piped stdin alone is the prompt, see stdinPrompt).
+func refuseUnimplemented(cmd *cobra.Command, args []string) error {
 	if f, _ := cmd.Flags().GetString(flagOutputFormat); f != "stream-json" {
 		return fmt.Errorf("claude-mock: --output-format %s is not implemented by the mock (only stream-json): it is refused rather than ignored", f)
 	}
@@ -50,8 +50,8 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("name") && (cmd.Flags().Changed(flagResume) || cmd.Flags().Changed(flagContinue)) {
 		return fmt.Errorf("claude-mock: --name with --resume or --continue is not implemented by the mock: it is refused rather than ignored")
 	}
-	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0) {
-		return fmt.Errorf("claude-mock: a piped stdin is not implemented by the mock: it is refused rather than ignored")
+	if len(args) > 0 && stdinGiven() {
+		return fmt.Errorf("claude-mock: a piped stdin together with a prompt argument is not implemented by the mock: it is refused rather than ignored")
 	}
 	return nil
 }

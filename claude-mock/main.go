@@ -44,8 +44,8 @@ func forgetUnpersisted(cmd *cobra.Command, _ []string) error {
 // id --resume carries.
 //
 // sr:provides session-resume/claude
-func resolveSessionFlags(cmd *cobra.Command, _ []string) error {
-	if err := refuseUnimplemented(cmd); err != nil {
+func resolveSessionFlags(cmd *cobra.Command, args []string) error {
+	if err := refuseUnimplemented(cmd, args); err != nil {
 		return err
 	}
 	resume, _ := cmd.Flags().GetString(flagResume)

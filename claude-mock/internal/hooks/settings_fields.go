@@ -93,6 +93,9 @@ func (s *Settings) accept(f settingsWithPlugins) error {
 	if f.AllowManagedHooksOnly != nil {
 		return &UnimplementedError{What: "allowManagedHooksOnly"}
 	}
+	if f.Worktree.BaseRef != "" {
+		s.WorktreeBaseRef = f.Worktree.BaseRef // a later file (local settings) wins
+	}
 	return s.addDeny(f.Permissions)
 }
 

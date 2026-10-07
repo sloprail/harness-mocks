@@ -20,6 +20,8 @@ type WorktreeLayout struct {
 // Worktree is an isolated working copy a sub-agent runs in.
 type Worktree struct {
 	Path, Branch string
+	// Start is the commit the worktree was created at.
+	Start string
 }
 
 // Isolation is where a sub-agent dispatched with isolation runs.
@@ -34,7 +36,7 @@ type Isolation struct {
 	Notes []string
 	// Cleanup, set with a Worktree, removes the worktree and its branch once the
 	// sub-agent has finished, when it left them as it found them: nothing
-	// uncommitted and no commit on the branch. It reports whether it removed them.
+	// uncommitted or untracked and no commit beyond where it started. It reports whether it removed them.
 	Cleanup func(ctx context.Context) bool
 }
 
@@ -49,6 +51,9 @@ func Isolate(parentCwd, id string, l WorktreeLayout, bind func(dir, branch strin
 	branch := l.BranchPrefix + id
 	if err := bind(dir, branch); err == nil {
 		wt := Worktree{Path: dir, Branch: branch}
+		if res, err := procexec.Run(context.Background(), procexec.Spec{Argv: []string{"git", "-C", dir, "rev-parse", "HEAD"}}); err == nil && res.ExitCode == 0 {
+			wt.Start = strings.TrimSpace(string(res.Stdout))
+		}
 		return Isolation{Cwd: dir, Worktree: &wt, Cleanup: func(ctx context.Context) bool { return cleanupWorktree(ctx, parentCwd, wt) }}
 	} else if mkErr := os.MkdirAll(dir, 0o755); mkErr == nil {
 		return Isolation{Cwd: dir, Notes: []string{fmt.Sprintf("bind %s: %v (falling back to a plain directory)", dir, err)}}
@@ -57,9 +62,11 @@ func Isolate(parentCwd, id string, l WorktreeLayout, bind func(dir, branch strin
 	}
 }
 
-// BindGit makes dir a real git worktree of parentCwd's HEAD on a new branch. It
-// fails when parentCwd is not a git repository with a commit.
-func BindGit(ctx context.Context, parentCwd string) func(dir, branch string) error {
+// BindGit makes dir a real git worktree on a new branch. The branch starts from the
+// repository's default branch (origin/HEAD) unless baseRef is "head", which starts it
+// from parentCwd's HEAD; with no origin/HEAD it falls back to HEAD. It fails when
+// parentCwd is not a git repository with a commit.
+func BindGit(ctx context.Context, parentCwd, baseRef string) func(dir, branch string) error {
 	git := func(args ...string) (procexec.Result, error) {
 		res, err := procexec.Run(ctx, procexec.Spec{Argv: append([]string{"git", "-C", parentCwd}, args...)})
 		if err == nil && res.ExitCode != 0 {
@@ -77,7 +84,13 @@ func BindGit(ctx context.Context, parentCwd string) func(dir, branch string) err
 		if _, err := git("rev-parse", "--verify", "HEAD"); err != nil {
 			return fmt.Errorf("no HEAD (no commits yet): %w", err)
 		}
-		if _, err := git("worktree", "add", "-b", branch, dir, "HEAD"); err != nil {
+		start := "HEAD"
+		if baseRef != "head" {
+			if _, err := git("rev-parse", "--verify", "--quiet", "origin/HEAD"); err == nil {
+				start = "origin/HEAD"
+			}
+		}
+		if _, err := git("worktree", "add", "-b", branch, dir, start); err != nil {
 			return fmt.Errorf("git worktree add: %w", err)
 		}
 		return nil

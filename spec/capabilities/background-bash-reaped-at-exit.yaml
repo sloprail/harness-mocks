@@ -11,10 +11,10 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock refuses a piped stdin (adr fail-fast-unimplemented), so the
+          The mock reads a piped stdin to its end before the run starts, so the
           variant in which the grace starts only once stdin has closed is not
-          modeled: its grace starts after the final result. It stays refused
-          until a recording drives it.
+          modeled: its grace starts after the final result. It stays so until a
+          recording drives it.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#when-to-use-codex-exec
