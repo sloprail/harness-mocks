@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -236,6 +237,29 @@ func TestT007_21_ToolsRestrictTheRunsTools(t *testing.T) {
 			assert.NotEqual(t, 0, code, out)
 			assert.Contains(t, out, "the Bash tool is not among the --tools of this run")
 			assert.NotContains(t, out, "hello-bash")
+		})
+	}
+}
+
+// A job a foreground Bash command puts in the background (`cmd &`) outlives the command: the
+// call returns, and the job goes on to finish (recorded: snapshots/runs/bash-background-job,
+// where a file the job wrote after the call had returned was read by a later call). A job that
+// still holds the command's output open does not hold the call either.
+// sr:proves bash-background-job/claude
+func TestT007_13_BashBackgroundJobOutlivesTheCall(t *testing.T) {
+	for name, tc := range map[string]struct{ cmd, file string }{
+		"output redirected": {`(sleep 1; echo LANDED > landed.txt) >/dev/null 2>&1 &`, "landed.txt"},
+		"output held open":  {`(sleep 1; echo LANDED > held.txt) &`, "held.txt"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			out, code := runTool(t, dir, "Bash", `{"command":"`+tc.cmd+`"}`)
+			require.Equal(t, 0, code, out)
+			assert.NotContains(t, out, `"is_error":true`)
+			assert.Eventually(t, func() bool {
+				b, err := os.ReadFile(filepath.Join(dir, tc.file))
+				return err == nil && string(b) == "LANDED\n"
+			}, 6*time.Second, 100*time.Millisecond, "the background job was ended with the command")
 		})
 	}
 }

@@ -29,10 +29,20 @@ func Bash(ctx context.Context, command, dir string, env []string) BashResult {
 	return BashArgv(ctx, []string{"/bin/sh", "-c", command}, dir, env)
 }
 
+// BashDetached is Bash for a harness whose shell lets a background job (`cmd &`) outlive the
+// command that started it.
+func BashDetached(ctx context.Context, command, dir string, env []string) BashResult {
+	return bashRun(ctx, procexec.Spec{Argv: []string{"/bin/sh", "-c", command}, Dir: dir, Env: env, LeaveGroup: true})
+}
+
 // BashArgv is Bash with the command line a harness runs it by (a named shell
 // and its flags): the same, but for the argv.
 func BashArgv(ctx context.Context, argv []string, dir string, env []string) BashResult {
-	res, err := procexec.Run(ctx, procexec.Spec{Argv: argv, Dir: dir, Env: env})
+	return bashRun(ctx, procexec.Spec{Argv: argv, Dir: dir, Env: env})
+}
+
+func bashRun(ctx context.Context, spec procexec.Spec) BashResult {
+	res, err := procexec.Run(ctx, spec)
 	if err != nil {
 		return BashResult{Output: err.Error(), ExitCode: -1}
 	}
