@@ -21,8 +21,10 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock refuses --agent, --output-format text and json, piped stdin
-          and --include-partial-messages (adr fail-fast-unimplemented): only
+          The mock refuses --agent, --output-format text and json, a piped stdin
+          beside a prompt argument (a piped stdin alone is read as the prompt,
+          the documented `claude -p` behaviour, no recording drives it) and
+          --include-partial-messages (adr fail-fast-unimplemented): only
           stream-json is produced, from the scenario's own script. It does not
           model the SIGTERM exit code 143. All of these stay so until a
           recording drives them.

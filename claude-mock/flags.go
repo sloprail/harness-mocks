@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -33,8 +34,9 @@ func permissionMode(cmd *cobra.Command) string {
 // refuseUnimplemented is the error for an input the mock does not implement
 // (adr/fail-fast-unimplemented): an output format but stream-json, which a run
 // would otherwise print stream frames for as if it were one;
-// --include-partial-messages; and a piped stdin, which the real run reads.
-func refuseUnimplemented(cmd *cobra.Command) error {
+// --include-partial-messages; and a piped stdin beside a prompt argument (real
+// claude combines the two; a piped stdin alone is the prompt, see stdinPrompt).
+func refuseUnimplemented(cmd *cobra.Command, args []string) error {
 	if f, _ := cmd.Flags().GetString(flagOutputFormat); f != "stream-json" {
 		return fmt.Errorf("claude-mock: --output-format %s is not implemented by the mock (only stream-json): it is refused rather than ignored", f)
 	}
@@ -47,10 +49,30 @@ func refuseUnimplemented(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("name") && (cmd.Flags().Changed(flagResume) || cmd.Flags().Changed(flagContinue)) {
 		return fmt.Errorf("claude-mock: --name with --resume or --continue is not implemented by the mock: it is refused rather than ignored")
 	}
-	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0) {
-		return fmt.Errorf("claude-mock: a piped stdin is not implemented by the mock: it is refused rather than ignored")
+	if len(args) > 0 && stdinGiven() {
+		return fmt.Errorf("claude-mock: a piped stdin together with a prompt argument is not implemented by the mock: it is refused rather than ignored")
 	}
 	return nil
+}
+
+// stdinGiven is whether stdin is a pipe or a file with content rather than a terminal or /dev/null.
+func stdinGiven() bool {
+	fi, err := os.Stdin.Stat()
+	return err == nil && (fi.Mode()&os.ModeNamedPipe != 0 || fi.Mode().IsRegular() && fi.Size() > 0)
+}
+
+// stdinPrompt is the prompt `claude -p` reads from a piped stdin when it is given no prompt
+// argument, minus the trailing newline of the pipe.
+// sr:docs https://code.claude.com/docs/en/headless#basic-usage
+func stdinPrompt() (string, error) {
+	if !stdinGiven() {
+		return "", nil
+	}
+	b, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return "", fmt.Errorf("claude-mock: read stdin: %w", err)
+	}
+	return strings.TrimRight(string(b), "\r\n"), nil
 }
 
 // addRefusedFlags registers the flags of claude the mock refuses by name: --agent (it would put
