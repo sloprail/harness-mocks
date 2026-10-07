@@ -82,10 +82,25 @@ Keychains (claude, cursor-agent) or `~/.codex/auth.json` (codex), and nothing is
 
 ## Releases
 
-Pushing a tag matching `v*` (or running the `publish claude-mock` workflow
-manually) builds `linux/amd64` and `linux/arm64` binaries and publishes them
-as assets on a GitHub Release — see
-[`.github/workflows/publish-claude-mock.yml`](.github/workflows/publish-claude-mock.yml).
+Pushing a tag matching `v*` (or running the `publish mocks` workflow
+manually) builds all three mocks for `linux` and `darwin` on `amd64` and
+`arm64` and publishes them as assets on a GitHub Release, with one
+`checksums.txt` covering all twelve:
+
+```
+a10n-claude-mock-{linux,darwin}-{amd64,arm64}
+a10n-codex-mock-{linux,darwin}-{amd64,arm64}
+a10n-cursor-mock-{linux,darwin}-{amd64,arm64}
+```
+
+Every published binary is `a10n-*`-named, matching what `make build` produces
+in `bin/`. Only `a10n-claude-mock` reports the release version (`--version`,
+stamped from the tag); `a10n-codex-mock` has no `--version`, and
+`a10n-cursor-mock` reports the Cursor build it emulates, not the release.
+`go install github.com/sloprail/harness-mocks/<name>-mock@vX` still works but
+yields a binary named `<name>-mock` (Go names it after the directory); use the
+release assets, or `make build`, for the `a10n-*` names.
+See [`.github/workflows/publish-mocks.yml`](.github/workflows/publish-mocks.yml).
 The release build runs the full test suite first.
 
 ## Contributing
