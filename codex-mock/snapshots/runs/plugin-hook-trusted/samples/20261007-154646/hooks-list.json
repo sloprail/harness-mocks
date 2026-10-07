@@ -1,0 +1,21 @@
+[
+ {
+  "key": "p1@mk:hooks/hooks.json:pre_tool_use:0:0",
+  "eventName": "preToolUse",
+  "handlerType": "command",
+  "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh p1",
+  "async": false,
+  "matcher": "Bash",
+  "timeoutSec": 600,
+  "statusMessage": null,
+  "additionalContextLimit": null,
+  "sourcePath": "<TMP>/home/.codex/plugins/cache/mk/p1/1.0.0/hooks/hooks.json",
+  "source": "plugin",
+  "pluginId": "p1@mk",
+  "displayOrder": 0,
+  "enabled": true,
+  "isManaged": false,
+  "currentHash": "sha256:fe3f03a50e11d3b7f4025f25814efc0619b572337af9b0724eddd2582ea6eb56",
+  "trustStatus": "untrusted"
+ }
+]

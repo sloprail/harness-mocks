@@ -1,0 +1,110 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo a"
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo b"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo c",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "echo d",
+            "statusMessage": "checking"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo e"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo f"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "x",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo g"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo h"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "x",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo i",
+            "async": true
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo j"
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "matcher": "x",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo k",
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

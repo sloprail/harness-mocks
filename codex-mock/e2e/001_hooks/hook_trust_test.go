@@ -9,15 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The recorded runs runs/hook-trust-untrusted, runs/hook-trust-config, runs/project-hooks-trust,
+// The recorded runs runs/hook-trust-untrusted, runs/hook-trust-config, runs/project-hooks-trust-*,
 // runs/disable-hooks, runs/ignore-user-config and runs/plugin-hook-env: Codex runs a non-managed hook
 // only when it is trusted (its hash is the trusted_hash of its key in config.toml, or the run passes
 // --dangerously-bypass-hook-trust), skipping an untrusted one without a word; the project layer's
 // hooks.json loads only in a trusted project; --disable hooks loads none; --ignore-user-config
 // leaves config.toml unread (its trust and its plugins), not hooks.json.
 
-// the hashes Codex itself reported (app-server hooks/list, codex 0.159.3) for these two hooks:
-// event pre_tool_use, matcher Bash, the command, no timeout (so 600), not async.
+// the hashes Codex itself reported for these two hooks (runs/hook-trust-listed: its hooks/list answer,
+// checked below): event pre_tool_use, matcher Bash, the command, no timeout (so 600), not async.
 const (
 	userHookHash    = "sha256:d978dfb3851e6eb6af88fd8323e578998edac8eb593f6b962c2ede394cbe6b41"
 	projectHookHash = "sha256:fe1d1399af4be296a812de676629165e585a6b201058fb71959eb1bd91cc5d4d"
@@ -30,6 +30,13 @@ const (
 	trustedProject = "[hooks.state.\"{REPO}/.codex/hooks.json:pre_tool_use:0:0\"]\ntrusted_hash = \"" + projectHookHash + "\"\n\n"
 	trustsRepo     = "[projects.\"{REPO}\"]\ntrust_level = \"trusted\"\n"
 )
+
+// The hashes the tests trust are the recorded ones.
+func TestTheTrustedHashesAreTheRecordedOnes(t *testing.T) {
+	list := readFile(t, filepath.Join(loadRecording(t, "hook-trust-listed").sample, "hooks-list.json"))
+	assert.Contains(t, list, userHookHash)
+	assert.Contains(t, list, projectHookHash)
+}
 
 // trustRun runs one Bash call under the user and project hooks above, and returns which hooks ran and the run.
 func trustRun(t *testing.T, s scenario) ([]string, result) {
@@ -103,8 +110,6 @@ func TestProjectHooksLoadOnlyInATrustedProject(t *testing.T) {
 func TestDisableHooksLoadsNone(t *testing.T) {
 	ran, _ := trustRun(t, scenario{BypassTrust: true, Args: []string{"--disable", "hooks"}})
 	assert.Empty(t, ran)
-	ran, _ = trustRun(t, scenario{Args: []string{"--enable", "hooks"}})
-	assert.Equal(t, []string{"project", "user"}, ran)
 }
 
 // --ignore-user-config leaves config.toml unread: the trust in it counts for nothing; the user layer's

@@ -42,6 +42,11 @@
 #                                      marketplace and register it with `codex plugin`)
 #   runs/<name>/setup/no-skip-git-check optional: run without --skip-git-repo-check
 #   runs/<name>/setup/no-sandbox-bypass optional: run without --dangerously-bypass-approvals-and-sandbox
+#   runs/<name>/setup/hooks-list       optional: before the run, ask the pinned codex's app-server (hooks/list) for the
+#                                      hooks it finds in the scratch repo and keep its answer as the sample's
+#                                      hooks-list.json: the key, hash and trust status codex gives each hook
+#   runs/<name>/setup/trust-hooks      optional: the sources (user, project, plugin; one per line) whose hooks are
+#                                      trusted in config.toml before the run, at the key and hash hooks/list gives
 #   runs/<name>/setup/no-hook-trust-bypass optional: run without --dangerously-bypass-hook-trust, so
 #                                      only a hook trusted in config.toml runs (prepare.sh can write it)
 #   runs/<name>/setup/no-git           optional: run in a directory that is not a git repository
@@ -79,6 +84,26 @@ pinned_bin() {
   printf '%s' "$bin"
 }
 auth_src="${CODEX_AUTH_JSON:-$HOME/.codex/auth.json}"
+
+# hooks_list REPO — the hooks codex (pinned) lists for REPO under the run's HOME and CODEX_HOME, as the
+# app-server's hooks/list answers: a JSON array of the entries of the one directory asked for.
+hooks_list() {
+  HL_BIN="$codex_bin" HL_REPO="$1" HOME="$home" CODEX_HOME="$chome" python3 - <<'PY'
+import json, os, subprocess
+p = subprocess.Popen([os.environ["HL_BIN"], "app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                     stderr=subprocess.DEVNULL, text=True, cwd=os.environ["HL_REPO"])
+def send(o): p.stdin.write(json.dumps(o) + "\n"); p.stdin.flush()
+def recv(i):
+    for l in p.stdout:
+        m = json.loads(l)
+        if m.get("id") == i: return m
+send({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "capture", "version": "1"}}}); recv(1)
+send({"method": "initialized"})
+send({"id": 2, "method": "hooks/list", "params": {"cwds": [os.environ["HL_REPO"]]}})
+print(json.dumps(recv(2)["result"]["data"][0]["hooks"], indent=1))
+p.kill()
+PY
+}
 
 # One capture at a time: they are real model calls on one account.
 lock=/tmp/capture-codex.lock.d
@@ -135,6 +160,15 @@ capture_run() {
   [ -f "$run/setup/schema.json" ] && cp "$run/setup/schema.json" "$work/repo/schema.json"
   # prepare.sh's `codex` is the pinned one, never the PATH's
   [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" CODEX_HOME="$chome" TMPDIR="$work/tmp" PATH="$(dirname "$codex_bin"):$PATH" sh "$run/setup/prepare.sh")
+  if [ -f "$run/setup/hooks-list" ] || [ -f "$run/setup/trust-hooks" ]; then
+    hooks_list "$work/repo" >"$cap/hooks-list.json" || die "hooks/list failed"
+    if [ -f "$run/setup/trust-hooks" ]; then
+      while IFS= read -r src; do
+        [ -n "$src" ] || continue
+        jq -r --arg s "$src" '.[] | select(.source == $s) | "[hooks.state.\"\(.key)\"]\ntrusted_hash = \"\(.currentHash)\"\n"' "$cap/hooks-list.json" >>"$chome/config.toml"
+      done <"$run/setup/trust-hooks"
+    fi
+  fi
   bypassflag=(--dangerously-bypass-approvals-and-sandbox); [ -f "$run/setup/no-sandbox-bypass" ] && bypassflag=()
   skipflag=(--skip-git-repo-check); [ -f "$run/setup/no-skip-git-check" ] && skipflag=()
   trustflag=(--dangerously-bypass-hook-trust); [ -f "$run/setup/no-hook-trust-bypass" ] && trustflag=()

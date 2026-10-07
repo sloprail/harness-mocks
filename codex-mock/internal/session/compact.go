@@ -126,10 +126,18 @@ func (s *File) afterCompaction(turn Turn) {
 	profile, policy := sandboxRecords(turn.Cwd, turn.Sandbox)
 	collab := map[string]any{"mode": "default", "settings": map[string]any{"model": turn.Model, "reasoning_effort": nil, "developer_instructions": nil}}
 	zone, _ := time.Now().Zone()
-	s.append("turn_context", map[string]any{"turn_id": turn.TurnID, "root_turn_id": turn.TurnID, "disabled_plugin_ids": []any{}, "cwd": turn.Cwd,
+	tc := map[string]any{"turn_id": turn.TurnID, "root_turn_id": turn.TurnID, "disabled_plugin_ids": []any{}, "cwd": turn.Cwd,
 		"workspace_roots": []string{turn.Cwd}, "current_date": time.Now().Format("2006-01-02"), "timezone": zone, "approval_policy": "never",
 		"approvals_reviewer": "user", "sandbox_policy": policy, "permission_profile": profile, "model": turn.Model, "collaboration_mode": collab,
-		"multi_agent_version": "v1", "realtime_active": false, "effort": nil, "summary": "none"})
+		"multi_agent_version": "v1", "realtime_active": false, "effort": nil, "summary": "none"}
+	// recorded: a workspace-write turn names its file system policy; a run that asked for no sandbox names its profile
+	switch turn.Sandbox {
+	case "workspace-write":
+		tc["file_system_sandbox_policy"] = profile["file_system"]
+	case "":
+		tc["active_permission_profile"] = map[string]any{"id": ":read-only"}
+	}
+	s.append("turn_context", tc)
 	s.append("event_msg", map[string]any{"type": "thread_settings_applied", "thread_id": turn.SessionID, "thread_settings": map[string]any{
 		"model": turn.Model, "model_provider_id": "openai", "approval_policy": "never", "approvals_reviewer": "user", "permission_profile": profile,
 		"cwd": turn.Cwd, "runtime_workspace_roots": []string{turn.Cwd}, "reasoning_effort": nil, "collaboration_mode": collab, "disabled_plugin_ids": []any{}}})

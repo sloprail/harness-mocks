@@ -97,6 +97,9 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 	}
+	if err := trustHooks(home, s, root, repo); err != nil {
+		return want, got, err
+	}
 	scriptsAt := filepath.Join(root, "scripts")
 	if err := os.MkdirAll(scriptsAt, 0o755); err != nil {
 		return want, got, err

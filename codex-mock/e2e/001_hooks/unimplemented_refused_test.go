@@ -28,11 +28,11 @@ func TestUnimplementedFlagsAreRefused(t *testing.T) {
 	}
 }
 
-// --enable and --disable are implemented for the hooks feature only: any other feature is refused by name,
-// and so is naming hooks both ways in one run.
+// --disable is implemented for the hooks feature only: any other feature is refused by name, and so is every
+// --enable (not recorded), and -s with the sandbox bypass (which wins is not recorded).
 // sr:proves noninteractive-run/codex
-func TestOnlyTheHooksFeatureCanBeSwitched(t *testing.T) {
-	for _, args := range [][]string{{"--enable", "multi_agent_v2"}, {"--disable", "unified_exec"}, {"--enable", "hooks", "--disable", "hooks"}} {
+func TestOnlyDisablingHooksIsImplemented(t *testing.T) {
+	for _, args := range [][]string{{"--enable", "multi_agent_v2"}, {"--disable", "unified_exec"}, {"--enable", "hooks"}, {"-s", "read-only", "--dangerously-bypass-approvals-and-sandbox"}} {
 		r := execIn(t, t.TempDir(), append([]string{"--skip-git-repo-check"}, append(args, "go")...)...)
 		assert.NotZero(t, r.Code, args)
 		assert.Contains(t, r.Stderr, "not implemented by the mock", args)

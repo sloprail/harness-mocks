@@ -12,17 +12,17 @@ var Flags = []string{"enable", "disable", "output-last-message", "output-schema"
 // Short are the one-letter names some of them also have.
 var Short = map[string]string{"profile": "p", "output-last-message": "o"}
 
-// Feature is the one feature --enable and --disable are implemented for: hooks (recorded:
-// runs/disable-hooks). The two flags are refused for any other.
+// Feature is the one feature --disable is implemented for: hooks (recorded: runs/disable-hooks).
+// --disable of any other feature and every --enable are refused.
 const Feature = "hooks"
 
 // Is reports whether the command-line word at words[i] (--name, or -x) names one of the flags the
-// mock refuses: --enable and --disable only when the feature they name is not Feature.
+// mock refuses: --disable only when the feature it names is not Feature.
 func Is(words []string, i int) bool {
 	word := words[i]
 	for _, name := range Flags {
 		if word == "--"+name || (Short[name] != "" && word == "-"+Short[name]) {
-			if name == "enable" || name == "disable" {
+			if name == "disable" {
 				return i+1 >= len(words) || words[i+1] != Feature
 			}
 			return true

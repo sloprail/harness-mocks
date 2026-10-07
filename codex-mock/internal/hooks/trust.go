@@ -30,7 +30,7 @@ type Options struct {
 
 // SandboxTrustsProject is whether asking for this sandbox makes Codex trust the project it runs in:
 // a workspace-write or danger-full-access run does, a read-only one or one that asked for none does
-// not (recorded: runs/project-hooks-trust).
+// not (recorded: runs/project-hooks-trust-*).
 func SandboxTrustsProject(sandbox string) bool {
 	return sandbox == "workspace-write" || sandbox == "danger-full-access"
 }
@@ -82,7 +82,7 @@ func ProjectTrustedByConfig(codexHome, dir string) bool {
 }
 
 // PersistProjectTrust records dir as a trusted project in config.toml, as Codex does when a run
-// asks for a sandbox that trusts it (recorded: runs/project-hooks-trust); a project already
+// asks for a sandbox that trusts it (recorded: runs/project-hooks-trust-*); a project already
 // listed is left as it is.
 func PersistProjectTrust(codexHome, dir string) error {
 	if ProjectTrustedByConfig(codexHome, dir) {
@@ -112,7 +112,7 @@ func snake(ev Event) string { return strings.ToLower(camel.ReplaceAllString(stri
 // hookHash is the hash a handler is trusted at: the sha256 of the compact JSON, keys sorted, of the
 // event, the group's matcher (left out when there is none) and the handler with its defaults filled in
 // (the timeout is 600 when none is set), recorded against the hash Codex itself reports for hooks of
-// each layer (runs/project-hooks-trust, runs/hook-trust-config).
+// each layer (runs/project-hooks-trust-*, runs/hook-trust-config).
 func hookHash(ev Event, matcher string, h fileHandler) string {
 	timeout := h.Timeout
 	if timeout == 0 {

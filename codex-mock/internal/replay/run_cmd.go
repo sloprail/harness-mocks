@@ -51,6 +51,8 @@ func setupOf(setup, sample string, cmdline []string) map[string]string {
 		"exit":               exitOf(sample),
 		"env":                strings.TrimSpace(readFile(filepath.Join(setup, "env"))),
 		"prepare.sh":         readFile(filepath.Join(setup, "prepare.sh")),
+		"trust-hooks":        readFile(filepath.Join(setup, "trust-hooks")),
+		"hooks-list.json":    readFile(filepath.Join(sample, "hooks-list.json")),
 	}
 }
 

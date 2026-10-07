@@ -16,10 +16,10 @@ func refuseUnimplemented(f *pflag.FlagSet) error {
 		if !f.Changed(name) {
 			continue
 		}
-		if name == "enable" || name == "disable" { // implemented for one feature only
+		if name == "enable" || name == "disable" { // --disable is implemented for one feature only
 			values, _ := f.GetStringArray(name)
 			for _, v := range values {
-				if v != unimplemented.Feature {
+				if name == "enable" || v != unimplemented.Feature {
 					return fmt.Errorf("codex-mock: --%s %s is not implemented by the mock (only the %s feature is): it is refused rather than ignored", name, v, unimplemented.Feature)
 				}
 			}
@@ -37,12 +37,15 @@ func refuseUnimplemented(f *pflag.FlagSet) error {
 }
 
 // sandboxOf is the sandbox the run asked for: -s, or danger-full-access when it bypasses the sandbox
-// (which wins over -s, as recorded); an unknown mode is an error as Codex's is. Empty when it asked for none.
+// (both together are refused); an unknown mode is an error as Codex's is. Empty when it asked for none.
 func sandboxOf(f *pflag.FlagSet) (string, error) {
+	mode, _ := f.GetString("sandbox")
 	if bypass, _ := f.GetBool("dangerously-bypass-approvals-and-sandbox"); bypass {
+		if mode != "" { // which of the two wins is not recorded
+			return "", fmt.Errorf("codex-mock: -s together with --dangerously-bypass-approvals-and-sandbox is not implemented by the mock: which wins is not recorded, so it is refused rather than guessed")
+		}
 		return "danger-full-access", nil
 	}
-	mode, _ := f.GetString("sandbox")
 	switch mode {
 	case "", "read-only", "workspace-write", "danger-full-access":
 		return mode, nil
@@ -50,13 +53,9 @@ func sandboxOf(f *pflag.FlagSet) (string, error) {
 	return "", fmt.Errorf("invalid value '%s' for '--sandbox <SANDBOX_MODE>' [possible values: read-only, workspace-write, danger-full-access]", mode)
 }
 
-// hooksDisabled is whether --disable hooks was given. Both --enable hooks and --disable hooks in one run is
-// refused: which of the two wins is not recorded.
+// hooksDisabled is whether --disable hooks was given. --enable hooks is refused with the other features:
+// it is not recorded to be a no-op.
 func hooksDisabled(f *pflag.FlagSet) (bool, error) {
 	off, _ := f.GetStringArray("disable")
-	on, _ := f.GetStringArray("enable")
-	if len(off) > 0 && len(on) > 0 {
-		return false, fmt.Errorf("codex-mock: --enable hooks together with --disable hooks is not implemented by the mock: which wins is not recorded")
-	}
 	return len(off) > 0, nil
 }

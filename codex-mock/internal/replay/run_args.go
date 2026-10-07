@@ -21,7 +21,7 @@ func runFlags(args string) (pass []string, err error) {
 		switch {
 		case w == "--ephemeral", w == "--ignore-user-config":
 			pass = append(pass, w)
-		case (w == "--disable" || w == "--enable") && next == "hooks", w == "-s" && sandboxMode(next):
+		case w == "--disable" && next == "hooks", w == "-s" && sandboxMode(next):
 			pass = append(pass, w, next)
 			i++
 		case w == "-c" && strings.HasPrefix(next, "model_auto_compact_token_limit="):

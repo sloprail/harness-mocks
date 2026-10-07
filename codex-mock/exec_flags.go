@@ -10,7 +10,7 @@ func execFlags(cmd *cobra.Command) {
 	f.StringP("cd", "C", "", "Working directory of the session (default: the current one)")
 	f.StringP("model", "m", "", "Model name reported in hook payloads")
 	f.StringArrayP("config", "c", nil, "Config override key=value; only agents.max_depth is implemented")
-	f.StringArray("enable", nil, "Enable a feature; only hooks is implemented, any other is refused")
+	f.StringArray("enable", nil, "Not implemented: refused")
 	f.StringArray("disable", nil, "Disable a feature; only hooks is implemented, any other is refused")
 	f.StringP("sandbox", "s", "", "Sandbox policy: read-only, workspace-write or danger-full-access")
 	f.StringP("profile", "p", "", "Not implemented: refused")

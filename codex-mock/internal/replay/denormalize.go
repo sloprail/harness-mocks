@@ -31,6 +31,10 @@ type Scenario struct {
 	Env []string
 	// Prepare is the recorded run's prepare.sh, run in the repository before the mock (prepare.go).
 	Prepare string
+	// TrustHooks are the sources whose hooks the recorded run trusted in config.toml, and HooksList what
+	// codex listed of the hooks (setup/trust-hooks, the sample's hooks-list.json): the replay trusts the
+	// same hooks at the same keys and hashes.
+	TrustHooks, HooksList string
 	// ProjectHooksJSON is the project layer's hooks, written to <repo>/.codex/hooks.json.
 	ProjectHooksJSON string
 	// Interrupt is a run the user interrupted: the mock is sent SIGINT once its last command has started.
@@ -91,6 +95,8 @@ func Denormalize(rec core.Recording) Scenario {
 		Env:              strings.Fields(rec.Setup["env"]),
 		Prepare:          rec.Setup["prepare.sh"],
 		ProjectHooksJSON: rec.Setup["project-hooks.json"],
+		TrustHooks:       rec.Setup["trust-hooks"],
+		HooksList:        rec.Setup["hooks-list.json"],
 		Interrupt:        rec.Agent.Interrupted,
 	}
 }
