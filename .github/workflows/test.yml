@@ -69,6 +69,46 @@ jobs:
       # it rewrites their real ~/.gitconfig).
       - run: make -C claude-mock test-e2e E2E_TEST_FLAGS="-skip '$TIMED_REPLAYS'"
 
+  # PROBE (allowed to fail, not required, in no aggregate gate): the e2e suites on ubuntu-latest, to
+  # measure whether the macOS jobs above can move. zsh is installed and SHELL=/bin/zsh as on the
+  # recordings' machine. The whole suite runs, the timed replays included. Each job prints its pass
+  # and fail counts and the failing tests into the job summary.
+  e2e-linux-probe:
+    name: "probe: ${{ matrix.mock }}-mock e2e on ubuntu"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        mock: [claude, codex, cursor]
+    env:
+      SHELL: /bin/zsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: zsh and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh jq
+          ls -l /bin/zsh
+          zsh --version
+      - name: e2e
+        run: make -C ${{ matrix.mock }}-mock test-e2e 2>&1 | tee "$RUNNER_TEMP/e2e.log"
+      - name: counts
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/e2e.log"
+          {
+            echo "### ${{ matrix.mock }}-mock e2e on ubuntu"
+            echo "pass: $(grep -cE '^\s*--- PASS' "$log")  fail: $(grep -cE '^\s*--- FAIL' "$log")  skip: $(grep -cE '^\s*--- SKIP' "$log")"
+            echo '```'
+            grep -E '^\s*--- FAIL' "$log" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # The replays e2e skips, on a runner whose timers keep their recordings' delays: run 3 times,
   # as the repeat jobs run the rest.
   e2e-timed:
