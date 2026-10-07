@@ -21,6 +21,9 @@ type settingsWithPlugins struct {
 	AllowManagedHooksOnly  *bool                     `json:"allowManagedHooksOnly,omitempty"`
 	EnabledPlugins         map[string]bool           `json:"enabledPlugins,omitempty"`
 	ExtraKnownMarketplaces map[string]marketplaceCfg `json:"extraKnownMarketplaces,omitempty"`
+	Worktree               struct {
+		BaseRef string `json:"baseRef"`
+	} `json:"worktree"`
 }
 
 // pluginHooks is the schema of a plugin's hooks/hooks.json file. Each value is a
