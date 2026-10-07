@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
-	"github.com/sloprail/harness-mocks/internal/procexec"
 )
 
 // version is the build version, stamped by the release workflow with
@@ -80,10 +79,7 @@ func resolveSessionFlags(cmd *cobra.Command, args []string) error {
 }
 
 func main() {
-	procexec.KillDetachedOnSignal()
-	err := newRoot().Execute()
-	procexec.KillDetached() // a Bash job outlives its call, not the mock (adr/child-processes)
-	if err != nil {
+	if err := newRoot().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

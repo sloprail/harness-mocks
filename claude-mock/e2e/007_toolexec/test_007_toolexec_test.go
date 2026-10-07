@@ -289,21 +289,29 @@ func TestT007_13_BashBackgroundJobOutlivesTheCall(t *testing.T) {
 	}
 }
 
-// The job outlives the call, not the mock: the mock ends what a Bash job still runs when it exits,
-// without waiting for it (adr/child-processes). Real claude -p leaves such a job running after it
-// exits (snapshots/runs/bash-background-job-after-exit), which the cell records as a deviation.
+// The job outlives the mock too: the mock exits without waiting for it or killing it, and it goes
+// on to finish (adr/child-processes; recorded: snapshots/runs/bash-background-job-after-exit,
+// where a job's process was alive in the next run and wrote its file).
 // sr:proves bash-background-job/claude
-func TestT007_14_BashBackgroundJobIsEndedWhenTheMockExits(t *testing.T) {
+func TestT007_14_BashBackgroundJobOutlivesTheMock(t *testing.T) {
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "job.sh"), []byte("echo $$ > job.pid\nexec sleep 30\n"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "job.sh"), []byte("echo $$ > job.pid\nsleep 2\necho LANDED > landed.txt\n"), 0o755))
+	t.Cleanup(func() {
+		if b, err := os.ReadFile(filepath.Join(dir, "job.pid")); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+				_ = syscall.Kill(-pid, syscall.SIGKILL)
+				_ = syscall.Kill(pid, syscall.SIGKILL)
+			}
+		}
+	})
 	started := time.Now()
 	out, code := runTool(t, dir, "Bash", `{"command":"sh job.sh >/dev/null 2>&1 &"}`)
 	require.Equal(t, 0, code, out)
-	assert.Less(t, time.Since(started), 10*time.Second, "the mock waited for the job at exit")
-	b, err := os.ReadFile(filepath.Join(dir, "job.pid"))
-	require.NoError(t, err, "the job had not started")
-	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
-	assert.Eventually(t, func() bool { return syscall.Kill(pid, 0) != nil }, 3*time.Second, 50*time.Millisecond, "the job outlived the mock")
+	assert.Less(t, time.Since(started), 2*time.Second, "the mock waited for the job at exit")
+	_, err := os.Stat(filepath.Join(dir, "landed.txt"))
+	assert.True(t, os.IsNotExist(err), "the job had finished before the mock exited")
+	assert.Eventually(t, func() bool {
+		b, err := os.ReadFile(filepath.Join(dir, "landed.txt"))
+		return err == nil && string(b) == "LANDED\n"
+	}, 5*time.Second, 50*time.Millisecond, "the job was ended with the mock")
 }

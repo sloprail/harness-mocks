@@ -3,7 +3,6 @@ package procexec
 import (
 	"context"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -77,27 +76,3 @@ func TestStdoutAndOnStartLetACallerSignalTheChildWhenItsOutputShowsSomething(t *
 type writerFunc func([]byte)
 
 func (f writerFunc) Write(p []byte) (int, error) { f(p); return len(p), nil }
-
-// A LeaveGroup command's background job outlives the call, and KillDetached ends it.
-func TestRunLeaveGroup_JobOutlivesTheCallUntilKillDetached(t *testing.T) {
-	res, err := Run(context.Background(), Spec{Argv: []string{"/bin/sh", "-c", "sleep 30 >/dev/null 2>&1 & echo $!"}, LeaveGroup: true})
-	if err != nil || res.ExitCode != 0 {
-		t.Fatalf("run: %v %+v", err, res)
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(res.Stdout)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
-	if syscall.Kill(pid, 0) != nil {
-		t.Fatal("the job was ended with the call")
-	}
-	KillDetached()
-	deadline := time.Now().Add(3 * time.Second)
-	for syscall.Kill(pid, 0) == nil && time.Now().Before(deadline) {
-		time.Sleep(20 * time.Millisecond)
-	}
-	if syscall.Kill(pid, 0) == nil {
-		t.Fatal("KillDetached left the job running")
-	}
-}

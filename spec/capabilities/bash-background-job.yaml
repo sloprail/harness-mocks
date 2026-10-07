@@ -1,19 +1,13 @@
 statement: >-
   A background job that a foreground shell command starts with `&` is not ended
-  when the command returns: the call is answered, and the job runs on.
+  when the command returns, nor when the run ends: the call is answered, and
+  the job runs on.
 providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/tools-reference#bash-tool-behavior
     runs:
       - claude-mock/snapshots/runs/bash-background-job
-    deviations:
-      - adr: child-processes
-        kind: mock-not-modeled
-        statement: >-
-          Real claude -p leaves such a job running after the run exits: a
-          twenty-second job's process was alive in the next run and wrote its
-          file. The mock ends every such job when it exits, without waiting for
-          it, so no grandchild outlives the mock.
+      - claude-mock/snapshots/runs/bash-background-job-after-exit
   codex: pending
   cursor: pending

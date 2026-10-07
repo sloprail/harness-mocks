@@ -34,8 +34,8 @@ type Spec struct {
 	// controlling terminal; its process group is still its own.
 	NewSession bool
 	// LeaveGroup lets what the child started in the background (a shell `&` job) outlive it:
-	// the group is killed when ctx or Timeout ends the run, or by KillDetached when the mock
-	// exits, not when the child exits.
+	// the group is killed when ctx or Timeout ends the run, not when the child exits, and not
+	// when the mock exits (adr/child-processes: claude's Bash tool).
 	LeaveGroup bool
 }
 
@@ -107,8 +107,6 @@ func Run(ctx context.Context, s Spec) (Result, error) {
 	// The group may outlive its leader (a background grandchild): end it too, unless it may stay.
 	if !s.LeaveGroup || ctx.Err() != nil {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	} else {
-		keepDetached(cmd.Process.Pid)
 	}
 	return res, nil
 }
