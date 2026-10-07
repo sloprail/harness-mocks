@@ -25,14 +25,16 @@ func TestT001_09_UnimplementedInputsAreRefused(t *testing.T) {
 		args []string
 		want string
 	}{
-		"text":    {[]string{"--output-format", "text"}, "--output-format text is not implemented by the mock"},
-		"json":    {[]string{"--output-format", "json"}, "--output-format json is not implemented by the mock"},
-		"agent":   {[]string{"--agent", "reviewer"}, "--agent is not implemented by the mock"},
-		"bare":    {[]string{"--bare"}, "--bare is not implemented by the mock"},
-		"partial": {[]string{"--include-partial-messages"}, "--include-partial-messages is not implemented by the mock"},
-		"input":   {[]string{"--input-format", "stream-json"}, "--input-format is not implemented by the mock"},
-		"budget":  {[]string{"--max-budget-usd", "5"}, "--max-budget-usd is not implemented by the mock"},
-		"rename":  {[]string{"--name", "n", "--continue"}, "--name with --resume or --continue is not implemented by the mock"},
+		"text":     {[]string{"--output-format", "text"}, "--output-format text is not implemented by the mock"},
+		"json":     {[]string{"--output-format", "json"}, "--output-format json is not implemented by the mock"},
+		"agent":    {[]string{"--agent", "reviewer"}, "--agent is not implemented by the mock"},
+		"bare":     {[]string{"--bare"}, "--bare is not implemented by the mock"},
+		"partial":  {[]string{"--include-partial-messages"}, "--include-partial-messages is not implemented by the mock"},
+		"input":    {[]string{"--input-format", "stream-json"}, "--input-format is not implemented by the mock"},
+		"budget":   {[]string{"--max-budget-usd", "5"}, "--max-budget-usd is not implemented by the mock"},
+		"schema":   {[]string{"--json-schema", "{}"}, "unknown option '--json-schema'"},
+		"fallback": {[]string{"--fallback-model", "sonnet"}, "unknown option '--fallback-model'"},
+		"rename":   {[]string{"--name", "n", "--continue"}, "--name with --resume or --continue is not implemented by the mock"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			out, code := e2etest.RunWithScript(t, script, append(tc.args, "--session-id", "s-1", "-p", "go")...)
