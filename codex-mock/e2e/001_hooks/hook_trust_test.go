@@ -148,6 +148,6 @@ func TestAPluginHookIsToldItsRootAndDataDirectories(t *testing.T) {
 	})
 	require.Equal(t, 0, got.Code, got.Stderr)
 	log, _ := os.ReadFile(filepath.Join(got.Tmp, "hook.log"))
-	root, data := got.Repo+"/mk/plugins/p1", got.Home+"/plugins/data/p1-mk"
+	root, data := got.Home+"/plugins/cache/mk/p1/local", got.Home+"/plugins/data/p1-mk"
 	assert.Equal(t, "CLAUDE_PLUGIN_DATA="+data+"\nCLAUDE_PLUGIN_ROOT="+root+"\nPLUGIN_DATA="+data+"\nPLUGIN_ROOT="+root+"\n", string(log))
 }

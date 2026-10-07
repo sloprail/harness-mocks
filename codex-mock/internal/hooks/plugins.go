@@ -65,8 +65,8 @@ func readPluginTables(path string) (pluginTables, error) {
 // that contributes: one the config.toml enables, from a marketplace it
 // declares (a plugin of another marketplace, or disabled, adds none). A plugin
 // is found through its marketplace's .agents/plugins/marketplace.json, and its
-// hooks are its hooks/hooks.json, which run like any other hook. A declared
-// marketplace is a directory on disk.
+// hooks are its hooks/hooks.json in its install in the cache (plugin_install.go), which run like any
+// other hook. A declared marketplace is a directory on disk.
 //
 // sr:docs https://developers.openai.com/codex/hooks#plugin-bundled-hooks
 // sr:docs https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli
@@ -87,6 +87,11 @@ func (cfg Config) addPlugins(codexHome string, tr trust) error {
 		dir := pluginDir(root, p.name)
 		if dir == "" {
 			continue
+		}
+		// the plugin is installed into the cache, and runs from there (recorded: runs/plugin-install)
+		dir, err := installPlugin(codexHome, p.marketplace, p.name, dir)
+		if err != nil {
+			return err
 		}
 		// a plugin's hook command is told where the plugin is and where it may keep data, under the
 		// names of Claude Code's plugins and its own (recorded: runs/plugin-hook-env)
