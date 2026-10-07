@@ -86,7 +86,7 @@ var dropKeys = []string{
 
 // measured are the numbers that say how long something took: the cells that
 // speak of them ask that they be there and positive, not what they were.
-var measured = []string{"pid", "shellId", "duration", "duration_ms", "duration_api_ms", "executionTime", "localExecutionTimeMs", "timestamp_ms"}
+var measured = []string{"input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "pid", "shellId", "duration", "duration_ms", "duration_api_ms", "executionTime", "localExecutionTimeMs", "timestamp_ms", "context_tokens", "context_usage_percent", "message_count", "messages_to_compact"}
 
 // masked is a rewrite that says a value is there and not what it is.
 func masked(with string) func(string) string {

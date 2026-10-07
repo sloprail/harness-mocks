@@ -56,16 +56,19 @@ providers:
     supported: false
     reason: >-
       Cursor's headless agent has no compaction request (/compress is plain prompt
-      text and no compaction hook fires: runs/manual-compaction-slash), and the hooks around a
-      compaction are not the statement's: it compacts by itself at its context limit
-      with a preCompact hook (trigger "auto", recorded twice in
-      runs/compaction-transcript-continuity; the hooks doc names "manual" too, which
-      no run shows), but the doc calls preCompact "an observational hook that cannot
-      block or modify the compaction", so nothing stops a compaction, and no hook
-      fires after one: the recorded events after each preCompact go straight on
-      with tool hooks, and the doc lists none.
+      text and no compaction hook fires: runs/manual-compaction-slash), but its TUI has:
+      /compress typed at the idle input fires preCompact with trigger "manual"
+      (runs/tui-manual-compaction), and the mock models that. The hooks around a
+      compaction are still not the statement's: it also compacts by itself at its
+      context limit with a preCompact hook (trigger "auto", recorded twice in
+      runs/compaction-transcript-continuity), and the doc calls preCompact "an
+      observational hook that cannot block or modify the compaction", so nothing
+      stops a compaction, and no hook fires after one: after the manual preCompact
+      the TUI fired only afterAgentResponse (text "") and stop, as at the end of any
+      turn, and after each automatic one the events go straight on with tool hooks.
     runs:
       - cursor-mock/snapshots/runs/manual-compaction-slash
       - cursor-mock/snapshots/runs/compaction-transcript-continuity
+      - cursor-mock/snapshots/runs/tui-manual-compaction
     docs:
       - https://cursor.com/docs/hooks#precompact

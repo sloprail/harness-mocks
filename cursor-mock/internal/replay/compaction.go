@@ -32,6 +32,9 @@ func compactionsOf(payloads []map[string]any) []compaction {
 		case "postToolUse", "postToolUseFailure":
 			done[p["conversation_id"]]++
 		case "preCompact":
+			if p["trigger"] == "manual" { // the user's /compress: typed, not the script's, and it writes no prompt (runs/tui-manual-compaction)
+				continue
+			}
 			fields := map[string]any{}
 			for k, v := range p {
 				if !compactionCommon[k] {

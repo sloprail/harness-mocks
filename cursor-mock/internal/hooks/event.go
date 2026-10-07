@@ -6,10 +6,11 @@ package hooks
 // Event is a Cursor hook event.
 type Event string
 
-// The events the mock fires. Cursor's docs name more (beforeSubmitPrompt, stop,
-// afterAgentResponse, subagentStart/Stop, the MCP and Tab hooks); the
-// recordings show cursor-agent in print mode firing none of the first three, and
-// the mock does not model the rest. afterAgentThought fires only for a thought the
+// The events the mock fires. Cursor's docs name more (subagentStart/Stop, the MCP
+// and Tab hooks), which the mock does not model. beforeSubmitPrompt, stop and
+// afterAgentResponse are fired only in an interactive (TUI) session: cursor-agent
+// in print mode was recorded firing none of the three (runs/user-prompt-submit-hook,
+// runs/stop-hook-payload), and the TUI firing all of them (runs/tui-stop). afterAgentThought fires only for a thought the
 // script's thinking block gives (runner/think.go).
 const (
 	SessionStart         Event = "sessionStart"
@@ -23,6 +24,10 @@ const (
 	BeforeReadFile       Event = "beforeReadFile"
 	AfterAgentThought    Event = "afterAgentThought"
 	PreCompact           Event = "preCompact"
+	// The events of an interactive session, around its turns (recorded: runs/tui-stop).
+	BeforeSubmitPrompt Event = "beforeSubmitPrompt"
+	AfterAgentResponse Event = "afterAgentResponse"
+	Stop               Event = "stop"
 	// WorkspaceOpen fires once as the process starts, before the session's
 	// start hook, with no session: recorded in print mode (runs/workspace-open).
 	WorkspaceOpen Event = "workspaceOpen"

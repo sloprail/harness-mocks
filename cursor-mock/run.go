@@ -22,10 +22,17 @@ const version = "2026.09.28-64d2043"
 //
 // sr:provides session-resume/cursor
 func run(cmd *cobra.Command, f flags, args []string) error {
+	prompt, typed := strings.Join(args, " "), []string(nil)
+	if !f.print { // cursor-agent without -p is the TUI: the prompt is typed, so it is read from stdin
+		var err error
+		if prompt, typed, err = typedPrompt(args, os.Stdin); err != nil {
+			return err
+		}
+	}
 	switch {
-	case !f.print:
-		return errors.New("cursor-mock: only non-interactive runs are modeled: pass -p")
-	case f.outputFormat != "stream-json":
+	case !f.print && (f.outputFormat != "text" || f.resume != "" || len(f.addDirs) > 0 || len(f.pluginDirs) > 0 || f.approveMCPs):
+		return errors.New("cursor-mock: a TUI session is modeled with a prompt on stdin and no -p, --output-format, --resume, --add-dir, --plugin-dir or --approve-mcps: only turns of text were recorded")
+	case f.print && f.outputFormat != "stream-json":
 		return fmt.Errorf("cursor-mock: output format %q is not modeled: pass --output-format stream-json", f.outputFormat)
 	case f.cont:
 		return errors.New("cursor-mock: --continue is not modeled: pass --resume <session-id>")
@@ -57,7 +64,7 @@ func run(cmd *cobra.Command, f flags, args []string) error {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
 	return runner.Run(cmd.Context(), runner.Config{
-		Script: script, Prompt: strings.Join(args, " "), Resume: f.resume, Dir: dir, Environ: os.Environ(), Home: home,
+		Script: script, Prompt: prompt, Interactive: !f.print, Typed: typed, Resume: f.resume, Dir: dir, Environ: os.Environ(), Home: home,
 		Version: version, Force: f.force || f.yolo, Stdout: os.Stdout, Stderr: os.Stderr, PluginDirs: f.pluginDirs, ApproveMCPs: f.approveMCPs, Model: f.model,
 	})
 }

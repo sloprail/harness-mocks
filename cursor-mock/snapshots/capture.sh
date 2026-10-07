@@ -58,6 +58,12 @@
 #                                      name, next to the repo, to run from)
 #   runs/<name>/setup/env              optional: KEY=VALUE lines cursor-agent inherits on
 #                                      top of the hermetic env
+#   runs/<name>/setup/tui.yaml         optional: makes it an interactive run. The scenario is
+#                                      played against cursor-agent's TUI, not run with -p, by
+#                                      tools/tui-record from this script (what to wait for on the
+#                                      screen or in the hook log, what to type; see that tool).
+#                                      prompt.txt is the text it types (text_file: prompt.txt).
+#                                      Such a run has no stream.jsonl; tui.jsonl is the steps done
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 manifest="$here/MANIFEST.yaml"
@@ -83,15 +89,17 @@ seal() { (cd "$1" && find . -type f ! -name 'SEAL*' | LC_ALL=C sort | xargs shas
 # normalize — hook payloads and stream frames into events.jsonl: what a
 # scenario did, without what differs between two captures of the same
 # behaviour (ids, paths, timings, the model's own wording, how many thoughts
-# it voiced). The run's own session id is kept as <SESSION_ID> wherever it
+# it voiced; how full the context was and how many messages it held when the user asked for a compaction: 4 in one capture, 6 in the next). The run's own session id is kept as <SESSION_ID> wherever it
 # appears, so that they match is recorded; which session a value names is
 # behaviour, the id itself is not.
 normalize() {
   local cap="$1" sid
   sid="$(jq -r 'select(.session_id) | .session_id' "$cap/payloads.jsonl" 2>/dev/null | head -n1 || true)"
   jq -c --arg sid "${sid:-<none>}" 'select(.hook_event_name != "afterAgentThought")
+         | (if .trigger == "manual" then del(.context_tokens, .context_usage_percent, .message_count, .messages_to_compact) else . end)
          | walk(if type == "object" then del(.transcript_path, .cwd, .workspace_roots, .user_email, .generation_id, .tool_use_id,
-              .duration, .duration_ms, .model, .model_id, .model_params, .cursor_version, .conversation_id)
+              .duration, .duration_ms, .model, .model_id, .model_params, .cursor_version, .conversation_id,
+              .input_tokens, .output_tokens, .cache_read_tokens, .cache_write_tokens)
           elif type == "string" then gsub($sid; "<SESSION_ID>") else . end)
          | {event: "hook", hook: .hook_event_name, payload: .}' "$cap/payloads.jsonl" 2>/dev/null || true
   jq -c 'select(.type != "assistant" and .type != "user" and .type != "thinking")
@@ -155,7 +163,19 @@ capture_run() {
   # hooks). exit.txt has one line per step.
   : >"$cap/stream.jsonl"; : >"$cap/stderr.txt"; : >"$cap/exit.txt"
   steps=(""); for f in "$run"/setup/then-*-prompt.txt; do [ -f "$f" ] && steps+=("$(basename "$f" prompt.txt)"); done
-  for step in "${steps[@]}"; do
+  # An interactive run: a scenario with a setup/tui.yaml is played against cursor-agent's TUI by
+  # tools/tui-record (one recorder for every harness's TUI), not run with -p. The TUI has no
+  # stream: the hook log (payloads.jsonl) and the transcript are what it leaves, and tui.jsonl
+  # the steps the script did. The hook scripts, HOME, TMPDIR and HOOK_LOG are the same as below.
+  if [ -f "$run/setup/tui.yaml" ]; then
+    rm -f "$cap/stream.jsonl" "$cap/stderr.txt"; steps=()
+    targs=(); for a in --disable-auto-update --trust --model auto ${args[@]+"${args[@]}"}; do targs+=(--arg "$a"); done
+    for a in ${extra[@]+"${extra[@]}"}; do targs+=(--env "$a"); done
+    (cd "$root" && go run ./tools/tui-record --bin "$bin" --expect-version "$v" --script "$run/setup/tui.yaml" \
+      --cwd "$cwd" --home "$home" --tmp "$work/tmp" --hook-log "$cap/payloads.jsonl" \
+      --log "$cap/tui.jsonl" --exit-file "$cap/exit.txt" "${targs[@]}") || die "tools/tui-record failed: no sample is kept"
+  fi
+  for step in ${steps[@]+"${steps[@]}"}; do
     sargs=(); if [ -z "$step" ]; then sargs=(${args[@]+"${args[@]}"}); elif [ -f "$run/setup/${step}args" ]; then
       while IFS= read -r a; do
         [ -n "$a" ] || continue
@@ -225,7 +245,11 @@ capture_run() {
       rm -rf "$cap" "$work"; echo "same events as $(basename "$other"): no new sample"; return 0
     fi
   done
-  printf 'version: %s\ncommand: cursor-agent -p %s--trust --model auto --output-format stream-json\n' "$v" "${force:+$force }" >"$run/run.yaml"
+  if [ -f "$run/setup/tui.yaml" ]; then
+    printf 'version: %s\ncommand: cursor-agent --trust --model auto\n' "$v" >"$run/run.yaml"   # the TUI: no -p
+  else
+    printf 'version: %s\ncommand: cursor-agent -p %s--trust --model auto --output-format stream-json\n' "$v" "${force:+$force }" >"$run/run.yaml"
+  fi
   seal "$cap"
   rm -rf "$work"
   echo "captured runs/$name/samples/$ts"

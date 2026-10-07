@@ -53,6 +53,7 @@ type session struct {
 	// notifications the stream has (owed) but which still give this session a turn
 	// of its own, after the one it is in (recorded: runs/foreground-subagent-bash-ends-with-response).
 	reaped []*tasks.Task
+	turns  // an interactive session's turns (interactive.go)
 }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
@@ -111,6 +112,9 @@ func Run(ctx context.Context, cfg Config) error {
 	s.hooks = &hooks.Hooks{Config: conf, Dir: cfg.Dir, Env: s.hookEnv, Common: s.common}
 	if cfg.Resume != "" { // the workspace holds the session's transcript only if it was begun there
 		_ = coresession.ContinueTranscript(s.tr.path, func(l string) bool { return strings.Contains(l, `"turn_ended"`) })
+	}
+	if cfg.Interactive { // a TUI session: no stream, and the hooks around each turn (interactive.go)
+		return s.interactive(ctx)
 	}
 	s.forward(initFrame(s.id, cfg.Dir, cfg.Model))
 	s.forward(userFrame(s.id, cfg.Prompt))

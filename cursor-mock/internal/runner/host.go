@@ -10,15 +10,25 @@ import (
 	"github.com/sloprail/harness-mocks/internal/toolcall"
 )
 
-// SubmitPrompt fires nothing: cursor-agent in print mode was recorded not
-// firing beforeSubmitPrompt, so no hook blocks the prompt or adds context.
-func (s *session) SubmitPrompt(context.Context) (string, bool) { return "", false }
+// SubmitPrompt fires nothing in print mode: cursor-agent -p was recorded not
+// firing beforeSubmitPrompt, so no hook blocks the prompt or adds context. A TUI
+// session fires it (interactive.go).
+func (s *session) SubmitPrompt(ctx context.Context) (string, bool) {
+	if s.cfg.Interactive {
+		return s.submitPrompt(ctx)
+	}
+	return "", false
+}
 
-// Say prints what the agent said, and records it.
+// Say prints what the agent said, and records it; a TUI session also fires
+// afterAgentResponse for it.
 func (s *session) Say(text string) {
 	s.texts = append(s.texts, text)
 	s.tr.text(text)
 	s.pending = append(s.pending, text)
+	if s.cfg.Interactive {
+		s.responded(text)
+	}
 }
 
 // EndOfTurn fires no hook: cursor-agent in print mode was recorded not firing
@@ -30,7 +40,12 @@ func (s *session) Say(text string) {
 // since the last call comes out as one frame at the end of the run, after the
 // task's notification (recorded: runs/background-bash-start,
 // runs/bg-bash-reaped-at-exit).
+//
+// A TUI session fires the stop hook instead, which can ask for a follow-up.
 func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
+	if s.cfg.Interactive {
+		return s.stopped(ctx)
+	}
 	if s.owner != "" { // a sub-agent ends with its final response: its parent goes on
 		return "", false
 	}
@@ -42,6 +57,9 @@ func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool
 func (s *session) Continue(prompt string) {
 	s.tr.user(prompt)
 	s.requestID, s.modelN = coresession.NewID(), 0 // a turn of its own is a model request of its own
+	if s.cfg.Interactive {                         // the follow-up a stop hook gave
+		s.followedUp()
+	}
 }
 
 // CapOverridden is never asked for: no end-of-turn hook blocks, so there is no
@@ -63,6 +81,9 @@ func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) { s.Start(ctx, 
 // refused at the depth limit is done at its start; a background Task is
 // launched when it is completed.
 func (s *session) Start(ctx context.Context, tu scenario.ToolUse) func() {
+	if s.cfg.Interactive {
+		return s.refuseTool()
+	}
 	if s.refusesTaskAtTheLimit(ctx, tu) || s.refusesTaskModel(ctx, tu) {
 		return func() {}
 	}

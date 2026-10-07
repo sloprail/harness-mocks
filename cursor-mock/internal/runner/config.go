@@ -10,6 +10,12 @@ type Config struct {
 	Script string
 	// Prompt is the user's prompt.
 	Prompt string
+	// Interactive: the run is a TUI session (cursor-agent started without -p), which
+	// prints no stream and fires the hooks of its turns (interactive.go).
+	Interactive bool
+	// Typed are the slash commands the user types at the idle input after the turn
+	// (only /compress, which the TUI compacts the conversation for).
+	Typed []string
 	// Resume is the id of the session to continue, empty for a new one.
 	Resume string
 	// Dir is the workspace: where the run starts and where project hooks live.

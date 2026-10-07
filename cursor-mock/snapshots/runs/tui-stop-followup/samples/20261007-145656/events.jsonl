@@ -1,0 +1,7 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"beforeSubmitPrompt","payload":{"prompt":"Reply only DONE.","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeSubmitPrompt"}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"DONE","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":0,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"DONE2","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":1,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}

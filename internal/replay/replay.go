@@ -87,6 +87,9 @@ type Observed struct {
 	// Checked is a replay that was a check the adapter made itself, passed, with nothing to compare (a
 	// recording made with a flag the mock refuses replays as the check that the mock refuses it).
 	Checked bool
+	// NoStream says the harness's run has no event stream (a TUI draws a screen instead): its
+	// hook payloads are what is compared, and an empty event stream is not a failure to compare.
+	NoStream bool
 	// Exits are how each step ended, one line per step ("exit 0"): a step the
 	// harness refuses, with a status that is not 0, is behaviour too.
 	Exits []string
@@ -121,7 +124,7 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	if want.Checked && got.Checked {
 		return "", nil
 	}
-	if len(want.Events) == 0 && len(got.Events) == 0 {
+	if len(want.Events) == 0 && len(got.Events) == 0 && !(want.NoStream && got.NoStream && len(want.Hooks) > 0) {
 		return "event stream: none recorded and none produced: nothing was compared\n", nil
 	}
 	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks) + Diff("exit statuses", want.Exits, got.Exits), nil
