@@ -66,6 +66,12 @@ func (s Schema) byRecorded(name string) (found []Tool) {
 	return found
 }
 
+// RecordedName is the tool's name in the recordings.
+func (t Tool) RecordedName() string { return t.recorded() }
+
+// RecordedName is the parameter's name in the recordings.
+func (p Param) RecordedName() string { return p.recorded() }
+
 func (t Tool) recorded() string {
 	if t.Recorded != "" {
 		return t.Recorded

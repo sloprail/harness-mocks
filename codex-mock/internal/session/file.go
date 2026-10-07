@@ -3,6 +3,8 @@
 package session
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -75,9 +77,13 @@ func (s *File) Assistant(text string) {
 	s.append("response_item", message("assistant", "output_text", text))
 }
 
-// ToolCall records a tool call the agent made.
-func (s *File) ToolCall(callID, name string, input json.RawMessage) {
-	s.append("response_item", map[string]any{"type": "function_call", "call_id": callID, "name": name, "arguments": string(input)})
+// CodeCall records a tool call the agent made, as Codex records every one: a call of its code-mode
+// `exec` tool, whose input is the JS that calls the tool (recorded in every run's rollout: a
+// custom_tool_call named exec, e.g. `const r = await tools.exec_command({cmd:"ls"}); text(r.output);`).
+func (s *File) CodeCall(callID, js string) {
+	sum := sha256.Sum256([]byte(callID))
+	s.append("response_item", map[string]any{"type": "custom_tool_call", "id": "ctc_" + hex.EncodeToString(sum[:12]),
+		"status": "completed", "call_id": callID, "name": "exec", "input": js})
 }
 
 // ToolOutput records what the agent was told a tool call returned.
