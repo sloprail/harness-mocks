@@ -1,7 +1,9 @@
 statement: >-
   A sub-agent can be dispatched into its own isolated worktree on a new
   branch: its tools and hooks run there, while the session id stays shared
-  with its parent.
+  with its parent. When the sub-agent finishes, its worktree and branch are
+  removed if it made no changes (nothing uncommitted, still on its branch, no
+  commit beyond where it started) and kept otherwise.
 providers:
   claude:
     docs:

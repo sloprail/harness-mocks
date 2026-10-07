@@ -20,6 +20,8 @@ type WorktreeLayout struct {
 // Worktree is an isolated working copy a sub-agent runs in.
 type Worktree struct {
 	Path, Branch string
+	// Start is the commit the worktree was created at.
+	Start string
 }
 
 // Isolation is where a sub-agent dispatched with isolation runs.
@@ -34,7 +36,7 @@ type Isolation struct {
 	Notes []string
 	// Cleanup, set with a Worktree, removes the worktree and its branch once the
 	// sub-agent has finished, when it left them as it found them: nothing
-	// uncommitted and no commit on the branch. It reports whether it removed them.
+	// uncommitted, the worktree still on its branch, and no commit beyond where it started. It reports whether it removed them.
 	Cleanup func(ctx context.Context) bool
 }
 
@@ -49,6 +51,9 @@ func Isolate(parentCwd, id string, l WorktreeLayout, bind func(dir, branch strin
 	branch := l.BranchPrefix + id
 	if err := bind(dir, branch); err == nil {
 		wt := Worktree{Path: dir, Branch: branch}
+		if res, err := procexec.Run(context.Background(), procexec.Spec{Argv: []string{"git", "-C", dir, "rev-parse", "HEAD"}}); err == nil && res.ExitCode == 0 {
+			wt.Start = strings.TrimSpace(string(res.Stdout))
+		}
 		return Isolation{Cwd: dir, Worktree: &wt, Cleanup: func(ctx context.Context) bool { return cleanupWorktree(ctx, parentCwd, wt) }}
 	} else if mkErr := os.MkdirAll(dir, 0o755); mkErr == nil {
 		return Isolation{Cwd: dir, Notes: []string{fmt.Sprintf("bind %s: %v (falling back to a plain directory)", dir, err)}}
