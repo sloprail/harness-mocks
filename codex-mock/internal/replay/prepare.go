@@ -23,7 +23,7 @@ case "$1 $2" in
   name=$(jq -r .name "$3/.agents/plugins/marketplace.json")
   printf '[marketplaces.%s]\nsource_type = "local"\nsource = "%s"\n\n' "$name" "$3" >>"$cfg" ;;
 "add "*)
-  printf '[plugins."%s"]\nenabled = true\n\n' "$2" >>"$cfg" ;;
+  grep -qF "[plugins.\"$2\"]" "$cfg" 2>/dev/null || printf '[plugins."%s"]\nenabled = true\n\n' "$2" >>"$cfg" ;;
 *) echo "codex stub: plugin $*" >&2; exit 2 ;;
 esac
 `

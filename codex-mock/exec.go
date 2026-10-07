@@ -61,13 +61,11 @@ func runExec(cmd *cobra.Command, args []string) error {
 	if err := checkRepo(cmd, cwd); err != nil {
 		return err
 	}
+	// a safety limit of the mock, not codex's behaviour: codex falls back to ~/.codex, but the mock installs
+	// plugins and writes sessions and trust under its home, and must never touch the user's real one
 	home := os.Getenv("CODEX_HOME")
 	if home == "" {
-		user, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("codex-mock: no CODEX_HOME and no home directory: %w", err)
-		}
-		home = filepath.Join(user, ".codex")
+		return errors.New("codex-mock: CODEX_HOME is required (the mock never uses ~/.codex)")
 	}
 	on := func(name string) bool { return f.Lookup(name).Value.String() == "true" }
 	asJSON, bypass, ephemeral := on("json"), on("dangerously-bypass-hook-trust"), on("ephemeral")

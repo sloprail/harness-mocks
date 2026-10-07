@@ -89,6 +89,23 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
+          The mock takes -s/--sandbox (read-only, workspace-write,
+          danger-full-access), --disable hooks and --ignore-user-config for
+          what they decide of hooks (runs/project-hooks-trust-workspace-write,
+          runs/project-hooks-trust-read-only, runs/disable-hooks,
+          runs/ignore-user-config). It does not confine a command to the
+          sandbox: a command the agent runs is not blocked from writing under
+          read-only, nor from the network.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          Safety limit, not codex's behaviour: codex falls back to ~/.codex
+          when CODEX_HOME is unset; the mock refuses to run without CODEX_HOME
+          ("CODEX_HOME is required"), because it writes sessions, trust and
+          installed plugins under its home and must never touch the user's.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
           Without --json the mock prints Codex's progress on stderr (banner with
           release, directory, model and session; the prompt; the notices; each
           command with how it ended and what it printed; the agent's message;
