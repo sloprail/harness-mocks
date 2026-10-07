@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -83,8 +84,7 @@ func TestANewPluginVersionReplacesTheCachedOne(t *testing.T) {
 	assert.NoDirExists(t, filepath.Join(first.Home, "plugins", "cache", "mk", "p1", "1.0.0"))
 }
 
-// A run installs under its own CODEX_HOME and leaves the home of the user running it untouched; with no
-// CODEX_HOME it uses $HOME/.codex, as codex does.
+// A run installs under its own CODEX_HOME and leaves the home of the user running it untouched.
 func TestAPluginInstallLeavesTheRealHomeAlone(t *testing.T) {
 	userHome := t.TempDir()
 	s := installScenario("1.0.0")
@@ -95,4 +95,18 @@ func TestAPluginInstallLeavesTheRealHomeAlone(t *testing.T) {
 	entries, _ := os.ReadDir(userHome)
 	assert.Empty(t, entries, "nothing was written under HOME: %v", entries)
 	assert.False(t, strings.HasPrefix(got.Home, userHome))
+}
+
+// A safety limit of the mock, not a behaviour of codex (which falls back to ~/.codex): with no CODEX_HOME the
+// mock refuses to run, and writes nothing under HOME.
+func TestWithNoCodexHomeTheMockRefusesAndWritesNothing(t *testing.T) {
+	userHome, repo := t.TempDir(), t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(userHome, ".codex", "plugins", "cache", "mk", "p1", "1.0.0"), 0o755))
+	cmd := exec.Command(mockBinary, "exec", "--skip-git-repo-check", "--script", "/bin/true", "go")
+	cmd.Dir = repo
+	cmd.Env = []string{"HOME=" + userHome, "PATH=" + os.Getenv("PATH")}
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err)
+	assert.Contains(t, string(out), "codex-mock: CODEX_HOME is required (the mock never uses ~/.codex)")
+	assert.Equal(t, []string{".", ".codex", ".codex/plugins", ".codex/plugins/cache", ".codex/plugins/cache/mk", ".codex/plugins/cache/mk/p1", ".codex/plugins/cache/mk/p1/1.0.0"}, filesUnder(t, userHome), "nothing was added or removed")
 }
