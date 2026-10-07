@@ -1,0 +1,1 @@
+Ask me one multiple-choice question using your structured question tool for asking the user (request_user_input), with the question "Which color?" and the options "Red" and "Blue". Then reply with the answer you were given, or with the exact error if the call failed.
