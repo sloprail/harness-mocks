@@ -77,4 +77,8 @@ providers:
           configures a hook for the same event too (runs/tui-plugins, and
           runs/tui-plugins-event-gating, whose project configures neither). The
           mock does the same, and runs the local plugins' hooks from the first
-          prompt on.
+          prompt on. A print-mode run with the A10N_CURSOR_MOCK_STOP opt-in
+          (which fires stop and afterAgentResponse, see stop-block-continuation)
+          applies the same rules to the plugins given with --plugin-dir: their
+          stop hooks do not fire, their afterAgentResponse hooks only beside one
+          in the project's hooks.json.

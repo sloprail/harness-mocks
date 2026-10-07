@@ -106,11 +106,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
-	load := hooks.Load
-	if cfg.Interactive { // the TUI also loads the user's local plugins
-		load = hooks.LoadInteractive
-	}
-	conf, err := load(cfg.Dir, cfg.Home, cfg.PluginDirs...)
+	conf, err := cfg.loadHooks()(cfg.Dir, cfg.Home, cfg.PluginDirs...)
 	if err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}

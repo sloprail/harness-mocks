@@ -52,16 +52,23 @@ type Config struct {
 //
 // sr:docs https://cursor.com/docs/hooks#configuration
 func Load(dir, home string, pluginDirs ...string) (Config, error) {
-	return load(dir, home, false, pluginDirs)
+	return load(dir, home, false, false, pluginDirs)
+}
+
+// LoadStopOptIn is Load for a print-mode run with the stop opt-in (A10N_CURSOR_MOCK_STOP), which
+// fires what the TUI fires at the end of a turn: which plugin hooks run is then that of the TUI
+// (applyTUIPluginRules), but the user's local plugins are not loaded, as print mode does not.
+func LoadStopOptIn(dir, home string, pluginDirs ...string) (Config, error) {
+	return load(dir, home, false, true, pluginDirs)
 }
 
 // LoadInteractive is Load for a TUI session: the user's local plugins are loaded too, after those
 // of --plugin-dir, and which plugin hooks run is that of the TUI (local.go).
 func LoadInteractive(dir, home string, pluginDirs ...string) (Config, error) {
-	return load(dir, home, true, pluginDirs)
+	return load(dir, home, true, true, pluginDirs)
 }
 
-func load(dir, home string, interactive bool, pluginDirs []string) (Config, error) {
+func load(dir, home string, interactive, tuiRules bool, pluginDirs []string) (Config, error) {
 	c := Config{entries: map[Event][]Entry{}}
 	// a loaded plugin's hooks are listed, and started, before the project's: the one
 	// recording (runs/plugin-hooks) logs the plugin's first
@@ -83,7 +90,7 @@ func load(dir, home string, interactive bool, pluginDirs []string) (Config, erro
 			return Config{}, err
 		}
 	}
-	if interactive {
+	if tuiRules {
 		if err := c.applyTUIPluginRules(); err != nil {
 			return Config{}, err
 		}
