@@ -43,10 +43,10 @@ func TestT001_09_UnimplementedInputsAreRefused(t *testing.T) {
 	}
 }
 
-// A piped stdin, which the real run reads as input, is refused by name and the
-// script never runs.
+// A piped stdin beside a prompt argument, which the real run combines, is refused by
+// name and the script never runs.
 // sr:proves noninteractive-run/claude
-func TestT001_09_PipedStdinIsRefused(t *testing.T) {
+func TestT001_09_PipedStdinWithPromptArgIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "s.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\necho RAN\n"), 0o755))
@@ -55,6 +55,23 @@ func TestT001_09_PipedStdinIsRefused(t *testing.T) {
 	cmd.Stdin = strings.NewReader("piped input\n")
 	out, err := cmd.CombinedOutput()
 	assert.Error(t, err)
-	assert.Contains(t, string(out), "a piped stdin is not implemented by the mock")
+	assert.Contains(t, string(out), "a piped stdin together with a prompt argument is not implemented by the mock")
 	assert.NotContains(t, string(out), "RAN")
+}
+
+// `claude -p` given no prompt argument reads the prompt from a piped stdin (the way
+// sr-agent hands a large prompt over): the script sees it as A10N_MOCK_PROMPT.
+// sr:proves noninteractive-run/claude
+func TestT001_09_PipedStdinIsThePrompt(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "s.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nprintf '%s' \"$A10N_MOCK_PROMPT\" > prompt.txt\n"), 0o755))
+	cmd := exec.Command(e2etest.MockBinaryPath, "--script", script, "--session-id", "s-1", "-p", "--output-format", "stream-json", "--verbose")
+	cmd.Dir = dir
+	cmd.Stdin = strings.NewReader("line one\nline two\n")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+	got, err := os.ReadFile(filepath.Join(dir, "prompt.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "line one\nline two", string(got))
 }
