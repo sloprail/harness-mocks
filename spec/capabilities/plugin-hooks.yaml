@@ -39,6 +39,7 @@ providers:
       - https://cursor.com/docs/plugins#what-plugins-contain
     runs:
       - cursor-mock/snapshots/runs/plugin-hooks
+      - cursor-mock/snapshots/runs/plugin-hook-cwd-env
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled

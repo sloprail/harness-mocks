@@ -29,5 +29,5 @@ func (c Config) addPlugin(workspace, pluginDir string) error {
 			hooksFile = filepath.Join(pluginDir, m.Hooks)
 		}
 	}
-	return c.addFile(hooksFile)
+	return c.addFile(hooksFile, pluginDir)
 }

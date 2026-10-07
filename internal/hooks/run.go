@@ -19,6 +19,8 @@ type Command struct {
 	Timeout time.Duration
 	// Env is what only this command is told, KEY=VALUE, after the Runtime's.
 	Env []string
+	// Dir, when not empty, is where only this command runs, instead of the Runtime's.
+	Dir string
 }
 
 // Outcome is how one hook command ended.
@@ -86,8 +88,12 @@ func runOne(ctx context.Context, c Command, stdin []byte, rt Runtime) Outcome {
 	if c.Args != nil {
 		argv = append([]string{c.Line}, c.Args...)
 	}
+	dir := rt.Dir
+	if c.Dir != "" {
+		dir = c.Dir
+	}
 	res, err := procexec.Run(ctx, procexec.Spec{
-		Argv: argv, Dir: rt.Dir, Stdin: stdin, Env: append(append([]string{}, rt.Env...), c.Env...), Timeout: timeout,
+		Argv: argv, Dir: dir, Stdin: stdin, Env: append(append([]string{}, rt.Env...), c.Env...), Timeout: timeout,
 		NewSession: rt.NewSession,
 	})
 	return Outcome{Command: c.Line, Exit: res.ExitCode, Started: err == nil && res.Started, TimedOut: res.TimedOut,

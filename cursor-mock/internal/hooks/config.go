@@ -23,6 +23,10 @@ type Entry struct {
 	// Timeout stops the command after this long; zero is none of its own, and
 	// the core applies the harness's default for it (corehooks.DefaultTimeout).
 	Timeout time.Duration
+	// PluginRoot is the directory of the plugin the hook comes from, "" for a project's or the
+	// user's: a plugin's hook runs there, with CURSOR_PLUGIN_ROOT set to it (recorded:
+	// runs/plugin-hook-cwd-env).
+	PluginRoot string
 }
 
 // Config is the project's hooks: the entries configured for each event, in
@@ -48,11 +52,11 @@ func Load(dir, home string, pluginDirs ...string) (Config, error) {
 			return Config{}, err
 		}
 	}
-	if err := c.addFile(filepath.Join(dir, ".cursor", "hooks.json")); err != nil {
+	if err := c.addFile(filepath.Join(dir, ".cursor", "hooks.json"), ""); err != nil {
 		return Config{}, err
 	}
 	if home != "" {
-		if err := c.addFile(filepath.Join(home, ".cursor", "hooks.json")); err != nil {
+		if err := c.addFile(filepath.Join(home, ".cursor", "hooks.json"), ""); err != nil {
 			return Config{}, err
 		}
 	}
@@ -61,7 +65,7 @@ func Load(dir, home string, pluginDirs ...string) (Config, error) {
 
 // addFile adds the hooks of one hooks.json after those already configured; a
 // missing file adds none.
-func (c Config) addFile(path string) error {
+func (c Config) addFile(path, pluginRoot string) error {
 	raw, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -83,7 +87,7 @@ func (c Config) addFile(path string) error {
 	for name, defs := range file.Hooks {
 		for _, d := range defs {
 			if d.Command != "" {
-				c.entries[Event(name)] = append(c.entries[Event(name)], Entry{d.Command, d.FailClosed, d.Matcher, time.Duration(d.Timeout * float64(time.Second))})
+				c.entries[Event(name)] = append(c.entries[Event(name)], Entry{d.Command, d.FailClosed, d.Matcher, time.Duration(d.Timeout * float64(time.Second)), pluginRoot})
 			}
 		}
 	}
