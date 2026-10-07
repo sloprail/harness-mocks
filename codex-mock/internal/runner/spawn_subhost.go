@@ -34,7 +34,7 @@ func (h subHost) SubmitPrompt(context.Context) (string, bool) {
 }
 func (h subHost) Say(text string) { h.rollout.Assistant(text) }
 func (h subHost) Tool(ctx context.Context, tu scenario.ToolUse) {
-	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
+	h.rollout.CodeCall(tu.ID, codeOf(tu))
 	toolcall.Run(ctx, toolHost{h.state}, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
 		toolcall.Options{SeparateFailureHook: false})
 }

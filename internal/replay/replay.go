@@ -84,6 +84,9 @@ type Agent struct {
 type Observed struct {
 	Events []string
 	Hooks  []string
+	// Calls are the tool calls the harness's transcript records for the agent, one line per call: a
+	// harness whose mock writes the transcript compares what it wrote with what the harness did.
+	Calls []string
 	// Checked is a replay that was a check the adapter made itself, passed, with nothing to compare (a
 	// recording made with a flag the mock refuses replays as the check that the mock refuses it).
 	Checked bool
@@ -127,7 +130,7 @@ func Run(a Adapter, mock, runDir string) (string, error) {
 	if len(want.Events) == 0 && len(got.Events) == 0 && !(want.NoStream && got.NoStream && len(want.Hooks) > 0) {
 		return "event stream: none recorded and none produced: nothing was compared\n", nil
 	}
-	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks) + Diff("exit statuses", want.Exits, got.Exits), nil
+	return Diff("event stream", want.Events, got.Events) + Diff("hook payloads", want.Hooks, got.Hooks) + Diff("transcript tool calls", want.Calls, got.Calls) + Diff("exit statuses", want.Exits, got.Exits), nil
 }
 
 // Script is the scenario a generates for the recording in runDir.

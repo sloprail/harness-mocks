@@ -46,7 +46,7 @@ func (h turnHost) Say(text string) {
 
 // Tool records the agent's call, and carries it out.
 func (h turnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
-	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
+	h.rollout.CodeCall(tu.ID, codeOf(tu))
 	toolcall.Run(ctx, toolHost{h.state}, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
 		toolcall.Options{SeparateFailureHook: false, SilentFailure: failedPatch})
 }
