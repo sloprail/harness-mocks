@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "postToolUse": [{ "command": ".cursor/hooks/hook.sh" }],
+    "postToolUseFailure": [{ "command": ".cursor/hooks/hook.sh" }],
+    "stop": [{ "command": ".cursor/hooks/hook.sh" }]
+  }
+}

@@ -18,5 +18,14 @@ providers:
       - https://code.claude.com/docs/en/hooks#allow-with-updatedinput
     runs:
       - claude-mock/snapshots/runs/ask-user-question-tool
-  codex: pending
-  cursor: pending
+  codex:
+    supported: false
+    reason: codex exec offers request_user_input only behind an unreleased feature flag, and answers it with empty answers whatever a PreToolUse hook gives
+    runs:
+      - codex-mock/snapshots/runs/ask-user-question-tool
+      - codex-mock/snapshots/runs/ask-user-question-tool-hook-answer
+  cursor:
+    supported: false
+    reason: cursor-agent -p is given no question tool, so the agent has none to call
+    runs:
+      - cursor-mock/snapshots/runs/ask-user-question-tool

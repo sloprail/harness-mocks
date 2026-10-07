@@ -1,0 +1,1 @@
+Ask me one multiple-choice question ("Which color?", options "Red" and "Blue") with a structured question tool for asking the user, if one is among the tools you are given right now. Do not search for tools and do not use any tool that is not already given to you. If you have no such tool, reply with exactly NO-QUESTION-TOOL; otherwise reply with the answer you were given.

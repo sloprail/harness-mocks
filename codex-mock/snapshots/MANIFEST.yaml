@@ -18,3 +18,6 @@ docs:
   https://developers.openai.com/codex/subagents:
     sha256: c5ef4eda3d9f876c8f35c697e720a3e7c760b5cf8c4943c97e82d1d8fe1b0054
     fetched: "2026-10-03"
+  https://developers.openai.com/codex/skills:
+    sha256: d15791562748e64a53dfec534b8558aa522e732cec0fdedcf7257fa4ef486a20
+    fetched: "2026-10-07"
