@@ -43,6 +43,10 @@ func parseArgs(text string) ([]string, error) {
 			i += 2
 			continue
 		}
+		if strings.HasPrefix(flag, "--mcp-config=") || flag == "--strict-mcp-config" { // the servers the run had: the mock starts none, a call is given its result (mcp-tool)
+			i++
+			continue
+		}
 		if strings.HasPrefix(flag, "--tools=") { // the tools the run has, in one word as recorded
 			out = append(out, flag)
 			i++

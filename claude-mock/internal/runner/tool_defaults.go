@@ -2,6 +2,8 @@ package runner
 
 import (
 	"encoding/json"
+
+	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // toolDefaults are the parameters the harness fills into a tool call's input when the model left them
@@ -38,6 +40,9 @@ func fillToolDefaults(cfg Config, line []byte) (visible, streamed []byte) {
 		if block["type"] != "tool_use" || in == nil {
 			continue
 		}
+		if tools.IsMCPName(name) {
+			filled = true // the stream's frame names the server and titles the tool (mcpToolMeta)
+		}
 		if name == "SendMessage" { // the harness fills type, recipient and content (recorded: runs/fgsub-maxturns)
 			filled = messageDefaults(in) || filled
 		}
@@ -58,6 +63,9 @@ func fillToolDefaults(cfg Config, line []byte) (visible, streamed []byte) {
 		return v, v
 	}
 	m["wire_tool_inputs"] = wire
+	if meta := mcpToolMeta(blocks); meta != nil {
+		m["tool_use_meta"] = meta
+	}
 	s, err := marshalRecord(m)
 	if err != nil {
 		return line, line

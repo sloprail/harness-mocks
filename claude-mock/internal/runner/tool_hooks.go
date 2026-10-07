@@ -10,6 +10,7 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/claude-mock/internal/toolexec"
 	corehooks "github.com/sloprail/harness-mocks/internal/hooks"
+	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // decidePreTool records on pending what the PreToolUse hooks decided: refused
@@ -63,13 +64,17 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 	case corehooks.AfterFailure:
 		notInterrupted := false
 		ms := took.Milliseconds()
+		input := pending.ToolInput
+		if tools.IsMCPName(pending.ToolName) {
+			input = hookInput(true, pending.ToolName, input)
+		}
 		in := hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUseFailure,
 			ToolName:      pending.ToolName,
 			ToolUseID:     pending.ToolUseID,
-			ToolInput:     pending.ToolInput,
+			ToolInput:     input,
 			Error:         res.Output,
 			IsInterrupt:   &notInterrupted,
 			DurationMs:    &ms,

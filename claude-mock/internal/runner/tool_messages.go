@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+
+	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // spawnRef is how a script names the sub-agent at a position among those the agent started ("spawn:0"):
@@ -48,6 +50,17 @@ func messageDefaults(in map[string]any) (filled bool) {
 // call as filled in with a summary of the message, its PostToolUse hook only to, message and summary
 // (recorded: runs/fgsub-maxturns).
 func hookInput(before bool, tool string, input json.RawMessage) json.RawMessage {
+	if tools.IsMCPName(tool) { // the arguments the server's tool takes: the mock's own mock_result is not among them
+		var in map[string]json.RawMessage
+		if json.Unmarshal(input, &in) != nil || in["mock_result"] == nil {
+			return input
+		}
+		delete(in, "mock_result")
+		if b, err := marshalRecord(in); err == nil {
+			return b
+		}
+		return input
+	}
 	if tool != "SendMessage" {
 		return input
 	}
@@ -66,4 +79,19 @@ func hookInput(before bool, tool string, input json.RawMessage) json.RawMessage 
 		return input
 	}
 	return b
+}
+
+// mcpToolMeta is the tool_use_meta of the main agent's assistant frame for the MCP tools it calls: each
+// call's id, the tool titled and the server named (recorded: snapshots/runs/mcp-tool); nil with none.
+// sr:docs https://code.claude.com/docs/en/mcp
+func mcpToolMeta(blocks []any) []any {
+	var meta []any
+	for _, b := range blocks {
+		block, _ := b.(map[string]any)
+		name, _ := block["name"].(string)
+		if server, tool, ok := tools.MCPName(name); ok && block["type"] == "tool_use" {
+			meta = append(meta, map[string]any{"id": block["id"], "display_name": tools.MCPDisplayName(tool), "server_display_name": server})
+		}
+	}
+	return meta
 }

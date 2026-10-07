@@ -17,6 +17,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+
+	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // Result is the output of a tool execution.
@@ -42,6 +44,9 @@ type Result struct {
 	// rather than a string — the shape real Claude Code gives some tools'
 	// results (an async Agent receipt).
 	ContentAsBlocks bool
+	// Blocks, set, are the content blocks of an MCP tool's result: the tool_result's content, in place
+	// of Output's text.
+	Blocks []map[string]any
 	// Meta are the messages the harness puts before the agent after the tool's result, in order, as
 	// meta user records (a launched skill's instructions).
 	Meta []MetaMessage
@@ -86,6 +91,9 @@ func Execute(ctx context.Context, toolName string, input json.RawMessage, cwd, s
 		// The mock has no deferred tools, so none matches (recorded: runs/fgsub-tool-stats).
 		return executeToolSearch(input)
 	default:
+		if tools.IsMCPName(toolName) {
+			return executeMCP(toolName, input)
+		}
 		return Result{
 			Output:  fmt.Sprintf("tool %q is not implemented in the mock", toolName),
 			IsError: true,

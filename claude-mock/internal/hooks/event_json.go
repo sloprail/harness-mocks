@@ -19,6 +19,9 @@ func (in Input) MarshalJSON() ([]byte, error) {
 			b = append(b[:len(b)-1:len(b)-1], append([]byte(`,"session_title":`), append(title, '}')...)...)
 		}
 	}
+	if err == nil {
+		b = withMCPServer(b, in.ToolName)
+	}
 	if err != nil || in.AgentID == "" || in.AgentType != "" {
 		return b, err
 	}

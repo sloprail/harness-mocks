@@ -82,6 +82,9 @@ var schema = toolspec.Schema{Harness: "claude", Tools: []toolspec.Tool{
 		{Name: "mode", Type: toolspec.String, Values: []any{"standard"}},
 		{Name: "mock_result", Type: toolspec.Object, MockOnly: true},
 	}},
+	// an MCP server's tool, named mcp__<server>__<tool> by a script; its arguments are the server's, and the mock's
+	// own mock_result is the result the script gives the call (recorded: runs/mcp-tool)
+	{Name: "mcp__*", Open: true, Valid: tools.IsMCPName},
 	// the parameters of the search the mock implements: where, which files, what is shown (recorded: runs/grep-tool)
 	{Name: "Grep", Params: []toolspec.Param{
 		{Name: "pattern", Type: toolspec.String, Required: true},

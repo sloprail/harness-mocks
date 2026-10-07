@@ -1,7 +1,10 @@
 package replay
 
 import (
+	"strings"
+
 	core "github.com/sloprail/harness-mocks/internal/replay"
+	"github.com/sloprail/harness-mocks/internal/tools"
 )
 
 // recorded is what a tool answered, as the stream shows it: the text the agent got and the structured
@@ -15,6 +18,11 @@ type recorded struct {
 // scriptedTools are the tools whose effect the mock cannot produce (it reaches no web): a script gives
 // the call the result to answer with, in its own mock_result input, and the replay gives it the recorded one.
 var scriptedTools = map[string]bool{toolPrefix + "WebFetch": true, toolPrefix + "WebSearch": true}
+
+// scripted: whether the tool is one whose result a script gives: a web tool, or an MCP server's.
+func scripted(tool string) bool {
+	return scriptedTools[tool] || tools.IsMCPName(strings.TrimPrefix(tool, toolPrefix))
+}
 
 // recordedResults are the results of the calls, by call id, from the stream's tool_result frames.
 func recordedResults(stream []map[string]any) map[string]recorded {
@@ -45,7 +53,7 @@ func withMockResults(t turns, results map[string]recorded) turns {
 	calls := append([]core.Call(nil), t.agent.Calls...)
 	for i, c := range calls {
 		r, ok := results[t.ids[i]]
-		if !scriptedTools[c.Tool] || !ok {
+		if !scripted(c.Tool) || !ok {
 			continue
 		}
 		in := copyInput(c.Input)
@@ -60,6 +68,12 @@ func withMockResults(t turns, results map[string]recorded) turns {
 // mockResult is a recorded result as the mock's mock_result input names it. A call the mock refuses
 // itself (an error result) is given an empty one, which it never reads.
 func mockResult(tool string, r recorded) map[string]any {
+	if tools.IsMCPName(strings.TrimPrefix(tool, toolPrefix)) { // the server's content blocks; an error's is its text
+		if text, isText := r.content.(string); isText {
+			return map[string]any{"content": []any{map[string]any{"type": "text", "text": text}}, "isError": r.isError}
+		}
+		return map[string]any{"content": r.content, "isError": r.isError}
+	}
 	if r.isError {
 		return map[string]any{}
 	}
