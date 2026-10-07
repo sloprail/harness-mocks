@@ -9,8 +9,8 @@ import (
 
 // cleanupWorktree removes the worktree and the branch of a sub-agent that
 // finished, when it left them as it found them: nothing uncommitted in the
-// worktree, its HEAD still on the agent branch, and no commit beyond the commit
-// it started at (on the branch or, were it switched, on any other). A worktree
+// worktree (untracked files count) and no commit beyond the commit it started at, on
+// whatever branch the worktree's HEAD is on. A worktree
 // that holds work stays. It reports whether it removed it.
 func cleanupWorktree(ctx context.Context, parentCwd string, wt Worktree) bool {
 	run := func(dir string, args ...string) (string, bool) {
@@ -18,9 +18,6 @@ func cleanupWorktree(ctx context.Context, parentCwd string, wt Worktree) bool {
 		return strings.TrimSpace(string(res.Stdout)), err == nil && res.ExitCode == 0
 	}
 	if out, ok := run(wt.Path, "status", "--porcelain"); !ok || out != "" {
-		return false
-	}
-	if out, ok := run(wt.Path, "symbolic-ref", "--quiet", "HEAD"); !ok || out != "refs/heads/"+wt.Branch {
 		return false
 	}
 	if wt.Start == "" {

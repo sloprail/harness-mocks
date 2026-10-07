@@ -36,7 +36,7 @@ type Isolation struct {
 	Notes []string
 	// Cleanup, set with a Worktree, removes the worktree and its branch once the
 	// sub-agent has finished, when it left them as it found them: nothing
-	// uncommitted, the worktree still on its branch, and no commit beyond where it started. It reports whether it removed them.
+	// uncommitted or untracked and no commit beyond where it started. It reports whether it removed them.
 	Cleanup func(ctx context.Context) bool
 }
 
