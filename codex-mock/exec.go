@@ -71,6 +71,14 @@ func runExec(cmd *cobra.Command, args []string) error {
 	}
 	on := func(name string) bool { return f.Lookup(name).Value.String() == "true" }
 	asJSON, bypass, ephemeral := on("json"), on("dangerously-bypass-hook-trust"), on("ephemeral")
+	sandbox, err := sandboxOf(f)
+	if err != nil {
+		return err
+	}
+	disabled, err := hooksDisabled(f)
+	if err != nil {
+		return err
+	}
 	model, _ := f.GetString("model")
 	if resume != "" { // an unknown session fails before anything starts: no hook fires
 		if err := session.ResumeUnknown(home, resume); err != nil {
@@ -86,7 +94,7 @@ func runExec(cmd *cobra.Command, args []string) error {
 	}
 	return runner.Run(cmd.Context(), runner.Config{
 		Script: script, Prompt: strings.Join(args, " "), Resume: resume, ForkFrom: forkFrom, Ephemeral: ephemeral, Cwd: cwd, CodexHome: home, Model: model,
-		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
+		Environ: os.Environ(), JSON: asJSON, BypassHookTrust: bypass, DisableHooks: disabled, IgnoreUserConfig: on("ignore-user-config"), Sandbox: sandbox, Stdout: cmd.OutOrStdout(), Stderr: os.Stderr,
 	})
 }
 

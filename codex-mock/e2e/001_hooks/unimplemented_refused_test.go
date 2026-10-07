@@ -15,8 +15,8 @@ func TestUnimplementedFlagsAreRefused(t *testing.T) {
 	for _, args := range [][]string{
 		{"--enable", "multi_agent_v2"}, {"--disable", "multi_agent_v2"},
 		{"--output-schema", "schema.json"}, {"-o", "last.txt"},
-		{"--sandbox", "read-only"}, {"--profile", "p"}, {"--color", "never"},
-		{"--ignore-user-config"}, {"--ignore-rules"}, {"--strict-config"}, {"--approve-for-me"}, {"--thread-source", "x"},
+		{"--profile", "p"}, {"--color", "never"},
+		{"--ignore-rules"}, {"--strict-config"}, {"--approve-for-me"}, {"--thread-source", "x"},
 		{"-c", "model_reasoning_effort=high"},
 	} {
 		t.Run(args[0], func(t *testing.T) {
@@ -25,6 +25,18 @@ func TestUnimplementedFlagsAreRefused(t *testing.T) {
 			assert.Contains(t, r.Stderr, "not implemented by the mock")
 			assert.Empty(t, r.hookLog(), "nothing ran")
 		})
+	}
+}
+
+// --enable and --disable are implemented for the hooks feature only: any other feature is refused by name,
+// and so is naming hooks both ways in one run.
+// sr:proves noninteractive-run/codex
+func TestOnlyTheHooksFeatureCanBeSwitched(t *testing.T) {
+	for _, args := range [][]string{{"--enable", "multi_agent_v2"}, {"--disable", "unified_exec"}, {"--enable", "hooks", "--disable", "hooks"}} {
+		r := execIn(t, t.TempDir(), append([]string{"--skip-git-repo-check"}, append(args, "go")...)...)
+		assert.NotZero(t, r.Code, args)
+		assert.Contains(t, r.Stderr, "not implemented by the mock", args)
+		assert.Empty(t, r.hookLog(), "nothing ran")
 	}
 }
 

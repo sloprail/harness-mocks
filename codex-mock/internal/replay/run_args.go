@@ -19,8 +19,11 @@ func runFlags(args string) (pass []string, err error) {
 			next = words[i+1]
 		}
 		switch {
-		case w == "--ephemeral":
+		case w == "--ephemeral", w == "--ignore-user-config":
 			pass = append(pass, w)
+		case (w == "--disable" || w == "--enable") && next == "hooks", w == "-s" && sandboxMode(next):
+			pass = append(pass, w, next)
+			i++
 		case w == "-c" && strings.HasPrefix(next, "model_auto_compact_token_limit="):
 			i++
 		case w == "-c" && strings.HasPrefix(next, "agents.max_depth="), w == "-C" && next != "", w == "resume" && next != "":
@@ -37,4 +40,9 @@ func runFlags(args string) (pass []string, err error) {
 func flagsOf(setup string) string {
 	pass, _ := runFlags(readFile(filepath.Join(setup, "args")))
 	return strings.Join(pass, " ")
+}
+
+// sandboxMode is whether word is one of the sandbox modes Codex's -s names.
+func sandboxMode(word string) bool {
+	return word == "read-only" || word == "workspace-write" || word == "danger-full-access"
 }

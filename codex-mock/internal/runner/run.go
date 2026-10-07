@@ -44,7 +44,13 @@ type Config struct {
 	JSON bool
 	// BypassHookTrust is --dangerously-bypass-hook-trust: hooks run without review, with a warning.
 	BypassHookTrust bool
-	Stdout, Stderr  io.Writer
+	// DisableHooks is `--disable hooks`: no hook loads or runs.
+	DisableHooks bool
+	// IgnoreUserConfig is --ignore-user-config: config.toml is not read (hooks.Options).
+	IgnoreUserConfig bool
+	// Sandbox is the sandbox the run asked for (-s; danger-full-access for the bypass flag), empty for none.
+	Sandbox        string
+	Stdout, Stderr io.Writer
 }
 
 // state is the state of one run, shared by Codex's side of the turn and of
@@ -79,7 +85,13 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.Script == "" {
 		return errors.New("codex-mock: a scenario script is required (--script or A10N_MOCK_SCRIPT)")
 	}
-	hookCfg, err := hooks.Load(cfg.CodexHome, cfg.Cwd)
+	if hooks.SandboxTrustsProject(cfg.Sandbox) { // Codex remembers the project it was asked to write in as trusted
+		if err := hooks.PersistProjectTrust(cfg.CodexHome, cfg.Cwd); err != nil {
+			return fmt.Errorf("codex-mock: cannot record the trusted project: %w", err)
+		}
+	}
+	hookCfg, err := hooks.Load(cfg.CodexHome, cfg.Cwd, hooks.Options{Disabled: cfg.DisableHooks, BypassTrust: cfg.BypassHookTrust,
+		IgnoreUserConfig: cfg.IgnoreUserConfig, Sandbox: cfg.Sandbox})
 	if err != nil {
 		return fmt.Errorf("codex-mock: cannot load hooks: %w", err)
 	}
@@ -112,11 +124,13 @@ func Run(ctx context.Context, cfg Config) error {
 			s.events.Warning("`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.")
 		}
 	}
-	for _, f := range hooks.AsyncSessionEndFiles(cfg.CodexHome, cfg.Cwd) {
-		s.events.Warning("running async SessionEnd hook synchronously in " + f)
-	}
-	for _, w := range hooks.InterruptClampWarnings(cfg.CodexHome, cfg.Cwd) {
-		s.events.Warning(w)
+	if !cfg.DisableHooks {
+		for _, f := range hooks.AsyncSessionEndFiles(cfg.CodexHome, cfg.Cwd) {
+			s.events.Warning("running async SessionEnd hook synchronously in " + f)
+		}
+		for _, w := range hooks.InterruptClampWarnings(cfg.CodexHome, cfg.Cwd) {
+			s.events.Warning(w)
+		}
 	}
 	halted := false
 	for _, o := range s.hooks.Fire(ctx, hooks.SessionStart, start.Source, map[string]any{"source": start.Source}) {

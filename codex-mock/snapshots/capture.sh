@@ -42,6 +42,8 @@
 #                                      marketplace and register it with `codex plugin`)
 #   runs/<name>/setup/no-skip-git-check optional: run without --skip-git-repo-check
 #   runs/<name>/setup/no-sandbox-bypass optional: run without --dangerously-bypass-approvals-and-sandbox
+#   runs/<name>/setup/no-hook-trust-bypass optional: run without --dangerously-bypass-hook-trust, so
+#                                      only a hook trusted in config.toml runs (prepare.sh can write it)
 #   runs/<name>/setup/no-git           optional: run in a directory that is not a git repository
 #   runs/<name>/setup/schema.json      optional: copied to the run's directory as schema.json
 #                                      (what an `args` line `--output-schema schema.json` names)
@@ -131,9 +133,11 @@ capture_run() {
     git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   fi
   [ -f "$run/setup/schema.json" ] && cp "$run/setup/schema.json" "$work/repo/schema.json"
-  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" CODEX_HOME="$chome" TMPDIR="$work/tmp" sh "$run/setup/prepare.sh")
+  # prepare.sh's `codex` is the pinned one, never the PATH's
+  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" CODEX_HOME="$chome" TMPDIR="$work/tmp" PATH="$(dirname "$codex_bin"):$PATH" sh "$run/setup/prepare.sh")
   bypassflag=(--dangerously-bypass-approvals-and-sandbox); [ -f "$run/setup/no-sandbox-bypass" ] && bypassflag=()
   skipflag=(--skip-git-repo-check); [ -f "$run/setup/no-skip-git-check" ] && skipflag=()
+  trustflag=(--dangerously-bypass-hook-trust); [ -f "$run/setup/no-hook-trust-bypass" ] && trustflag=()
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
   jsonflag=(--json); [ -f "$run/setup/no-json" ] && jsonflag=()
   extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
@@ -163,7 +167,7 @@ capture_run() {
     # user's Ctrl-C does a headless run: what the harness does when interrupted mid-turn is recorded
     (cd "$sdir" && exec env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
       TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-      "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} --dangerously-bypass-hook-trust \
+      "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} ${trustflag[@]+"${trustflag[@]}"} \
         -m gpt-5.6-luna -c 'model_reasoning_effort="low"' \
         ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt") &
     cpid=$!
@@ -177,6 +181,8 @@ capture_run() {
   set -e
   # a token codex refreshed replaced the link: put it back, so the login stays valid
   if [ -f "$chome/auth.json" ] && [ ! -L "$chome/auth.json" ]; then mv "$chome/auth.json" "$auth_src"; fi
+  # what the run left in config.toml (a project it trusted, say), without the login's link
+  [ -f "$chome/config.toml" ] && cp "$chome/config.toml" "$cap/config.toml"
   mkdir -p "$cap/transcript"
   find "$chome/sessions" -name 'rollout-*.jsonl' -type f 2>/dev/null | while IFS= read -r f; do
     # drop what the login and the vendor put there: the account's and user's ids,
@@ -221,7 +227,7 @@ capture_run() {
       rm -rf "$cap"; echo "same events as $(basename "$other"): no new sample"; return 0
     fi
   done
-  printf 'version: %s\ncommand: codex exec %s%s%s--dangerously-bypass-hook-trust -m gpt-5.6-luna\n' "$v" "${jsonflag[*]:+--json }" "${skipflag[*]:+--skip-git-repo-check }" "${bypassflag[*]:+--dangerously-bypass-approvals-and-sandbox }" >"$run/run.yaml"
+  printf 'version: %s\ncommand: codex exec %s%s%s%s-m gpt-5.6-luna\n' "$v" "${jsonflag[*]:+--json }" "${skipflag[*]:+--skip-git-repo-check }" "${bypassflag[*]:+--dangerously-bypass-approvals-and-sandbox }" "${trustflag[*]:+--dangerously-bypass-hook-trust }" >"$run/run.yaml"
   seal "$cap"
   echo "captured runs/$name/samples/$ts"
 }

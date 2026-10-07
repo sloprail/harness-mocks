@@ -15,8 +15,8 @@ import (
 // refusedFlagIn is the first flag of a recorded run's args that the mock refuses, and the args as words.
 func refusedFlagIn(args string) (flag string, words []string) {
 	words = strings.Fields(args)
-	for _, w := range words {
-		if unimplemented.Is(w) {
+	for i, w := range words {
+		if unimplemented.Is(words, i) {
 			return w, words
 		}
 	}
