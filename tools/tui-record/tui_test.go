@@ -20,10 +20,12 @@ read -r -n1 k; echo
 [ "$k" = y ] || exit 3
 trap 'echo bye; exit 0' INT
 echo READY
-while read -r line; do
-  printf '{"hook_event_name":"beforeSubmitPrompt","prompt":"%s"}\n' "$line" >>"$HOOK_LOG"
-  echo "ANSWER-TO $line"
-  printf '{"hook_event_name":"stop","loop_count":0}\n' >>"$HOOK_LOG"
+while :; do
+  if read -r -t 1 line; then # a timeout lets bash run the INT trap, whenever the signal came
+    printf '{"hook_event_name":"beforeSubmitPrompt","prompt":"%s"}\n' "$line" >>"$HOOK_LOG"
+    echo "ANSWER-TO $line"
+    printf '{"hook_event_name":"stop","loop_count":0}\n' >>"$HOOK_LOG"
+  elif [ $? -le 128 ]; then break; fi
 done
 `
 

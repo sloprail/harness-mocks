@@ -34,17 +34,20 @@ func (d *driver) wait(ctx context.Context, w *Wait) error {
 	if w.Hook != "" {
 		return d.waitHook(ctx, w)
 	}
-	for {
+	for gone := false; ; {
 		text, changed := d.screen.Since(d.mark)
 		if loc := w.re.FindStringIndex(text); loc != nil {
 			d.mark += loc[1]
 			d.log(map[string]any{"step": d.n, "wait_screen": w.Screen})
 			return nil
 		}
+		if gone { // the screen was looked at again after the exit: all the program printed is on it
+			return fmt.Errorf("the program exited before the screen showed %q", w.Screen)
+		}
 		select {
 		case <-changed:
 		case <-d.done:
-			return fmt.Errorf("the program exited before the screen showed %q", w.Screen)
+			gone = true
 		case <-ctx.Done():
 			return fmt.Errorf("timed out (%s) waiting for the screen to show %q", w.Timeout, w.Screen)
 		}
@@ -72,6 +75,7 @@ func (d *driver) waitHook(ctx context.Context, w *Wait) error {
 // send types the text, waits for the screen to echo its end (so the keys after it are not read as
 // part of one paste), then presses the keys. The mark moves past what the send itself printed.
 func (d *driver) send(ctx context.Context, s *Send) error {
+	mark := -1 // where the echo of the text ends: what the keys make the program print comes after it
 	if s.Text != "" {
 		start := d.screen.Len()
 		d.write(s.Text)
@@ -79,7 +83,8 @@ func (d *driver) send(ctx context.Context, s *Send) error {
 		defer cancel()
 		for {
 			text, changed := d.screen.Since(start)
-			if s.echo.MatchString(text) {
+			if loc := s.echo.FindStringIndex(text); loc != nil {
+				mark = start + loc[1]
 				break
 			}
 			select {
@@ -91,10 +96,12 @@ func (d *driver) send(ctx context.Context, s *Send) error {
 			}
 		}
 	}
+	if d.mark = mark; mark < 0 { // keys alone: what they make the program print is after what is on screen now
+		d.mark = d.screen.Len()
+	}
 	for _, k := range s.Keys {
 		d.write(keyBytes[k])
 	}
-	d.mark = d.screen.Len()
 	d.log(map[string]any{"step": d.n, "send_text": s.Text, "send_keys": s.Keys})
 	return nil
 }

@@ -34,14 +34,15 @@ type Result struct {
 }
 
 type driver struct {
-	cfg    *Config
-	sc     *Script
-	ptmx   *os.File
-	wmu    sync.Mutex
-	screen *Screen
-	mark   int
-	done   chan struct{} // closed when the process has exited
-	n      int
+	cfg     *Config
+	sc      *Script
+	ptmx    *os.File
+	wmu     sync.Mutex
+	screen  *Screen
+	mark    int
+	done    chan struct{} // closed when the process has exited and its output is read
+	drained chan struct{} // closed when the pty has nothing more to read
+	n       int
 }
 
 // Run starts the pinned binary on a pseudo-terminal and plays the script against it.
@@ -54,10 +55,17 @@ func Run(cfg *Config, sc *Script) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	d := &driver{cfg: cfg, sc: sc, ptmx: ptmx, done: make(chan struct{})}
+	d := &driver{cfg: cfg, sc: sc, ptmx: ptmx, done: make(chan struct{}), drained: make(chan struct{})}
 	d.screen = NewScreen(d.write)
 	var status error
-	go func() { status = cmd.Wait(); close(d.done) }()
+	go func() { // done only once what the program printed has been read (bounded: a child may keep the pty open)
+		status = cmd.Wait()
+		select {
+		case <-d.drained:
+		case <-time.After(2 * time.Second):
+		}
+		close(d.done)
+	}()
 	go d.read()
 	err = d.play(ctx)
 	res := Result{}
@@ -95,6 +103,7 @@ func (d *driver) write(s string) {
 
 // read feeds the program's output to the screen, and lets the handlers answer what they match.
 func (d *driver) read() {
+	defer close(d.drained)
 	marks := make([]int, len(d.sc.Handlers))
 	buf := make([]byte, 32<<10)
 	for {
