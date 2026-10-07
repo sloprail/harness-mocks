@@ -179,6 +179,6 @@ jobs:
         with:
           go-version: '1.25'
       # the same sr-checks the verify job pins: the tests ask it what each rule's subjects are
-      - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@2ce91382fdedf42c010056b7807ccc5f15e89948
+      - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@c41e3cdee1f9923e1cc4b3ad6b215240ca41d413
       - run: SR_CHECKS="$HOME/.local/bin/sr-checks" .sloprail/tests/subjects.sh
       - run: SR_CHECKS="$HOME/.local/bin/sr-checks" .sloprail/tests/docs-follow-recordings.sh
