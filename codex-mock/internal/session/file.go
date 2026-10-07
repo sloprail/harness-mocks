@@ -17,6 +17,7 @@ type File struct {
 	Path    string
 	f       *os.File
 	windows *windows
+	next    int // the ordinal of the next line
 }
 
 // Create starts the rollout of session id at
@@ -26,11 +27,11 @@ type File struct {
 //
 // sr:provides session-transcript-file/codex
 func Create(home, id, cwd string, now time.Time) (*File, error) {
-	return create(home, id, cwd, now, nil)
+	return create(home, id, cwd, now, 0, nil)
 }
 
-// create starts the rollout with extra fields in its meta record.
-func create(home, id, cwd string, now time.Time, extra map[string]any) (*File, error) {
+// create starts the rollout with extra fields in its meta record; its first line has ordinal first.
+func create(home, id, cwd string, now time.Time, first int, extra map[string]any) (*File, error) {
 	dir := filepath.Join(home, "sessions", now.Format("2006"), now.Format("01"), now.Format("02"))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
@@ -40,7 +41,7 @@ func create(home, id, cwd string, now time.Time, extra map[string]any) (*File, e
 	if err != nil {
 		return nil, err
 	}
-	s := &File{Path: path, f: f}
+	s := &File{Path: path, f: f, next: first}
 	m := meta(id, cwd, now)
 	for k, v := range extra {
 		m[k] = v
@@ -52,7 +53,10 @@ func create(home, id, cwd string, now time.Time, extra map[string]any) (*File, e
 func (s *File) append(kind string, payload map[string]any) {
 	enc := json.NewEncoder(s.f)
 	enc.SetEscapeHTML(false)
-	_ = enc.Encode(map[string]any{"timestamp": time.Now().UTC().Format(time.RFC3339Nano), "type": kind, "payload": payload})
+	// Every line carries its position in the thread, which is what names a line that has no id of
+	// its own (recorded: every run's rollout; a fork continues from the history it branched at).
+	_ = enc.Encode(map[string]any{"timestamp": time.Now().UTC().Format(time.RFC3339Nano), "ordinal": s.next, "type": kind, "payload": payload})
+	s.next++
 }
 
 func message(role, ctype, text string) map[string]any {
