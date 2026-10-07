@@ -29,7 +29,7 @@ func Fork(home, from, id, cwd string, now time.Time) (*File, error) {
 		return nil, fmt.Errorf("fork: %w", err)
 	}
 	base := coresession.ForkBase(from, data)
-	return create(home, id, cwd, now, map[string]any{
+	return create(home, id, cwd, now, base.Records, map[string]any{
 		"forked_from_id": from, "forked_from_ordinal_exclusive": base.Records, "thread_source": "user",
 		"history_base": map[string]any{"thread_id": base.From, "end_ordinal_exclusive": base.Records, "end_byte_offset": base.Bytes},
 	})
