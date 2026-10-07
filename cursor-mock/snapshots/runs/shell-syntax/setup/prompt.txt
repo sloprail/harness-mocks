@@ -1,1 +1,1 @@
-Do these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) echo "double quoted words" 2) cat < in.txt 3) echo appended >> out.txt 4) ls no-such-file 2>&1 5) echo $(echo inner) 6) echo "a" 'b' c. Then reply only DONE.
+Do these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) echo "double quoted words" 2) cat < in.txt 3) echo appended >> out.txt 4) cat no-such-file 2>&1 5) echo $(echo inner) 6) echo "a" 'b' c. Then reply only DONE.
