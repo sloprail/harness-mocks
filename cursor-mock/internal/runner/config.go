@@ -2,7 +2,23 @@
 // turns, each tool call with its hooks, and the stream it prints.
 package runner
 
-import "io"
+import (
+	"io"
+
+	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
+)
+
+// loadHooks is the hooks loader of the run: the TUI also loads the user's local plugins, and the
+// stop opt-in has the TUI's rules for which plugin hooks run.
+func (c Config) loadHooks() func(dir, home string, pluginDirs ...string) (hooks.Config, error) {
+	switch {
+	case c.Interactive:
+		return hooks.LoadInteractive
+	case c.Stop:
+		return hooks.LoadStopOptIn
+	}
+	return hooks.Load
+}
 
 // Config is everything a run needs, read once at the mock's entrypoint.
 type Config struct {

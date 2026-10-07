@@ -55,7 +55,8 @@ func (c Config) addLocalPlugins(home string) error {
 	return nil
 }
 
-// applyTUIPluginRules drops the plugin hooks a TUI session does not run (recorded:
+// applyTUIPluginRules drops the plugin hooks a TUI session, and a print-mode run with the stop
+// opt-in (A10N_CURSOR_MOCK_STOP), does not run (recorded:
 // runs/tui-plugins, runs/tui-plugins-event-gating):
 //
 //   - a local plugin's sessionStart hook: the local plugins are loaded in the background after the
