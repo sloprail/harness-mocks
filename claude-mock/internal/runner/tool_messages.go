@@ -87,3 +87,39 @@ func mcpToolMeta(blocks []any) []any {
 	}
 	return meta
 }
+
+// mockResultKey is the input key of a tool the mock cannot run (WebFetch, WebSearch, an MCP server's tool): the
+// result a script gives the call. It is the mock's own, so nothing real claude shows of a call has it: not its
+// hooks, its transcript or its stream.
+const mockResultKey = "mock_result"
+
+// acceptsMockResult: whether the tool takes a mock_result, as the schema declares it: a mock-only parameter of
+// the tool, or the open arguments of an MCP tool.
+func acceptsMockResult(tool string) bool {
+	t, ok := Schema().Tool(tool)
+	if !ok {
+		return false
+	}
+	if t.Open {
+		return true
+	}
+	for _, p := range t.Params {
+		if p.Name == mockResultKey && p.MockOnly {
+			return true
+		}
+	}
+	return false
+}
+
+// withoutMockResult is a call's input without its mock_result.
+func withoutMockResult(input json.RawMessage) json.RawMessage {
+	var in map[string]json.RawMessage
+	if json.Unmarshal(input, &in) != nil || in[mockResultKey] == nil {
+		return input
+	}
+	delete(in, mockResultKey)
+	if b, err := marshalRecord(in); err == nil {
+		return b
+	}
+	return input
+}

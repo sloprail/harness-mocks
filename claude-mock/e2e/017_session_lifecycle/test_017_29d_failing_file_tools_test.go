@@ -51,3 +51,43 @@ func TestT017_29d_FailingEditAndWrite(t *testing.T) {
 		assert.NotContains(t, p, "tool_response", tc.tool)
 	}
 }
+
+// failureDuration runs one failing Bash under a PostToolUseFailure hook (and a PreToolUse hook, when
+// pre is not "") and returns the failure's duration_ms.
+func failureDuration(t *testing.T, id, command, pre string) float64 {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	log := filepath.Join(dir, "failure.log")
+	events := map[string]string{"PostToolUseFailure": payloadLogger(t, dir, "failure.sh", log, "")}
+	if pre != "" {
+		events["PreToolUse"] = write(t, filepath.Join(dir, "pre.sh"), "#!/bin/sh\ncat >/dev/null\n"+pre+"\n", 0o755)
+	}
+	settings(t, dir, events)
+	out, code := runInDir(t, dir, nil, "--script", script(t, dir, "s", toolUse("b1", "Bash", `{"command":"`+command+`"}`)),
+		"--session-id", id, "--project-dir", dir, "--config-dir", cfg, "-p", "hello")
+	require.Equal(t, 0, code, out)
+	ps := payloads(t, log)
+	require.Len(t, ps, 1)
+	require.Equal(t, "PostToolUseFailure", ps[0]["hook_event_name"])
+	d, ok := ps[0]["duration_ms"].(float64)
+	require.True(t, ok, "duration_ms is a number: %v", ps[0]["duration_ms"])
+	return d
+}
+
+// TestT017_29e_FailureDurationIsTheCallsOwnTime: a failing command's PostToolUseFailure carries the
+// time the call took: a command that sleeps 0.3 seconds before it fails took at least 300 ms.
+// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure-input
+// sr:proves tool-failure-hook/claude
+func TestT017_29e_FailureDurationIsTheCallsOwnTime(t *testing.T) {
+	assert.GreaterOrEqual(t, failureDuration(t, "fd-1", "sleep 0.3; exit 1", ""), 300.0)
+}
+
+// TestT017_29f_FailureDurationExcludesPreToolUseHooks: as for PostToolUse (T017_37), the failure's
+// duration_ms leaves out the time of a PreToolUse hook: a half-second hook before a command that fails
+// at once does not show in it.
+// sr:docs https://code.claude.com/docs/en/hooks#posttoolusefailure-input
+// sr:proves tool-failure-hook/claude
+func TestT017_29f_FailureDurationExcludesPreToolUseHooks(t *testing.T) {
+	assert.Less(t, failureDuration(t, "fd-2", "exit 1", "sleep 0.5"), 300.0, "the half-second PreToolUse hook is not part of the call's time")
+}

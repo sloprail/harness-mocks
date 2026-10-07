@@ -80,3 +80,42 @@ func withoutMore(line []byte) []byte {
 	}
 	return line
 }
+
+// withoutMockResults is an assistant line with the mock_result of its tool calls taken out, of the calls and of
+// the inputs as the model sent them (wire_tool_inputs); the call the mock runs keeps its own copy.
+func withoutMockResults(line []byte) []byte {
+	var m map[string]any
+	if json.Unmarshal(line, &m) != nil || m["type"] != "assistant" {
+		return line
+	}
+	changed := false
+	strip := func(in map[string]any) {
+		if _, ok := in[mockResultKey]; ok {
+			delete(in, mockResultKey)
+			changed = true
+		}
+	}
+	msg, _ := m["message"].(map[string]any)
+	blocks, _ := msg["content"].([]any)
+	for _, b := range blocks {
+		block, _ := b.(map[string]any)
+		name, _ := block["name"].(string)
+		if in, ok := block["input"].(map[string]any); ok && block["type"] == "tool_use" && acceptsMockResult(name) {
+			strip(in)
+		}
+	}
+	if wire, ok := m["wire_tool_inputs"].(map[string]any); ok {
+		for _, in := range wire {
+			if w, ok := in.(map[string]any); ok {
+				strip(w)
+			}
+		}
+	}
+	if !changed {
+		return line
+	}
+	if out, err := marshalRecord(m); err == nil {
+		return out
+	}
+	return line
+}
