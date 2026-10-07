@@ -41,7 +41,11 @@ func (a Adapter) runSteps(mock string, rec core.Recording, l layout, flags []str
 		}
 		spec := procexec.Spec{Dir: st.dir, Env: l.env, Timeout: 2 * time.Minute}
 		if isTUI(rec.Setup) {
-			argv, spec.Stdin = append(argv, "--script", st.script), typedInput(rec.Setup, st.prompt)
+			typed, err := typedInput(rec.Setup)
+			if err != nil {
+				return "", nil, err
+			}
+			argv, spec.Stdin = append(argv, "--script", st.script), typed
 		} else {
 			argv = append(argv, "--script", st.script, st.prompt)
 		}

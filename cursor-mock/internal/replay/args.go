@@ -14,6 +14,7 @@ var modelledFlags = map[string]bool{
 	"--approve-mcps": false,
 	"--print":        false,
 	"--plugin-dir":   true,
+	"--force":        false,
 	"--resume":       true,
 	"--model":        true,
 }

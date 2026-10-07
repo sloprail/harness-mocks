@@ -1,0 +1,16 @@
+{"step":1,"wait_screen":"Plan, search, build anything.*\u003c\\?2004h\u003e"}
+{"nth":1,"step":2,"wait_hook":"sessionStart"}
+{"send_keys":["enter"],"send_text":"Run exactly this shell command: echo TURNONE . Then reply only DONE1.","step":3}
+{"nth":1,"step":4,"wait_hook":"stop"}
+{"step":5,"wait_screen":"Add a follow-up Auto"}
+{"send_keys":["enter"],"send_text":"Create the file note.txt containing the word hi, with your file write tool, not the shell. Then reply only DONE2.","step":6}
+{"nth":2,"step":7,"wait_hook":"stop"}
+{"step":8,"wait_screen":"Add a follow-up Auto"}
+{"send_keys":["enter"],"send_text":"Read the file note.txt with your Read tool. Then reply only DONE3.","step":9}
+{"nth":3,"step":10,"wait_hook":"stop"}
+{"step":11,"wait_screen":"Add a follow-up Auto"}
+{"send_keys":["ctrl-c"],"send_text":"","step":12}
+{"step":13,"wait_screen":"Press Ctrl\\+C again to exit"}
+{"send_keys":["ctrl-c"],"send_text":"","step":14}
+{"nth":1,"step":15,"wait_hook":"sessionEnd"}
+{"end":true,"killed":false}

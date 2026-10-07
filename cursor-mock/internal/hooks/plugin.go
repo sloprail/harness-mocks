@@ -20,6 +20,11 @@ func (c Config) addPlugin(workspace, pluginDir string) error {
 	if !filepath.IsAbs(pluginDir) {
 		pluginDir = filepath.Join(workspace, pluginDir)
 	}
+	return c.addPluginAt(pluginDir, Entry{PluginRoot: pluginDir})
+}
+
+// addPluginAt adds the hooks of the plugin in pluginDir, each as from describes.
+func (c Config) addPluginAt(pluginDir string, from Entry) error {
 	hooksFile := filepath.Join(pluginDir, "hooks", "hooks.json")
 	if raw, err := os.ReadFile(filepath.Join(pluginDir, ".cursor-plugin", "plugin.json")); err == nil {
 		var m struct {
@@ -29,5 +34,5 @@ func (c Config) addPlugin(workspace, pluginDir string) error {
 			hooksFile = filepath.Join(pluginDir, m.Hooks)
 		}
 	}
-	return c.addFile(hooksFile, pluginDir)
+	return c.addFile(hooksFile, from)
 }

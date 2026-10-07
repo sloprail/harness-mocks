@@ -1,0 +1,7 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun exactly this shell command: echo FIRSTTURN . Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo FIRSTTURN","description":"Echo FIRSTTURN to stdout"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nSTOP-FOLLOWUP-REASON: run exactly this shell command: echo SECONDTURN . Then reply only DONE2.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo SECONDTURN","description":"Echo SECONDTURN to stdout"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE2"}]}}
+{"type":"turn_ended","status":"success"}

@@ -13,9 +13,14 @@ type Config struct {
 	// Interactive: the run is a TUI session (cursor-agent started without -p), which
 	// prints no stream and fires the hooks of its turns (interactive.go).
 	Interactive bool
-	// Typed are the slash commands the user types at the idle input after the turn
-	// (only /compress, which the TUI compacts the conversation for).
-	Typed []string
+	// Stop is the opt-in that makes a print-mode run fire what only the TUI fires at the end of a
+	// turn, afterAgentResponse and stop, and continue on a stop hook's followup_message: a deviation
+	// (cursor-agent -p fires neither), for tests of what a stop hook does.
+	Stop bool
+	// Inputs are what the user types in the TUI, line by line, in order: a prompt, or a slash
+	// command typed at the idle input (only /compress, which the TUI compacts the conversation
+	// for). The first is a prompt, and is Prompt.
+	Inputs []string
 	// Resume is the id of the session to continue, empty for a new one.
 	Resume string
 	// Dir is the workspace: where the run starts and where project hooks live.

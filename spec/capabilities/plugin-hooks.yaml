@@ -48,11 +48,33 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/plugin-hooks
       - cursor-mock/snapshots/runs/plugin-hook-cwd-env
+      - cursor-mock/snapshots/runs/tui-plugins
+      - cursor-mock/snapshots/runs/tui-plugins-event-gating
     deviations:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
           The mock loads the directories given with --plugin-dir: the hooks file
           their .cursor-plugin/plugin.json names as a path, or hooks/hooks.json.
-          It does not read marketplace manifests, an inline hooks object in the
-          manifest, or the account's installed plugins.
+          In a TUI session (not in print mode, where it was not recorded) it also
+          loads the user's local plugins, the directories and the symlinks to a
+          plugin inside ~/.cursor/plugins/local that hold a
+          .cursor-plugin/plugin.json (runs/tui-plugins). It does not read
+          marketplace manifests, an inline hooks object in the manifest, or the
+          account's installed plugins.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          A plugin's hooks do not all run in a TUI session, though it is
+          loaded. The user's local plugins (~/.cursor/plugins/local/<name>) are
+          loaded after the session has started: with the project's sessionStart
+          hook taking 12 s, only the plugin loaded with --plugin-dir ran its
+          sessionStart hook, and all of them ran every later one (runs/tui-plugins);
+          a symlink there to a plugin outside that directory is never loaded
+          (p2 of that run), one to a plugin inside it is (p4). A plugin's stop hook
+          never ran, though the project's did; and its beforeSubmitPrompt and
+          afterAgentResponse hooks ran only when the project's hooks.json
+          configures a hook for the same event too (runs/tui-plugins, and
+          runs/tui-plugins-event-gating, whose project configures neither). The
+          mock does the same, and runs the local plugins' hooks from the first
+          prompt on.

@@ -10,6 +10,11 @@ import (
 // stepsOf reads the run's steps' prompts and exit statuses (exit.txt, one line per
 // step); a run whose first step failed has no turns of the model to replay.
 func stepsOf(rec *core.Recording, sample string) (prompts []string, exits []int, err error) {
+	if isTUI(rec.Setup) { // what is typed is read from the script: it must be lines the mock takes
+		if _, err = typedInput(rec.Setup); err != nil {
+			return nil, nil, err
+		}
+	}
 	rec.Setup["exit"] = readFile(filepath.Join(sample, "exit.txt"))
 	if exits, err = exitsOf(rec.Setup["exit"]); err != nil {
 		return nil, nil, err

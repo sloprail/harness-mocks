@@ -1,0 +1,23 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"beforeSubmitPrompt","payload":{"prompt":"Run exactly this shell command: echo TURNONE . Then reply only DONE1.","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeSubmitPrompt"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo TURNONE","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo TURNONE","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo TURNONE","output":"TURNONE\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo TURNONE","timeout":30000},"tool_output":"{\"output\":\"TURNONE\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"Running the exact command, then replying only `DONE1`.DONE1","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":0,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":"beforeSubmitPrompt","payload":{"prompt":"Create the file note.txt containing the word hi, with your file write tool, not the shell. Then reply only DONE2.","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeSubmitPrompt"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"error_message":"File not found: <RUN>/note.txt","failure_type":"error","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Write","tool_input":{"file_path":"<RUN>/note.txt","content":"hi\n"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"afterFileEdit","payload":{"file_path":"<RUN>/note.txt","edits":[{"old_string":"","new_string":"hi\n"}],"session_id":"<SESSION_ID>","hook_event_name":"afterFileEdit"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Write","tool_input":{"file_path":"<RUN>/note.txt","content":"hi\n"},"tool_output":"{\"file_path\":\"<RUN>/note.txt\",\"success\":true}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"DONE2","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":0,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":"beforeSubmitPrompt","payload":{"prompt":"Read the file note.txt with your Read tool. Then reply only DONE3.","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeSubmitPrompt"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeReadFile","payload":{"content":"hi\n","file_path":"<RUN>/note.txt","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeReadFile"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Read","tool_input":{"file_path":"<RUN>/note.txt"},"tool_output":"{\"file_path\":\"<RUN>/note.txt\",\"content_length\":3}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"DONE3","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":0,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}

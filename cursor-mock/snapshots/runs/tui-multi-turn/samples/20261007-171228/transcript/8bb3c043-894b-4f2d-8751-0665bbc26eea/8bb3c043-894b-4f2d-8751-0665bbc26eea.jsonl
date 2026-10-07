@@ -1,0 +1,10 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun exactly this shell command: echo TURNONE . Then reply only DONE1.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the exact command, then replying only `DONE1`."},{"type":"tool_use","name":"Shell","input":{"command":"echo TURNONE","description":"Echo TURNONE exactly"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE1"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nCreate the file note.txt containing the word hi, with your file write tool, not the shell. Then reply only DONE2.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"path":"<RUN>/note.txt","contents":"hi\n"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE2"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRead the file note.txt with your Read tool. Then reply only DONE3.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"<RUN>/note.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE3"}]}}
+{"type":"turn_ended","status":"success"}

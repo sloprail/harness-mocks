@@ -138,7 +138,7 @@ func (a Adapter) Load(runDir string) (core.Recording, error) {
 	for name, body := range harnessFiles(stream) {
 		rec.Setup[name] = body
 	}
-	if err := nameHookIDs(&rec.Agent, stream, payloads, session); err != nil {
+	if err := nameIDsOfRun(&rec, stream, payloads, session); err != nil {
 		return core.Recording{}, err
 	}
 	if err := nameShellIDs(&rec.Agent, stream, session); err != nil {

@@ -41,6 +41,9 @@ func (h *Hooks) Fire(ctx context.Context, e Event, subject string, own map[strin
 			c := corehooks.Command{Line: entry.Command, Timeout: entry.Timeout}
 			if entry.PluginRoot != "" { // a plugin's hook runs in the plugin, which it is told of (runs/plugin-hook-cwd-env)
 				c.Dir, c.Env = entry.PluginRoot, []string{"CURSOR_PLUGIN_ROOT=" + entry.PluginRoot}
+				if entry.Dir != "" {
+					c.Dir = entry.Dir
+				}
 			}
 			cmds = append(cmds, c)
 		}
