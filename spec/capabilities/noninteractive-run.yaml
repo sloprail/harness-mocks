@@ -21,6 +21,14 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
+          The mock does not model --max-budget-usd (a spend cap), --input-format
+          stream-json (streamed input), --json-schema (structured output) or
+          --fallback-model: it refuses each loudly, by name, and the script
+          never runs, rather than ignoring it. All of these stay so until a
+          recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
           The mock refuses --agent, --output-format text and json, a piped stdin
           beside a prompt argument (a piped stdin alone is read as the prompt,
           the documented `claude -p` behaviour, no recording drives it) and
