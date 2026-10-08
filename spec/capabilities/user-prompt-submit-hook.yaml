@@ -37,6 +37,8 @@ providers:
           (runs/user-prompt-submit-hook-bg, runs/task-notifications-bg). The
           mock does the same.
   cursor:
+    docs:
+      - https://cursor.com/docs/hooks#beforesubmitprompt
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
@@ -53,6 +55,12 @@ providers:
           No recording shows the hook adding context to the prompt, or firing for
           a background-task notification handed to the agent, so those parts of the
           statement are not shown.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          No recording tries to rewrite the prompt (no beforeSubmitPrompt hook
+          returned a changed prompt), so that the hook cannot rewrite it is not
+          shown for Cursor; the mock gives a hook no way to.
     runs:
       - cursor-mock/snapshots/runs/user-prompt-submit-hook
       - cursor-mock/snapshots/runs/hook-exit-codes

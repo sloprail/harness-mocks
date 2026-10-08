@@ -30,6 +30,8 @@ providers:
           stop_hook_active, last_assistant_message) as one with none running,
           and the hooks doc lists no such field.
   cursor:
+    docs:
+      - https://cursor.com/docs/hooks#stop
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
