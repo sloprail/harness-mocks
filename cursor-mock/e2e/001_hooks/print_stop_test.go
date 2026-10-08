@@ -22,12 +22,21 @@ import (
 // returns the shapes of the hooks that fired and the stream's frames.
 func printStopMock(t *testing.T, run string, optIn, tools bool) (hooks, frames []map[string]any) {
 	t.Helper()
+	return printStopMockWith(t, run, optIn, tools, "")
+}
+
+// printStopMockWith is printStopMock with the run's hook script replaced by hook when it is not empty.
+func printStopMockWith(t *testing.T, run string, optIn, tools bool, hook string) (hooks, frames []map[string]any) {
+	t.Helper()
 	setup := filepath.Join(filepath.Dir(newestSample(t, run)), "..", "setup")
 	ws, scratch, home := shortTempDir(t), t.TempDir(), t.TempDir()
 	copyFile(t, filepath.Join(setup, "hooks.json"), filepath.Join(ws, ".cursor", "hooks.json"), 0o644)
 	scripts, _ := filepath.Glob(filepath.Join(setup, "*.sh"))
 	for _, s := range scripts {
 		copyFile(t, s, filepath.Join(ws, ".cursor", "hooks", filepath.Base(s)), 0o755)
+	}
+	if hook != "" {
+		require.NoError(t, os.WriteFile(filepath.Join(ws, ".cursor", "hooks", "hook.sh"), []byte(hook), 0o755))
 	}
 	say := `printf '{"type":"assistant","message":{"content":[{"type":"text","text":"%s"}]}}\n{"type":"result","subtype":"success","is_error":false,"result":"%s"}\n' "$answer" "$answer"`
 	body := "#!/bin/sh\nf=\"$A10N_MOCK_SESSION_FILE\"\nanswer=DONE\n[ \"$(grep -c '\"role\":\"user\"' \"$f\")\" -gt 1 ] && answer=DONE2\n"
@@ -79,6 +88,7 @@ func without(hooks []map[string]any, drop ...string) (out []map[string]any) {
 // hook goes on with are the TUI's (runs/tui-stop-followup: response, stop, response, stop with
 // loop_count 1, and no beforeSubmitPrompt, which print mode never fires), and the stream is the
 // usual one, ending in one result. Without it print mode is as recorded: no stop.
+// sr:proves stop-block-continuation/cursor
 func TestPrintModeFiresTheTuisStopOnlyWhenAskedTo(t *testing.T) {
 	got, frames := printStopMock(t, "tui-stop-followup", true, false)
 	want, _ := tuiRecorded(t, "tui-stop-followup")
@@ -94,9 +104,28 @@ func TestPrintModeFiresTheTuisStopOnlyWhenAskedTo(t *testing.T) {
 
 // TestPrintModeStopFollowUpCanUseTools: the follow-up turn runs a tool and then stops again, as
 // recorded (runs/tui-stop-followup-tools).
+// sr:proves stop-block-continuation/cursor
 func TestPrintModeStopFollowUpCanUseTools(t *testing.T) {
 	toolHooks := []string{"beforeSubmitPrompt", "preToolUse", "postToolUse", "beforeShellExecution", "afterShellExecution"}
 	got, _ := printStopMock(t, "tui-stop-followup-tools", true, true)
 	want, _ := tuiRecorded(t, "tui-stop-followup-tools")
 	require.Equal(t, without(want, toolHooks...), without(got, toolHooks...))
+}
+
+// TestPrintModeStopFollowUpsEndAfterFiveInARow: with the opt-in, a stop hook answering a
+// followup_message every time is followed up five times (the docs' loop_limit), its sixth stop
+// says loop_count 5, and the turn ends there with one result.
+// sr:proves stop-block-continuation/cursor
+func TestPrintModeStopFollowUpsEndAfterFiveInARow(t *testing.T) {
+	hook := "#!/bin/sh\nIN=$(cat)\nprintf '%s\\n' \"$IN\" >>\"$HOOK_LOG\"\n" +
+		"[ \"$(printf '%s' \"$IN\" | jq -r .hook_event_name)\" = stop ] && echo '{\"followup_message\":\"again\"}'\nexit 0\n"
+	got, frames := printStopMockWith(t, "tui-stop-followup", true, false, hook)
+	var loops []float64
+	for _, h := range got {
+		if h["hook_event_name"] == "stop" {
+			loops = append(loops, h["loop_count"].(float64))
+		}
+	}
+	require.Equal(t, []float64{0, 1, 2, 3, 4, 5}, loops)
+	require.Equal(t, "result", frames[len(frames)-1]["type"])
 }

@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,15 +45,28 @@ func tuiRecorded(t *testing.T, run string) (shapes, results []map[string]any) {
 // stdin; the agent answers DONE, then DONE2 for a follow-up.
 func tuiMock(t *testing.T, run, typed string) (shapes, results []map[string]any) {
 	t.Helper()
+	shapes, results, _ = tuiMockWith(t, run, typed, "")
+	return shapes, results
+}
+
+// tuiMockWith is tuiMock with the run's hook script replaced by hook when it is not empty. It also
+// returns the scratch directory, where session.last holds the session transcript as the agent
+// saw it when its last generation began.
+func tuiMockWith(t *testing.T, run, typed, hook string) (shapes, results []map[string]any, scratch string) {
+	t.Helper()
 	setup := filepath.Join(filepath.Dir(newestSample(t, run)), "..", "setup")
-	ws, scratch, home := shortTempDir(t), t.TempDir(), t.TempDir()
+	ws, home := shortTempDir(t), t.TempDir()
+	scratch = t.TempDir()
 	copyFile(t, filepath.Join(setup, "hooks.json"), filepath.Join(ws, ".cursor", "hooks.json"), 0o644)
 	scripts, _ := filepath.Glob(filepath.Join(setup, "*.sh"))
 	for _, s := range scripts {
 		copyFile(t, s, filepath.Join(ws, ".cursor", "hooks", filepath.Base(s)), 0o755)
 	}
+	if hook != "" {
+		require.NoError(t, os.WriteFile(filepath.Join(ws, ".cursor", "hooks", "hook.sh"), []byte(hook), 0o755))
+	}
 	script := filepath.Join(scratch, "scenario.sh")
-	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nanswer=DONE\n[ \"$(grep -c '\"role\":\"user\"' \"$A10N_MOCK_SESSION_FILE\")\" -gt 1 ] && answer=DONE2\n"+
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\ncp \"$A10N_MOCK_SESSION_FILE\" \"$TMPDIR/session.last\"\nanswer=DONE\n[ \"$(grep -c '\"role\":\"user\"' \"$A10N_MOCK_SESSION_FILE\")\" -gt 1 ] && answer=DONE2\n"+
 		"printf '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"%s\"}]}}\\n{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"%s\"}\\n' \"$answer\" \"$answer\"\n"), 0o755))
 	log := filepath.Join(scratch, "payloads.jsonl")
 	cmd := exec.Command(binary, "--trust", "--model", "auto")
@@ -67,7 +81,7 @@ func tuiMock(t *testing.T, run, typed string) (shapes, results []map[string]any)
 			shapes = append(shapes, tuiShape(m))
 		}
 	}
-	return shapes, results
+	return shapes, results, scratch
 }
 
 func names(shapes []map[string]any) (out []string) {
@@ -102,6 +116,42 @@ func TestTuiStopHookFollowupGoesOnWithTheTurn(t *testing.T) {
 	require.Equal(t, []string{"sessionStart", "beforeSubmitPrompt", "afterAgentResponse", "stop", "afterAgentResponse", "stop", "sessionEnd"}, names(got))
 	require.Equal(t, "DONE2", got[4]["text"])
 	require.Equal(t, float64(1), got[5]["loop_count"])
+}
+
+// TestTuiStopHookReasonIsHandedToTheAgentAsItsNextMessage: the text of the stop hook's
+// followup_message is what the agent is given as its next user message, after the typed prompt
+// (runs/tui-stop-followup: the hook answered "STOP-FOLLOWUP-REASON: reply only DONE2.").
+// sr:proves stop-block-continuation/cursor
+func TestTuiStopHookReasonIsHandedToTheAgentAsItsNextMessage(t *testing.T) {
+	_, _, scratch := tuiMockWith(t, "tui-stop-followup", "Reply only DONE.\n", "")
+	var users []string
+	for _, r := range readJSONL(t, filepath.Join(scratch, "session.last")) {
+		if r["role"] == "user" {
+			b, err := json.Marshal(r)
+			require.NoError(t, err)
+			users = append(users, string(b))
+		}
+	}
+	require.Len(t, users, 2)
+	require.Contains(t, users[0], "Reply only DONE.")
+	require.Contains(t, users[1], "STOP-FOLLOWUP-REASON: reply only DONE2.")
+}
+
+// TestTuiStopHookThatAlwaysBlocksIsOverriddenAfterFiveFollowUps: the docs' loop_limit (default 5,
+// hooks#per-script-configuration-options) ends the continuation: a stop hook answering a
+// followup_message every time is followed up five times, its sixth stop says loop_count 5, and
+// the turn ends there. The cap is the docs' (no recording reaches it).
+func TestTuiStopHookThatAlwaysBlocksIsOverriddenAfterFiveFollowUps(t *testing.T) {
+	hook := "#!/bin/sh\nIN=$(cat)\nprintf '%s\\n' \"$IN\" >>\"$HOOK_LOG\"\n" +
+		"[ \"$(printf '%s' \"$IN\" | jq -r .hook_event_name)\" = stop ] && echo '{\"followup_message\":\"again\"}'\nexit 0\n"
+	got, _, _ := tuiMockWith(t, "tui-stop-followup", "Reply only DONE.\n", hook)
+	var loops []float64
+	for _, h := range got {
+		if h["hook_event_name"] == "stop" {
+			loops = append(loops, h["loop_count"].(float64))
+		}
+	}
+	require.Equal(t, []float64{0, 1, 2, 3, 4, 5}, loops)
 }
 
 // TestTuiPromptRefusedByAHookNeverReachesTheAgent: recorded (runs/tui-prompt-blocked), a
