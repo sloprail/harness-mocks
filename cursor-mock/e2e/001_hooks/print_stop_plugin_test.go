@@ -58,11 +58,13 @@ printf '{"type":"assistant","message":{"content":[{"type":"text","text":"DONE"}]
 	return strings.Split(strings.TrimSpace(string(raw)), "\n")
 }
 
+// sr:proves plugin-hooks/cursor
 func TestPrintStopOptInPluginStopNeverFiresProjectStopDoes(t *testing.T) {
 	got := printPluginRun(t, true, "stop", "afterAgentResponse")
 	require.ElementsMatch(t, []string{"project afterAgentResponse", "plugin afterAgentResponse", "project stop"}, got)
 }
 
+// sr:proves plugin-hooks/cursor
 func TestPrintStopOptInPluginResponseHookNeedsTheProjectsToo(t *testing.T) {
 	require.Equal(t, []string{"project stop"}, printPluginRun(t, true, "stop"))
 }

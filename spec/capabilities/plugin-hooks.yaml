@@ -64,7 +64,9 @@ providers:
           plugin inside ~/.cursor/plugins/local that hold a
           .cursor-plugin/plugin.json (runs/tui-plugins). It does not read
           marketplace manifests, an inline hooks object in the manifest, or the
-          account's installed plugins.
+          account's installed plugins. The plugins' and the project's hooks of
+          one event run together, in no promised order (runs/plugin-hook-cwd-env
+          logs the project's first), and the mock promises none either.
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
