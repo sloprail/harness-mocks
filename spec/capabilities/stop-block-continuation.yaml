@@ -25,6 +25,8 @@ providers:
       - cursor-mock/snapshots/runs/tui-stop
       - cursor-mock/snapshots/runs/tui-stop-followup
       - cursor-mock/snapshots/runs/tui-stop-followup-tools
+      - cursor-mock/snapshots/runs/tui-multi-turn
+      - cursor-mock/snapshots/runs/stop-block-continuation
     deviations:
       - adr: capability-grounding
         kind: harness-lacks
