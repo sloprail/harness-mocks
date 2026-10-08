@@ -31,8 +31,11 @@ providers:
           plugin's hooks/hooks.json found through the marketplace's
           .agents/plugins/marketplace.json, in place. A plugin's hook command
           is told PLUGIN_ROOT and PLUGIN_DATA, each also under CLAUDE_
-          (recorded: runs/plugin-hook-env), and runs only when trusted like any
-          hook. It installs an enabled plugin into $CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>
+          (recorded: runs/plugin-hook-env, which logs the variables' names, not
+          their values), and runs only when trusted like any hook. The values
+          are the mock's own choice, shown by no recording: the plugin's
+          directory in the cache for the root, $CODEX_HOME/plugins/data/<plugin>-<marketplace>
+          for the data directory. It installs an enabled plugin into $CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>
           when a run starts (the manifest's version, "local" with none; the
           directory copied whole but for symbolic links; a new version replaces
           the cached one), and runs its hooks from there (recorded:
