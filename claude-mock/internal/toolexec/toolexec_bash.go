@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"strings"
 
 	"github.com/sloprail/harness-mocks/claude-mock/internal/childenv"
 	"github.com/sloprail/harness-mocks/internal/procexec"
@@ -15,7 +14,6 @@ import (
 // sr:docs https://docs.anthropic.com/en/docs/claude-code/tools-reference
 type bashInput struct {
 	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
 }
 
 func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string) Result {
@@ -24,7 +22,8 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 		return Result{Output: "Bash: missing or invalid 'command' field", IsError: true}
 	}
 
-	ran := tools.Bash(ctx, inp.Command, cwd, bashEnv(sessionID, inp.Command))
+	// sr:provides bash-background-job/claude
+	ran := tools.BashDetached(ctx, WithSessionEnv(sessionID, inp.Command), cwd, bashEnv(sessionID))
 	text, failedRun := ran.MessageFor(inp.Command, tools.BenignExit1)
 	// toolUseResult/tool_response: the structured result real Claude Code
 	// records for a foreground Bash ({stdout, stderr, interrupted, isImage,
@@ -32,7 +31,7 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 	// the command with one combined stream, so stdout carries it all.
 	// sr:provides bash-tool-result/claude
 	structured := map[string]any{
-		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": false,
+		"stdout": text, "stderr": "", "interrupted": false, "isImage": false, "noOutputExpected": text == "" && !failedRun && silentCommand(inp.Command),
 	}
 	if failedRun {
 		// A command that exits non-zero is answered the way claude 2.1.28x
@@ -52,11 +51,8 @@ func executeBash(ctx context.Context, raw json.RawMessage, cwd, sessionID string
 // over any inherited value — without it, a mock run nested inside a live Claude
 // Code session would hand its tool calls the OPERATOR's outer session id. Set
 // only when non-empty, matching the hook invoker (hooks/invoker.go).
-func bashEnv(sessionID, command string) []string {
-	ident := childenv.Identity(sessionID)
-	// sloprail's own commands resolve their session elsewhere: keep them out of it
-	if strings.HasPrefix(strings.TrimSpace(command), "sr-") {
-		delete(ident, "CLAUDE_CODE_SESSION_ID")
-	}
-	return procexec.Env(os.Environ(), ident, childenv.Defaults())
+func bashEnv(sessionID string) []string {
+	env := os.Environ()
+	ident := childenv.Tool(sessionID, env)
+	return procexec.Env(env, ident, childenv.Defaults())
 }

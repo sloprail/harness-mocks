@@ -1,14 +1,24 @@
 statement: >-
   Every lifecycle hook receives a payload naming the session, its transcript
-  file and its working directory. An event raised inside a sub-agent also
-  names that sub-agent, while events on the main thread name none.
+  file and its working directory. An event raised inside a sub-agent carries an
+  identity of that sub-agent: its own session id, or the main session's id
+  together with an agent id.
 providers:
   claude:
     docs:
       - https://code.claude.com/docs/en/hooks#common-input-fields
     runs:
       - claude-mock/snapshots/runs/hookmix
+      - claude-mock/snapshots/runs/scratchpad-dir
       - claude-mock/snapshots/runs/stops
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock refuses --agent (adr fail-fast-unimplemented), so a session
+          run with it, whose main-thread payloads the docs say carry
+          agent_type, is not modeled: main-thread events never carry
+          agent_type. It stays refused until a recording drives it.
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#common-input-fields
@@ -16,10 +26,16 @@ providers:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-matchers
       - codex-mock/snapshots/runs/session-end
+      - codex-mock/snapshots/runs/ephemeral-no-transcript
+      - codex-mock/snapshots/runs/background-agent
     deviations:
-      - adr: modeled-surface
+      - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
-          The mock has no sub-agents (its tool executor handles only the shell tool), so the events a sub-agent raises, which Codex gives the parent session's id and an agent id, are not modeled; every event is a main-thread event.
+          With --ephemeral Codex keeps no transcript, so the transcript the
+          statement names does not exist: every hook payload has transcript_path
+          null (SessionStart, PreToolUse, PostToolUse, Stop, SessionEnd; recorded:
+          runs/ephemeral-no-transcript). The mock does the same.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema
@@ -27,8 +43,14 @@ providers:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/file-tools
+      - cursor-mock/snapshots/runs/subagent-lifecycle-hooks
+      - cursor-mock/snapshots/runs/multiroot-workspace
+      - cursor-mock/snapshots/runs/add-dir-access
+      - cursor-mock/snapshots/runs/no-add-dir-access
+      - cursor-mock/snapshots/runs/workspace-open
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor does not name the working directory as a cwd on every
           payload: it names it as workspace_roots (the project's roots) on
@@ -40,15 +62,83 @@ providers:
           sessionStart and in the first events, until the conversation's
           transcript file exists. The mock does the same (recorded:
           runs/tool-failure, runs/file-tools, runs/pretool-refusal).
-      - adr: modeled-surface
+      - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
-          The mock has no sub-agents (no Task tool and no subagentStart or
-          subagentStop event), so the payload fields that name a sub-agent are not
-          modeled.
-      - adr: modeled-surface
+          Doc and recording conflict: the hooks doc (#common-schema) says
+          transcript_path is the "Path to the main conversation transcript
+          file", and the recording shows the Shell postToolUse of a sub-agent
+          carrying the sub-agent's own transcript path
+          (agent-transcripts/0965d081-.../0965d081-....jsonl, its own session
+          id, not the main agent's) (runs/subagent-lifecycle-hooks). The
+          recording decides.
+      - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
-          The mock fires no workspaceOpen event (an app-lifecycle event outside
-          any session, whose payload omits the conversation id, the session id
-          and the transcript path) and has no setting that disables
-          transcripts (which makes the transcript path null throughout), so
-          those two variants of the common schema are not modeled.
+          Cursor names a sub-agent on an event raised inside it by that
+          event's own session_id, conversation_id and (once its transcript
+          file exists) transcript_path: the sub-agent's, not the main agent's,
+          as in a Shell call's preToolUse and postToolUse payloads. No field
+          carries the sub-agent's type or its parent on the events of its own
+          calls. The main agent's events carry a session_id and conversation_id
+          too, so the events of a sub-agent are told from them only by those
+          ids differing: no event says it was raised inside a sub-agent
+          (recorded: runs/subagent-lifecycle-hooks). The mock does the same.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (its event list, #subagentstart,
+          #subagentstop) lists "subagentStart / subagentStop - Subagent (Task
+          tool) lifecycle" events, subagentStart carrying subagent_type and
+          parent_conversation_id and subagentStop carrying subagent_type and
+          agent_transcript_path, and the recording shows neither firing for the
+          Task call in print mode, though the run's hooks.json registers both
+          (runs/subagent-lifecycle-hooks). The recording decides.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (its event list) says
+          "preToolUse / postToolUse / postToolUseFailure - Generic tool use hooks
+          (fires for all tools)", and the recording shows the Task call raising
+          preToolUse only, no postToolUse, though the run's hooks.json registers
+          postToolUse (runs/subagent-lifecycle-hooks). The recording decides.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock has no setting that disables transcripts (which makes the
+          transcript path null throughout), so that variant of the common schema
+          is not modeled.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock's payloads always carry an empty attachments list; the
+          entries a real cursor-agent adds for an attached file or rule (a type
+          and a file_path) are not modeled, since no headless run can attach one.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#common-schema) says
+          transcript_path is "Path to the main conversation transcript file
+          (null if transcripts disabled)", and the recordings show it null at
+          sessionStart and on the first preToolUse with transcripts on
+          (recorded: runs/tool-failure, runs/symlinked-cwd,
+          runs/file-tools). The recordings decide.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor in print mode does not run a multiroot workspace: the common
+          schema (#common-schema) says workspace_roots lists every root folder
+          ("multiroot workspaces can have multiple"), and a run with a second
+          root added with --add-dir, and one started from a workspace file,
+          still named one root in every payload (recorded:
+          runs/multiroot-workspace, runs/add-dir-access; --workspace takes a
+          directory, not a workspace file). The mock names the one root.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          The workspaceOpen hook's payload does not name a session: it fires
+          outside any session, and carries only the event name, the Cursor
+          version, the workspace roots and the user's email (null), with no
+          conversation id, session id or transcript path (recorded:
+          runs/workspace-open; the docs, #common-schema, say the same). The
+          mock fires it the same.

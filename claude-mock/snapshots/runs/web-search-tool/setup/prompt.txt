@@ -1,0 +1,1 @@
+Do these steps in order, each with the named tool, and nothing else. 1) WebSearch with the query "example.com IANA reserved domain". 2) WebSearch with the query "iana reserved example domains" and allowed_domains ["iana.org"]. Then reply only DONE.

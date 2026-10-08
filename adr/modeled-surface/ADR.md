@@ -28,8 +28,9 @@ visible and deliberate, not a test nobody wrote.
   - the file-system effects a mock's scripted control record only announces
     (for claude-mock, the worktree directory behind `worktree_create` and
     `worktree_remove`: they fire the hooks, and no directory exists);
-  - aborting a running tool: a mock never interrupts one, so what a harness
-    reports for an abort (an interrupted result, `is_interrupt`) is out;
+  - aborting a running tool, unless a recording drives it (see the Interrupt
+    decision below): what a harness reports for an abort (an interrupted
+    result, `is_interrupt`) is out;
   - failures a mock's own runtime cannot produce (for claude-mock, a Bash
     whose shell will not start: it always runs `/bin/sh`);
   - the reference text a harness prints inside its own diagnostics (such as
@@ -37,6 +38,15 @@ visible and deliberate, not a test nobody wrote.
     writes the diagnostic's first line and the hook's own output;
   - a background time limit, and a foreground command moving to the
     background.
+- The codex mock models Interrupt: a SIGINT during a turn fires the Interrupt
+  hook, aborts the turn and exits 1, as runs/interrupt-hook records; a mock may
+  interrupt a running tool when a recording drives it. The code is
+  `codex-mock/internal/runner/interrupt.go`.
+- The cursor mock models the hooks only a TUI fires (beforeSubmitPrompt,
+  afterAgentResponse, stop), a stop hook's follow-up and manual compaction
+  (`/compress`), as far as its TUI recordings (runs `tui-*`) show. Its print
+  mode, which fires none of them, stays as recorded unless a test opts in to
+  the stop hooks, as a deviation (`cursor-agent -p` fires neither).
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.

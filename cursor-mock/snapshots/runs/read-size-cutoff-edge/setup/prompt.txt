@@ -1,0 +1,1 @@
+Read each of these files with your Read tool, one file per call, one call at a time, in this order, and run no other command: f10001.txt, f10100.txt, f10200.txt, f10239.txt. Then reply only DONE.

@@ -1,4 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nReply with exactly the word FIRSTDONE and nothing else.\n</user_query>"}]}}
-{"role":"assistant","message":{"content":[{"type":"tool_use","name":"GetDynamicTools","input":{"pattern":"."}}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"FIRSTDONE"}]}}
-{"type":"turn_ended","status":"success"}

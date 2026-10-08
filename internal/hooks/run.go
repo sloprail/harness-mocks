@@ -11,12 +11,16 @@ import (
 
 // Command is one command handler of a hook.
 type Command struct {
-	// Line is the shell command line.
+	// Line is the shell command line, or with Args the program to run.
 	Line string
+	// Args, when not nil, runs Line as a program with these arguments, with no shell.
+	Args []string
 	// Timeout is how long it may run; zero is the Runtime's default.
 	Timeout time.Duration
 	// Env is what only this command is told, KEY=VALUE, after the Runtime's.
 	Env []string
+	// Dir, when not empty, is where only this command runs, instead of the Runtime's.
+	Dir string
 }
 
 // Outcome is how one hook command ended.
@@ -34,6 +38,9 @@ type Outcome struct {
 	Done int
 	// Took is how long it ran.
 	Took time.Duration
+	// Finished is when it finished, counted from the moment its event's commands
+	// were started together.
+	Finished time.Duration
 	// Timeout is the limit it ran under.
 	Timeout time.Duration
 }
@@ -58,6 +65,7 @@ type Runtime struct {
 func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Outcome {
 	out := make([]Outcome, len(cmds))
 	var finished atomic.Int64
+	began := time.Now()
 	var wg sync.WaitGroup
 	for i, c := range cmds {
 		wg.Add(1)
@@ -65,6 +73,7 @@ func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Out
 			defer wg.Done()
 			out[i] = runOne(ctx, c, stdin, rt)
 			out[i].Done = int(finished.Add(1))
+			out[i].Finished = time.Since(began)
 		}()
 	}
 	wg.Wait()
@@ -75,8 +84,16 @@ func RunAll(ctx context.Context, cmds []Command, stdin []byte, rt Runtime) []Out
 func runOne(ctx context.Context, c Command, stdin []byte, rt Runtime) Outcome {
 	timeout := DefaultTimeout(c.Timeout, rt.DefaultTimeout)
 	start := time.Now()
+	argv := []string{"/bin/sh", "-c", c.Line}
+	if c.Args != nil {
+		argv = append([]string{c.Line}, c.Args...)
+	}
+	dir := rt.Dir
+	if c.Dir != "" {
+		dir = c.Dir
+	}
 	res, err := procexec.Run(ctx, procexec.Spec{
-		Argv: []string{"/bin/sh", "-c", c.Line}, Dir: rt.Dir, Stdin: stdin, Env: append(append([]string{}, rt.Env...), c.Env...), Timeout: timeout,
+		Argv: argv, Dir: dir, Stdin: stdin, Env: append(append([]string{}, rt.Env...), c.Env...), Timeout: timeout,
 		NewSession: rt.NewSession,
 	})
 	return Outcome{Command: c.Line, Exit: res.ExitCode, Started: err == nil && res.Started, TimedOut: res.TimedOut,

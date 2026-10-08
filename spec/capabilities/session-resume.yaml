@@ -18,12 +18,14 @@ providers:
       - claude-mock/snapshots/runs/resume-continue-none
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock spends no tokens, so a resume's context_tokens and
           estimated_cache_write_usd are 0, where the real ones (recorded in
           every resume run) are the size of the context to send again and its
           price.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The CLI reference's interactive parts of --resume and --continue are
           not modeled: the session picker --resume opens without an ID, --continue
@@ -34,19 +36,18 @@ providers:
           opens a resumed session's stream, after the hooks' own frames, is the
           scenario script's in the mock, which writes none.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Background sessions, which the CLI reference says --resume opens while
           they run and --continue opens once finished, exist only in an
           interactive session's agent view: the mock has none to open.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock does not model --name, naming a session when it starts: the
-          sessions it writes carry its fixed title and no agent-name record. It
-          finds a session by the name its transcript records (the real
-          harness's, as in runs/resume-name) and tells the resume's SessionStart
-          that name as session_title, with the stream's session_title_changed
-          frame. The recorded resume's UserPromptSubmit carries the name as
-          well, which the mock's does not.
+          The mock models --name only on a session it starts, which then
+          carries the name as its title and an agent-name record (recorded:
+          runs/resume-name). --name with --resume or --continue, which renames
+          a session, is refused.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#resume-a-non-interactive-session
@@ -55,6 +56,7 @@ providers:
       - codex-mock/snapshots/runs/session-resume
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Only a session named by its id (`codex exec resume <id>`) is
           modeled: resuming the newest session (`--last`), a session by its
@@ -67,6 +69,7 @@ providers:
       - cursor-mock/snapshots/runs/session-resume
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Resumed from another working directory, cursor-agent keeps the
           session's id and fires that directory's session hooks, but it does
@@ -75,11 +78,13 @@ providers:
           ones. Only a session resumed from the directory it was begun in
           continues in its existing transcript (recorded: runs/session-resume).
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           A resumed session fires cursor-agent's end hook (sessionEnd) but not
           its start hook (sessionStart): the start hook fires only when a
           session begins (recorded: runs/session-resume).
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Only `--resume <session-id>` is modeled: `--continue`, the resume
           picker and `agent resume` are not.

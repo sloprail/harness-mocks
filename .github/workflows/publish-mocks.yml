@@ -1,0 +1,96 @@
+name: publish mocks
+
+# Tag-triggered only — a GitHub Release is the artifact, and a release names
+# a version deliberately, not on every push to main the way the old
+# a10n-cli/GCP Artifact Registry setup did (date+shortsha on every push to
+# services/claude-mock/**). Push a `vX.Y.Z` tag to publish; the tag (minus the v) is embedded as --version.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (must already exist)"
+        required: true
+
+permissions:
+  contents: write # to create the Release and upload assets
+  actions: read   # to read the test run of the tagged commit
+
+jobs:
+  publish:
+    name: build and publish a10n-claude-mock, a10n-codex-mock, a10n-cursor-mock
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      # The tests are not run again here: a tag is cut from main, and main's own push run of
+      # test.yml already tested that exact commit. Publish only a commit that is on main and
+      # whose test run there finished green; anything else (a tag off a branch, a run still
+      # going, a red run) refuses, naming what to do.
+      - name: the tagged commit is on main and its test run passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          git fetch -q origin main
+          git merge-base --is-ancestor "$sha" origin/main || {
+            echo "::error::$sha is not on main: tag a commit of main"; exit 1; }
+          conclusion="$(gh api "repos/${{ github.repository }}/actions/workflows/test.yml/runs?head_sha=$sha&event=push&branch=main&per_page=1" \
+            --jq '.workflow_runs[0] | if . == null then "none" elif .status != "completed" then "running" else .conclusion end')"
+          [ "$conclusion" = success ] || {
+            echo "::error::main's test run of $sha is '$conclusion', not success: wait for it (or re-run it), then publish again with workflow_dispatch"; exit 1; }
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # No CGO / SQLite / fts5 in any of the three mocks (verified:
+      # CGO_ENABLED=0 builds clean for all four targets), so this needs no
+      # cross-compiler toolchain. All three are packages of the root module.
+      #
+      # Only claude-mock has a `main.version` to stamp (it answers --version).
+      # codex-mock has no version at all, and cursor-mock's `version` is a
+      # const naming the *Cursor* build it emulates, which a release tag must
+      # not overwrite — so those two are built without -X.
+      - name: build binaries
+        run: |
+          set -e
+          TAG="${{ inputs.tag || github.ref_name }}"
+          mkdir -p dist
+          for MOCK in claude codex cursor; do
+            LDFLAGS="-s -w"
+            if [ "$MOCK" = claude ]; then
+              LDFLAGS="$LDFLAGS -X main.version=${TAG#v}"
+            fi
+            for OS in linux darwin; do
+              for ARCH in amd64 arm64; do
+                echo "building a10n-${MOCK}-mock ${OS}/${ARCH}..."
+                CGO_ENABLED=0 GOOS=${OS} GOARCH=${ARCH} \
+                  go build -ldflags "$LDFLAGS" \
+                  -o "dist/a10n-${MOCK}-mock-${OS}-${ARCH}" \
+                  "./${MOCK}-mock"
+              done
+            done
+          done
+          (cd dist && sha256sum a10n-*-mock-* > checksums.txt)
+          cat dist/checksums.txt
+
+      - name: publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="${{ inputs.tag || github.ref_name }}"
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --title "$TAG" \
+            --generate-notes \
+            dist/a10n-*-mock-* \
+            dist/checksums.txt

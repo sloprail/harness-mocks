@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate tool calls, one per call, in order: 1) use the Task tool to start one sub-agent whose task is: reply only SUB-DONE; wait for it to finish 2) read the file note.txt with your Read tool. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Starting the sub-agent first, then I’ll read `note.txt` after it finishes."},{"type":"tool_use","name":"Task","input":{"description":"Reply only SUB-DONE","prompt":"Reply only with exactly: SUB-DONE\nDo not include any other text, explanation, or punctuation.","subagent_type":"generalPurpose","run_in_background":false}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Sub-agent finished. Reading `note.txt` next."},{"type":"tool_use","name":"Read","input":{"path":"<RUN>/note.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

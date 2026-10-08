@@ -6,10 +6,12 @@ package hooks
 // Event is a Cursor hook event.
 type Event string
 
-// The events the mock fires. Cursor's docs name more (beforeSubmitPrompt, stop,
-// afterAgentResponse, subagentStart/Stop, the MCP and Tab hooks, preCompact,
-// beforeReadFile, workspaceOpen); the recordings show cursor-agent in print
-// mode firing none of the first three, and the mock does not model the rest.
+// The events the mock fires. Cursor's docs name more (subagentStart/Stop, the MCP
+// and Tab hooks), which the mock does not model. beforeSubmitPrompt, stop and
+// afterAgentResponse are fired only in an interactive (TUI) session: cursor-agent
+// in print mode was recorded firing none of the three (runs/user-prompt-submit-hook,
+// runs/stop-hook-payload), and the TUI firing all of them (runs/tui-stop). afterAgentThought fires only for a thought the
+// script's thinking block gives (runner/think.go).
 const (
 	SessionStart         Event = "sessionStart"
 	SessionEnd           Event = "sessionEnd"
@@ -19,6 +21,16 @@ const (
 	BeforeShellExecution Event = "beforeShellExecution"
 	AfterShellExecution  Event = "afterShellExecution"
 	AfterFileEdit        Event = "afterFileEdit"
+	BeforeReadFile       Event = "beforeReadFile"
+	AfterAgentThought    Event = "afterAgentThought"
+	PreCompact           Event = "preCompact"
+	// The events of an interactive session, around its turns (recorded: runs/tui-stop).
+	BeforeSubmitPrompt Event = "beforeSubmitPrompt"
+	AfterAgentResponse Event = "afterAgentResponse"
+	Stop               Event = "stop"
+	// WorkspaceOpen fires once as the process starts, before the session's
+	// start hook, with no session: recorded in print mode (runs/workspace-open).
+	WorkspaceOpen Event = "workspaceOpen"
 )
 
 // addsContext reports whether a hook of the event can hand the agent context,
@@ -35,5 +47,5 @@ func (e Event) addsContext() bool {
 //
 // sr:docs https://cursor.com/docs/hooks#command-based-hooks
 func (e Event) permission() bool {
-	return e == PreToolUse || e == BeforeShellExecution
+	return e == PreToolUse || e == BeforeShellExecution || e == BeforeReadFile
 }

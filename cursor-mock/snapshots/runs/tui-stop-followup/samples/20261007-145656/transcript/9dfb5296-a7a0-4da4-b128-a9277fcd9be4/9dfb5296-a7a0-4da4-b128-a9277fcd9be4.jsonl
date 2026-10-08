@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nReply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nSTOP-FOLLOWUP-REASON: reply only DONE2.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE2"}]}}
+{"type":"turn_ended","status":"success"}

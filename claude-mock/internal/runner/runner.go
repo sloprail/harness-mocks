@@ -41,10 +41,9 @@ func Run(ctx context.Context, cfg Config) error {
 
 	nested := cfg.SuppressSubagentHooks
 
-	settings, err := hooks.LoadSettings(cfg.ProjectDir, cfg.PluginCacheDir)
+	settings, err := loadRunSettings(cfg)
 	if err != nil {
-		fmt.Fprintf(cfg.Stderr, "claude-mock: warn: loading settings: %v\n", err)
-		settings = &hooks.Settings{Hooks: make(map[hooks.EventName][]hooks.HookEntry)}
+		return err
 	}
 
 	// --resume (with or without --fork-session) of a session no transcript
@@ -72,13 +71,8 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg.sessionFile = tr.path
 	}
 
-	inv := hooks.NewInvoker(settings, cfg.Cwd, cfg.SessionID)
-	inv.SetTranscriptPath(tr.reported)
-	inv.SetProjectDir(projectDirOf(cfg))
-	inv.SetRecorder(tr.recordHookRuns)
-	if cfg.AgentID != "" {
-		inv.SetAgent(cfg.AgentID, cfg.AgentType)
-	}
+	var inv *hooks.Invoker
+	inv, cfg.Turn = newInvoker(cfg, settings, tr)
 
 	// SessionStart — once per top-level invocation. Not for a nested sub-agent
 	// run: real Claude Code fires no SessionStart for a sub-agent, which starts
@@ -122,12 +116,13 @@ func Run(ctx context.Context, cfg Config) error {
 	// Claude Code contract the hook CANNOT replace the prompt — it may only append
 	// additionalContext (exposed to the script via A10N_MOCK_ADDITIONAL_CONTEXT)
 	// or block the prompt (decision=block / exit 2 → Fire returns an error). Not
-	// for a nested sub-agent run: the sub-agent's prompt is its dispatcher's
-	// tool input, not something a user submitted.
+	// for a nested sub-agent run: its prompt is its dispatcher's tool input.
 	// sr:docs https://code.claude.com/docs/en/hooks#userpromptsubmit
 	src := corehooks.PromptFromUser
 	if nested {
 		src = corehooks.PromptSubagentDispatch
+	} else if isLocalCommand(cfg.Prompt) {
+		src = corehooks.PromptLocalCommand
 	}
 	extra, refused, err := submitPrompt(ctx, cfg, inv, tr, src, true)
 	if refused {

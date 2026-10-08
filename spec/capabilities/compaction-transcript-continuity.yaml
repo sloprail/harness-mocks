@@ -1,7 +1,7 @@
 statement: >-
-  A compaction leaves a boundary in the transcript, followed by a summary and
-  a preserved tail of earlier records, so a reader can still follow the record
-  chain across it.
+  A compaction leaves in the transcript what a reader needs to follow the
+  record chain across it: a boundary followed by a summary and a preserved
+  tail of earlier records, or a chain the harness keeps of its own.
 providers:
   claude:
     docs:
@@ -15,28 +15,43 @@ providers:
     runs:
       - codex-mock/snapshots/runs/compaction-transcript-continuity
     deviations:
-      - adr: capability-grounding
-        statement: >-
-          Codex leaves a compaction as one `compacted` record in the rollout,
-          not a boundary followed by a summary and a tail of earlier records:
-          the record holds the new window and the one it closes, and a
-          replacement history of the kept user message (named by its retained
-          source) and then the summary, an opaque encrypted item. A reader
-          follows the chain across the compaction by the windows (window_id,
-          previous_window_id, window_number), not by the parent links between
-          records (recorded: runs/compaction-transcript-continuity).
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock keeps only the last user message of the rollout as the kept
-          message, writes a placeholder for the encrypted summary, and does not
-          write the records Codex adds around a compaction (turn_context,
-          retained_context, resume_metadata). It compacts when a scenario's
-          compact record asks for it, not at a context limit, as in the
-          manual-compaction cell.
+          The rollout only grows across a compaction, as recorded: what came
+          before stays in the file, and the session, the turn and the
+          transcript path are the same before and after. The mock writes what
+          Codex writes around it (the compacted record with its retained
+          context, resume metadata and response id, then the turn's context
+          and the thread's settings), but keeps only the last user message as
+          the kept message, without the developer and environment messages
+          Codex's replacement history opens with (the mock's rollout has none
+          at its start), writes a placeholder for the encrypted summary, zeros
+          for the token usage, and leaves out the model's hash and reasoning
+          effort. It compacts when a scenario's compact record asks for it, not
+          at a context limit, as in the manual-compaction cell.
   cursor:
     supported: false
-    reason: a cursor-agent -p run that compacted twice (preCompact fired) left no boundary or summary record in its transcript, only the user prompt written again, and no record carries a link to another.
+    reason: >-
+      A cursor-agent -p run that compacted twice (preCompact fired at lines 65 and
+      111 of its events, trigger "auto") left in its transcript no boundary record
+      and no summary: after each compaction the transcript carries the user prompt
+      again, byte-identical to the first record and so no marker that a compaction
+      happened, and the records written after it are new tool calls, not an
+      account of the dropped ones; the one other new record, ahead of the
+      second re-written prompt, is a `<dynamic_tools>` tool-discovery message,
+      which is not a summary. Its records hold only role and message (plus a
+      final turn_ended status line), so no record links to another and the
+      harness keeps no chain of its own. Nothing is lost either: in the TUI's
+      /compress (runs/tui-manual-compaction) every conversation record the
+      transcript held at preCompact was still, byte for byte, the start of the
+      same file when the session ended (no prompt is written again there, and
+      the turn_ended line moves behind what follows), and the session id, the
+      conversation id and the transcript path (once it is named, from the first
+      response) were the same in every payload before and after; only the generation_id differs, as each compaction is a
+      generation of its own.
     docs:
       - https://cursor.com/docs/hooks#precompact
     runs:
       - cursor-mock/snapshots/runs/compaction-transcript-continuity
+      - cursor-mock/snapshots/runs/tui-manual-compaction

@@ -22,15 +22,21 @@ func writeCompactingStatus(cfg Config) {
 // transcript boundary's (meta) with its keys in snake_case.
 func writeCompactedFrames(cfg Config, meta map[string]any, logicalParent string) {
 	writeFrame(cfg, map[string]any{"type": "system", "subtype": "status", "status": nil, "compact_result": "success"})
+	writeInitFrame(cfg)
+	writeFrame(cfg, map[string]any{
+		"type": "system", "subtype": "compact_boundary",
+		"compact_metadata": snakeKeys(meta), "logical_parent_uuid": logicalParent,
+	})
+}
+
+// writeInitFrame streams a system/init frame, which opens a turn that starts from idle: after a
+// compaction, and for the turn a background task's notification starts (recorded: runs/bgagent).
+func writeInitFrame(cfg Config) {
 	init := map[string]any{"type": "system", "subtype": "init", "cwd": cfg.Cwd, "claude_code_version": stampVersion}
 	if cfg.Model != "" {
 		init["model"] = cfg.Model
 	}
 	writeFrame(cfg, init)
-	writeFrame(cfg, map[string]any{
-		"type": "system", "subtype": "compact_boundary",
-		"compact_metadata": snakeKeys(meta), "logical_parent_uuid": logicalParent,
-	})
 }
 
 var camelHump = regexp.MustCompile(`([a-z0-9])([A-Z])`)
@@ -48,4 +54,12 @@ func snakeKeys(v any) any {
 		return x
 	}
 	return v
+}
+
+// writeSummaryFrame streams a compaction's summary: the message the agent is given in place of what
+// was compacted, as a synthetic user frame (recorded: runs/compact), not the record the transcript keeps.
+func writeSummaryFrame(cfg Config, sum map[string]any) {
+	if line, err := marshalRecord(map[string]any{"type": "user", "isReplay": false, "isSynthetic": true, "message": sum["message"]}); err == nil {
+		writeStreamLine(cfg, line)
+	}
 }

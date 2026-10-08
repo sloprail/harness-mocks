@@ -112,3 +112,16 @@ func TestGlob(t *testing.T) {
 		}
 	}
 }
+
+// A file that ends without a newline gets the unified diff's marker after its last line in the hunk
+// (recorded: Edit's structuredPatch in claude runs/fgsub-tool-stats).
+func TestPatchMarksAMissingFinalNewline(t *testing.T) {
+	h := Patch("alpha\nbeta\ngamma", "alpha\ndelta\ngamma")
+	want := []string{" alpha", "-beta", "+delta", " gamma", "\\ No newline at end of file"}
+	if len(h) != 1 || !reflect.DeepEqual(h[0].Lines, want) {
+		t.Fatalf("%+v", h)
+	}
+	if h := Patch("a\nb\n", "a\nc\n"); len(h) != 1 || len(h[0].Lines) != 3 {
+		t.Fatalf("a file with its newline has no marker: %+v", h)
+	}
+}

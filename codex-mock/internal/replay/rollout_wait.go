@@ -1,0 +1,63 @@
+package replay
+
+import (
+	"fmt"
+	"regexp"
+	"slices"
+
+	core "github.com/sloprail/harness-mocks/internal/replay"
+	"github.com/sloprail/harness-mocks/internal/subagents"
+)
+
+// unifyWait is the unified wait of a tools.multi_agent_v1__wait_agent call: each
+// target is a sub-agent the agent spawned earlier, named by the receipt the
+// script holds (spawned.agent_id) or by an id literal the model was told of;
+// the unified target is the position of its spawn among the agent's spawns.
+func unifyWait(arg map[string]any, spawns []int, told []string) (core.Call, error) {
+	list, ok := arg["targets"].([]any)
+	if !ok {
+		return core.Call{}, fmt.Errorf("a wait_agent whose targets are not a list")
+	}
+	targets := make([]int, len(list))
+	for i, t := range list {
+		pos := -1
+		switch v := t.(type) {
+		case ref:
+			if v.path == ".agent_id" {
+				pos = slices.Index(spawns, v.call)
+			}
+		case string:
+			pos = slices.Index(told, v)
+		}
+		if pos < 0 {
+			return core.Call{}, fmt.Errorf("a wait_agent for something that is not a sub-agent the model spawned")
+		}
+		targets[i] = pos
+	}
+	timeout, ok := arg["timeout_ms"].(number)
+	if !ok {
+		return core.Call{}, fmt.Errorf("a wait_agent whose timeout_ms is not a number")
+	}
+	return core.Call{Tool: core.ToolWait, Input: map[string]any{"targets": targets, "timeout_ms": int(timeout.f)}}, nil
+}
+
+// agentIDs are the sub-agent ids a tool call's output tells the model of: the
+// output is a list of text items, and an item whose text is a spawn receipt, as
+// the script printed it, names one.
+var reAgentID = regexp.MustCompile(`"agent_id":"([0-9a-f-]{36})"`)
+
+func agentIDs(output any) (ids []string) {
+	items, _ := output.([]any)
+	for _, it := range items {
+		m, _ := it.(map[string]any)
+		text, _ := m["text"].(string)
+		if id := subagents.ReceiptAgentID(text); id != "" {
+			ids = append(ids, id)
+		} else { // a script that printed receipts inside an object of its own ({agent, shell}) names them still
+			for _, m := range reAgentID.FindAllStringSubmatch(text, -1) {
+				ids = append(ids, m[1])
+			}
+		}
+	}
+	return ids
+}

@@ -1,0 +1,10 @@
+{"type":"thread.started","thread_id":"01a10e0c-ac67-7f40-b2f1-acf47f498b24"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10e0c-ac67-7f40-b2f1-acf47f498b24","receiver_thread_ids":[],"prompt":"Reply only SUBDONE. Do nothing else.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10e0c-ac67-7f40-b2f1-acf47f498b24","receiver_thread_ids":["01a10e0c-beb8-7ab2-bf1c-8b282119cf8e"],"prompt":"Reply only SUBDONE. Do nothing else.","agents_states":{"01a10e0c-beb8-7ab2-bf1c-8b282119cf8e":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10e0c-ac67-7f40-b2f1-acf47f498b24","receiver_thread_ids":["01a10e0c-beb8-7ab2-bf1c-8b282119cf8e"],"prompt":null,"agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10e0c-ac67-7f40-b2f1-acf47f498b24","receiver_thread_ids":["01a10e0c-beb8-7ab2-bf1c-8b282119cf8e"],"prompt":null,"agents_states":{"01a10e0c-beb8-7ab2-bf1c-8b282119cf8e":{"status":"completed","message":"SUBDONE"}},"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"DONE"}}
+{"type":"turn.completed","usage":{"input_tokens":43893,"cached_input_tokens":36096,"cache_write_input_tokens":0,"output_tokens":172,"reasoning_output_tokens":55}}

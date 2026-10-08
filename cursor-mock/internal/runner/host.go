@@ -3,26 +3,46 @@ package runner
 import (
 	"context"
 
-	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
-	"github.com/sloprail/harness-mocks/internal/scenario"
-	"github.com/sloprail/harness-mocks/internal/toolcall"
+	coresession "github.com/sloprail/harness-mocks/internal/session"
 )
 
-// SubmitPrompt fires nothing: cursor-agent in print mode was recorded not
-// firing beforeSubmitPrompt, so no hook blocks the prompt or adds context.
-func (s *session) SubmitPrompt(context.Context) (string, bool) { return "", false }
+// SubmitPrompt fires nothing in print mode (recorded: cursor-agent -p never fires
+// beforeSubmitPrompt); a TUI session fires it (interactive.go).
+func (s *session) SubmitPrompt(ctx context.Context) (string, bool) {
+	if s.cfg.Interactive {
+		return s.submitPrompt(ctx)
+	}
+	return "", false
+}
 
-// Say prints what the agent said, and records it.
+// Say prints what the agent said, and records it; a TUI session tells it to
+// afterAgentResponse when the turn ends.
 func (s *session) Say(text string) {
 	s.texts = append(s.texts, text)
 	s.tr.text(text)
-	s.forward(assistantFrame(s.id, text))
+	s.pending = append(s.pending, text)
+	if s.firesStop() {
+		s.said = append(s.said, text)
+	}
 }
 
-// EndOfTurn fires no hook: cursor-agent in print mode was recorded not firing
-// the stop hook, so nothing blocks the end of the turn. What can continue it is
-// a background shell's end (afterTurn).
+// EndOfTurn fires no hook in print mode (recorded: cursor-agent -p never fires stop), unless
+// run with the opt-in; what can continue the turn is a background shell's end (afterTurn).
+//
+// What the agent said in the turn is not brought out when the turn ends: a
+// turn a finished background shell gives the agent follows, and everything said
+// since the last call comes out as one frame at the end of the run, after the
+// task's notification (recorded: runs/background-bash-start,
+// runs/bg-bash-reaped-at-exit).
 func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool) {
+	if s.cfg.Interactive {
+		return s.stopped(ctx)
+	}
+	if s.cfg.Stop && s.owner == "" { // the opt-in: the TUI's stop, in print mode (interactive.go)
+		if follow, again := s.stopped(ctx); again {
+			return follow, true
+		}
+	}
 	if s.owner != "" { // a sub-agent ends with its final response: its parent goes on
 		return "", false
 	}
@@ -31,49 +51,16 @@ func (s *session) EndOfTurn(ctx context.Context, _ string, _ bool) (string, bool
 
 // Continue records the turn a finished background shell gives the agent, as the
 // user message it is in the transcript.
-func (s *session) Continue(prompt string) { s.tr.user(prompt) }
+func (s *session) Continue(prompt string) {
+	s.tr.user(prompt)
+	s.requestID, s.modelN = coresession.NewID(), 0 // a turn of its own is a model request of its own
+	if s.stopFollowUp {                            // the follow-up a stop hook gave
+		s.followedUp()
+	}
+}
 
-// CapOverridden is never asked for: no end-of-turn hook blocks, so there is no
-// cap to reach.
+// CapOverridden: a stop hook asked for more than the cap; the turn ends.
 func (s *session) CapOverridden(int) {}
 
 // SessionFile is the conversation's transcript so far.
 func (s *session) SessionFile() string { return s.tr.path }
-
-// Tool carries out a call the script made: it is printed as started, run
-// through the shared order of a tool call, and recorded. A write first reads
-// the file it is about to change: a call of its own to the hooks (recorded:
-// runs/tool-failure, runs/file-tools), which is not shown on the stream.
-func (s *session) Tool(ctx context.Context, tu scenario.ToolUse) {
-	if s.refusesTaskAtTheLimit(ctx, tu) {
-		return
-	}
-	if in, ok := startsBackgroundSubagent(tu); ok {
-		s.launchSubagent(ctx, tu, in)
-		return
-	}
-	if in, ok := dispatchesSubagent(tu); ok {
-		s.runSubagent(ctx, tu, in)
-		return
-	}
-	c := toolexec.FromScript(tu.Name, tu.Input)
-	s.forward(startedFrame(s.id, tu.ID, c))
-	s.tr.toolUse(tu.Name, c.Args)
-	if c.Kind == "editToolCall" {
-		path := map[string]any{"file_path": c.Args["path"]}
-		s.runTool(ctx, scenario.ToolUse{ID: tu.ID + "-read", Name: "Read", Input: jsonLine(path)}, true)
-	}
-	s.runTool(ctx, tu, false)
-}
-
-// runTool runs one call through the shared order; quiet leaves it off the
-// stream.
-func (s *session) runTool(ctx context.Context, tu scenario.ToolUse, quiet bool) {
-	h := &toolHost{s: s, quiet: quiet}
-	var host toolcall.Host = h
-	if runsInBackground(tu) {
-		host = &bgToolHost{h}
-	}
-	toolcall.Run(ctx, host, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
-		toolcall.Options{SeparateFailureHook: true, FailureOnRefusal: true})
-}

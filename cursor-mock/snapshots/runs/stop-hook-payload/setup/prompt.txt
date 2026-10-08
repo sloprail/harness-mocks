@@ -1,1 +1,1 @@
-Reply with exactly the word FIRSTDONE and nothing else.
+Reply with exactly the word FIRSTDONE and nothing else. Do not call any tool, answer from your own words.

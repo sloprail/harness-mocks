@@ -1,0 +1,47 @@
+---
+concern: how the list of recorded runs that do not replay green and its reasons are kept from hiding differences
+sloprails: [file-guard/replay-exceptions-only-shrink]
+---
+
+# The replay exception list may only shrink
+
+## Concern
+
+The recorded runs a mock's replay does not reproduce are listed with a
+reason in the `notReplaying` map of that mock's `replay_allowlist_test.go`
+(every such file in the repo); a `flaky:` entry is one whose replay is green in
+some runs and not in others. A list that can grow, or whose reasons can be
+softened, turns every difference between a recording and its mock into an
+accepted one.
+
+## Decision
+
+- A change to the `notReplaying` map of any `replay_allowlist_test.go` removes
+  keys and never adds one: adding an entry fails CI (the
+  `replay-exceptions-only-shrink` file-guard compares the map's keys at the base
+  and at the head). A new `flaky:` entry is an addition.
+- An existing entry's reason never moves to a weaker category: a reason starts
+  with one of `adapter:`, `mock gap:`, `untriaged:` or `flaky:`; `flaky:` is the
+  weakest, `untriaged:` is weaker than the triaged `adapter:` and `mock gap:`, a
+  move between the triaged ones, or from `flaky:` or `untriaged:` to a stronger
+  category, is allowed, and a reason that starts with none of the four is
+  refused.
+- A `flaky:` entry is never skipped: the replay test generated for the
+  recordings (`generated_replay_test.go`, beside each list) runs it three times
+  and fails when none of them is green.
+- Replays no `-skip` hides: a `go test -skip` of a replay in a workflow or a
+  mock's Makefile is refused, except for timing-sensitive replays whose recorded
+  gaps a CI runner's timers cannot keep. Those may run on Linux only, three
+  times each, as long as they run on every PR.
+
+## Source
+
+The user's words for the second and third bullets: "A replay exception's reason may not
+move to a weaker category (flaky < untriaged < triaged), and a flaky entry runs
+3 times and fails if never green; it is never skipped."
+
+The user's words for the timed replays: "Timing-sensitive replays whose recorded gaps a CI runner's timers cannot keep may run on Linux only, three times each, as long as they run on every PR."
+
+The user's answer for refusing every other skip, to "any other `go test -skip` of a replay in a workflow or Makefile is refused. Keep it?": "Yes, ban other skips".
+
+The user's words for the categories: "A replay exception's reason must start with one of adapter:, mock gap:, untriaged: or flaky:; a reason with none of these is refused."

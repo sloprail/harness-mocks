@@ -1,0 +1,13 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) i=0; while [ $i -lt 2 ]; do echo \"w$i\"; i=$((i+1)); done 2) case x in x) echo matched;; *) echo no;; esac 3) true; echo \"status $?\" 4) [[ -f in.txt ]] && echo exists 5) cat <<-EOF\n\ttab body\n\tEOF\n6) cat <<< \"here string\" 7) for f in *.txt; do echo \"$f\"; done 8) set -- p q; echo $1 $@ 9) until true; do :; done; echo done 10) x=$(echo a | tr a b) && echo \"$x\". Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the ten commands one at a time, in order."},{"type":"tool_use","name":"Shell","input":{"command":"i=0; while [ $i -lt 2 ]; do echo \"w$i\"; i=$((i+1)); done","description":"while loop echo w0 w1"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"case x in x) echo matched;; *) echo no;; esac","description":"case statement match x"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"true; echo \"status $?\"","description":"true then echo status"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"[[ -f in.txt ]] && echo exists","description":"check in.txt exists"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat <<-EOF\n\ttab body\n\tEOF\n","description":"heredoc with tab body"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat <<< \"here string\"","description":"here string via cat"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"for f in *.txt; do echo \"$f\"; done","description":"for loop over txt files"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"set -- p q; echo $1 $@","description":"set positional params echo"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"until true; do :; done; echo done","description":"until true loop then done"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"x=$(echo a | tr a b) && echo \"$x\"","description":"command sub tr then echo"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

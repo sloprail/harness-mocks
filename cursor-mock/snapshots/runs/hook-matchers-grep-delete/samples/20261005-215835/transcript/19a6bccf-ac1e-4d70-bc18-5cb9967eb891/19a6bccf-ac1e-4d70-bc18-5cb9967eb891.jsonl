@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate tool calls, one per call, in order: 1) search the files here for the word NEEDLE with your Grep tool 2) delete the file gone.txt with your Delete tool, not the shell. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll search for NEEDLE first, then delete `gone.txt`."},{"type":"tool_use","name":"Grep","input":{"pattern":"NEEDLE"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Delete","input":{"path":"<RUN>/gone.txt"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

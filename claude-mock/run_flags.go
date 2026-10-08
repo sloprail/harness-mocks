@@ -1,45 +1,31 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/claude-mock/internal/runner"
 )
-
-// printWaitCeiling is the ceiling on a `claude -p` run's idle wait for background
-// agents: CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS in milliseconds (0 waits without
-// one), else ten minutes. Read once here, with the rest of the configuration.
-// sr:docs https://code.claude.com/docs/en/env-vars#environment-variables
-func printWaitCeiling() time.Duration {
-	if ms, err := strconv.Atoi(os.Getenv("CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS")); err == nil && ms >= 0 {
-		return time.Duration(ms) * time.Millisecond
-	}
-	return tasks.DefaultWaitCeiling
-}
-
-// spawnLimit is how many layers of sub-agents nest below the main conversation:
-// CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, else 0 for the default of three. Read
-// once here, with the rest of the configuration.
-// sr:docs https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents
-func spawnLimit() int {
-	if n, err := strconv.Atoi(os.Getenv("CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH")); err == nil && n > 0 {
-		return n
-	}
-	return 0
-}
 
 // addRunFlags registers all flags needed to mimic the claude CLI interface.
 // a10n:blueprint:ignore
 func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagScript, "", "Shell script to run as the mock agent (env: A10N_MOCK_SCRIPT)")
 	cmd.Flags().String(flagSessionID, "", "Session ID (--session-id, as used by claude CLI)")
-	cmd.Flags().String(flagResume, "", "Session ID to resume (--resume, as used by claude CLI)")
-	// --continue resumes the most recent session of the directory (headless#continue-conversations).
-	cmd.Flags().Bool(flagContinue, false, "Resume the most recent session of the project directory (--continue, as used by claude CLI)")
+	cmd.Flags().StringP(flagResume, "r", "", "Session ID to resume (--resume, -r, as used by claude CLI)")
+	// --continue (-c) resumes the most recent session of the directory (headless#continue-conversations);
+	// --resume has the short form -r (cli-reference#cli-flags).
+	cmd.Flags().BoolP(flagContinue, "c", false, "Resume the most recent session of the project directory (--continue, -c, as used by claude CLI)")
+	cmd.Flags().Bool(flagResumeLookup, false, "Internal: --resume named its session by lookup")
+	_ = cmd.Flags().MarkHidden(flagResumeLookup)
+	// --max-turns: the run ends with an error result when the model would take more turns (cli-reference#--max-turns)
+	// --include-hook-events: stream the main thread's hook frames, not only SessionStart's (headless; recorded: snapshots/runs/include-hook-events)
+	cmd.Flags().Bool("include-hook-events", false, "Stream a hook_started and hook_response frame for every hook of the main thread")
+	cmd.Flags().Int("max-turns", 0, "Limit the model turns of the run (0: no limit)")
+	addInvocationFlags(cmd)
 	cmd.Flags().Bool(flagNoPersistence, false, "Leave no session to resume (--no-session-persistence, as used by claude CLI)")
 	// --fork-session: when resuming, continue under a NEW session id in a new
 	// transcript instead of appending to the original. The new id is
@@ -67,7 +53,7 @@ func addRunFlags(cmd *cobra.Command) {
 	// The autopilot supervisor passes these flags; accept them for CLI compatibility.
 	cmd.Flags().String("system-prompt", "", "Accepted for CLI compatibility; passed to script via A10N_MOCK_SYSTEM_PROMPT")
 	cmd.Flags().StringArray("add-dir", nil, "Accepted for CLI compatibility; has no effect")
-	cmd.Flags().Bool("dangerously-skip-permissions", false, "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().Bool("dangerously-skip-permissions", false, "Run in bypassPermissions mode (the permission_mode hooks are told)")
 
 	// --- sr-agent (sloprail guardrail JUDGE) compatibility flags ---
 	//
@@ -107,7 +93,7 @@ func addRunFlags(cmd *cobra.Command) {
 	// --permission-mode: default|acceptEdits|plan|auto|bypassPermissions|dontAsk.
 	// Reachable via --claude-args (e.g. '{"permission-mode":"plan"}').
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--permission-mode
-	cmd.Flags().String("permission-mode", "", "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().String("permission-mode", "", "The permission_mode hooks are told")
 	// --settings: a settings file path OR an inline JSON string.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--settings
 	cmd.Flags().String("settings", "", "Accepted for CLI compatibility; has no effect")
@@ -117,26 +103,31 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("append-system-prompt", "", "Accepted for CLI compatibility; has no effect")
 	// --input-format: text|stream-json. Mirror of the existing --output-format.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--input-format
-	cmd.Flags().String("input-format", "", "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().String("input-format", "", "Refused: not implemented by the mock")
 	// --include-partial-messages: streams partial message chunks; real claude
-	// requires --output-format stream-json + --print. Accepted, no effect.
+	// requires --output-format stream-json + --print. Refused (the mock streams no partials).
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--include-partial-messages
-	cmd.Flags().Bool("include-partial-messages", false, "Accepted for CLI compatibility; has no effect")
+	cmd.Flags().Bool("include-partial-messages", false, "Refused: not implemented by the mock")
 	// --max-budget-usd: caps API spend. sr-agent's --claude-args carries it in
 	// its own tests ('{"max-budget-usd":5}'), so a judge caller may pass it.
 	// sr:docs https://code.claude.com/docs/en/cli-reference#--max-budget-usd
-	cmd.Flags().String("max-budget-usd", "", "Accepted for CLI compatibility; has no effect")
-	// NOTE on --permission-prompt-tool: it does NOT exist in the real Claude Code
-	// CLI (confirmed absent from `claude --help` and the CLI reference), so it is
-	// deliberately NOT declared here — the mock accepts only flags real claude
-	// accepts.
+	cmd.Flags().String("max-budget-usd", "", "Refused: not implemented by the mock")
+	// --permission-prompt-tool is declared with the flags that name a run's tools (flags.go): real claude
+	// accepts it (recorded: runs/ask-user-question-tool), and the mock models only the value stdio.
 }
 
-// backgroundTasksDisabled is whether CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1
-// turns the background task functionality off. Read once here, with the rest
-// of the configuration.
-// sr:docs https://code.claude.com/docs/en/tools-reference#background-commands
-// sr:provides background-bash/claude
-func backgroundTasksDisabled() bool {
-	return os.Getenv("CLAUDE_CODE_DISABLE_BACKGROUND_TASKS") == "1"
+// noConversation ends the run the way real Claude Code ends `--resume <id>`
+// for a session it has no transcript of (claude 2.1.282): the error's message
+// ("No conversation found with session ID: <id>") on stderr, an error result frame on stdout when
+// the output format is stream-json, exit status 1.
+//
+// sr:provides session-resume-unknown/claude
+func noConversation(cmd *cobra.Command, noConv *runner.ErrNoConversation) {
+	sessionID, msg := noConv.SessionID, noConv.Error()
+	fmt.Fprintln(os.Stderr, msg)
+	if format, _ := cmd.Flags().GetString(flagOutputFormat); format == "stream-json" {
+		frame, _ := json.Marshal(noConversationResult(sessionID, msg))
+		fmt.Println(string(frame))
+	}
+	os.Exit(1)
 }

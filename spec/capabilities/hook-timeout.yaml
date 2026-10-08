@@ -14,6 +14,7 @@ providers:
       - claude-mock/snapshots/runs/hook-timeout
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock defines and fires none of the PreModelSwitch,
           PostModelSwitch and MessageDisplay events, so the shorter default
@@ -22,6 +23,7 @@ providers:
           mcp_tool hook handler is not implemented either, so a timed-out
           mcp_tool hook's cancellation and discarded output are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A timed-out PreToolUse hook lets the call fall through to the normal
           permission flow. The mock models a non-interactive run with no
@@ -32,18 +34,28 @@ providers:
       - https://developers.openai.com/codex/hooks#config-shape
     runs:
       - codex-mock/snapshots/runs/hook-timeout
+      - codex-mock/snapshots/runs/interrupt-hook-timeout
     deviations:
-      - adr: modeled-surface
+      - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
-          Codex also gives the Interrupt event a default of 1 second, capped at 3, but the mock fires no Interrupt event (a non-interactive run has nothing to interrupt), so that default is not modeled.
+          Doc and recording conflict: the hooks#config-shape section says
+          "`SessionEnd` and `Interrupt` use `1` second by default and support up
+          to `3` seconds". The recording of Interrupt hooks (runs/interrupt-hook-timeout)
+          shows a warning for a configured 10 ("clamping Interrupt hook timeout to
+          3s in <the hooks file>"), but hooks of 2 seconds with no timeout set, and
+          of 5 seconds under that clamp, still ran to their end and logged. The mock
+          prints the warning and does not stop an Interrupt hook at 1 or 3 seconds.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#per-script-configuration-options
     runs:
       - cursor-mock/snapshots/runs/hook-timeout
       - cursor-mock/snapshots/runs/hook-timeout-early-output
+      - cursor-mock/snapshots/runs/before-read-timeout
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           A hook configured with failClosed does not let the event carry on
           when it times out: Cursor blocks the action instead (recorded: a

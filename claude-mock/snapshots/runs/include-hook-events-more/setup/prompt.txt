@@ -1,0 +1,1 @@
+Step 1: use the Bash tool to run exactly: exit 3 . Step 2: use the Agent tool (not in background) with subagent_type general-purpose, description 'helper', prompt: 'Reply only HELPED'. Then reply only DONE.

@@ -64,6 +64,34 @@ func TestActedBlockIsTheLastToFinish(t *testing.T) {
 	}
 }
 
+// Of the blockers of one event, the one that finished last is acted on, and of
+// those that finished within 50 ms of the last the one configured last: built
+// outcomes, no shells (the grounding is in act.go).
+func TestActedBlockIsTheLastFinisherOrTheLastConfiguredOfThoseTogether(t *testing.T) {
+	block := func(ms int) Outcome {
+		return Outcome{Exit: 2, Started: true, Finished: time.Duration(ms) * time.Millisecond}
+	}
+	pass := func(ms int) Outcome {
+		return Outcome{Exit: 0, Started: true, Finished: time.Duration(ms) * time.Millisecond}
+	}
+	for _, tc := range []struct {
+		name string
+		outs []Outcome
+		want int
+	}{
+		{"a second apart: the first configured finished last", []Outcome{block(1100), block(100), pass(50)}, 0},
+		{"a second apart: the second configured finished last", []Outcome{block(100), block(1100), pass(50)}, 1},
+		{"together, the first finishing last by 5 ms: the last configured", []Outcome{block(105), block(100), pass(50)}, 1},
+		{"together, the last configured first by 40 ms: still the last configured", []Outcome{block(140), block(100)}, 1},
+		{"75 ms apart, first configured last: the last finisher", []Outcome{block(175), block(100)}, 0},
+		{"a passing command finished last: not a blocker", []Outcome{block(100), pass(900), block(20)}, 0},
+	} {
+		if i, ok := ActedBlock(tc.outs, false); !ok || i != tc.want {
+			t.Errorf("%s: ActedBlock = (%d, %v), want (%d, true)", tc.name, i, ok, tc.want)
+		}
+	}
+}
+
 func TestActedBlockNoneBlocked(t *testing.T) {
 	out := RunAll(context.Background(), []Command{{Line: "exit 0"}, {Line: "exit 1"}, {Line: "exit 3"}}, nil, rt)
 	if _, ok := ActedBlock(out, false); ok {

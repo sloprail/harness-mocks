@@ -1,0 +1,9 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"beforeSubmitPrompt","payload":{"prompt":"Reply only DONE.","attachments":[],"session_id":"<SESSION_ID>","hook_event_name":"beforeSubmitPrompt"}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"DONE","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":0,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":"preCompact","payload":{"trigger":"manual","context_window_size":256000,"is_first_compaction":true,"session_id":"<SESSION_ID>","hook_event_name":"preCompact"}}
+{"event":"hook","hook":"afterAgentResponse","payload":{"text":"","session_id":"<SESSION_ID>","hook_event_name":"afterAgentResponse"}}
+{"event":"hook","hook":"stop","payload":{"status":"completed","loop_count":0,"session_id":"<SESSION_ID>","hook_event_name":"stop"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"hook","hook":null,"payload":{"hook_result":{"event":"sessionEnd","prefix_kept":true,"same_file":true}}}

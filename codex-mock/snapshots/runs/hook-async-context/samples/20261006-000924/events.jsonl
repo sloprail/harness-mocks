@@ -1,0 +1,12 @@
+{"event":"hook","hook":"SessionStart","payload":{"session_id":"<SESSION_ID>","hook_event_name":"SessionStart","permission_mode":"bypassPermissions","source":"startup"}}
+{"event":"hook","hook":"UserPromptSubmit","payload":{"session_id":"<SESSION_ID>","hook_event_name":"UserPromptSubmit","permission_mode":"bypassPermissions","prompt":"Run exactly this shell command, once, as its own tool call: echo one. Then reply only DONE."}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","hook_event_name":"PostToolUse","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo one"},"tool_response":"one\n"}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

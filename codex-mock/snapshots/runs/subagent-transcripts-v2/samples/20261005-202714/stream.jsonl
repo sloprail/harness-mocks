@@ -1,0 +1,10 @@
+{"type":"thread.started","thread_id":"01a10dbf-ccf5-79e2-982b-9fdddfb8d8e0"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10dbf-ccf5-79e2-982b-9fdddfb8d8e0","receiver_thread_ids":[],"prompt":"Reply with exactly the word PONG.","agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"collab_tool_call","tool":"spawn_agent","sender_thread_id":"01a10dbf-ccf5-79e2-982b-9fdddfb8d8e0","receiver_thread_ids":["01a10dbf-f36f-75c0-a5af-15bf65124a6a"],"prompt":"Reply with exactly the word PONG.","agents_states":{"01a10dbf-f36f-75c0-a5af-15bf65124a6a":{"status":"pending_init","message":null}},"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10dbf-ccf5-79e2-982b-9fdddfb8d8e0","receiver_thread_ids":["01a10dbf-f36f-75c0-a5af-15bf65124a6a"],"prompt":null,"agents_states":{},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"collab_tool_call","tool":"wait","sender_thread_id":"01a10dbf-ccf5-79e2-982b-9fdddfb8d8e0","receiver_thread_ids":["01a10dbf-f36f-75c0-a5af-15bf65124a6a"],"prompt":null,"agents_states":{"01a10dbf-f36f-75c0-a5af-15bf65124a6a":{"status":"completed","message":"PONG"}},"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"DONE"}}
+{"type":"turn.completed","usage":{"input_tokens":54660,"cached_input_tokens":42240,"cache_write_input_tokens":0,"output_tokens":167,"reasoning_output_tokens":53}}

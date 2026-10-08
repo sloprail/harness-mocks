@@ -23,11 +23,30 @@ type taskInput struct {
 	Prompt       string `json:"prompt"`
 	SubagentType string `json:"subagent_type"`
 	Script       string `json:"script"`
+	// AgentID is mock-only too: the id the sub-agent's conversation takes, where a
+	// scenario's text quotes it (a replay of a recording); else a fresh one.
+	AgentID string `json:"agent_id"`
+	// HookToolUseID is the id the call's hooks name it by, when it is not its own.
+	HookToolUseID string `json:"hook_tool_use_id"`
+	// Model and RunInBackground are optional: what the model left out the hooks
+	// are not told of either (recorded: runs/subagent-worktree-isolation and
+	// runs/foreground-subagent-result).
+	Model           *string `json:"model"`
+	RunInBackground *bool   `json:"run_in_background"`
+}
+
+// agentID is the id the sub-agent's conversation takes.
+func (in taskInput) agentID() string {
+	if in.AgentID != "" {
+		return in.AgentID
+	}
+	return coresession.NewID()
 }
 
 // dispatchesSubagent reports whether the call is a foreground Task the mock
-// runs as a sub-agent: one with its description, prompt and the script that
-// plays the sub-agent. A background Task, and a main agent's call that lacks
+// runs as a sub-agent: one with its prompt (the description is optional: a call
+// without it ran, recorded: runs/agent-input-validation-description) and the
+// script that plays the sub-agent. A background Task, and a main agent's call that lacks
 // them, are not modelled (adr/modeled-surface); they end as a call to a tool
 // the mock does not have.
 func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
@@ -35,13 +54,23 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil {
 		return in, false
 	}
-	return in, in.Description != "" && in.Prompt != "" && in.Script != ""
+	return in, in.Prompt != "" && in.Script != ""
 }
 
-// runSubagent is a foreground Task call: the parent's preToolUse hooks, the
-// call on the stream, the sub-agent running to its final response in a
-// conversation of its own (its own session id and transcript, its tool calls
-// fired to the hooks under that id and not shown on the stream), and the call
+// startSubagent is the first half of a foreground Task call: the parent's
+// preToolUse hooks and the call on the stream; it returns the second half.
+func (s *session) startSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) (finish func()) {
+	typ, args := s.announceTask(ctx, tu, in)
+	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
+	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt, "subagent_type": typ})
+	return func() { s.finishSubagent(ctx, tu, in, typ, args) }
+}
+
+// finishSubagent is the second half of a foreground Task call (the first is
+// startSubagent: the parent's preToolUse hooks and the call on the stream): the
+// sub-agent running to its final response in a conversation of its own (its
+// own session id and transcript, its tool calls fired to the hooks under that
+// id and not shown on the stream), and the call
 // completed with what it said. A command the sub-agent started in the
 // background is terminated when it gives its final response (recorded:
 // runs/foreground-subagent-bash-ends-with-response); no hook of the Task call
@@ -55,29 +84,14 @@ func dispatchesSubagent(tu scenario.ToolUse) (taskInput, bool) {
 // sr:provides foreground-subagent-bash-ends-with-response/cursor
 // sr:provides foreground-subagent-result/cursor
 // sr:docs https://cursor.com/docs/hooks#subagentstop
-func (s *session) runSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) {
-	typ := in.SubagentType
-	if typ == "" {
-		typ = "generalPurpose"
-	}
-	tool := hooks.Tool{Name: "Task", UseID: tu.ID, Input: map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagent_type": typ, "run_in_background": false}}
-	s.hooks.Fire(ctx, hooks.PreToolUse, tool.Name, hooks.ToolFields(tool))
-	s.named = true
-
-	args := map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{typ: map[string]any{}},
-		"model": "default", "agentId": coresession.NewID(),
-	}
-	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
-	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt, "subagent_type": typ})
-
+func (s *session) finishSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput, typ string, args map[string]any) {
 	started := time.Now()
 	sub := *s
-	sub.id, sub.parent = coresession.NewID(), s
+	sub.id, sub.parent = in.agentID(), s
+	sub.requestID, sub.modelN = coresession.NewID(), 0 // a sub-agent is a model request of its own
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.added, sub.named = nil, nil, false
+	sub.texts, sub.pending, sub.added, sub.named, sub.owed, sub.reaped = nil, nil, nil, false, tasks.Deferred{}, nil
 	var err error
 	if sub.tr, err = newSubagentTranscript(s.tr, sub.id); err != nil {
 		sub.tr = s.tr
@@ -94,16 +108,11 @@ func (s *session) runSubagent(ctx context.Context, tu scenario.ToolUse, in taskI
 	}}
 	s.forward(taskFrame(s.id, tu.ID, "completed", args, result))
 	// the sub-agent has given its final response: what it left running ends, before
-	// the parent goes on
-	var ending []*tasks.Task
-	for _, t := range s.registry().Running() {
-		if t.Owner == sub.owner {
-			ending = append(ending, t)
-		}
-	}
-	s.registry().EndOfResponse(sub.owner)
-	for _, t := range ending {
-		s.forward(notificationFrame(s.id, t))
+	// the parent goes on; the stream reports it only after the parent's next tool
+	// call (recorded: runs/foreground-subagent-bash-ends-with-response)
+	for _, t := range s.registry().EndedAtResponse(sub.owner) {
+		s.owed.Hold(notificationFrame(s.id, t))
+		s.reaped = append(s.reaped, t)
 	}
 }
 
@@ -115,6 +124,6 @@ func taskFrame(session, id, subtype string, args, result map[string]any) []byte 
 	}
 	return jsonLine(map[string]any{
 		"type": "tool_call", "subtype": subtype, "call_id": id, "session_id": session,
-		"tool_call": map[string]any{"taskToolCall": body},
+		"tool_call": envelope(map[string]any{"taskToolCall": body}, id, nil),
 	})
 }

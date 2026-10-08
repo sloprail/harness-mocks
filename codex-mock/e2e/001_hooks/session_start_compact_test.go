@@ -98,6 +98,7 @@ esac
 // (hooks#postcompact): one matching "manual" fires for the manual compaction,
 // carrying that trigger, and not for the auto one.
 // sr:proves manual-compaction/codex
+// sr:proves hook-matcher-filter/codex
 func TestPostCompactMatcherSelectsOnTheTrigger(t *testing.T) {
 	hooks := `{"hooks":{"PostCompact":[{"matcher":"^manual$","hooks":[{"type":"command","command":"\"$(git rev-parse --show-toplevel)\"/hook.sh"}]}]}}`
 	got := execMock(t, scenario{

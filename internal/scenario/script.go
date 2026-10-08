@@ -27,23 +27,47 @@ type ToolUse struct {
 	ID    string
 	Name  string
 	Input json.RawMessage
+	// More is that another call of the same script of the model follows this one: the
+	// model is not asked again between them, so nothing is told the agent in between.
+	More bool
 }
 
 // Compact is a request of the script to compact the session, naming what
 // triggered it ("manual" or "auto"; empty when it names none).
 type Compact struct {
 	Trigger string
+	// Fields are the other keys of the compact line: what the harness says of the
+	// compaction (token counts, say), which the core leaves to the harness.
+	Fields map[string]json.RawMessage
+}
+
+// Thought is a thinking block of a script: the text, and the other keys the block
+// holds (the model that thought, say), which the core leaves to the harness.
+type Thought struct {
+	Text   string
+	Fields map[string]json.RawMessage
 }
 
 // Turn is what one run of the script said: the agent's messages in order, and
-// how the turn ends, with a tool call or with the result that ends the run
+// how the turn ends, with tool calls or with the result that ends the run
 // (neither: the script ended without a tool call or a result).
 type Turn struct {
 	Texts []string
+	// Thoughts are what the model thought before it answered or called, in order:
+	// the script's thinking blocks, which a mock that has no model otherwise
+	// never says.
+	Thoughts []Thought
+	// Tool is the turn's first call and Tools all of them, in order: a turn has
+	// several when the script prints tool_use lines in a row.
 	Tool  *ToolUse
+	Tools []ToolUse
 	// Compact is the compaction the turn ends with, when it asked for one.
 	Compact *Compact
 	Result  *string
+	// Gate is what the script says must have happened before the turn's calls and
+	// messages are taken: the order of the agents' steps, set by the script and not by
+	// how long anything takes.
+	Gate Gate
 }
 
 // Idents are the variables a script is given.
@@ -65,10 +89,10 @@ func Idents(in Input) map[string]string {
 }
 
 // RunTurn runs the script once and reads its lines up to the first tool call
-// or result.
+// (with the tool_use lines that follow it) or result.
 //
-// The script runs once per turn and prints stream-json lines: a tool_use line
-// ends the turn, the mock runs the tool and runs the script again; a result
+// The script runs once per turn and prints stream-json lines: tool_use lines
+// end the turn, the mock runs the tools and runs the script again; a result
 // line ends the run.
 //
 // sr:invariant turn-loop

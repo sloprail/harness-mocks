@@ -37,7 +37,7 @@ printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"
 func resumeIn(t *testing.T, first result, dir, id, prompt string) result {
 	t.Helper()
 	root := filepath.Dir(first.Repo)
-	cmd := exec.Command(mockBinary, "exec", "--json", "--skip-git-repo-check", "--script", filepath.Join(root, "scenario.sh"),
+	cmd := exec.Command(mockBinary, "exec", "--json", "--skip-git-repo-check", "--dangerously-bypass-hook-trust", "-s", "workspace-write", "--script", filepath.Join(root, "scenario.sh"),
 		"-m", "mock-model", "resume", id, prompt)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "CODEX_HOME="+first.Home, "TMPDIR="+first.Tmp, "HOOK_LOG="+filepath.Join(first.Tmp, "hook.log"))
@@ -54,6 +54,7 @@ func resumeIn(t *testing.T, first result, dir, id, prompt string) result {
 // sub-agent hook fires (runs/session-resume).
 // sr:proves session-resume/codex
 // sr:proves session-start-hook/codex
+// sr:proves noninteractive-run/codex
 func TestResumeByIDContinuesInTheRolloutFromAnotherDirectory(t *testing.T) {
 	rec := loadRecording(t, "session-resume")
 	first := execMock(t, scenario{

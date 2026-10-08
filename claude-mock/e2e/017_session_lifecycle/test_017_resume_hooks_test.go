@@ -108,4 +108,17 @@ func TestT017_87_NoSessionPersistenceStillFiresTheHooks(t *testing.T) {
 	require.Equal(t, 0, code, out)
 	assert.Equal(t, want, hookSeqOf(t, log, 0))
 	assert.NoFileExists(t, transcriptPath(t, cfg, dir, "np-2"))
+
+	// the hooks are still told the file the session would have written, as recorded: the
+	// session's own file name in its project folder, though no file is there
+	recorded, err := os.ReadFile(recordedFile(t, "../../snapshots/runs/no-session-persistence/samples/*/payloads.jsonl"))
+	require.NoError(t, err)
+	for _, p := range payloads(t, log) {
+		assert.Equal(t, transcriptPath(t, cfg, dir, "np-2"), p["transcript_path"], "%s is told where the transcript would be", p["hook_event_name"])
+	}
+	for _, l := range strings.Split(strings.TrimSpace(string(recorded)), "\n") {
+		var p map[string]any
+		require.NoError(t, json.Unmarshal([]byte(l), &p))
+		assert.True(t, strings.HasSuffix(p["transcript_path"].(string), "/projects/<RUN_DIRNAME>/00000000-0000-4000-8000-0000000000f2.jsonl"), "recorded: %v", p["transcript_path"])
+	}
 }

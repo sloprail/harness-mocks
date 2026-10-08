@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a11689-24bd-7f72-8442-bdb1a9cb64d2"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_2","type":"error","message":"Under-development features enabled: default_mode_request_user_input. Under-development features are incomplete and may behave unpredictably. To suppress this warning, set `suppress_unstable_features_warning = true` in <TMP>/home/.codex/config.toml."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"No answer was given."}}
+{"type":"turn.completed","usage":{"input_tokens":23613,"cached_input_tokens":11008,"cache_write_input_tokens":0,"output_tokens":123,"reasoning_output_tokens":55}}

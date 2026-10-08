@@ -71,11 +71,11 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 	}
 	task := tasks.NewTask(tasks.Command, id)
 	task.ToolUseID, task.Owner, task.Description, task.Command, task.OutputFile = toolUseID, cfg.AgentID, desc, in.Command, outFile
-	task.Meta = taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true}
+	task.Meta = taskStart{ID: id, ToolUseID: toolUseID, Description: desc, TaskType: "local_bash", Backgrounded: true, OwnedBySubagent: cfg.AgentID != ""}
 	frames := frameObserver{cfg}
 	if err := b.StartCommand(task, tasks.CommandSpec{
-		Argv: []string{"/bin/sh", "-c", in.Command}, Dir: cfg.Cwd,
-		Env: procexec.Env(os.Environ(), childenv.Identity(cfg.SessionID), childenv.Defaults()),
+		Argv: []string{"/bin/sh", "-c", toolexec.WithSessionEnv(cfg.SessionID, in.Command)}, Dir: cfg.Cwd,
+		Env: bashChildEnv(cfg.SessionID),
 		Out: out, Trailer: exitTrailer,
 		Started: func(t *tasks.Task) { tasks.Announce(b.Registry, t, frames) },
 		Ended:   func(t *tasks.Task) { tasks.Conclude(b.Registry, t, frames) },
@@ -83,6 +83,10 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 		return toolexec.Result{Output: fmt.Sprintf("Bash: %v", err), IsError: true}
 	}
 
+	if _, gated := b.receiptAfterEnd.LoadAndDelete(toolUseID); gated {
+		<-task.Done() // as the recording's order shows: the command's frames ahead of its receipt
+		b.endedAtLaunch.Store(task, true)
+	}
 	endsWithFinal := cfg.SyncSubagent
 	parts := []string{"Command running in background with ID: " + id + ". Output is being written to: " + outFile + "."}
 	if endsWithFinal {
@@ -105,4 +109,10 @@ func (b *backgroundTasks) launchBash(cfg Config, toolUseID string, raw json.RawM
 		tur["backgroundCwdHint"] = hint
 	}
 	return toolexec.Result{Output: text, ToolUseResult: tur}
+}
+
+// bashChildEnv is the environment of a background Bash command: what the process inherited and what a tool's child sees.
+func bashChildEnv(sessionID string) []string {
+	env := os.Environ()
+	return procexec.Env(env, childenv.Tool(sessionID, env), childenv.Defaults())
 }

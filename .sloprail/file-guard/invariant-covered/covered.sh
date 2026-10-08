@@ -15,16 +15,18 @@ load_markers proves; proves="$(printf '%s\n' "$MARKERS" | awk -F'\t' 'NF && $2 !
 
 problems=""
 add() { problems="${problems}- $1"$'\n'; }
-ids="$(jq -r '.[].id' <<<"$inv")"
+# a failed jq is a refusal, not an empty list of invariants (which would pass)
+ids="$(jq -r '.[].id' <<<"$inv")" || refuse_error "the invariants could not be listed, so none could be checked"
+list="$(jq -c '.[]' <<<"$inv")" || refuse_error "the invariants could not be listed, so none could be checked"
 while IFS= read -r i; do
   [ -n "$i" ] || continue
-  id="$(jq -r '.id' <<<"$i")"
+  id="$(jq -r '.id' <<<"$i")" || refuse_error "an invariant's id could not be read, so it could not be checked"
   kebab "$id" || add "spec/invariants/$id.yaml: the file name must be kebab-case"
   printf '%s\n' "$impl" | awk -F'\t' -v id="$id" '$2 == id && $1 !~ /_test\.go$/' | grep -q . ||
     add "invariant '$id' has no implementation: mark the code that upholds it with // sr:invariant $id"
   printf '%s\n' "$proves" | awk -F'\t' -v id="$id" '$2 == id && $1 ~ /_test\.go$/' | grep -q . ||
     add "invariant '$id' has no test: mark a test that proves it with // sr:proves $id"
-done < <(jq -c '.[]' <<<"$inv")
+done <<<"$list"
 while IFS=$'\t' read -r path id; do
   [ -n "$path" ] || continue
   printf '%s\n' "$ids" | grep -Fxq -- "$id" || add "$path: sr:invariant '$id' names no spec/invariants/$id.yaml"

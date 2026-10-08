@@ -1,0 +1,2 @@
+{"hook_result":{"event":"cwd_env","hook":"project","ran_in":"<RUN>","plugin_root":""}}
+{"hook_result":{"event":"cwd_env","hook":"plugin","ran_in":"<RUN>/plugins/p1","plugin_root":"<RUN>/plugins/p1"}}

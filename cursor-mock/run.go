@@ -14,6 +14,9 @@ import (
 
 // version is the Cursor version the mock reports in hook payloads: the one its
 // recordings were captured at.
+// stopEnv is the opt-in for a print-mode run to fire the stop hook as the TUI does (a deviation).
+const stopEnv = "A10N_CURSOR_MOCK_STOP"
+
 const version = "2026.09.28-64d2043"
 
 // run reads the command line and the environment once, into the run's
@@ -22,13 +25,25 @@ const version = "2026.09.28-64d2043"
 //
 // sr:provides session-resume/cursor
 func run(cmd *cobra.Command, f flags, args []string) error {
+	prompt, typed := strings.Join(args, " "), []string(nil)
+	if !f.print { // cursor-agent without -p is the TUI: the prompts are typed, so they are read from stdin
+		var err error
+		if typed, err = typedInputs(args, os.Stdin); err != nil {
+			return err
+		}
+		prompt = typed[0]
+	}
 	switch {
-	case !f.print:
-		return errors.New("cursor-mock: only non-interactive runs are modeled: pass -p")
-	case f.outputFormat != "stream-json":
+	case !f.print && (f.outputFormat != "text" || f.resume != "" || len(f.addDirs) > 0 || f.approveMCPs):
+		return errors.New("cursor-mock: a TUI session is modeled with prompts on stdin and no -p, --output-format, --resume, --add-dir or --approve-mcps: only --force, --plugin-dir and the local plugins were recorded")
+	case f.print && f.outputFormat != "stream-json":
 		return fmt.Errorf("cursor-mock: output format %q is not modeled: pass --output-format stream-json", f.outputFormat)
 	case f.cont:
 		return errors.New("cursor-mock: --continue is not modeled: pass --resume <session-id>")
+	case f.model != "" && f.model != "auto" && f.model != "cursor-grok-4.5-high":
+		return fmt.Errorf("cursor-mock: model %q is not modeled: only auto and cursor-grok-4.5-high were recorded", f.model)
+	case len(f.addDirs) > 0 && !f.force:
+		return errors.New("cursor-mock: --add-dir is modeled only with --force (the mode its recordings cover): pass --force")
 	}
 	script := f.script
 	if script == "" {
@@ -53,7 +68,7 @@ func run(cmd *cobra.Command, f flags, args []string) error {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
 	return runner.Run(cmd.Context(), runner.Config{
-		Script: script, Prompt: strings.Join(args, " "), Resume: f.resume, Dir: dir, Environ: os.Environ(), Home: home,
-		Version: version, Force: f.force || f.yolo, Stdout: os.Stdout, Stderr: os.Stderr, PluginDirs: f.pluginDirs,
+		Script: script, Prompt: prompt, Interactive: !f.print, Stop: f.print && os.Getenv(stopEnv) == "1", Inputs: typed, Resume: f.resume, Dir: dir, Environ: os.Environ(), Home: home,
+		Version: version, Force: f.force || f.yolo, Stdout: os.Stdout, Stderr: os.Stderr, PluginDirs: f.pluginDirs, ApproveMCPs: f.approveMCPs, Model: f.model,
 	})
 }

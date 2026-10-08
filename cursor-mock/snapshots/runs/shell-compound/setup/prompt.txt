@@ -1,0 +1,4 @@
+Do these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) echo one && echo two 2) false && echo skipped 3) false || echo recovered 4) X=7 sh -c 'echo "x is $X"; exit 3' 5) for i in 1 2; do echo "n$i"; done 6) (echo sub; exit 2) 7) { echo blk; echo blk2 >&2; } 8) ! false 9) echo bg & wait 10) V=hello; echo "${V} $V" 11) if true; then echo yes; fi 12) f() { echo fn; }; f 13) cat <<EOF
+heredoc body
+EOF
+Then reply only DONE.

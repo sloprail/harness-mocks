@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -43,7 +41,6 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	forkSession, _ := cmd.Flags().GetBool(flagForkSession)
 	isResume := false
 	forkFrom := ""
-
 	// Normalise: --resume takes precedence and sets isResume — except with
 	// --fork-session, where the resumed id is what is continued FROM and the
 	// session runs under --session-id (or a fresh id).
@@ -75,7 +72,7 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	// that does not exist (see noConversation), whatever is on disk.
 	// sr:invariant no-resume
 	if isResume && os.Getenv("A10N_MOCK_NO_RESUME") == "1" {
-		noConversation(cmd, &runner.ErrNoConversation{SessionID: sessionID})
+		noConversation(cmd, &runner.ErrNoConversation{SessionID: resumeID}) // the session resumed, not the fork's new one
 	}
 
 	configDir, _ := cmd.Flags().GetString(flagConfigDir)
@@ -86,7 +83,10 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	if systemPrompt != "" {
 		os.Setenv("A10N_MOCK_SYSTEM_PROMPT", systemPrompt) //nolint:errcheck
 	}
-	prompt := strings.Join(args, " ")
+	prompt, err := promptFrom(args)
+	if err != nil {
+		return err
+	}
 	// Use projectDir as cwd when explicitly provided — it is the directory the
 	// simulated claude session runs in (the same as what real claude uses).
 	// Fall back to os.Getwd() only when --project-dir is not set.
@@ -103,13 +103,14 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = resolved
 	}
-
 	model, _ := cmd.Flags().GetString("model")
-	err := runner.Run(cmd.Context(), runner.Config{
+	err = runner.Run(cmd.Context(), runner.Config{
 		ScriptPath:              scriptPath,
 		SessionID:               sessionID,
 		IsResume:                isResume,
+		ResumeLookup:            lookedUp(cmd),
 		ForkFrom:                forkFrom,
+		Invocation:              invocation(cmd),
 		Prompt:                  prompt,
 		Cwd:                     cwd,
 		ProjectDir:              projectDir,
@@ -117,8 +118,10 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		PluginCacheDir:          pluginCacheDir,
 		PrintMode:               printMode,
 		Model:                   model,
+		Prompting:               runner.Prompting{PermissionMode: permissionMode(cmd), MaxTurns: maxTurns(cmd), HookEvents: hookEvents(cmd), Scratchpad: hasScratchpad()},
 		BgWaitCeiling:           printWaitCeiling(),
 		SpawnLimit:              spawnLimit(),
+		ConcurrentLimit:         concurrentLimit(),
 		BackgroundTasksDisabled: backgroundTasksDisabled(),
 		Stderr:                  os.Stderr,
 		Out:                     os.Stdout,
@@ -128,23 +131,4 @@ func rootRunE(cmd *cobra.Command, args []string) error {
 		noConversation(cmd, noConv)
 	}
 	return err
-}
-
-// noConversation ends the run the way real Claude Code ends `--resume <id>`
-// for a session it has no transcript of (claude 2.1.282): the error's message
-// ("No conversation found with session ID: <id>") on stderr, an error result frame on stdout when
-// the output format is stream-json, exit status 1.
-//
-// sr:provides session-resume-unknown/claude
-func noConversation(cmd *cobra.Command, noConv *runner.ErrNoConversation) {
-	sessionID, msg := noConv.SessionID, noConv.Error()
-	fmt.Fprintln(os.Stderr, msg)
-	if format, _ := cmd.Flags().GetString(flagOutputFormat); format == "stream-json" {
-		frame, _ := json.Marshal(map[string]any{
-			"type": "result", "subtype": "error_during_execution", "is_error": true,
-			"num_turns": 0, "session_id": sessionID, "errors": []string{msg},
-		})
-		fmt.Println(string(frame))
-	}
-	os.Exit(1)
 }

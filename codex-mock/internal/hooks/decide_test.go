@@ -127,3 +127,17 @@ func TestMatcherAndEvents(t *testing.T) {
 		t.Errorf("Stop ignores its matcher: %+v", got)
 	}
 }
+
+// continue:false halts for a SubagentStop hook as for Stop and SessionStart (hooks#subagentstop),
+// and not for another event.
+func TestInterpretContinueFalseHaltsASubagentStop(t *testing.T) {
+	const stop = `{"continue":false}`
+	for _, ev := range []Event{Stop, SessionStart, SubagentStop} {
+		if !Interpret(ev, out(0, stop, "")).Halt {
+			t.Errorf("%s: continue:false did not halt", ev)
+		}
+	}
+	if Interpret(PostToolUse, out(0, stop, "")).Halt {
+		t.Error("PostToolUse: continue:false halted")
+	}
+}

@@ -1,7 +1,7 @@
 statement: >-
   A background command started inside a foreground sub-agent is terminated
-  when that sub-agent gives its final response, and the command's receipt says
-  so.
+  when that sub-agent gives its final response, and the harness says so: in
+  the command's receipt, or by reporting its end afterwards.
 providers:
   claude:
     docs:
@@ -19,19 +19,23 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
     deviations:
-      - adr: capability-grounding
-        statement: >-
-          Cursor's receipt for the background command does not say it is
-          terminated at the sub-agent's final response: it is only the shell
-          and its process ({"shell_id", "pid"}). That the command ended is
-          reported afterwards, as a task_notification frame on the stream
-          whose status is "aborted" (recorded:
-          runs/foreground-subagent-bash-ends-with-response), and the mock does
-          the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock dispatches a sub-agent only from a Task call that carries a
           mock-only script playing it, and always in the foreground (a Task that
-          asks run_in_background is not run in the background). A hook that refuses the Task call does not stop it, and the
-          subagentStart and subagentStop hooks (not recorded firing in a
-          print-mode run) do not fire.
+          asks run_in_background is not run in the background). A hook that
+          refuses the Task call does not stop it.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the doc section hooks#subagentstop
+          (https://cursor.com/docs/hooks#subagentstop) says "Called when a
+          subagent completes, errors, or is aborted. Can trigger follow-up
+          actions.", but the recording
+          cursor-mock/snapshots/runs/foreground-subagent-bash-ends-with-response
+          shows Cursor firing neither subagentStart nor subagentStop for the
+          foreground sub-agent in print mode, though both were configured (its
+          payloads.jsonl has no event of either), so what the documented hooks
+          carry, such as parent_conversation_id, does not apply. The recording
+          decides, and the mock fires neither.

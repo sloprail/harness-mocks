@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +11,7 @@ import (
 
 // Without --json, stdout carries only the final agent message (noninteractive,
 // "make output machine-readable"): no events, no tool output, nothing a hook
-// printed. (-o/--output-last-message is accepted but not modeled.)
+// printed. (-o/--output-last-message is not modeled: the mock refuses it.)
 // sr:proves noninteractive-run/codex
 func TestExecWithoutJSONPrintsOnlyTheFinalMessage(t *testing.T) {
 	r := execMock(t, scenario{
@@ -63,5 +65,64 @@ func TestSessionEndHookFailureDoesNotEndTheRunAbnormally(t *testing.T) {
 		shape := streamShape(r.stream())
 		assert.Equal(t, "turn.completed", shape[len(shape)-1], "exit %s", code)
 		assert.Equal(t, "SessionEnd", r.hookLog()[len(r.hookLog())-1]["hook_event_name"])
+		// the failure is not reported: the only error frames of the stream are the trust warnings
+		// (recorded: runs/session-end-hook-failure, whose third frame warns of the async handler)
+		for _, e := range r.stream() {
+			if item, _ := e["item"].(map[string]any); item["type"] == "error" {
+				assert.NotContains(t, item["message"], "SessionEnd", "exit %s", code)
+				assert.NotContains(t, item["message"], "failed", "exit %s", code)
+			}
+		}
 	}
+}
+
+// A SessionEnd hook's matcher is applied to the reason the session ends, which for a
+// non-interactive run is "other": a matcher of "other" runs, "clear" does not (hooks#sessionend).
+// sr:proves hook-matcher-filter/codex
+func TestSessionEndMatcherSelectsOnTheReason(t *testing.T) {
+	for matcher, runs := range map[string]bool{"other": true, "^other$": true, "clear": false, "logout|clear": false} {
+		t.Run(matcher, func(t *testing.T) {
+			r := execMock(t, scenario{
+				HooksJSON: `{"hooks":{"SessionEnd":[{"matcher":"` + matcher + `","hooks":[{"type":"command","command":"cat >>\"$HOOK_LOG\"; echo >>\"$HOOK_LOG\""}]}]}}`,
+				Script:    callThenResult, Prompt: "go", Env: withCalls(t),
+			})
+			require.Equal(t, 0, r.Code, r.Stderr)
+			ends := eventsOf(r, "SessionEnd")
+			assert.Equal(t, runs, len(ends) == 1, "matcher %q", matcher)
+			if runs {
+				assert.Equal(t, "other", ends[0]["reason"])
+			}
+		})
+	}
+}
+
+// SessionEnd hooks are advisory: ones that print continue:false or a block decision with a reason
+// steer nothing. The run still ends normally (exit 0), after the one turn, with no extra turn, and
+// neither the stream nor the transcript carries what they said (recorded: runs/session-end-steering).
+// sr:proves session-end-hook/codex
+func TestSessionEndHooksCannotSteerTheRun(t *testing.T) {
+	rec := loadRecording(t, "session-end-steering")
+	assert.Equal(t, "0\n", readFile(t, filepath.Join(rec.sample, "exit.txt")))
+	recordedStream := readFile(t, filepath.Join(rec.sample, "stream.jsonl"))
+	assert.Equal(t, 1, strings.Count(recordedStream, `"turn.completed"`))
+	assert.NotContains(t, recordedStream, "SE-")
+	assert.NotContains(t, recordedRollout(t, rec), "SE-")
+
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files:     map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh"))},
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "echo one"),
+	})
+	require.Equal(t, 0, got.Code, got.Stderr)
+	assert.Equal(t, 1, strings.Count(got.Stdout, `"turn.completed"`), "one turn, no extra")
+	assert.Equal(t, 1, strings.Count(got.Stdout, `"agent_message"`))
+	assert.NotContains(t, got.Stdout, "SE-")
+	assert.NotContains(t, got.rollout(t), "SE-")
+	var ran []string
+	for _, l := range got.hookLog() {
+		if r, ok := l["ran"].(string); ok {
+			ran = append(ran, r)
+		}
+	}
+	assert.ElementsMatch(t, []string{"stop", "block"}, ran, "both ran")
 }

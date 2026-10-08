@@ -212,4 +212,84 @@ func TestSubAgentDispatchedInTheBackgroundGivesReceiptAndRunsConcurrently(t *tes
 	assert.Equal(t, agent, note["task_id"])
 	assert.Equal(t, "success", note["status"])
 	assert.Contains(t, kinds, "system/task_notification")
+
+	// the stream's order: the receipt (the Task call's completed frame) comes
+	// first, the agent's own command goes on after it, and the sub-agent's end
+	// is reported later, before the result, as the recording's stream orders
+	// the Task call, its end notice and the result
+	orderOf := func(fs []map[string]any) (out []string) {
+		for _, f := range fs {
+			tc, _ := f["tool_call"].(map[string]any)
+			switch {
+			case tc["taskToolCall"] != nil:
+				out = append(out, "task/"+bgStr(f["subtype"]))
+			case f["subtype"] == "task_notification":
+				out = append(out, "task_notification")
+			case f["type"] == "result":
+				out = append(out, "result")
+			}
+		}
+		return
+	}
+	recordedOrder := orderOf(readJSONL(t, filepath.Join(sample, "stream.jsonl")))
+	require.Equal(t, []string{"task/started", "task/completed", "task_notification", "result"}, recordedOrder)
+	assert.Equal(t, recordedOrder, orderOf(frames))
+	idx := func(pred func(map[string]any) bool) int {
+		for i, f := range frames {
+			if pred(f) {
+				return i
+			}
+		}
+		return -1
+	}
+	receiptAt := idx(func(f map[string]any) bool {
+		tc, _ := f["tool_call"].(map[string]any)
+		return tc["taskToolCall"] != nil && f["subtype"] == "completed"
+	})
+	parentShellAt := idx(func(f map[string]any) bool {
+		tc, _ := f["tool_call"].(map[string]any)
+		return tc["shellToolCall"] != nil && f["subtype"] == "started"
+	})
+	noteAt := idx(func(f map[string]any) bool { return f["subtype"] == "task_notification" })
+	require.NotEqual(t, -1, receiptAt)
+	require.NotEqual(t, -1, parentShellAt)
+	// the receipt did not wait for the sub-agent: the agent's own command
+	// began (above: before the sub-agent's end) after it, and the end notice
+	// follows both
+	assert.Less(t, receiptAt, parentShellAt, "the receipt comes before the agent's own command begins")
+	assert.Less(t, parentShellAt, noteAt, "the sub-agent's end is reported after the agent's own command began")
+
+	// the payload fields the recording shows: the sub-agent's command ran
+	// outside a sandbox and printed SUBDONE, the session starts and ends as
+	// the foreground agent's own, and is not a background agent
+	recordedPayload := func(entries []map[string]any, event string) map[string]any {
+		for _, p := range entries {
+			if p["hook_event_name"] == event {
+				return p
+			}
+		}
+		return nil
+	}
+	recSubDone := recordedPayload(recordedHooks, "afterShellExecution")
+	require.NotNil(t, recSubDone)
+	var subDone map[string]any
+	for _, p := range log {
+		if p["hook_event_name"] == "afterShellExecution" && p["session_id"] == agent {
+			subDone = p
+		}
+	}
+	require.NotNil(t, subDone)
+	assert.Equal(t, recSubDone["output"], subDone["output"])
+	assert.Equal(t, recSubDone["sandbox"], subDone["sandbox"])
+	for event, fields := range map[string][]string{
+		"sessionStart": {"is_background_agent"},
+		"sessionEnd":   {"is_background_agent", "reason", "final_status"},
+	} {
+		rec, got := recordedPayload(recordedHooks, event), recordedPayload(log, event)
+		require.NotNil(t, rec, event)
+		require.NotNil(t, got, event)
+		for _, f := range fields {
+			assert.Equal(t, rec[f], got[f], event+"."+f)
+		}
+	}
 }

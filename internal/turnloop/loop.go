@@ -7,32 +7,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/sloprail/harness-mocks/internal/scenario"
 )
-
-// Host is the harness side of a turn: its hooks and its record of the session.
-type Host interface {
-	// SubmitPrompt fires the prompt hooks: the context they add, and whether
-	// one blocked the prompt.
-	SubmitPrompt(ctx context.Context) (extra string, blocked bool)
-	// Say records a message from the agent.
-	Say(text string)
-	// Tool carries out the tool call the agent made.
-	Tool(ctx context.Context, tu scenario.ToolUse)
-	// EndOfTurn fires the end-of-turn hooks after the agent's last message,
-	// continuing being true when an earlier block already continued the turn;
-	// again is whether one blocked, with the reason it gave.
-	EndOfTurn(ctx context.Context, last string, continuing bool) (reason string, again bool)
-	// Continue records the reason a block gave, as the prompt that continues
-	// the turn.
-	Continue(reason string)
-	// CapOverridden records that a block was overridden: blocks in a row had
-	// already continued the turn as often as the cap allows, so it ends.
-	CapOverridden(blocks int)
-	// SessionFile is the path of the session record so far.
-	SessionFile() string
-}
 
 // Params is what the loop is told.
 type Params struct {
@@ -74,6 +52,14 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if n, ok := h.(Noticer); ok {
+			if texts := n.Notice(true); len(texts) > 0 {
+				for _, text := range texts {
+					n.Told(text)
+				}
+				continue
+			}
+		}
 		reason, blocked := h.EndOfTurn(ctx, last, continuing)
 		if !Continues(blocked, false) {
 			return last, nil
@@ -88,43 +74,39 @@ func Run(ctx context.Context, h Host, p Params) (string, error) {
 	}
 }
 
-// contextOf is the context the agent has at a step: what the prompt hooks added
-// and, when the harness adds more as the turn goes, what it has added so far.
-func contextOf(p Params, prompt string) string {
-	if p.Added == nil || p.Added() == "" {
-		return prompt
-	}
-	if prompt == "" {
-		return p.Added()
-	}
-	return prompt + "\n" + p.Added()
-}
-
 // agent runs the script step by step until it gives its result (or neither a
 // call nor a result), returning the agent's last message.
 func agent(ctx context.Context, h Host, p Params, extra string) (last string, err error) {
 	var prev string
 	same := 0
 	for {
+		if err := refusedBy(h); err != nil { // an agent's script asked for what the mock does not allow
+			return "", err
+		}
+		began := time.Now()
 		t, err := scenario.RunTurn(ctx, p.Script, p.Dir, p.Environ, scenario.Input{
 			Prompt: p.Prompt, AdditionalContext: contextOf(p, extra), SessionFile: h.SessionFile()})
 		if err != nil {
 			return "", err
 		}
-		for _, text := range t.Texts {
-			h.Say(text)
-			last = text
+		if g, ok := h.(Gater); ok && !t.Gate.None() {
+			g.Gate(ctx, t.Gate)
+		}
+		if said := say(ctx, h, t, time.Since(began)); said != "" {
+			last = said
 		}
 		if t.Compact != nil {
-			if c, ok := h.(Compactor); ok {
-				if err := c.Compact(ctx, t.Compact.Trigger); err != nil {
-					return last, err
-				}
+			if err := compact(ctx, h, *t.Compact); err != nil {
+				return last, err
 			}
 		}
 		if t.Tool == nil && t.Compact == nil {
 			return last, nil
 		}
+		if err := validate(h, t); err != nil {
+			return "", err
+		}
+		calls := turnCalls(h, t)
 		// A scenario script that emits the same tool_use 5 turns in a row makes
 		// the run abort with an error, so a stuck scenario cannot loop forever.
 		// sr:invariant loop-guard
@@ -132,8 +114,8 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		if t.Compact != nil {
 			key += " " + t.Compact.Trigger
 		}
-		if t.Tool != nil {
-			key = t.Tool.Name + string(t.Tool.Input)
+		if len(calls) > 0 {
+			key = callsKey(calls)
 		}
 		if key == prev {
 			same++
@@ -143,8 +125,11 @@ func agent(ctx context.Context, h Host, p Params, extra string) (last string, er
 		if same >= LoopLimit {
 			return "", fmt.Errorf("the scenario script emitted the same tool_use %d turns in a row", LoopLimit)
 		}
-		if t.Tool != nil {
-			h.Tool(ctx, *t.Tool)
+		perform(ctx, h, calls)
+		if n, ok := h.(Noticer); ok && len(calls) > 0 && !calls[len(calls)-1].More {
+			for _, text := range n.Notice(false) {
+				n.Told(text)
+			}
 		}
 	}
 }

@@ -16,7 +16,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -race -count=1 ./claude-mock/internal/...
+      # a test whose tool is missing fails: the hook-session test needs python3
+      - name: python3
+        run: sudo apt-get install -y python3
+      # -count=3: three runs of every test in one process, so a timing-flaky one surfaces here
+      - run: go test -race -count=3 ./claude-mock/internal/...
 
   rules:
     name: capability rule tests
@@ -27,10 +31,49 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -count=1 ./tools/capcells/
+      # a test whose tool is missing fails: the capability checks run jq, yq, git and bash
+      - name: jq and yq
+        run: |
+          sudo apt-get install -y jq
+          if ! command -v yq >/dev/null; then
+            sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+      - run: go test -count=1 ./tools/capcells/ ./tools/harness-bin/ ./tools/repoguard/ ./tools/tui-record/
 
+
+  # The e2e jobs run on Linux. A replay re-runs the commands a recording ran, so a recording must
+  # name a command whose output and exit code are the same on BSD (where it was captured) and GNU:
+  # `cat <missing path>` prints `cat: <path>: No such file or directory` and exits 1 on both, `ls`
+  # does not (GNU: `cannot access`, exit 2). The recorded runs name zsh as the shell a command runs
+  # by (codex) and use jq in their hook scripts, so both are installed and SHELL is /bin/zsh, as on
+  # the machine that recorded them.
   e2e:
     name: e2e tests
+    runs-on: ubuntu-latest
+    env:
+      SHELL: /bin/zsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: zsh and jq
+        run: sudo apt-get update && sudo apt-get install -y zsh jq
+
+      # The git identity the suite commits under comes from claude-mock/Makefile's test-e2e
+      # environment: no step may write the global git config (copied onto a developer's machine
+      # it rewrites their real ~/.gitconfig).
+      - run: make -C claude-mock test-e2e
+
+  # Two replays are timed by their recordings' own scripts: all-hooks-close-first and
+  # all-hooks-close-second have two hooks answer 25 ms and 100 ms after they start, and the block
+  # acted on is the one that answers last, so the replay can tell them apart only when the
+  # runner keeps those delays 75 ms apart (macOS's runners did not). e2e above runs them once;
+  # this runs them 3 times more.
+  e2e-timed:
+    name: e2e timed replays (linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,16 +81,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-
-      # claude-mock's own e2e suite drives real hook flows (see e2e/016_*
-      # for the newest), so it needs the same git identity a mocked run
-      # itself sets up for any repo it seeds.
-      - name: git identity
-        run: |
-          git config --global user.email ci@sloprail.invalid
-          git config --global user.name  harness-mocks CI
-
-      - run: make -C claude-mock test-e2e
+      - run: |
+          make -C claude-mock build-race
+          A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock" \
+            go test -race -count=3 -v ./claude-mock/e2e/018_replay -run 'TestGeneratedReplay/all-hooks-close-(first|second)'
 
   codex-unit:
     name: codex-mock unit tests (with the shared core)
@@ -58,17 +95,22 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make -C codex-mock test-unit
+      - run: go test -race -count=3 ./internal/... ./codex-mock/internal/...
 
   codex-e2e:
     name: codex-mock e2e tests
     runs-on: ubuntu-latest
+    env:
+      SHELL: /bin/zsh
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+      # the recorded runs name zsh as the shell a command runs by, and their hooks use jq
+      - name: zsh and jq
+        run: sudo apt-get update && sudo apt-get install -y zsh jq
       - run: make -C codex-mock test-e2e
 
   cursor-unit:
@@ -80,7 +122,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make -C cursor-mock test-unit
+      - run: go test -race -count=3 ./cursor-mock/internal/...
 
   cursor-e2e:
     name: cursor-mock e2e tests
@@ -93,8 +135,47 @@ jobs:
           cache: true
       # the e2e suite replays recorded runs, whose hook scripts use jq
       - name: jq
-        run: sudo apt-get install -y jq
+        run: command -v jq >/dev/null || sudo apt-get install -y jq
       - run: make -C cursor-mock test-e2e
+
+  # The e2e suites take minutes, so -count=3 in one job would triple the wall time. Instead the
+  # required e2e jobs above are run 1 of 3 and these two more replicas run next to them, in
+  # parallel on separate runners: three runs of every e2e test under CI load for the same wall time.
+  e2e-repeat:
+    # disabled: was too slow on macOS (flakes tracked in #273); not re-enabled by the move to Linux
+    if: false
+    name: e2e repeat (${{ matrix.mock }}, run ${{ matrix.run }} of 3)
+    runs-on: ubuntu-latest
+    env:
+      SHELL: /bin/zsh
+    strategy:
+      fail-fast: false
+      matrix:
+        mock: [claude, codex, cursor]
+        run: [2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      # the cursor and codex suites replay recorded runs, whose hook scripts use jq
+      # the codex suite's recorded runs name zsh as the shell a command runs by
+      - name: zsh and jq
+        run: sudo apt-get update && sudo apt-get install -y zsh jq
+      # the same commands as each mock's Makefile test-e2e (race build, same environment), with
+      # -count=1 only: the Makefile pins it, and each replica is one more run of the suite
+      - name: e2e
+        run: |
+          make -C ${{ matrix.mock }}-mock build-race
+          export GIT_AUTHOR_NAME=harness-mocks-test GIT_AUTHOR_EMAIL=harness-mocks-test@sloprail.invalid
+          export GIT_COMMITTER_NAME=harness-mocks-test GIT_COMMITTER_EMAIL=harness-mocks-test@sloprail.invalid
+          case "${{ matrix.mock }}" in
+            claude) export A10N_CLAUDE_MOCK_TEST_BINARY="$PWD/bin/a10n-claude-mock" ;;
+            cursor) export A10N_CURSOR_MOCK_TEST_BINARY="$PWD/bin/a10n-cursor-mock" ;;
+          esac
+          # 30m: claude-mock's 017_session_lifecycle takes 510 to 545 s on these runners (see its Makefile)
+          go test -race -count=1 -timeout 30m -v ./${{ matrix.mock }}-mock/e2e/...
 
   subject-tests:
     name: rule subject tests
@@ -105,5 +186,6 @@ jobs:
         with:
           go-version: '1.25'
       # the same sr-checks the verify job pins: the tests ask it what each rule's subjects are
-      - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@2ce91382fdedf42c010056b7807ccc5f15e89948
+      - run: GOBIN="$HOME/.local/bin" go install github.com/sloprail/sloprail/services/sr-checks@c41e3cdee1f9923e1cc4b3ad6b215240ca41d413
       - run: SR_CHECKS="$HOME/.local/bin/sr-checks" .sloprail/tests/subjects.sh
+      - run: SR_CHECKS="$HOME/.local/bin/sr-checks" .sloprail/tests/docs-follow-recordings.sh

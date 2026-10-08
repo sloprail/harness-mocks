@@ -21,7 +21,7 @@ func execFork(t *testing.T, r result, from, prompt string) result {
 	t.Helper()
 	script := filepath.Join(t.TempDir(), "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte(callThenResult), 0o755))
-	cmd := exec.Command(mockBinary, "exec", "fork", "--json", "--skip-git-repo-check", "--script", script, "-m", "mock-model", from, prompt)
+	cmd := exec.Command(mockBinary, "exec", "fork", "--json", "--skip-git-repo-check", "--dangerously-bypass-hook-trust", "-s", "workspace-write", "--script", script, "-m", "mock-model", from, prompt)
 	cmd.Dir = r.Repo
 	cmd.Env = append(append(os.Environ(), withCalls(t)...), "CODEX_HOME="+r.Home, "TMPDIR="+r.Tmp, "HOOK_LOG="+filepath.Join(r.Tmp, "hook.log"))
 	var out, errb bytes.Buffer

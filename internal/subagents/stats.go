@@ -18,7 +18,7 @@ const (
 type Count struct {
 	Spawned, StartedInBackground, MaxDepth, SpawnedBySubagents int
 	Requested                                                  map[Ask]int
-	Completed, Failed, RefusedConcurrency                      int
+	Completed, Failed, RefusedConcurrency, RefusedDepth        int
 	ByType                                                     map[string]int
 }
 
@@ -64,6 +64,13 @@ func (s *Stats) End(failed bool) {
 func (s *Stats) RefuseConcurrent() {
 	s.mu.Lock()
 	s.t.RefusedConcurrency++
+	s.mu.Unlock()
+}
+
+// RefuseDepth counts a spawn refused for the nesting limit.
+func (s *Stats) RefuseDepth() {
+	s.mu.Lock()
+	s.t.RefusedDepth++
 	s.mu.Unlock()
 }
 

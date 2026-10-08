@@ -69,7 +69,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 	branch := ""
 	var cleanup func(context.Context) bool
 	hookMade := false
-	if in.Isolation == "worktree" {
+	if agentIsolation(cfg, in) == "worktree" {
 		path, hooked, err := hookedWorktree(ctx, cfg, inv, "agent-"+agentID)
 		if hooked && err != nil {
 			return nil, in, toolexec.Result{Output: "Error: could not create the worktree: " + err.Error(), IsError: true}
@@ -77,7 +77,7 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 		if hooked {
 			subCwd, hookMade = path, true
 		} else {
-			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd))
+			iso := subagents.Isolate(cfg.Cwd, agentID, claudeWorktreeLayout, subagents.BindGit(ctx, cfg.Cwd, inv.WorktreeBaseRef()))
 			subCwd = iso.Cwd
 			cleanup = iso.Cleanup
 			if iso.Worktree != nil {
@@ -130,10 +130,16 @@ func prepareSubagent(ctx context.Context, cfg Config, inv *hooks.Invoker, toolUs
 	_ = os.Symlink(sidechain, outFile)
 
 	cfg.bg.stats.Spawn(askOf(rawInput), background, meta.SpawnDepth, cfg.AgentID != "", agentType)
-	return &subagentRun{
+	script := resolveSubagentScript(in.Script)
+	if script != "" { // the position a script's gate names it by
+		cfg.steps.spawn(agentID, !background)
+	}
+	sub := &subagentRun{
 		parent: cfg, subCwd: subCwd, agentID: agentID, agentType: agentType,
 		sidechain: sidechain, parentReported: tr.reported, sessionFile: sessionFile, spawnDepth: meta.SpawnDepth,
 		toolUseID: toolUseID, description: in.Description, outputFile: outFile,
-		script: resolveSubagentScript(in.Script), prompt: in.Prompt, background: background, cleanup: cleanup, branch: branch, limit: definitionTurnLimit(cfg, in.SubagentType),
-	}, in, toolexec.Result{}
+		script: script, prompt: in.Prompt, background: background, cleanup: cleanup, branch: branch, limit: definitionTurnLimit(cfg, in.SubagentType),
+	}
+	cfg.bg.agents.remember(sub)
+	return sub, in, toolexec.Result{}
 }

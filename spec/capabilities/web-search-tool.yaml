@@ -1,0 +1,17 @@
+statement: >-
+  The agent can search the web with a query, which may name the domains to keep,
+  and is given the result: the titles and URLs of the pages found, the findings
+  drawn from them, and a reminder to cite the sources. (A search cannot be run
+  offline, so a mock answers it with the result the test gives that call, in the
+  shape the real tool returns it: the pages and the findings are given, not
+  searched for. Blocking domains, the limit of searches in a session, the number
+  of searches a call makes behind it, the failures of the search backend and its
+  availability are not part of this.)
+providers:
+  claude:
+    docs:
+      - https://code.claude.com/docs/en/tools-reference#websearch-tool-behavior
+    runs:
+      - claude-mock/snapshots/runs/web-search-tool
+  codex: pending
+  cursor: pending

@@ -1,6 +1,8 @@
-# The real-harness snapshots are frozen at one version per harness, every
-# citation into them resolves, and none sits unused [deterministic]. Bumping a
-# MANIFEST version fails every run and doc still captured at the old one. One subject per
+# Every run of the real-harness snapshots records the binary it was captured with, each
+# doc page is frozen by its own hash, every citation into them is frozen, and none sits unused
+# [deterministic]. A binary update fails nothing: a run keeps the version it was recorded at, and
+# neither does an upstream doc change: no check reads the live website; a doc is pulled
+# ad hoc, together with a recording (capture.sh). One subject per
 # harness mock (subjects.sh): a change to one harness's snapshots leaves the others' verdicts
 # alone; a change to a capability file is every harness's.
 match: path matches "^[a-z0-9]+-mock/snapshots/" or path startsWith "spec/capabilities/"

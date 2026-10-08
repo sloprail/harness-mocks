@@ -13,10 +13,8 @@ import (
 
 // TestTheSameHookInTheUserAndTheProjectSourceRunsOncePerSource: recorded, the
 // command ran twice for the one call, once per source; Cursor does not run a
-// hook configured in several sources once. The mock reads only the project
-// source (a declared deviation), so replaying the project's file it runs the
-// hook for the call once, the project's one: the recorded second run is the
-// user source's.
+// hook configured in several sources once. The mock reads the project's source
+// and the user's, and runs the hook once for each, as recorded.
 // sr:proves hooks-all-matching-run/cursor
 func TestTheSameHookInTheUserAndTheProjectSourceRunsOncePerSource(t *testing.T) {
 	_, want, _, _ := recording(t, "hooks-all-matching-run-same-hook-two-sources")
@@ -26,6 +24,6 @@ func TestTheSameHookInTheUserAndTheProjectSourceRunsOncePerSource(t *testing.T) 
 	assert.Equal(t, "echo TWICE-OR-ONCE", want.hooks[0]["command"])
 
 	got, _ := replay(t, "hooks-all-matching-run-same-hook-two-sources")
-	require.Len(t, got.hooks, 1, "the project's hook ran for the call")
-	assert.Equal(t, want.hooks[0], got.hooks[0])
+	require.Len(t, got.hooks, 2, "the hook ran once per source")
+	assert.Equal(t, want.hooks, got.hooks)
 }

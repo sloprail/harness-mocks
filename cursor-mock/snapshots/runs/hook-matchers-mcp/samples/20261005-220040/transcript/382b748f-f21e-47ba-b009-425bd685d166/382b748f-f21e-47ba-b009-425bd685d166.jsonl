@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nUse the echo tool of the local MCP server with the text HELLO. Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll call the local MCP `echo` tool with `HELLO`, then reply only `DONE`."},{"type":"tool_use","name":"GetDynamicTools","input":{"namespace":"local","toolName":"echo"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CallDynamicTool","input":{"namespace":"local","toolName":"echo","mcpDetails":{"description":"Echo the text HELLO via local MCP"},"arguments":{"text":"HELLO"}}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

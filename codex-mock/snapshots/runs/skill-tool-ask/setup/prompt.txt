@@ -1,0 +1,1 @@
+This project has a skill named "greet". Launch it with your own skill-launching tool, if you have one, giving it the arguments "to the world"; do not read the skill's file yourself and do not use a shell command to do it. If you have no such tool, say so in one sentence. Then reply DONE.

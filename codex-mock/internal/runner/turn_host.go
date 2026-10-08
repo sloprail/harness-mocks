@@ -46,7 +46,7 @@ func (h turnHost) Say(text string) {
 
 // Tool records the agent's call, and carries it out.
 func (h turnHost) Tool(ctx context.Context, tu scenario.ToolUse) {
-	h.rollout.ToolCall(tu.ID, tu.Name, tu.Input)
+	h.rollout.CodeCall(tu.ID, codeOf(tu))
 	toolcall.Run(ctx, toolHost{h.state}, toolcall.Call{ID: tu.ID, Name: tu.Name, Input: tu.Input},
 		toolcall.Options{SeparateFailureHook: false, SilentFailure: failedPatch})
 }
@@ -80,6 +80,31 @@ func (h turnHost) EndOfTurn(ctx context.Context, last string, continuing bool) (
 // Codex makes of it.
 func (h turnHost) Continue(reason string) {
 	h.rollout.User(fmt.Sprintf(`<hook_prompt hook_run_id="stop">%s</hook_prompt>`, reason))
+}
+
+// contextMark begins a Notice that is context a background hook added, not a sub-agent's end.
+const contextMark = "\x00context\x00"
+
+// Notice is what the agent is to be told of (turnloop.Noticer): the context the hooks that ran in
+// the background added, all that is due, and the next sub-agent's end, one at a time.
+func (h turnHost) Notice(endOfTurn bool) (texts []string) {
+	for _, c := range h.hooks.Due(h.prog.Started(), endOfTurn) {
+		texts = append(texts, contextMark+c)
+	}
+	if text, ok := (toolHost{h.state}).nextNotice(); ok {
+		texts = append(texts, text)
+	}
+	return texts
+}
+
+// Told records a context as a developer message, as the hook that adds it at the start does, and a
+// sub-agent's end as the user message Codex makes of it.
+func (h turnHost) Told(text string) {
+	if c, ok := strings.CutPrefix(text, contextMark); ok {
+		h.rollout.Developer(c)
+		return
+	}
+	h.rollout.User(text)
 }
 
 // SessionFile is the rollout the script reads.

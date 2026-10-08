@@ -1,7 +1,7 @@
 statement: >-
-  Each session's transcript is a file under the configuration directory, keyed
-  by the working directory with symlinks resolved and by the session id; a
-  fresh session's file does not exist yet when the start hook runs.
+  Each session writes its transcript to a file at a location the harness
+  determines, and the session's hooks can discover it (a transcript path in
+  their payload).
 providers:
   claude:
     docs:
@@ -18,27 +18,52 @@ providers:
       - https://developers.openai.com/codex/hooks#common-input-fields
     runs:
       - codex-mock/snapshots/runs/session-transcript-file
+      - codex-mock/snapshots/runs/session-transcript-file-hooks
+      - codex-mock/snapshots/runs/ephemeral-no-transcript
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
-          Codex does not key the transcript by working directory: its rollout
-          file is <config dir>/sessions/YYYY/MM/DD/rollout-<start time>-<session
-          id>.jsonl, the day it started and the session id, and the working
-          directory is only a field of the file's first record
-          (recorded: runs/session-transcript-file). The mock does the same.
-      - adr: capability-grounding
-        statement: >-
-          Codex creates a fresh session's file before the start hook runs: the
-          file the SessionStart payload's transcript_path names already exists
-          then, and the mock does the same (recorded: runs/session-transcript-file).
+          With --ephemeral Codex keeps no transcript: no rollout exists under the
+          configuration directory, and every hook payload has transcript_path
+          null, on each event the run fires (SessionStart, PreToolUse,
+          PostToolUse, Stop, SessionEnd; recorded: runs/ephemeral-no-transcript).
+          The mock does the same.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#common-schema
     runs:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/symlinked-cwd
+      - cursor-mock/snapshots/runs/shell-exit-status
+      - cursor-mock/snapshots/runs/hook-json-nonzero
+      - cursor-mock/snapshots/runs/workspace-open
+      - cursor-mock/snapshots/runs/file-tools
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#common-schema) says
+          transcript_path is "Path to the main conversation transcript file
+          (null if transcripts disabled)", and the recordings show it null with
+          transcripts on, at sessionStart and the first preToolUse in every
+          capture (recorded: runs/tool-failure, runs/symlinked-cwd,
+          runs/shell-exit-status, runs/hook-json-nonzero). The recordings
+          decide.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor does not settle when the payload first names the transcript.
+          Its transcript_path is null at sessionStart and on the first
+          preToolUse in every capture, and names the file from the first
+          command's afterShellExecution on; in between, the first
+          beforeShellExecution names it in some captures (recorded:
+          runs/tool-failure, runs/symlinked-cwd) and carries null in others
+          (recorded: runs/shell-exit-status, runs/hook-json-nonzero). The mock
+          names it from the first beforeShellExecution on, one of the two
+          recorded behaviours.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The docs say transcript_path is null when transcripts are disabled;
           the mock has no setting to disable them, so it always keeps a

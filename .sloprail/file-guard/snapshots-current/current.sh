@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# Per harness with snapshots, against its MANIFEST.yaml `version`:
+# Per harness with snapshots. The harness binary and the doc pages are two different freezes:
+# a run records the binary it was captured with (run.yaml `version`), the MANIFEST freezes each
+# doc page by its own sha256 and `pin` says which binary capture.sh runs next. Nothing ties a
+# run's version, or a page, to `pin`.
 #   script <harness>-mock/snapshots/capture.sh exists: the only writer
-#   docs   every MANIFEST.docs entry is frozen at `version`, and the live page
-#          still hashes to its sha256 (the text is cached, never committed)
-#   runs   kebab name; run.yaml version == version; ≥1 sample; sample dirs are
+#   docs   NOT checked against the live website, here or anywhere in a PR check: no network.
+#          Recordings own the truth, and a doc is pulled ad hoc, only together with a recording
+#          (capture.sh run re-freezes the pages its cells cite)
+#   runs   kebab name; run.yaml has a version; ≥1 sample; sample dirs are
 #          UTC timestamps YYYYMMDD-HHMMSS; each has events.jsonl; no two samples
 #          have identical events (a re-run that changed nothing adds nothing);
 #          each sample's SEAL lists exactly its files, with matching sha256s
 # Only the harness this check's subject names, when the rule is split (subjects.sh).
-# Per capability cell: every cited doc URL is copied in MANIFEST.docs and its
-# #anchor resolves to a heading in that copy; every cited run path exists. A run no capability cites fails.
+# Per capability cell: every cited doc URL is frozen in MANIFEST.docs (its hash is there; the page is
+# not fetched); every cited run path exists. A run no capability cites fails.
 set -uo pipefail
 payload="$(cat)"
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/changeset.sh"
@@ -22,6 +26,7 @@ add() { problems="${problems}- $1"$'\n'; }
 hash() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
 if [ -n "$(subject_id)" ]; then hs="$(subject_id)"; else hs="$(harnesses)"; fi
+[ -n "$hs" ] || refuse_error "no *-mock/ directory in the committed tree at $SR_TREE, so no harness could be checked (an incomplete tree?)"
 for h in $hs; do
   d="$(snap_dir "$h")"
   cited="$(jq -c --arg h "$h" '[.[] | .doc.providers[$h] // false | select(type == "object")]' <<<"$caps")"
@@ -30,25 +35,15 @@ for h in $hs; do
     continue
   fi
   m="$(yq -o=json '.' "$d/MANIFEST.yaml" 2>/dev/null)" || { add "$h-mock/snapshots/MANIFEST.yaml is missing or not valid YAML"; continue; }
-  ver="$(jq -r '.version // ""' <<<"$m")"
-  [ -n "$ver" ] || { add "$h-mock/snapshots/MANIFEST.yaml has no version"; continue; }
+  [ -n "$(jq -r '.pin // ""' <<<"$m")" ] || { add "$h-mock/snapshots/MANIFEST.yaml has no pin: capture.sh pin <version> sets the harness version captures run with"; continue; }
   [ -f "$d/capture.sh" ] || add "$h-mock/snapshots/capture.sh is missing: snapshots are only written by it"
-
-  # docs: only their hashes are committed; each must be frozen at this
-  # version, and the live page must still hash to it (else the doc changed
-  # since capture, and the snapshot is stale).
-  for u in $(jq -r '(.docs // {}) | keys[]' <<<"$m"); do
-    dv="$(jq -r --arg u "$u" '.docs[$u].version // ""' <<<"$m")"
-    [ "$dv" = "$ver" ] || add "doc $u was frozen at $dv, not $ver: re-capture it with capture.sh doc $u"
-    doc_copy "$h" "$u" >/dev/null || add "$DOC_ERROR"
-  done
 
   for r in "$d"/runs/*/; do
     [ -d "$r" ] || continue
     name="$(basename "$r")"
     kebab "$name" || add "$h-mock/snapshots/runs/$name: the name must be kebab-case"
     rv="$(yq -r '.version // ""' "$r/run.yaml" 2>/dev/null)"
-    [ "$rv" = "$ver" ] || add "run $h/$name was captured at '${rv:-?}', not $ver: re-capture it"
+    [ -n "$rv" ] || add "run $h/$name has no version in its run.yaml: the harness binary it was captured with"
     seen="" n=0
     for s in "$r"/samples/*/; do
       [ -d "$s" ] || continue
@@ -79,9 +74,6 @@ for h in $hs; do
     else
       doc_sha "$h" "$ref" >/dev/null ||
         { add "capability '$id' cites $h doc '${ref%%#*}', which no snapshot in $h-mock/snapshots/MANIFEST.yaml freezes"; continue; }
-      if ! doc_copy "$h" "$ref" >/dev/null; then add "capability '$id' cites '$ref': $DOC_ERROR"; continue; fi
-      doc_ref_section "$h" "$ref" >/dev/null ||
-        add "capability '$id' cites '$ref', but the frozen page has no such section"
     fi
   done < <(jq -r --arg h "$h" '.[] | .id as $id | (.doc.providers[$h] // false) | select(type == "object")
             | ((.runs // [])[] | [$id, ., "run"]), ((.docs // [])[] | [$id, ., "doc"]) | @tsv' <<<"$caps")

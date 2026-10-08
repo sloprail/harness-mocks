@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
 	"github.com/sloprail/harness-mocks/internal/scenario"
@@ -13,21 +15,15 @@ import (
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
-// backgroundTask is a Task call that asks to run in the background.
-type backgroundTask struct {
-	taskInput
-	Background bool `json:"run_in_background"`
-}
-
 // startsBackgroundSubagent reports whether the call is a Task the mock runs as a
 // sub-agent in the background: one with its description, prompt and the script
 // that plays the sub-agent, asking to run in the background.
 func startsBackgroundSubagent(tu scenario.ToolUse) (taskInput, bool) {
-	var in backgroundTask
-	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil || !in.Background {
-		return in.taskInput, false
+	var in taskInput
+	if tu.Name != "Task" || json.Unmarshal(tu.Input, &in) != nil || in.RunInBackground == nil || !*in.RunInBackground {
+		return in, false
 	}
-	return in.taskInput, in.Description != "" && in.Prompt != "" && in.Script != ""
+	return in, in.Description != "" && in.Prompt != "" && in.Script != ""
 }
 
 // launchSubagent is a background Task call: the parent's preToolUse hook, the
@@ -40,35 +36,29 @@ func startsBackgroundSubagent(tu scenario.ToolUse) (taskInput, bool) {
 //
 // sr:provides background-agent/cursor
 func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in taskInput) {
-	typ := in.SubagentType
-	if typ == "" {
-		typ = "generalPurpose"
-	}
-	tool := hooks.Tool{Name: "Task", UseID: tu.ID, Input: map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagent_type": typ, "run_in_background": true}}
-	s.hooks.Fire(ctx, hooks.PreToolUse, tool.Name, hooks.ToolFields(tool))
-	s.named = true
-
+	launched := time.Now()
+	typ, args := s.announceTask(ctx, tu, in)
 	sub := *s
-	sub.id, sub.parent = coresession.NewID(), s
+	sub.id, sub.parent = in.agentID(), s
+	sub.requestID, sub.modelN = coresession.NewID(), 0 // a sub-agent is a model request of its own
 	sub.owner = sub.id
 	sub.cfg.Stdout, sub.cfg.Script, sub.cfg.Prompt = io.Discard, in.Script, in.Prompt
-	sub.texts, sub.added, sub.named = nil, nil, false
+	sub.texts, sub.pending, sub.added, sub.named = nil, nil, nil, false
 	var err error
 	if sub.tr, err = newTranscript(s.cfg.Home, s.cfg.Dir, sub.id); err != nil {
 		sub.tr = s.tr
 	}
 	sub.hooks = &hooks.Hooks{Config: s.hooks.Config, Dir: s.cfg.Dir, Env: sub.hookEnv, Common: sub.common}
 
-	args := map[string]any{
-		"description": in.Description, "prompt": in.Prompt, "subagentType": map[string]any{typ: map[string]any{}},
-		"model": "default", "agentId": coresession.NewID(),
-	}
 	s.forward(taskFrame(s.id, tu.ID, "started", args, nil))
 	s.tr.toolUse(tu.Name, map[string]any{"description": in.Description, "prompt": in.Prompt, "subagent_type": typ, "run_in_background": true})
 
 	t := tasks.NewTask(tasks.Agent, sub.id)
-	t.ToolUseID, t.Description, t.Owner, t.Meta = tu.ID, in.Description, s.owner, in.Prompt
+	// A background sub-agent belongs to the run, not to the sub-agent that launched it:
+	// that one's end does not end it, and its own end is announced on the run's stream
+	// (recorded: runs/nested-subagents-background, the launching sub-agent reports
+	// STARTED while the other goes on, and the main stream carries its task_notification).
+	t.ToolUseID, t.Description, t.Owner, t.Meta = tu.ID, in.Description, "", in.Prompt
 	s.registry().StartAgent(t, func(ctx context.Context) {
 		sub.tr.user(in.Prompt)
 		if _, err := turnloop.Run(ctx, &sub, turnloop.Params{Script: in.Script, Dir: s.cfg.Dir, Environ: s.cfg.Environ, Prompt: in.Prompt, Added: sub.Context}); err != nil {
@@ -79,6 +69,6 @@ func (s *session) launchSubagent(ctx context.Context, tu scenario.ToolUse, in ta
 		t.Result = strings.Join(sub.texts, "")
 	})
 	s.forward(taskFrame(s.id, tu.ID, "completed", args, map[string]any{"success": map[string]any{
-		"conversationSteps": []any{}, "agentId": sub.id, "isBackground": true, "durationMs": "0",
+		"conversationSteps": []any{}, "agentId": sub.id, "isBackground": true, "durationMs": strconv.FormatInt(max(time.Since(launched).Milliseconds(), 1), 10),
 		"backgroundReason": "SUBAGENT_BACKGROUND_REASON_AGENT_REQUEST"}}))
 }

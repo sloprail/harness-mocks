@@ -63,29 +63,66 @@ func firePostTool(ctx context.Context, cfg Config, inv *hooks.Invoker, pending p
 	case corehooks.AfterFailure:
 		notInterrupted := false
 		ms := took.Milliseconds()
-		_, _ = inv.Fire(ctx, hooks.Input{
+		input := pending.ToolInput
+		if acceptsMockResult(pending.ToolName) {
+			input = withoutMockResult(input)
+		}
+		in := hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUseFailure,
 			ToolName:      pending.ToolName,
 			ToolUseID:     pending.ToolUseID,
-			ToolInput:     pending.ToolInput,
+			ToolInput:     input,
 			Error:         res.Output,
 			IsInterrupt:   &notInterrupted,
 			DurationMs:    &ms,
-		})
+		}
+		_, runs, _ := inv.FireRuns(ctx, in)
+		writeHookEventFrames(cfg, in, runs)
 	case corehooks.AfterSuccess:
 		// sr:provides posttooluse-payload/claude
 		n := corehooks.NewPostTool(pending.ToolInput, toolResponse(res), took)
-		_, _ = inv.Fire(ctx, hooks.Input{
+		in := hooks.Input{
 			SessionID:     cfg.SessionID,
 			Cwd:           cfg.Cwd,
 			HookEventName: hooks.EventPostToolUse,
 			ToolName:      pending.ToolName,
 			ToolUseID:     pending.ToolUseID,
-			ToolInput:     n.Input,
+			ToolInput:     hookInput(false, pending.ToolName, n.Input),
 			ToolResponse:  n.Response,
 			DurationMs:    &n.DurationMs,
-		})
+		}
+		_, runs, _ := inv.FireRuns(ctx, in)
+		writeHookEventFrames(cfg, in, runs)
 	}
+}
+
+// ruleDenial is the refusal of a tool call by a deny rule of the settings: the PreToolUse hooks
+// have run on it (they saw the call), the tool does not, and no PostToolUse fires. The agent is
+// told "Permission to use Bash with command <command> has been denied.", the stream carries a
+// permission_denied system frame ahead of that result, and the run's result lists the call in
+// permission_denials (recorded: snapshots/runs/permission-denied).
+// sr:docs https://code.claude.com/docs/en/headless#auto-approve-tools
+func ruleDenial(inv *hooks.Invoker, call pendingToolUse) (text string, denied bool) {
+	command, denied := inv.Denied(call.ToolName, call.ToolInput)
+	if !denied {
+		return "", false
+	}
+	return "Permission to use " + call.ToolName + " with command " + command + " has been denied.", true
+}
+
+// denyByRule answers a call a deny rule refuses, and goes on to the next turn.
+func denyByRule(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript, bg *backgroundTasks, call pendingToolUse, text, lastText string) (turnResult, error) {
+	writeFrame(cfg, map[string]any{
+		"type": "system", "subtype": "permission_denied", "tool_name": call.ToolName, "tool_use_id": call.ToolUseID,
+		"decision_reason_type": "rule", "message": text,
+	})
+	res := toolexec.Result{Output: text, IsError: true, ToolUseResult: "Error: " + text, NonExecution: "permission-rule"}
+	if err := emitToolResult(cfg, call, res, tr); err != nil {
+		return turnResult{}, err
+	}
+	bg.run.deny(call)
+	bg.deliverMidTurn(ctx, cfg, inv, tr)
+	return turnResult{sig: "denied:" + call.ToolName + ":" + string(call.ToolInput), lastText: lastText}, nil
 }

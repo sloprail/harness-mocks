@@ -79,5 +79,24 @@ func TestT017_74_AKeptWorktreeIsNamedInTheResult(t *testing.T) {
 	assert.True(t, strings.HasSuffix(want["worktreePath"].(string), "/.claude/worktrees/agent-"+want["agentId"].(string)))
 	assert.Equal(t, "worktree-agent-"+want["agentId"].(string), want["worktreeBranch"])
 	block, _ := toolResultOf(t, readRecs(t, transcriptPath(t, cfg, dir, "kept-1")), "ag1turn-orch-a")
-	assert.Contains(t, block["content"].([]any)[0].(map[string]any)["text"], "\nworktreePath: "+got["worktreePath"].(string)+"\n<usage>")
+	text := block["content"].([]any)[0].(map[string]any)["text"]
+	assert.Contains(t, text, "\nworktreePath: "+got["worktreePath"].(string)+"\nworktreeBranch: worktree-agent-"+id+"\n<usage>")
+	// the mock's trailer against the recorded hand-back's, the ids and the run's
+	// directory aside (runs/isolated-worktree)
+	wantText := recordedAgentResultText(t, "isolated-worktree")
+	require.Len(t, worktreeLines(wantText, want["agentId"].(string), want["worktreePath"].(string)), 2, "the path and the branch")
+	assert.Equal(t, worktreeLines(wantText, want["agentId"].(string), want["worktreePath"].(string)),
+		worktreeLines(text.(string), id, got["worktreePath"].(string)))
+}
+
+// worktreeLines are the worktree lines of a hand-back, the agent's id and the
+// worktree's directory replaced by placeholders.
+func worktreeLines(text, id, path string) (lines []string) {
+	root := strings.TrimSuffix(path, "/.claude/worktrees/agent-"+id)
+	for _, l := range strings.Split(text, "\n") {
+		if strings.HasPrefix(l, "worktreePath: ") || strings.HasPrefix(l, "worktreeBranch: ") {
+			lines = append(lines, strings.ReplaceAll(strings.ReplaceAll(l, id, "<ID>"), root, "<RUN>"))
+		}
+	}
+	return
 }

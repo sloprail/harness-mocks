@@ -26,9 +26,9 @@ func (h *bgToolHost) Execute(ctx context.Context, c toolcall.Call) toolcall.Resu
 	if !h.s.cfg.Force { // not approved: rejected, and not started, as any other command
 		return h.toolHost.Execute(ctx, c)
 	}
-	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id), childenv.Defaults())
+	env := procexec.Env(h.s.cfg.Environ, childenv.Identity(h.s.id, h.s.requestID, h.s.cfg.Version), childenv.Defaults())
 	h.res = h.s.launch(h.call, h.tool.UseID, env)
-	h.emit(completedFrame(h.s.id, h.tool.UseID, h.call, h.res.Frame))
+	h.s.refuseResult(h.res)
 	return toolcall.Result{Failed: h.res.Failed}
 }
 
@@ -39,6 +39,6 @@ func (h *bgToolHost) After(ctx context.Context, c toolcall.Call, r toolcall.Resu
 	own := hooks.ToolFields(h.tool)
 	own["duration"] = ms(h.res.Took)
 	own["tool_output"] = h.res.ToolOutput
-	h.s.keep(h.s.hooks.Fire(ctx, hooks.PostToolUse, h.tool.Name, own))
+	h.keepContext(ctx, hooks.PostToolUse, own)
 	return "", false
 }

@@ -1,8 +1,8 @@
 statement: >-
-  Every conversation record in a transcript (user, assistant, attachment and
-  system records) carries the bookkeeping a reader relies on: session, working
-  directory, branch, timestamp, version and how the run
-  was launched; a prompt given to a non-interactive run is marked as such.
+  A transcript carries the bookkeeping a reader relies on: session, working
+  directory, branch, timestamp, version and how the run was launched, so that
+  a prompt given to a non-interactive run is told from a typed one; the
+  harness stamps it on every record or once, on the transcript's first.
 providers:
   claude:
     docs:
@@ -16,35 +16,16 @@ providers:
       - https://developers.openai.com/codex/hooks#common-input-fields
     runs:
       - codex-mock/snapshots/runs/session-transcript-file
-    deviations:
-      - adr: capability-grounding
-        statement: >-
-          Codex does not stamp the bookkeeping on every record: only the
-          rollout's first record (session_meta) carries the session id, start
-          time, working directory, git branch, version and how the run was
-          launched (originator and source "exec"); every record carries just
-          its timestamp (recorded: runs/session-transcript-file). The mock does
-          the same.
-      - adr: capability-grounding
-        statement: >-
-          Codex repeats the working directory on each turn's turn_context
-          record, a record of its own beside the conversation's
-          (recorded: runs/session-transcript-file); beyond that the first
-          record is the only one that names it.
-      - adr: capability-grounding
-        statement: >-
-          Codex does not mark the prompt record of a non-interactive run: the
-          user message is the same as a typed one, and the run's mode is only
-          the session_meta's source "exec" (recorded: runs/session-transcript-file).
-          The mock does the same.
   cursor:
     supported: false
     reason: >-
       Cursor's transcript records carry only a role and a message, and its
       turn_ended record only a status: no session, working directory, branch,
-      version or launch mode on any of them, and no time value (the user
-      record holds an empty <timestamp/> element, nothing else), for a -p run's
-      prompt included.
+      version or launch mode on any of them, and no time value: the user
+      record's text opens with an empty <timestamp/> element, then the prompt
+      in a <user_query> element, for a -p run's prompt included (recorded:
+      runs/tool-failure, runs/symlinked-cwd). The mock writes the same user
+      record.
     runs:
       - cursor-mock/snapshots/runs/tool-failure
       - cursor-mock/snapshots/runs/symlinked-cwd

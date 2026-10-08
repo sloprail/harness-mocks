@@ -1,0 +1,11 @@
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","agent_transcript_path":"<TMP>/home/.codex/sessions/2026/10/06/rollout-2026-10-06T06-37-34-01a10f80-b212-73b3-a11a-f7ecb28add14.jsonl","hook_event_name":"SubagentStop","permission_mode":"bypassPermissions","stop_hook_active":false,"agent_id":"01a10f80-b212-73b3-a11a-f7ecb28add14","agent_type":"default"}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.started","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"collab_tool_call"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

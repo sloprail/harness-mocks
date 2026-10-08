@@ -11,13 +11,11 @@ import (
 	"github.com/sloprail/harness-mocks/claude-mock/internal/hooks"
 )
 
-// scanLines reads one script invocation's JSONL output line by line, until a
-// tool_use (returned as pending), a result frame (done), or the end of output.
+// scanLines reads one script invocation's JSONL output line by line, until a tool_use (pending), a result frame (done) or its end.
 func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker, tr *transcript) (scanResult, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var out scanResult
-
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(bytes.TrimSpace(line)) == 0 {
@@ -28,6 +26,12 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		if err != nil {
 			fmt.Fprintf(cfg.Stderr, "claude-mock: invalid JSONL line: %v\nline: %s\n", err, line)
 			return scanResult{}, fmt.Errorf("claude-mock: script emitted invalid JSONL: %w", err)
+		}
+
+		if rec.Type == "gate" { // the step that follows waits for what the gate names: the script orders the agents
+			cfg.steps.hold(ctx, cfg, rec.Gate)
+			out.execGate = rec.Gate
+			continue
 		}
 
 		// A compaction: the {"type":"compact",…} control record, or a scenario's
@@ -54,39 +58,30 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 
 		if rec.Type == "assistant" {
 			if t := assistantText(line); t != "" {
-				out.lastText = t
+				out.lastText, out.thinking = t, false
+			} else if thinkingOnly(line) {
+				out.thinking = true
 			}
 		}
-
 		// PreToolUse + turn break on tool_use blocks.
 		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse
 		if rec.Type == "assistant" {
 			toolUseID, toolName, toolInput := extractFirstToolUseWithID(line)
 			if toolName != "" {
-				// Forward the assistant record + append to session BEFORE the hook
-				// fires — real Claude Code writes the tool_use first and the
-				// PreToolUse hook's attachment after it, and the tool_use is part
-				// of the trajectory whatever the hook decides.
-				writeStreamLine(cfg, line)
-				tr.persist(line)
-
-				if res := invalidCall(toolName, toolInput, cfg.Cwd); res != nil {
-					out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput, Invalid: res}
-					return out, nil
-				}
-				hookOut, hookErr := inv.Fire(ctx, hooks.Input{
-					SessionID:     cfg.SessionID,
-					AgentID:       cfg.AgentID,
-					Cwd:           cfg.Cwd,
-					HookEventName: hooks.EventPreToolUse,
-					ToolName:      toolName,
-					ToolUseID:     toolUseID,
-					ToolInput:     toolInput,
-				})
-				out.pending = pendingToolUse{ToolUseID: toolUseID, ToolName: toolName, ToolInput: toolInput}
-				if err := decidePreTool(cfg, &out.pending, hookOut, hookErr); err != nil {
+				call, err := writeCall(cfg, tr, line, toolUseID, toolName, toolInput)
+				if err != nil {
 					return scanResult{}, err
 				}
+				out.group = append(out.group, call)
+				if toolUseMore(line) { // the message holds more calls: all its frames come before any hook
+					continue
+				}
+				for i := range out.group {
+					if err := preTool(ctx, cfg, inv, &out.group[i]); err != nil {
+						return scanResult{}, err
+					}
+				}
+				out.pending = out.group[0]
 				return out, nil
 			}
 		}
@@ -96,6 +91,7 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 		// lets the turn end (see streamAndHook).
 		if rec.Type == "result" {
 			out.resultLine = append([]byte(nil), line...)
+			cfg.steps.answered()
 		} else {
 			writeStreamLine(cfg, line)
 		}
@@ -110,25 +106,9 @@ func scanLines(ctx context.Context, r io.Reader, cfg Config, inv *hooks.Invoker,
 			tr.persist(line)
 		}
 
-		// PostToolUse for a tool_result the scenario wrote itself (a tool the
-		// mock does not run, e.g. an AskUserQuestion answer). Real PostToolUse
-		// names the call by its tool_use_id — also its attachment's toolUseID —
-		// and the tool by the tool_use it answers.
-		// sr:docs https://docs.anthropic.com/en/docs/claude-code/hooks#posttooluse
 		if rec.Type == "user" {
-			toolUseID, toolName, toolOutput := extractFirstToolResult(line)
-			if toolName == "" && toolUseID != "" {
-				toolName = toolNameInTranscript(tr, toolUseID)
-			}
-			if toolName != "" {
-				_, _ = inv.Fire(ctx, hooks.Input{
-					SessionID:     cfg.SessionID,
-					Cwd:           cfg.Cwd,
-					HookEventName: hooks.EventPostToolUse,
-					ToolName:      toolName,
-					ToolUseID:     toolUseID,
-					ToolResponse:  toolOutput,
-				})
+			if err := postScenarioResult(ctx, cfg, inv, tr, line); err != nil {
+				return scanResult{}, err
 			}
 		}
 

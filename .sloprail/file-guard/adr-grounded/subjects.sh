@@ -10,5 +10,6 @@ payload="$(cat)"
 slim_payload
 . "${SR_GUARDRAIL_DIR:-.}/../../_lib/subjects.sh"
 arr="$(cs_json '[.changeset.files[].path | select(test("^adr/[^/]+/")) | {id: split("/")[1], p: .}]
-  | group_by(.id) | map({id: .[0].id, files: map(.p), bdeps: map(.p)})')"
+  | group_by(.id) | map({id: .[0].id, files: map(.p), bdeps: map(.p)})')" ||
+  refuse_error "the touched ADRs could not be worked out, so no subject could be made"
 sub_finish unclaimed "$arr"

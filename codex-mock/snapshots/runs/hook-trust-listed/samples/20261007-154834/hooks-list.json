@@ -1,0 +1,40 @@
+[
+ {
+  "key": "<TMP>/home/.codex/hooks.json:pre_tool_use:0:0",
+  "eventName": "preToolUse",
+  "handlerType": "command",
+  "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh user",
+  "async": false,
+  "matcher": "Bash",
+  "timeoutSec": 600,
+  "statusMessage": null,
+  "additionalContextLimit": null,
+  "sourcePath": "<TMP>/home/.codex/hooks.json",
+  "source": "user",
+  "pluginId": null,
+  "displayOrder": 0,
+  "enabled": true,
+  "isManaged": false,
+  "currentHash": "sha256:d978dfb3851e6eb6af88fd8323e578998edac8eb593f6b962c2ede394cbe6b41",
+  "trustStatus": "untrusted"
+ },
+ {
+  "key": "<RUN>/.codex/hooks.json:pre_tool_use:0:0",
+  "eventName": "preToolUse",
+  "handlerType": "command",
+  "command": "\"$(git rev-parse --show-toplevel)\"/hook.sh project",
+  "async": false,
+  "matcher": "Bash",
+  "timeoutSec": 600,
+  "statusMessage": null,
+  "additionalContextLimit": null,
+  "sourcePath": "<RUN>/.codex/hooks.json",
+  "source": "project",
+  "pluginId": null,
+  "displayOrder": 1,
+  "enabled": true,
+  "isManaged": false,
+  "currentHash": "sha256:fe1d1399af4be296a812de676629165e585a6b201058fb71959eb1bd91cc5d4d",
+  "trustStatus": "untrusted"
+ }
+]

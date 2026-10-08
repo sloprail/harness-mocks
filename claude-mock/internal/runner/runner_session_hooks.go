@@ -50,8 +50,12 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 	if kind == corehooks.StartResumed || kind == corehooks.StartForked {
 		in.ResumeFields = resumeFields(cfg.sessionFile)
 	}
+	if kind == corehooks.StartCompacted { // the model the session goes on with (recorded: runs/compact)
+		in.Model = modelID(cfg.Model)
+	}
 	if kind == corehooks.StartResumed {
 		in.SessionTitle = sessionTitleOf(cfg.sessionFile)
+		inv.SetSessionTitle(in.SessionTitle)
 	}
 	ssOut, runs, ferr := inv.FireRuns(ctx, in)
 	// Only the SessionStart of a session resumed from another directory is told
@@ -68,11 +72,8 @@ func fireSessionStart(ctx context.Context, cfg Config, inv *hooks.Invoker, kind 
 	if errors.As(ferr, &blockErr) && corehooks.BlocksSessionStart(corehooks.Blocked) {
 		return "", ferr
 	}
-	ac := promptContextFrom(ssOut)
-	if ac != "" {
-		emitSystemContext(cfg, "session_start", ac)
-	}
-	return ac, nil
+	// the context reaches the model and the transcript, never the stream (recorded: snapshots/runs/resume-session-start-ctx)
+	return promptContextFrom(ssOut), nil
 }
 
 // additionalContextFrom extracts the additionalContext a hook returned, if any.
@@ -92,21 +93,6 @@ func additionalContextFrom(out hooks.Output) string {
 		return out.HookSpecificOutput.AdditionalContext
 	}
 	return ""
-}
-
-// emitSystemContext writes a JSONL system record carrying additionalContext to the
-// output stream, mirroring how real Claude Code surfaces a hook's injected context
-// (e.g. a SessionStart compact re-seed). source identifies the originating hook.
-func emitSystemContext(cfg Config, source, additionalContext string) {
-	rec := map[string]any{
-		"type":              "system",
-		"subtype":           "hook_additional_context",
-		"source":            source,
-		"additionalContext": additionalContext,
-	}
-	if b, err := json.Marshal(rec); err == nil {
-		writeStreamLine(cfg, b)
-	}
 }
 
 // promptBlocked is what real Claude Code leaves behind when a UserPromptSubmit
@@ -134,11 +120,21 @@ func promptBlocked(cfg Config, tr *transcript, err error) error {
 		"type": "system", "subtype": "informational", "content": text,
 		"level": "warning", "prevent_continuation": true,
 	})
-	if line, merr := json.Marshal(map[string]any{
-		"type": "result", "subtype": "success", "is_error": false, "num_turns": 0,
-		"result": text, "session_id": cfg.SessionID,
-	}); merr == nil {
-		writeStreamLine(cfg, line)
+	if line, merr := json.Marshal(map[string]any{"type": "result", "subtype": "success", "result": text}); merr == nil {
+		// no turn was taken, and no sub-agent run (recorded: snapshots/runs/prompt-blocked)
+		writeStreamLine(cfg, withResultFields(withSubagentStats(line, newBackgroundTasks()), &runState{}, cfg.SessionID))
 	}
 	return nil
+}
+
+// modelID is the id of the model an alias names, as claude reports it (recorded: haiku, runs/compact);
+// any other name is its own.
+func modelID(name string) string {
+	if name == "haiku" {
+		return "claude-haiku-4-5-20251001"
+	}
+	if name == "" {
+		return "default"
+	}
+	return name
 }

@@ -25,6 +25,7 @@ providers:
       - claude-mock/snapshots/runs/hookerrors
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock fires SessionStart, UserPromptSubmit, PreToolUse,
           PostToolUse, PostToolUseFailure, Stop, SubagentStart, SubagentStop,
@@ -37,6 +38,7 @@ providers:
           PreModelSwitch, Setup, TaskCompleted, TaskCreated, TeammateIdle and
           UserPromptExpansion are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A hook's JSON that fails Claude Code's output schema is a
           non-blocking error in the mock too, whose message names the failing
@@ -45,6 +47,7 @@ providers:
           Claude Code's recorded wording; any other field's complaint is the
           mock's own.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           WorktreeRemove fails on a non-zero hook exit only if the worktree's
           directory still exists afterward. The mock's worktree_remove manages
@@ -62,8 +65,17 @@ providers:
       - codex-mock/snapshots/runs/prompt-blocked
       - codex-mock/snapshots/runs/posttool-block
       - codex-mock/snapshots/runs/stops
+      - codex-mock/snapshots/runs/subagent-stop-block-loop
+      - codex-mock/snapshots/runs/subagent-stop-continue-false
+      - codex-mock/snapshots/runs/subagent-stop-plain-text
+      - codex-mock/snapshots/runs/subagent-stop-exit2-continue-false
+      - codex-mock/snapshots/runs/subagent-start-refused
+      - codex-mock/snapshots/runs/manual-compaction-auto-blocked
+      - codex-mock/snapshots/runs/manual-compaction-auto-post-stopped
+      - codex-mock/snapshots/runs/session-end-hook-failure
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's exit 2 uses the hook's stderr as the message even when the
           hook also printed a JSON reason: recorded, a PreToolUse hook that
@@ -72,11 +84,14 @@ providers:
           was told the stderr text; the JSON on stdout was not read
           (runs/hook-exit-json). The mock does the same.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock fires SessionStart, UserPromptSubmit, PreToolUse,
-          PostToolUse and Stop, and no others. The docs' exit-code rows for
-          PermissionRequest, PreCompact, PostCompact, SubagentStart,
-          SubagentStop, Interrupt and SessionEnd are not modeled.
+          The mock fires no PermissionRequest event (a non-interactive run has
+          nothing to request), so the docs' exit-code row for it is not
+          modeled; it fires every other event the docs give a row
+          (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop,
+          PreCompact, PostCompact, SubagentStart, SubagentStop, SessionEnd and
+          Interrupt, which a SIGINT during a turn fires: runs/interrupt-hook).
   cursor:
     docs:
       - https://cursor.com/docs/hooks#command-based-hooks
@@ -87,16 +102,27 @@ providers:
       - cursor-mock/snapshots/runs/hook-fail-closed
       - cursor-mock/snapshots/runs/hook-json-nonzero
       - cursor-mock/snapshots/runs/pretool-refusal
+      - cursor-mock/snapshots/runs/nested-subagents
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock fires sessionStart, sessionEnd, preToolUse, postToolUse,
-          postToolUseFailure, beforeShellExecution, afterShellExecution and
-          afterFileEdit, and no others. The docs' exit-code rules for the other
-          permission hooks (beforeMCPExecution, beforeReadFile,
+          The mock fires workspaceOpen, sessionStart, sessionEnd, preToolUse, postToolUse,
+          postToolUseFailure, beforeShellExecution, afterShellExecution,
+          afterFileEdit, beforeReadFile and afterAgentThought, and no others. The docs' exit-code rules for the other
+          permission hooks (beforeMCPExecution,
           beforeTabFileRead, subagentStart) and for afterMCPExecution,
           subagentStop, beforeSubmitPrompt, preCompact, stop,
-          afterAgentResponse, afterAgentThought, the Tab hooks and
-          workspaceOpen are not modeled; the recordings show cursor-agent in
+          afterAgentResponse and the Tab hooks, and the exit-code rules of
+          workspaceOpen and afterAgentThought (their output is not read), are not modeled; the recordings show cursor-agent in
           print mode firing none of beforeSubmitPrompt, afterAgentResponse and
           stop.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor does not accept every exit 0: the docs (#command-based-hooks)
+          say "Exit code 0 ... invalid JSON or a response that doesn't match
+          the hook's schema blocks the action", and a permission hook that exits 0
+          with output that is not JSON (recorded: stdout "this is not json",
+          exit 0, runs/hook-exit-codes) blocked the call, rejected with
+          "returned invalid JSON". The mock blocks it the same.

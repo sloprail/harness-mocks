@@ -2,7 +2,8 @@
 # write]. A Write, an Edit, or a shell write sloprail can see, to anything
 # under <harness>-mock/snapshots/ is refused, except what a person authors: a
 # scenario's setup/ and the capture script itself. The capture script's own
-# writes are not predicted per file, so running it is how snapshots change.
+# writes are not predicted per file, so running it is how snapshots change. Only runs already on main are
+# read-only: a run directory that is not on main may be deleted (refuse.sh tells by main's tree).
 # snapshots-current's seal check is the backstop at commit time.
 on:
   - event: PreFileWrite

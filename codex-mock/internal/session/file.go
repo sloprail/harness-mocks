@@ -3,6 +3,8 @@
 package session
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +17,7 @@ type File struct {
 	Path    string
 	f       *os.File
 	windows *windows
+	next    int // the ordinal of the next line
 }
 
 // Create starts the rollout of session id at
@@ -24,11 +27,11 @@ type File struct {
 //
 // sr:provides session-transcript-file/codex
 func Create(home, id, cwd string, now time.Time) (*File, error) {
-	return create(home, id, cwd, now, nil)
+	return create(home, id, cwd, now, 0, nil)
 }
 
-// create starts the rollout with extra fields in its meta record.
-func create(home, id, cwd string, now time.Time, extra map[string]any) (*File, error) {
+// create starts the rollout with extra fields in its meta record; its first line has ordinal first.
+func create(home, id, cwd string, now time.Time, first int, extra map[string]any) (*File, error) {
 	dir := filepath.Join(home, "sessions", now.Format("2006"), now.Format("01"), now.Format("02"))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
@@ -38,7 +41,7 @@ func create(home, id, cwd string, now time.Time, extra map[string]any) (*File, e
 	if err != nil {
 		return nil, err
 	}
-	s := &File{Path: path, f: f}
+	s := &File{Path: path, f: f, next: first}
 	m := meta(id, cwd, now)
 	for k, v := range extra {
 		m[k] = v
@@ -50,7 +53,10 @@ func create(home, id, cwd string, now time.Time, extra map[string]any) (*File, e
 func (s *File) append(kind string, payload map[string]any) {
 	enc := json.NewEncoder(s.f)
 	enc.SetEscapeHTML(false)
-	_ = enc.Encode(map[string]any{"timestamp": time.Now().UTC().Format(time.RFC3339Nano), "type": kind, "payload": payload})
+	// Every line carries its position in the thread, which is what names a line that has no id of
+	// its own (recorded: every run's rollout; a fork continues from the history it branched at).
+	_ = enc.Encode(map[string]any{"timestamp": time.Now().UTC().Format(time.RFC3339Nano), "ordinal": s.next, "type": kind, "payload": payload})
+	s.next++
 }
 
 func message(role, ctype, text string) map[string]any {
@@ -75,14 +81,27 @@ func (s *File) Assistant(text string) {
 	s.append("response_item", message("assistant", "output_text", text))
 }
 
-// ToolCall records a tool call the agent made.
-func (s *File) ToolCall(callID, name string, input json.RawMessage) {
-	s.append("response_item", map[string]any{"type": "function_call", "call_id": callID, "name": name, "arguments": string(input)})
+// CodeCall records a tool call the agent made, as Codex records every one: a call of its code-mode
+// `exec` tool, whose input is the JS that calls the tool (recorded in every run's rollout: a
+// custom_tool_call named exec, e.g. `const r = await tools.exec_command({cmd:"ls"}); text(r.output);`).
+func (s *File) CodeCall(callID, js string) {
+	sum := sha256.Sum256([]byte(callID))
+	s.append("response_item", map[string]any{"type": "custom_tool_call", "id": "ctc_" + hex.EncodeToString(sum[:12]),
+		"status": "completed", "call_id": callID, "name": "exec", "input": js})
 }
 
 // ToolOutput records what the agent was told a tool call returned.
 func (s *File) ToolOutput(callID, output string) {
 	s.append("response_item", map[string]any{"type": "function_call_output", "call_id": callID, "output": output})
+}
+
+// ToolOutputParts records a tool result that the harness tells the agent as parts, one after another.
+func (s *File) ToolOutputParts(callID string, parts ...string) {
+	out := make([]map[string]string, len(parts))
+	for i, p := range parts {
+		out[i] = map[string]string{"type": "input_text", "text": p}
+	}
+	s.append("response_item", map[string]any{"type": "function_call_output", "call_id": callID, "output": out})
 }
 
 // Close ends the rollout.

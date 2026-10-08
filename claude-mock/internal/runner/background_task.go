@@ -3,9 +3,11 @@ package runner
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/sloprail/harness-mocks/internal/subagents"
 	"github.com/sloprail/harness-mocks/internal/tasks"
+	"github.com/sloprail/harness-mocks/internal/toolspec"
 )
 
 // backgroundTasks is a session's background tasks: the core registry, which
@@ -15,6 +17,20 @@ type backgroundTasks struct {
 	*tasks.Registry
 	// stats is the session's count of its sub-agents (the result's subagent_stats).
 	stats subagents.Stats
+	// run is what the main agent has done since its last result frame.
+	run runState
+	// results holds the result frames of turns that ended while a background agent worked.
+	results tasks.Results
+	// refused is the first call a scenario script asked for that the mock does not
+	// implement, in any run of the session, a sub-agent's too: it fails the run.
+	refused toolspec.Refusals
+	// endedAtLaunch holds the commands that ended before their own receipt was written: told of at the
+	// next tool, not the launching one.
+	endedAtLaunch sync.Map
+	// receiptAfterEnd holds the tool calls whose background command the receipt waits for (see takeGate).
+	receiptAfterEnd sync.Map
+	// agents are the session's sub-agents by id, for SendMessage to resume one.
+	agents agentRegistry
 }
 
 func newBackgroundTasks() *backgroundTasks {
@@ -50,6 +66,9 @@ func taskSummary(t *tasks.Task) string {
 	if t.Kind == tasks.Agent {
 		if t.Failure != "" {
 			return `Agent "` + t.Description + `" failed: ` + t.Failure
+		}
+		if t.StoppedAtTurns > 0 { // recorded: runs/fgsub-maxturns
+			return fmt.Sprintf(`Agent "%s" stopped at its %d-turn limit (partial result; SendMessage to task-id to continue)`, t.Description, t.StoppedAtTurns)
 		}
 		return `Agent "` + t.Description + `" finished`
 	}

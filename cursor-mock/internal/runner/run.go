@@ -2,30 +2,42 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/sloprail/harness-mocks/cursor-mock/internal/childenv"
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/hooks"
-	"github.com/sloprail/harness-mocks/internal/procexec"
 	coresession "github.com/sloprail/harness-mocks/internal/session"
+	"github.com/sloprail/harness-mocks/internal/tasks"
 	"github.com/sloprail/harness-mocks/internal/turnloop"
 )
 
 // session is one run's state, and the harness side (turnloop.Host) of its turn.
 type session struct {
+	refusal *refusal // shared by the run's sessions: the first "not modeled" refusal ends the run
 	cfg     Config
 	id      string
 	tr      *transcript
 	hooks   *hooks.Hooks
 	started time.Time
-	texts   []string // what the agent said, in order: the result frame's text
-	// named: hook payloads carry the transcript path. Cursor leaves it null
-	// until the conversation's first tool call is past its preToolUse hooks
-	// (recorded: runs/tool-failure), though the file is there from the first
-	// record.
+	// requestID names the run's model request: the result frame says it, and the
+	// hooks of a Task call name it as their generation.
+	requestID string
+	texts     []string // what the agent said, in order: the result frame's text
+	// pending is what the agent said that the stream has not shown yet: one frame
+	// when the next call starts, or at the end of the turn (runs/foreground-subagent-failure).
+	pending []string
+	modelN  int // the model responses so far: a call's frames and the text before it name theirs
+	// named: hook payloads carry the transcript path, null until the first tool
+	// call is past its preToolUse hooks (recorded: runs/tool-failure).
 	named bool
+	// batched are the calls of responses of several calls, and early those of them
+	// whose preToolUse has fired at their start (host.go), by call id; both are the run's
+	// (a sub-agent's session shares them).
+	batched, early *sync.Map
 	// added is the context the hooks have handed the agent so far (their
 	// additional_context), in the order their events fired and, within an event,
 	// the order the hooks are configured in.
@@ -35,6 +47,14 @@ type session struct {
 	// parent's background shells, owning what it starts.
 	owner  string
 	parent *session
+	// owed: stream frames reporting what ended at a sub-agent's final response,
+	// printed after the next tool call of this session, or at the end of its run.
+	owed tasks.Deferred
+	// reaped: the commands that ended at a sub-agent's final response, whose
+	// notifications the stream has (owed) but which still give this session a turn
+	// of its own, after the one it is in (recorded: runs/foreground-subagent-bash-ends-with-response).
+	reaped []*tasks.Task
+	turns  // an interactive session's turns (interactive.go)
 }
 
 // keep adds the context the hooks of one event gave to the agent's: all of it,
@@ -75,7 +95,10 @@ var startHook = coresession.StartPolicy{Fresh: coresession.StartHook{Fires: true
 // sr:docs https://cursor.com/docs/hooks#sessionend
 // sr:docs https://cursor.com/docs/hooks#sessionstart
 func Run(ctx context.Context, cfg Config) error {
-	s := &session{cfg: cfg, id: cfg.Resume, started: time.Now()}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s := &session{turns: turns{ctx: ctx}, cfg: cfg, id: cfg.Resume, started: time.Now(), requestID: coresession.NewID(), batched: &sync.Map{}, early: &sync.Map{}, refusal: &refusal{cancel: cancel}}
+	first := s.requestID // the result frame names the run's first request, whatever turns follow
 	if s.id == "" {
 		s.id = coresession.NewID()
 	}
@@ -83,7 +106,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if s.tr, err = newTranscript(cfg.Home, cfg.Dir, s.id); err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
-	conf, err := hooks.Load(cfg.Dir, cfg.PluginDirs...)
+	conf, err := cfg.loadHooks()(cfg.Dir, cfg.Home, cfg.PluginDirs...)
 	if err != nil {
 		return fmt.Errorf("cursor-mock: %w", err)
 	}
@@ -91,13 +114,21 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.Resume != "" { // the workspace holds the session's transcript only if it was begun there
 		_ = coresession.ContinueTranscript(s.tr.path, func(l string) bool { return strings.Contains(l, `"turn_ended"`) })
 	}
-	s.forward(initFrame(s.id, cfg.Dir))
+	if cfg.Interactive { // a TUI session: no stream, and the hooks around each turn (interactive.go)
+		s.cfg.Stdout = io.Discard // the TUI draws a screen: nothing of it is a stream
+		return s.interactive(ctx)
+	}
+	s.forward(initFrame(s.id, cfg.Dir, cfg.Model))
 	s.forward(userFrame(s.id, cfg.Prompt))
+	s.hooks.Fire(ctx, hooks.WorkspaceOpen, hooks.NoSubject, nil) // the app opens the workspace before the session starts (recorded: runs/workspace-open)
 	if startHook.For(cfg.Resume != "").Fires {
 		s.keep(s.hooks.Fire(ctx, hooks.SessionStart, hooks.NoSubject, map[string]any{"is_background_agent": false}))
 	}
 	s.tr.user(cfg.Prompt) // the transcript file does not exist yet when the start hook runs
-	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context})
+	_, runErr := turnloop.Run(ctx, s, turnloop.Params{Script: cfg.Script, Dir: cfg.Dir, Environ: cfg.Environ, Prompt: cfg.Prompt, Added: s.Context, BlockCap: s.blockCap()})
+	if msg := s.refusal.message(); msg != "" { // a refusal of something not modeled fails the run, wherever it was made
+		return errors.New(msg)
+	}
 	s.named = true
 	s.hooks.Fire(ctx, hooks.SessionEnd, hooks.NoSubject, map[string]any{
 		"reason": "completed", "duration_ms": time.Since(s.started).Milliseconds(),
@@ -107,27 +138,8 @@ func Run(ctx context.Context, cfg Config) error {
 	if runErr != nil {
 		return fmt.Errorf("cursor-mock: %w", runErr)
 	}
-	s.forward(resultFrame(s.id, strings.Join(s.texts, ""), time.Since(s.started)))
+	s.flushOwed()
+	s.flushText(false)
+	s.forward(resultFrame(s.id, first, strings.Join(s.texts, ""), time.Since(s.started)))
 	return nil
 }
-
-// hookEnv is the environment of a hook command: the harness's own, with the
-// facts Cursor gives a hook (recorded: runs/subprocess-session-env,
-// runs/nested-session-env).
-func (s *session) hookEnv() []string {
-	return procexec.Env(s.cfg.Environ,
-		childenv.HookIdentity(s.cfg.Dir, s.common().TranscriptPath), childenv.HookDefaults(s.cfg.Dir, s.cfg.Version))
-}
-
-// common is what every hook payload carries now: the transcript path only once
-// the conversation has a transcript.
-func (s *session) common() hooks.Common {
-	c := hooks.Common{SessionID: s.id, Dir: s.cfg.Dir, Version: s.cfg.Version}
-	if s.named && s.tr.exists() {
-		c.TranscriptPath = s.tr.path
-	}
-	return c
-}
-
-// forward prints one stream-json line.
-func (s *session) forward(line []byte) { fmt.Fprintf(s.cfg.Stdout, "%s\n", line) }

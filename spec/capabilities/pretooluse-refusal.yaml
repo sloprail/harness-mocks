@@ -14,6 +14,7 @@ providers:
       - claude-mock/snapshots/runs/stops
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models a non-interactive run that no SDK host resumes, so a hook's "ask" (a permission prompt) and "defer" (pausing
           the call to resume later) decide nothing in the mock; they only rank
@@ -28,9 +29,10 @@ providers:
       - codex-mock/snapshots/runs/pretool-decisions
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock's tool executor handles only the shell tool (hooks name it
-          Bash), so a refusal of apply_patch, of MCP tools and of Codex's other
+          Bash) and apply_patch, so a refusal of MCP tools and of Codex's other
           local function tools is not modeled. Hosted tools such as web search
           run no hook in Codex either.
   cursor:
@@ -38,23 +40,37 @@ providers:
       - https://cursor.com/docs/hooks#pretooluse
       - https://cursor.com/docs/hooks#beforeshellexecution--beforemcpexecution
       - https://cursor.com/docs/hooks#configuration
+      - https://cursor.com/docs/hooks#beforereadfile
     runs:
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/pretool-refusal-file-tools
       - cursor-mock/snapshots/runs/pretool-refusal-combined
+      - cursor-mock/snapshots/runs/before-read-refusal
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models a non-interactive run with no one to ask, so a hook's
           "ask" (a permission prompt) decides nothing in the mock; it only ranks
           below deny when several hooks decide one call. The call-refusing
-          hooks the mock fires are preToolUse and beforeShellExecution;
-          beforeMCPExecution, beforeReadFile and subagentStart, which refuse
+          hooks the mock fires are preToolUse, beforeShellExecution and
+          beforeReadFile; beforeMCPExecution and subagentStart, which refuse
           too, are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A deny's agent_message, which the docs say is fed back to the agent as
           the refusal, is not read: the mock has no model to receive it, and the
           recorded stream shows the agent's side of a refusal only as the
           rejected tool call, so only the hook's user_message (the failure
           hook's error_message) is modeled.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#pretooluse, the output
+          fields) says agent_message is "Message fed back to the agent when the
+          action is denied", and the recordings show a deny's agent_message
+          (AGENT-DENY-MSG, SHELL-AGENT-DENY-MSG) nowhere in the run's stream,
+          hook payloads or transcript: the rejected call's reason carries only
+          the user_message (runs/pretool-refusal, runs/pretool-refusal-file-tools).
+          The recording decides.

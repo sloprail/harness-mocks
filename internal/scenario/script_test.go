@@ -77,3 +77,62 @@ func TestRunTurnScriptWithNeitherToolNorResultEnds(t *testing.T) {
 		t.Fatalf("turn = %+v, %v", turn, err)
 	}
 }
+
+// A turn's calls are the tool_use blocks of its first line and the assistant
+// lines of tool_use blocks alone that follow it; any other line ends the turn
+// unread.
+func TestRunTurnReadsAllTheCallsOfOneTurn(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' \
+'{"type":"assistant","message":{"content":[{"type":"text","text":"go"},{"type":"tool_use","id":"a","name":"Bash","input":{"n":1}},{"type":"tool_use","id":"b","name":"Task","input":{"n":2}}]}}' \
+'{"type":"assistant","message":{"content":[{"type":"tool_use","id":"c","name":"Read","input":{"n":3}}]}}' \
+'{"type":"assistant","message":{"content":[{"type":"text","text":"never"}]}}' \
+'{"type":"result","result":"never"}'`)
+	turn, err := RunTurn(context.Background(), s, dir, environ, Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, c := range turn.Tools {
+		ids = append(ids, c.ID)
+	}
+	if strings.Join(ids, ",") != "a,b,c" || turn.Tool == nil || turn.Tool.ID != "a" || len(turn.Texts) != 1 || turn.Result != nil {
+		t.Fatalf("turn = %+v", turn)
+	}
+}
+
+// A line after the calls that is not a call ends the turn even if it is not
+// valid: it is never read.
+func TestRunTurnStopsAtAnUnreadableLineAfterTheCalls(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' \
+'{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a","name":"Bash","input":{}}]}}' \
+'not json'`)
+	turn, err := RunTurn(context.Background(), s, dir, environ, Input{})
+	if err != nil || len(turn.Tools) != 1 {
+		t.Fatalf("turn = %+v, %v", turn, err)
+	}
+}
+
+// An assistant line may carry a gate: what must have happened (other agents' steps) before the
+// host takes the line's calls and messages. The script orders the agents, not the time anything takes.
+func TestAnAssistantLineCarriesAGate(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' '{"gate":{"ended":[0,2],"parent_started":3,"parent_done":1},"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{}}]}}'`)
+	turn, err := RunTurn(context.Background(), s, dir, environ, Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := turn.Gate; len(got.Ended) != 2 || got.Ended[0] != 0 || got.Ended[1] != 2 || got.ParentStarted != 3 || got.ParentDone != 1 || got.None() {
+		t.Fatalf("gate = %+v", got)
+	}
+	s, dir = script(t, `printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"x"}]}}'`)
+	if turn, _ = RunTurn(context.Background(), s, dir, environ, Input{}); !turn.Gate.None() {
+		t.Fatalf("a line with no gate has one: %+v", turn.Gate)
+	}
+}
+
+// A gate with a field it does not have is the script's mistake: the turn is refused, not read leniently.
+func TestAGateWithAnUnknownFieldIsRefused(t *testing.T) {
+	s, dir := script(t, `printf '%s\n' '{"gate":{"ended":[0],"parent_finished":2},"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{}}]}}'`)
+	if _, err := RunTurn(context.Background(), s, dir, environ, Input{}); err == nil || !strings.Contains(err.Error(), "parent_finished") {
+		t.Fatalf("err = %v, want one naming parent_finished", err)
+	}
+}

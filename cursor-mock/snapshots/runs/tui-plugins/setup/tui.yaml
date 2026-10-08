@@ -1,0 +1,18 @@
+# Plugins in the TUI: four plugins whose hooks log (two directories of the user's local plugins, one a
+# symlink to a plugin outside them and one a symlink to a plugin inside them, and one loaded with
+# --plugin-dir), beside the project's own hooks. The project's sessionStart hook takes 12 s (the
+# local plugins load in the background meanwhile); the prompt is typed once it has logged and the
+# input is live. The run waits for the turn's stop hook, then for the idle screen, and quits (Ctrl+C
+# twice).
+timeout: 400s
+steps:
+  - wait: {screen: "Plan, search, build anything.*<\\?2004h>", timeout: 60s}
+  - wait: {hook: sessionStart, timeout: 60s}
+  - send: {text_file: prompt.txt, echo: "→ Run exactly this shell command", keys: [enter]}
+  - wait: {hook: stop, timeout: 180s}
+  - wait: {screen: "Add a follow-up Auto"}
+exit:
+  - send: {keys: [ctrl-c]}
+  - wait: {screen: "Press Ctrl\\+C again to exit"}
+  - send: {keys: [ctrl-c]}
+  - wait: {hook: sessionEnd, timeout: 30s}

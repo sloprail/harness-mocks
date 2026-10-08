@@ -1,0 +1,1 @@
+Do these steps in order, each with the named tool, and nothing else. 1) WebFetch the url "https://example.com" with the prompt "State the page's heading, in one short sentence." 2) WebFetch the url "http://localhost:1/" with the prompt "Summarize the page." (it cannot be fetched: let it fail, do not retry). Then reply only DONE.

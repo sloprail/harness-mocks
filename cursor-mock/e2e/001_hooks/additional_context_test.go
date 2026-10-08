@@ -37,9 +37,9 @@ func lastSaid(t *testing.T, sample string) string {
 // not write the context into the transcript.
 // sr:proves hook-additional-context/cursor
 func TestAHooksAdditionalContextReachesTheAgentFromTheStartAndAfterEveryToolCall(t *testing.T) {
-	got, want := replay(t, "additional-context")
-	conforms(t, got, want)
-
+	// what the mock shows of the recorded run is compared by the generated replay
+	// (e2e/003_replay): the hand-written comparison of the hook scripts' own logs
+	// lost lines when hooks ran side by side under load
 	sample := newestSample(t, "additional-context")
 	require.Equal(t, "CTX-sessionStart-S1 CTX-postToolUse-P1 CTX-postToolUse-P2 CTX-postToolUseFailure-F1", lastSaid(t, sample),
 		"the recorded agent had all of the context, in the order it was added")

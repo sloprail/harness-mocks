@@ -1,0 +1,9 @@
+# Enforces adr/replay-exceptions-only-shrink: every mock's notReplaying map may lose keys, never gain
+# one, and no entry's reason may move to a weaker category; every mock's generated replay test runs a
+# flaky: entry several times and fails when none is green. The replay test package of a mock is pinned whole
+# (its list and its generated test are not deleted or renamed). A go test -skip in a workflow or a mock's Makefile
+# may name only the timed pair of replays, which the workflow must also run, on Linux, three times each, on every PR.
+match: path matches "^([a-z0-9]+-mock/e2e/.*\\.go|\\.github/workflows/[^/]+\\.ya?ml|[a-z0-9]+-mock/Makefile)$"
+deletions: include
+checks:
+  - script: ./only-shrinks.sh

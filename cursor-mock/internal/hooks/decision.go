@@ -22,6 +22,11 @@ type Decision struct {
 	// Context is the additional_context the hook gave, for an event that takes
 	// it (sessionStart, postToolUse, postToolUseFailure).
 	Context string
+	// Refused: a beforeSubmitPrompt hook answered continue:false, so the prompt is not
+	// submitted (Message is its user_message). Followup is the followup_message a stop
+	// hook gave, which the agent is to take as its next message. See turn.go.
+	Refused  bool
+	Followup string
 }
 
 // failClosedNote opens what a fail-closed hook's failure says.
@@ -65,6 +70,9 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		return Decision{}
 	}
 	out := strings.TrimSpace(o.Stdout)
+	if e == BeforeSubmitPrompt || e == Stop {
+		return interpretTurn(e, out)
+	}
 	if e.addsContext() {
 		// sr:provides hook-additional-context/cursor
 		// sr:docs https://cursor.com/docs/hooks#posttooluse
@@ -90,7 +98,16 @@ func Interpret(e Event, h Entry, o corehooks.Outcome) Decision {
 		UserMessage string `json:"user_message"`
 	}
 	// What counts as JSON output is the core's; the fields read from it are Cursor's.
-	if !corehooks.IsJSONOutput(out, isOutputField) || json.Unmarshal([]byte(out), &p) != nil || !validPermission(p.Permission) {
+	if !corehooks.IsJSONOutput(out, isOutputField) || json.Unmarshal([]byte(out), &p) != nil {
+		return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned invalid JSON. The command was blocked for safety.", h.Command)}
+	}
+	// JSON whose permission is not one of Cursor's is worded differently
+	// (recorded: runs/before-read-refusal, {"permission":"maybe"})
+	if !validPermission(p.Permission) {
+		if e == BeforeReadFile {
+			return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned an invalid response for this hook step. The command was blocked for safety.", h.Command)}
+		}
+		// no recording shows how the other permission events word it
 		return Decision{Permission: "deny", Message: fmt.Sprintf("Hook %q returned invalid JSON. The command was blocked for safety.", h.Command)}
 	}
 	return Decision{Permission: p.Permission, Message: p.UserMessage}
@@ -101,30 +118,8 @@ func validPermission(p string) bool { return p == "" || p == "allow" || p == "de
 // isOutputField reports whether a key is one a Cursor hook's output sets.
 func isOutputField(key string) bool {
 	switch key {
-	case "permission", "user_message", "agent_message", "continue", "env", "additional_context":
+	case "permission", "user_message", "agent_message", "continue", "env", "additional_context", "followup_message":
 		return true
 	}
 	return false
-}
-
-// refusalSeparator joins the messages of the hooks that refused one call
-// (recorded: runs/pretool-refusal-combined).
-const refusalSeparator = "\n\n---\n\n"
-
-// Refusal is whether several hooks' decisions refuse the call, and what the
-// refusal says: the core decides (one refusing hook refuses it, whatever the
-// others decided), and Cursor's parameter of it is that the message is the
-// messages of every hook that refused, a block by exit status and a deny in
-// output alike, in the order the hooks are configured in, with the separator
-// between them. An "ask" decides nothing: the mock models a run that no one is
-// there to ask.
-//
-// sr:provides pretooluse-refusal/cursor
-// sr:docs https://cursor.com/docs/hooks#configuration
-func Refusal(ds []Decision) (refused bool, message string) {
-	votes := make([]corehooks.PreToolVote, len(ds))
-	for i, d := range ds {
-		votes[i] = corehooks.PreToolVote{Blocked: d.Blocked, BlockReason: d.Message, Denied: d.Permission == "deny", DenyReason: d.Message}
-	}
-	return corehooks.PreToolRefusal(votes, refusalSeparator)
 }

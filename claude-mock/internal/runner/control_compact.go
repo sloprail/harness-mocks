@@ -60,11 +60,22 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 	if trigger == "" {
 		trigger = "auto"
 	}
+	events := []hooks.EventName{hooks.EventPreCompact, hooks.EventPostCompact}
+	if trigger == "manual" {
+		events = append(events, hooks.EventSubagentStop) // only a manual compaction's summarizer is a sub-agent that stops
+	}
+	if err := refuseUnrecordedHook(cfg, inv, events...); err != nil {
+		return false, err
+	}
+	if trigger == "manual" {
+		cfg.bg.run.runLocal("compact") // /compact is the harness's own command: its result says so
+	}
 	preserve := defaultPreserved
 	if rec.Preserve != nil {
 		preserve = *rec.Preserve
 	}
 	started := time.Now()
+	inv.EnsureTurn() // a compaction with no prompt before it acts as one
 	var preRuns, postRuns []hooks.HandlerRun
 	var sum map[string]any
 	var anchor, summaryText string
@@ -91,7 +102,7 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 			}
 			return !ok
 		},
-		Summarizer: func() { fireSummarizerStop(ctx, cfg, inv, tr, summaryText) },
+		Summarizer: func() { fireSummarizerStop(ctx, cfg, inv, tr, modelOutput(rec, summaryText)) },
 		Boundary: func() {
 			boundaryFrames = writeCompactBoundary(cfg, tr, compactionSpec{
 				logicalParent: rec.LogicalParent, preserve: preserve, anchor: anchor, trigger: trigger,
@@ -112,12 +123,12 @@ func compact(ctx context.Context, cfg Config, inv *hooks.Invoker, tr *transcript
 			// the stream: SessionStart:compact's hook frames, then the end status,
 			// init and boundary, then the summary (recorded: snapshots/runs/compact)
 			boundaryFrames()
-			writeStreamLine(cfg, summaryLine)
+			writeSummaryFrame(cfg, sum)
 		},
 		After: func() {
 			_, _ = inv.WithRecorder(func(_ hooks.Input, runs []hooks.HandlerRun) { postRuns = runs }).Fire(ctx, hooks.Input{
 				SessionID: cfg.SessionID, Cwd: cfg.Cwd, HookEventName: hooks.EventPostCompact,
-				Trigger: trigger, CompactSummary: &summaryText,
+				Trigger: trigger, CompactSummary: ptrTo(modelOutput(rec, summaryText)),
 			})
 		},
 		Command: func() { writeCompactCommand(cfg, tr, preRuns, postRuns) },

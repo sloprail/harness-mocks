@@ -17,8 +17,13 @@ import (
 // sr:docs https://code.claude.com/docs/en/settings (extraKnownMarketplaces, enabledPlugins)
 type settingsWithPlugins struct {
 	Settings
+	Permissions            Permissions               `json:"permissions"`
+	AllowManagedHooksOnly  *bool                     `json:"allowManagedHooksOnly,omitempty"`
 	EnabledPlugins         map[string]bool           `json:"enabledPlugins,omitempty"`
 	ExtraKnownMarketplaces map[string]marketplaceCfg `json:"extraKnownMarketplaces,omitempty"`
+	Worktree               struct {
+		BaseRef string `json:"baseRef"`
+	} `json:"worktree"`
 }
 
 // pluginHooks is the schema of a plugin's hooks/hooks.json file. Each value is a

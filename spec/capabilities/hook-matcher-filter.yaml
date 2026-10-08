@@ -11,6 +11,7 @@ providers:
       - claude-mock/snapshots/runs/matcher
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock defines only the events named in
           claude-mock/internal/hooks/event.go (SessionStart, SessionEnd, Stop,
@@ -25,14 +26,15 @@ providers:
     runs:
       - codex-mock/snapshots/runs/hook-matchers
       - codex-mock/snapshots/runs/hook-matcher-omitted
+      - codex-mock/snapshots/runs/interrupt-hook
+      - codex-mock/snapshots/runs/interrupt-hook-output
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock fires no PermissionRequest, PreCompact, PostCompact,
-          SubagentStart or SubagentStop event and has no MCP tools or
-          sub-agents, so the matcher variants of those (MCP tool names such as
-          mcp__filesystem__.*, the manual|auto compaction triggers, the
-          sub-agent types, and spawn_agent also matching Agent) are not
+          The mock fires no PermissionRequest event and has no MCP tools, so
+          the matcher variants of those (MCP tool names such as
+          mcp__filesystem__.*, and spawn_agent also matching Agent) are not
           modeled. The mock's tool-name aliases are only apply_patch matching
           Edit and Write.
   cursor:
@@ -42,11 +44,27 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/hook-matchers
       - cursor-mock/snapshots/runs/hook-matchers-after-events
+      - cursor-mock/snapshots/runs/hook-matchers-task-read
+      - cursor-mock/snapshots/runs/hook-matchers-grep-delete
+      - cursor-mock/snapshots/runs/hook-matchers-mcp
+      - cursor-mock/snapshots/runs/hook-matchers-thought
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock fires only the events it fires (sessionStart, sessionEnd,
-          preToolUse, postToolUse, postToolUseFailure, beforeShellExecution,
-          afterShellExecution and afterFileEdit), so the matchers of the other events
-          (subagentStart, subagentStop, beforeReadFile, beforeSubmitPrompt, stop,
-          afterAgentResponse, afterAgentThought and the rest) are not modeled.
+          The mock fires only the events it fires (workspaceOpen, sessionStart,
+          sessionEnd, preToolUse, postToolUse, postToolUseFailure,
+          beforeShellExecution, afterShellExecution, afterFileEdit, beforeReadFile
+          and afterAgentThought), so the matchers of the other events
+          (subagentStart, subagentStop, beforeSubmitPrompt, stop,
+          afterAgentResponse and the rest) are not modeled.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#matcher-configuration) lists
+          Task among the tool values a postToolUse matcher is tested against, and
+          the recording shows a hook matched on Task never running after a Task
+          call that completed, though the one matched on Task ran before it, since
+          no postToolUse fires for a Task call (recorded:
+          runs/hook-matchers-task-read). The recording decides; the mock does the
+          same.

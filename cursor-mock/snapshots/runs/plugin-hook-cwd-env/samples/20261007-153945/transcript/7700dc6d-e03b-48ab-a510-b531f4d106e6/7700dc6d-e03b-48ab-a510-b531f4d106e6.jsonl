@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nRun exactly this Bash command: echo PLUGINHOOKS . Then reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I'll run that exact command, then reply only with DONE."},{"type":"tool_use","name":"Shell","input":{"command":"echo PLUGINHOOKS","description":"Echo PLUGINHOOKS exactly"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}

@@ -1,0 +1,17 @@
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Skill","tool_input":{"skill":"greet"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Skill","tool_input":{"skill":"greet"},"tool_response":{"success":true,"commandName":"greet"}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Skill","tool_input":{"skill":"greet","args":"to the world"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Skill","tool_input":{"skill":"greet","args":"to the world"},"tool_response":{"success":true,"commandName":"greet"}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Skill","tool_input":{"skill":"greet"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Skill","tool_input":{"skill":"greet"},"tool_response":{"success":true,"commandName":"greet"}}}
+{"event":"hook","hook":"PreToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Skill","tool_input":{"skill":"greet","args":"to the world"}}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Skill","tool_input":{"skill":"greet","args":"to the world"},"tool_response":{"success":true,"commandName":"greet"}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"result","subtype":"success"}

@@ -14,6 +14,7 @@ providers:
       - claude-mock/snapshots/runs/nested-fork-limit
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A fork (the fork sub-agent type, on by default in interactive
           sessions and opt-in with CLAUDE_CODE_FORK_SUBAGENT in print mode)
@@ -32,6 +33,7 @@ providers:
       - codex-mock/snapshots/runs/nested-subagents-nowait
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           The statement's three layers and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
           are Claude Code's. Codex's depth limit is the config key
@@ -47,16 +49,12 @@ providers:
           sidecar, and all the session's rollouts, sub-agents' included, sit in
           the one day directory under sessions/.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock has no separate wait tool: its spawn_agent runs the
-          sub-agent to its end and answers with what a wait would, unless the
-          dispatch is the mock's own background one, which answers at once
-          with a receipt as Codex's spawn_agent does. Recorded, the main thread
-          spawned a sub-agent and ended the run without waiting for it, and
-          `codex exec` ended with the sub-agent still running, aborted
-          (runs/nested-subagents-nowait, turn_aborted); no recording has a
-          sub-agent leave its own sub-agents running. The wait tool's own
-          hooks (multi_agent_v1wait_agent) are not modeled.
+          Recorded, the main thread spawned a sub-agent and ended the run
+          without waiting for it, and `codex exec` ended with the sub-agent
+          still running, aborted (runs/nested-subagents-nowait, turn_aborted);
+          no recording has a sub-agent leave its own sub-agents running.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#subagentstart
@@ -64,8 +62,10 @@ providers:
       - cursor-mock/snapshots/runs/nested-subagents
       - cursor-mock/snapshots/runs/nested-subagents-depth
       - cursor-mock/snapshots/runs/nested-subagents-background
+      - cursor-mock/snapshots/runs/catalogue-search-task
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Cursor records neither a sub-agent's depth nor its parent: its
           transcript is a file like the main agent's, agent-transcripts/<id>/<id>.jsonl
@@ -74,14 +74,33 @@ providers:
           report its own conversation id as their session (recorded:
           runs/nested-subagents). The mock does the same.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           The statement's three layers and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH
           are Claude Code's. Cursor's limit is two layers of sub-agents and has
           no environment variable: a sub-agent of a sub-agent is not offered the Task tool
-          (it said no Task tool is available, runs/nested-subagents-depth),
+          (it searched the tool catalogue, which answered nothing for the Task
+          pattern (runs/catalogue-search-task), and said no Task tool is available,
+          runs/nested-subagents-depth),
           rather than a dispatch ending in an error. The mock answers a Task
           call there as an unknown tool and nests two layers.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the doc section hooks#subagentstart
+          (https://cursor.com/docs/hooks#subagentstart) says "Called before
+          spawning a subagent (Task tool).", and lists parent_conversation_id
+          ("Conversation ID of the parent agent session") among its fields,
+          with subagentStop "Called when a subagent completes, errors, or is
+          aborted.", but the recording
+          cursor-mock/snapshots/runs/nested-subagents shows Cursor firing
+          neither subagentStart nor subagentStop for a sub-agent or its own
+          sub-agent in print mode, though both were configured (its
+          payloads.jsonl has no event of either, and no parent field), so the
+          documented parent_conversation_id of those hooks does not apply. The
+          recording decides, and the mock fires neither.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The Await tool, which the recorded main agent used to collect the
           background sub-agent a sub-agent launched, is not implemented: the

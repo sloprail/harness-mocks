@@ -77,7 +77,7 @@ func (h toolHost) createSub(subID string) (*session.File, error) {
 		parent = h.hooks.Common.SessionID
 	}
 	place := subagents.Place(subagents.Parent{ID: parent, Depth: pos.Depth})
-	rollout, err := session.CreateSub(h.cfg.CodexHome, subID, h.cfg.Cwd, time.Now(),
+	rollout, err := session.CreateSub(h.home, subID, h.cfg.Cwd, time.Now(),
 		session.Origin{Session: h.hooks.Common.SessionID, Parent: place.ParentID, Depth: place.Depth})
 	if err == nil {
 		threads.Store(subID, agentPos{ID: subID, Depth: place.Depth})

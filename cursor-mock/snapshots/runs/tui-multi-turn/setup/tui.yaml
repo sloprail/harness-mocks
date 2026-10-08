@@ -1,0 +1,22 @@
+# Three prompts in one TUI session, started with --force: a shell command, then a file written, then
+# the file read. Each is typed once the turn before it has ended (its stop hook has logged and the
+# idle screen is back), so the session is one conversation: one sessionStart, three
+# beforeSubmitPrompt/stop pairs, one sessionEnd. The run quits (Ctrl+C twice).
+timeout: 600s
+steps:
+  - wait: {screen: "Plan, search, build anything.*<\\?2004h>", timeout: 60s}
+  - wait: {hook: sessionStart, timeout: 30s}
+  - send: {text_file: prompt.txt, echo: "→ Run exactly this shell command", keys: [enter]}
+  - wait: {hook: stop, timeout: 180s}
+  - wait: {screen: "Add a follow-up Auto"}
+  - send: {text: "Create the file note.txt containing the word hi, with your file write tool, not the shell. Then reply only DONE2.", echo: "→ Create the file note", keys: [enter]}
+  - wait: {hook: stop, nth: 2, timeout: 180s}
+  - wait: {screen: "Add a follow-up Auto"}
+  - send: {text: "Read the file note.txt with your Read tool. Then reply only DONE3.", echo: "→ Read the file note", keys: [enter]}
+  - wait: {hook: stop, nth: 3, timeout: 180s}
+  - wait: {screen: "Add a follow-up Auto"}
+exit:
+  - send: {keys: [ctrl-c]}
+  - wait: {screen: "Press Ctrl\\+C again to exit"}
+  - send: {keys: [ctrl-c]}
+  - wait: {hook: sessionEnd, timeout: 30s}

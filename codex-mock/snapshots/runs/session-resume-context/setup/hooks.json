@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "startup", "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"; echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"SessionStart\\\",\\\"additionalContext\\\":\\\"CTX-startup\\\"}}\"'" }] },
+      { "matcher": "resume", "hooks": [{ "type": "command", "command": "/bin/sh -c '{ cat; echo; } >>\"$HOOK_LOG\"; echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"SessionStart\\\",\\\"additionalContext\\\":\\\"CTX-resume\\\"}}\"'" }] }
+    ]
+  }
+}

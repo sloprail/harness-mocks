@@ -18,7 +18,7 @@ type scenario struct {
 	HooksJSON string
 	// ProjectHooksJSON is the project layer's <repo>/.codex/hooks.json.
 	ProjectHooksJSON string
-	// HomeFiles are written into $CODEX_HOME (a config.toml, say), with {REPO} the repository path.
+	// HomeFiles are written into $CODEX_HOME (a config.toml, say), with {REPO} the repository path and {HOME} the CODEX_HOME one.
 	HomeFiles map[string]string
 	// Files are written into the repository (a hook script, say), mode 0755.
 	Files map[string]string
@@ -34,8 +34,17 @@ type scenario struct {
 	Dir string
 	// NoJSON runs `exec` without --json, so stdout carries the final message.
 	NoJSON bool
+	// InterruptOnCommand sends the run SIGINT once its stream shows a command started (an event, not a time).
+	InterruptOnCommand bool
 	// BypassTrust passes --dangerously-bypass-hook-trust, as every recording does.
 	BypassTrust bool
+	// Untrusted runs with neither the trust bypass nor a sandbox that trusts the project: only a hook
+	// trusted in config.toml (HomeFiles) runs, and the project layer loads only if config.toml trusts it.
+	// Without it every scenario bypasses hook trust and asks for a workspace-write sandbox, so the hooks
+	// a test sets up run (the trust is its own subject elsewhere).
+	Untrusted bool
+	// Sandbox is the -s the run asks for when it is Untrusted (empty: none).
+	Sandbox string
 }
 
 // result is what a run left.
@@ -69,7 +78,7 @@ func execMock(t *testing.T, s scenario) result {
 		require.NoError(t, os.WriteFile(filepath.Join(r.Repo, name), []byte(body), 0o755))
 	}
 	for name, body := range s.HomeFiles {
-		require.NoError(t, os.WriteFile(filepath.Join(r.Home, name), []byte(strings.ReplaceAll(body, "{REPO}", r.Repo)), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(r.Home, name), []byte(strings.ReplaceAll(strings.ReplaceAll(body, "{REPO}", r.Repo), "{HOME}", r.Home)), 0o644))
 	}
 	script := filepath.Join(root, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte(s.Script), 0o755))
@@ -84,6 +93,12 @@ func execMock(t *testing.T, s scenario) result {
 	if s.NoJSON {
 		args = append(args[:1], args[2:]...)
 	}
+	if !s.Untrusted {
+		s.BypassTrust = true
+		args = append(args[:len(args)-1:len(args)-1], "-s", "workspace-write", s.Prompt)
+	} else if s.Sandbox != "" {
+		args = append(args[:len(args)-1:len(args)-1], "-s", s.Sandbox, s.Prompt)
+	}
 	if s.BypassTrust {
 		args = append([]string{args[0], "--dangerously-bypass-hook-trust"}, args[1:]...)
 	}
@@ -92,6 +107,9 @@ func execMock(t *testing.T, s scenario) result {
 	cmd.Env = append(env, s.Env...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
+	if s.InterruptOnCommand {
+		cmd.Stdout = &interruptingWriter{out: &out, cmd: cmd}
+	}
 	if err := cmd.Run(); err != nil {
 		var exit *exec.ExitError
 		require.ErrorAs(t, err, &exit)

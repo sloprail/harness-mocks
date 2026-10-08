@@ -1,0 +1,5 @@
+# A module is an area of code with a boundary; its decisions live here, not in an ADR.
+# Its core is internal/replay (the unified format and the comparison, no heuristic); each harness's adapter (codex-mock/internal/replay, claude-mock/internal/replay, cursor-mock/internal/replay) holds what is its own: reading a recording into unified turns, the mock's scenario script, which fields are not behaviour. The mock's `replay` command runs it.
+concern: "comparing what a mock produced with what a recording of the real harness shows"
+home: ["internal/replay/**", "codex-mock/internal/replay/**", "codex-mock/replay.go", "claude-mock/internal/replay/**", "claude-mock/replay.go", "claude-mock/e2e/018_replay/**", "cursor-mock/internal/replay/**", "cursor-mock/replay.go", "cursor-mock/e2e/003_replay/**", "codex-mock/e2e/001_hooks/generated_replay_test.go", "codex-mock/e2e/001_hooks/replay_allowlist_test.go"]   # everything about the concern lives here
+api: ["internal/replay", "codex-mock/internal/replay", "claude-mock/internal/replay", "cursor-mock/internal/replay"]       # the only packages others may import

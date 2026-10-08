@@ -15,6 +15,7 @@ providers:
       - claude-mock/snapshots/runs/stops
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           A session cleared with /clear starts again with source "clear" in
           Claude Code. The mock parses no slash command, so it never reports
@@ -30,11 +31,14 @@ providers:
       - codex-mock/snapshots/runs/session-start-compact-continue-false
       - codex-mock/snapshots/runs/manual-compaction-auto
       - codex-mock/snapshots/runs/session-fork
+      - codex-mock/snapshots/runs/session-start-plain-context
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock never clears a session (the source clear), so a session start is the fresh one, source startup, the one after a compaction, source compact, the one a session resumed by its id (`exec resume`) makes, source resume, or the one `exec fork` makes, source fork (recorded: runs/session-fork).
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Unlike the statement, a Codex SessionStart hook can stop the run: one
           returning {"continue":false} ends the turn at once, with no prompt
@@ -48,14 +52,26 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/session-start-block
       - cursor-mock/snapshots/runs/session-start-continue-false
+      - cursor-mock/snapshots/runs/session-resume
       - cursor-mock/snapshots/runs/symlinked-cwd
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock never forks or compacts a conversation, so it fires one
           sessionStart hook per run, at the fresh start.
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           A conversation resumed by its id (`--resume`) fires no sessionStart
           hook in cursor-agent, and the mock does the same
           (recorded: runs/session-resume).
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Cursor's sessionStart payload does not say how the session began: it
+          has no source or start-kind field, only the common fields and
+          is_background_agent (the hooks doc, #sessionstart, lists none, and
+          the recorded payloads carry none: runs/session-start-block,
+          runs/session-start-continue-false, runs/session-resume). The mock
+          does the same.

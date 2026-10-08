@@ -27,8 +27,9 @@ func commands(c Config) (out []string) {
 	return out
 }
 
-// A plugin loaded from a directory contributes its hooks after the project's:
-// from hooks/hooks.json when its manifest names no hooks file (the doc's
+// A plugin loaded from a directory contributes its hooks beside the project's (in no promised
+// order: the hooks of one event run together, and runs/plugin-hook-cwd-env logs the project's
+// first): from hooks/hooks.json when its manifest names no hooks file (the doc's
 // default location), from the file the manifest names when it does, and
 // nothing when the directory is not loaded.
 // sr:proves plugin-hooks/cursor
@@ -41,13 +42,20 @@ func TestPluginHooksAreFoundByDefaultOrByTheManifest(t *testing.T) {
 	byDefault, named, unloaded := filepath.Join(ws, "plugins", "a"), filepath.Join(ws, "plugins", "b"), filepath.Join(ws, "plugins", "c")
 	writePlugin(t, byDefault, `{"name":"a"}`, "hooks/hooks.json")
 	writePlugin(t, named, `{"name":"b","hooks":"./config/my-hooks.json"}`, "config/my-hooks.json")
+	// Doc-based, not recorded (the recording's manifest names the default path):
+	// b also has a hooks/hooks.json; the manifest's path replaces it (the hooks
+	// format at https://cursor.com/docs/reference/plugins#hooks-format: the
+	// default location is where hooks are found when the manifest names none)
+	require.NoError(t, os.MkdirAll(filepath.Join(named, "hooks"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(named, "hooks", "hooks.json"),
+		[]byte(`{"version":1,"hooks":{"beforeShellExecution":[{"command":"default-location-hook"}]}}`), 0o644))
 	writePlugin(t, unloaded, `{"name":"c"}`, "hooks/hooks.json")
 
-	c, err := Load(ws, "plugins/a", named)
+	c, err := Load(ws, "", "plugins/a", named)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"project-hook", "plugin-hook", "plugin-hook"}, commands(c), "project's first, then each loaded plugin's; c is not loaded")
+	assert.ElementsMatch(t, []string{"plugin-hook", "plugin-hook", "project-hook"}, commands(c), "each loaded plugin's and the project's; c is not loaded")
 
-	c, err = Load(ws)
+	c, err = Load(ws, "")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"project-hook"}, commands(c))
 }

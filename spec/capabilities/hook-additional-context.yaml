@@ -13,6 +13,8 @@ providers:
       - claude-mock/snapshots/runs/hookmix
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/ctxmulti
+      - claude-mock/snapshots/runs/subagent-post-ctx
+      - claude-mock/snapshots/runs/resume-session-start-ctx
   codex:
     docs:
       - https://developers.openai.com/codex/hooks#sessionstart
@@ -22,6 +24,23 @@ providers:
     runs:
       - codex-mock/snapshots/runs/stops
       - codex-mock/snapshots/runs/hook-exit-codes
+      - codex-mock/snapshots/runs/posttool-block-context
+      - codex-mock/snapshots/runs/session-resume-context
+      - codex-mock/snapshots/runs/manual-compaction-auto-context
+      - codex-mock/snapshots/runs/session-start-clear-prompt
+      - codex-mock/snapshots/runs/hook-async-context
+      - codex-mock/snapshots/runs/session-start-plain-context
+      - codex-mock/snapshots/runs/session-start-json-context
+      - codex-mock/snapshots/runs/session-start-both-context
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          The docs (hooks#sessionstart) name source "clear" for a session started
+          again after a clear. `codex exec` has no /clear: a prompt of "/clear" is
+          plain text the model answers, and the session starts once, with source
+          "startup" (recorded: runs/session-start-clear-prompt). The mock does the
+          same, so context a hook adds for "clear" cannot arise there.
   cursor:
     docs:
       - https://cursor.com/docs/hooks#sessionstart
@@ -31,6 +50,7 @@ providers:
       - cursor-mock/snapshots/runs/additional-context
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models a tool failing by an error or by a refusal, not by
           a timeout, so the postToolUseFailure hook's failure_type "timeout"

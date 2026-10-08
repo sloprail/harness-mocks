@@ -2,10 +2,12 @@ package e2e
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -25,9 +27,9 @@ import (
 // observed is what a run showed: the payloads its hooks read, in order, what
 // the hook scripts logged of their own decisions, and the tool-call frames.
 type observed struct {
-	hooks   []map[string]any
-	results []string
-	frames  []string
+	hooks          []map[string]any
+	results        []string
+	frames         []string
 	// raw are the payloads as the hooks read them, and ws and home the
 	// workspace and the home the run used (set on the mock's side only).
 	raw []map[string]any
@@ -65,27 +67,7 @@ func normalize(v any, sid, ws string) any {
 		}
 		return out
 	case string:
-		return strings.ReplaceAll(strings.ReplaceAll(x, sid, "<SESSION_ID>"), ws, "<RUN>")
-	}
-	return v
-}
-
-// unmodeledEnv drops from a recorded payload the two variables a shell
-// command saw that the mock does not set (CURSOR_REQUEST_ID and
-// CURSOR_RIPGREP_PATH: adr/modeled-surface).
-func unmodeledEnv(v any) any {
-	switch x := v.(type) {
-	case map[string]any:
-		out := map[string]any{}
-		for k, e := range x {
-			out[k] = unmodeledEnv(e)
-		}
-		return out
-	case string:
-		for _, name := range []string{"CURSOR_REQUEST_ID", "CURSOR_RIPGREP_PATH"} {
-			x = strings.ReplaceAll(strings.ReplaceAll(x, name+"\n", ""), name+`\n`, "")
-		}
-		return x
+		return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(x, sid, "<SESSION_ID>"), ws, "<RUN>"), filepath.Dir(ws), "<TMP>")
 	}
 	return v
 }
@@ -99,9 +81,17 @@ func readJSONL(t *testing.T, path string) []map[string]any {
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 1<<20), 1<<24)
 	for sc.Scan() {
-		var m map[string]any
-		if json.Unmarshal(sc.Bytes(), &m) == nil && m != nil {
-			out = append(out, m)
+		// a line holds one object, or several run together: hooks that run side by
+		// side append to one log, and what they write can interleave
+		dec := json.NewDecoder(bytes.NewReader(sc.Bytes()))
+		for {
+			var m map[string]any
+			if dec.Decode(&m) != nil {
+				break
+			}
+			if m != nil {
+				out = append(out, m)
+			}
 		}
 	}
 	return out
@@ -168,10 +158,10 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 			if n := frameName(map[string]any{"type": e["type"], "subtype": e["subtype"], "tool_call": toolCall(e)}); n != "" {
 				rec.frames = append(rec.frames, n)
 			}
-		case e["hook"] == "beforeReadFile" || e["hook"] == "afterAgentThought":
-			// events the mock does not fire (adr/modeled-surface)
+		case e["hook"] == "afterAgentThought":
+			// an event the mock does not fire (adr/modeled-surface)
 		case e["hook"] != nil:
-			rec.hooks = append(rec.hooks, unmodeledEnv(p).(map[string]any))
+			rec.hooks = append(rec.hooks, p)
 		case p["hook_env"] != nil:
 			rec.envs = append(rec.envs, hookEnv(p["hook_env"], ""))
 		case p["hook_result"] != nil || p["hook_ran"] != nil:
@@ -185,7 +175,7 @@ func recording(t *testing.T, run string) (setup string, rec observed, calls []st
 	require.NoError(t, err)
 	for _, l := range strings.Split(string(b), "\n") {
 		var f map[string]any
-		if json.Unmarshal([]byte(l), &f) == nil && f["type"] == "tool_call" && f["subtype"] == "started" {
+		if json.Unmarshal([]byte(l), &f) == nil && f["type"] == "tool_call" && f["subtype"] == "started" && !strings.Contains(l, "getMcpToolsToolCall") {
 			calls = append(calls, l)
 		}
 	}
@@ -228,10 +218,13 @@ func replay(t *testing.T, run string) (got, want observed) {
 func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	t.Helper()
 	setup, want, calls, prompt := recording(t, run)
-	ws, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	ws := shortTempDir(t)
 	scratch := t.TempDir()
 	copyFile(t, filepath.Join(setup, "hooks.json"), filepath.Join(ws, ".cursor", "hooks.json"), 0o644)
+	home := t.TempDir()
+	if _, err := os.Stat(filepath.Join(setup, "user-hooks.json")); err == nil { // the user's own source, in the run's home
+		copyFile(t, filepath.Join(setup, "user-hooks.json"), filepath.Join(home, ".cursor", "hooks.json"), 0o644)
+	}
 	scripts, _ := filepath.Glob(filepath.Join(setup, "*.sh"))
 	for _, s := range scripts {
 		copyFile(t, s, filepath.Join(ws, ".cursor", "hooks", filepath.Base(s)), 0o755)
@@ -244,15 +237,16 @@ func replayWith(t *testing.T, run string, args ...string) (got, want observed) {
 	}
 	writes := writtenContents(want)
 	for i, c := range calls {
-		line, rest := scriptCall(t, strings.ReplaceAll(c, "<RUN>", ws), writes)
+		line, rest := scriptCall(t, strings.ReplaceAll(strings.ReplaceAll(c, "<RUN>", ws), "<TMP>", filepath.Dir(ws)), writes)
 		writes = rest
+		line = strings.ReplaceAll(line, "<SUBSCRIPT>", filepath.Join(scratch, "sub.sh"))
 		require.NoError(t, os.WriteFile(filepath.Join(scratch, itoa(i)+".json"), []byte(line+"\n"), 0o644))
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(scratch, "end.json"), []byte(`{"type":"result","subtype":"success","is_error":false,"result":"DONE"}`+"\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scratch, "sub.sh"), []byte("#!/bin/sh\nprintf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"SUB-DONE\"}]}}' '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"SUB-DONE\"}'\n"), 0o755))
 	script := filepath.Join(scratch, "scenario.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nn=$(grep -c '\"type\":\"tool_use\"' \"$A10N_MOCK_SESSION_FILE\" 2>/dev/null)\nn=${n:-0}\nf=\""+scratch+"/$n.json\"\n[ -f \"$f\" ] || f=\""+scratch+"/end.json\"\ncat \"$f\"\n"), 0o755))
 	logPath := filepath.Join(scratch, "payloads.jsonl")
-	home := t.TempDir()
 	env := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "HOOK_LOG=" + logPath, "TMPDIR=" + scratch, "A10N_MOCK_SCRIPT=" + script}
 	if b, err := os.ReadFile(filepath.Join(setup, "env")); err == nil {
 		for _, l := range strings.Split(string(b), "\n") {
@@ -314,59 +308,23 @@ func writtenContents(rec observed) (out []string) {
 	return out
 }
 
-// scriptCall is the line the scenario script prints for a tool call the
-// recorded agent made: the scenario protocol's assistant line with one tool_use
-// block (the Claude Code names, which the mock maps onto Cursor's tools). A
-// write's content is what the recorded hooks saw written (the started frame's
-// streamContent is only what the model had streamed so far); writes are the
-// recorded contents not yet used, and what is left after this call is returned.
-func scriptCall(t *testing.T, frame string, writes []string) (string, []string) {
-	t.Helper()
-	var f map[string]any
-	require.NoError(t, json.Unmarshal([]byte(frame), &f))
-	id, _ := f["call_id"].(string)
-	var name string
-	var input map[string]any
-	for kind, v := range f["tool_call"].(map[string]any) {
-		body, ok := v.(map[string]any)
-		if !ok || !strings.HasSuffix(kind, "ToolCall") {
-			continue
-		}
-		args := body["args"].(map[string]any)
-		switch kind {
-		case "shellToolCall":
-			name, input = "Bash", map[string]any{"command": args["command"]}
-		case "readToolCall":
-			name, input = "Read", map[string]any{"file_path": args["path"]}
-		case "editToolCall":
-			content, _ := args["streamContent"].(string)
-			if len(writes) > 0 {
-				content, writes = writes[0], writes[1:]
-			}
-			name, input = "Write", map[string]any{"file_path": args["path"], "content": content}
-		}
-	}
-	require.NotEmpty(t, name, "a started frame naming no tool the mock runs: %s", frame)
-	return jsonString(map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "content": []any{
-		map[string]any{"type": "tool_use", "id": id, "name": name, "input": input}}}}), writes
-}
-
 // hookEnv is what a hook logged of its environment, as the recording shows it:
-// the workspace as <RUN>, without the path of cursor-agent's ripgrep, which the
-// mock does not set, and without the transcript path, which cursor-agent hands
-// a hook or not depending on a race (the last hook always has it).
+// the workspace as <RUN>, the account's home as the capture wrote it (<HOME>:
+// where cursor-agent keeps its ripgrep), and without the transcript path, which
+// cursor-agent hands a hook or not depending on a race (the last hook always has it).
 func hookEnv(v any, ws string) map[string]any {
 	out := map[string]any{}
 	for k, e := range v.(map[string]any) {
 		s, _ := e.(string)
 		switch k {
-		case "CURSOR_RIPGREP_PATH":
-			continue
 		case "CURSOR_TRANSCRIPT_PATH":
 			continue // whether the file is named yet when a hook starts is a race in cursor-agent
 		default:
 			if ws != "" {
-				s = strings.ReplaceAll(s, ws, "<RUN>")
+				s = strings.ReplaceAll(strings.ReplaceAll(s, ws, "<RUN>"), filepath.Dir(ws), "<TMP>")
+				if u, err := user.Current(); err == nil && k == "CURSOR_RIPGREP_PATH" {
+					s = strings.Replace(s, u.HomeDir, "<HOME>", 1)
+				}
 			}
 		}
 		out[k] = s
@@ -375,3 +333,19 @@ func hookEnv(v any, ws string) map[string]any {
 }
 
 func itoa(i int) string { return strings.TrimSpace(jsonString(i)) }
+
+// shortTempDir is a workspace whose path is short. The recorded hook scripts
+// log each payload with one printf to a file every hook of an event appends to
+// at once, and macOS's sh writes what is over 1 KiB in more than one write: two
+// hooks' payloads then interleave and neither can be read back. A payload
+// carries the workspace's path several times, so a long path (t.TempDir's, under
+// macOS's /var/folders) takes the longer payloads over that size.
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "hm")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	dir, err = filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	return dir
+}

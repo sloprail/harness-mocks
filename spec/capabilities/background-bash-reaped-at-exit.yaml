@@ -7,6 +7,14 @@ providers:
       - https://code.claude.com/docs/en/headless#background-tasks-at-exit
     runs:
       - claude-mock/snapshots/runs/bgbash
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock reads a piped stdin to its end before the run starts, so the
+          variant in which the grace starts only once stdin has closed is not
+          modeled: its grace starts after the final result. It stays so until a
+          recording drives it.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#when-to-use-codex-exec
@@ -14,6 +22,7 @@ providers:
       - codex-mock/snapshots/runs/bg-bash-reaped-at-exit
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The recorded model started its command through Codex's script tool
           (exec calling exec_command), and the rollout notes the terminated

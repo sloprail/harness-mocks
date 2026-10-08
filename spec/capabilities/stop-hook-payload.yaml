@@ -22,6 +22,7 @@ providers:
       - codex-mock/snapshots/runs/user-prompt-submit-hook-bg
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex's Stop payload lists no background tasks: the recorded Stop of
           a turn that ended while a command was still running carries the same
@@ -29,7 +30,27 @@ providers:
           stop_hook_active, last_assistant_message) as one with none running,
           and the hooks doc lists no such field.
   cursor:
-    supported: false
-    reason: cursor-agent in print mode never fires the stop hook (the run configured one logging its payload), so no payload with a last message, continuation flag or background tasks is ever delivered.
+    docs:
+      - https://cursor.com/docs/hooks#stop
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          cursor-agent in print mode never fires the stop hook (the run configured
+          one logging its payload: runs/stop-hook-payload); only the TUI does
+          (runs/tui-stop), and the mock models that. The TUI's stop payload holds
+          status, loop_count (the continuation flag) and the token counts.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          The TUI's stop payload carries no last message of the agent (the
+          afterAgentResponse hook carries that, runs/tui-stop).
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          The TUI's stop payload has no field for background tasks still running;
+          no recording ended a turn with one still running, so whether the payload
+          would list it is not shown.
     runs:
       - cursor-mock/snapshots/runs/stop-hook-payload
+      - cursor-mock/snapshots/runs/tui-stop

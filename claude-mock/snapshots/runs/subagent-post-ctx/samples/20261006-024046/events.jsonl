@@ -1,0 +1,16 @@
+{"event":"hook","hook":"SubagentStart","payload":{"session_id":"<SESSION_ID>","agent_type":"general-purpose","hook_event_name":"SubagentStart"}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo SUBCTX"},"tool_response":{"stdout":"SUBCTX","stderr":"","interrupted":false,"isImage":false,"noOutputExpected":false}}}
+{"event":"hook","hook":"SubagentStop","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","agent_type":"general-purpose","hook_event_name":"SubagentStop","stop_hook_active":false,"agent_transcript_path":"<TMP>/home/.claude/projects/<RUN_DIRNAME>/<SESSION_ID>/subagents/agent-aad14a030da1f8613.jsonl","background_tasks":[],"session_crons":[]}}
+{"event":"hook","hook":"PostToolUse","payload":{"session_id":"<SESSION_ID>","permission_mode":"bypassPermissions","hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"prompt":"Run the Bash command echo SUBCTX , then reply only DONE.","subagent_type":"general-purpose","run_in_background":false},"tool_response":{"status":"completed","prompt":"Run the Bash command echo SUBCTX , then reply only DONE.","agentId":"aad14a030da1f8613","agentType":"general-purpose","harnessNoteCount":0,"harnessTailCount":0,"harnessSectionHash":"196d267abc6a3be8","content":[{"type":"text","text":"DONE"}],"resolvedModel":"claude-haiku-4-5-20251001","totalDurationMs":3553,"totalTokens":13910,"totalToolUseCount":1,"usage":{"output_tokens_details":{"thinking_tokens":43},"input_tokens":8,"cache_creation_input_tokens":1237,"cache_read_input_tokens":12614,"output_tokens":51,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":1237},"inference_geo":"not_available","iterations":[{"input_tokens":8,"output_tokens":51,"cache_read_input_tokens":12614,"cache_creation_input_tokens":1237,"cache_creation":{"ephemeral_5m_input_tokens":1237,"ephemeral_1h_input_tokens":0},"type":"message"}],"speed":"standard","fallback_credit":null},"toolStats":{"readCount":0,"searchCount":0,"bashCount":1,"editFileCount":0,"linesAdded":0,"linesRemoved":0,"otherToolCount":0}}}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"commands_changed"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"thinking_tokens"}
+{"event":"stream","type":"system","subtype":"task_started"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"task_progress"}
+{"event":"stream","type":"rate_limit_event","subtype":null}
+{"event":"stream","type":"system","subtype":"task_updated"}
+{"event":"stream","type":"system","subtype":"task_notification"}
+{"event":"stream","type":"result","subtype":"success"}

@@ -10,6 +10,42 @@ providers:
     runs:
       - claude-mock/snapshots/runs/stops
       - claude-mock/snapshots/runs/bashfail
+      - claude-mock/snapshots/runs/run-failure
+      - claude-mock/snapshots/runs/max-turns
+      - claude-mock/snapshots/runs/include-hook-events
+      - claude-mock/snapshots/runs/include-hook-events-more
+      - claude-mock/snapshots/runs/invalid-flag
+      - claude-mock/snapshots/runs/bare
+      - claude-mock/snapshots/runs/permission-denied
+    deviations:
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock does not model --max-budget-usd (a spend cap), --input-format
+          stream-json (streamed input), --json-schema (structured output) or
+          --fallback-model: it refuses each loudly, by name, and the script
+          never runs, rather than ignoring it. All of these stay so until a
+          recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock refuses --agent, --output-format text and json, a piped stdin
+          beside a prompt argument (a piped stdin alone is read as the prompt,
+          the documented `claude -p` behaviour, no recording drives it) and
+          --include-partial-messages (adr fail-fast-unimplemented): only
+          stream-json is produced, from the scenario's own script. It does not
+          model the SIGTERM exit code 143. All of these stay so until a
+          recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock does not model system/api_retry events; it refuses
+          them until a recording drives them.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The claude mock refuses --bare and --agent, and permission deny rules
+          other than an exact Bash command, until a recording drives them.
   codex:
     docs:
       - https://developers.openai.com/codex/noninteractive#basic-usage
@@ -22,15 +58,25 @@ providers:
       - codex-mock/snapshots/runs/noninteractive-run-git-check-refused
       - codex-mock/snapshots/runs/noninteractive-run-no-git-check
       - codex-mock/snapshots/runs/noninteractive-run-output-schema
+      - codex-mock/snapshots/runs/ephemeral-no-transcript
+      - codex-mock/snapshots/runs/disable-hooks
+      - codex-mock/snapshots/runs/ignore-user-config
+      - codex-mock/snapshots/runs/ignore-user-config-bypass
+      - codex-mock/snapshots/runs/project-hooks-trust-workspace-write
+      - codex-mock/snapshots/runs/project-hooks-trust-read-only
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock accepts -o/--output-last-message and does nothing with it:
-          the final message is not written to a file. It accepts --output-schema
-          and does nothing with it either: it has no model, so the final
-          message is the scenario's own, not shaped by the schema (the real
-          run's message conforms to it and the stream is otherwise unchanged,
-          as recorded in runs/noninteractive-run-output-schema). The
+          The mock refuses -o/--output-last-message, --output-schema,
+          --ignore-rules, every --enable, --disable of any feature but hooks, -s
+          together with the bypass of the sandbox (which wins is not recorded),
+          the deprecated --full-auto and the other flags it implements nothing
+          of (adr fail-fast-unimplemented):
+          it has no model, so the final message is the scenario's own, not
+          shaped by a schema (the real run's message conforms to it and the
+          stream is otherwise unchanged, as recorded in
+          runs/noninteractive-run-output-schema), and no file is written. The
           refusal of a run outside a git repository (runs/noninteractive-run-git-check-refused,
           lifted by --skip-git-repo-check or by bypassing the sandbox,
           runs/noninteractive-run-no-git-check) is modeled; a directory trusted
@@ -41,6 +87,24 @@ providers:
           only: reasoning, file changes, MCP tool calls, web searches and plan
           updates are not modeled.
       - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          The mock takes -s/--sandbox (read-only, workspace-write,
+          danger-full-access), --disable hooks and --ignore-user-config for
+          what they decide of hooks (runs/project-hooks-trust-workspace-write,
+          runs/project-hooks-trust-read-only, runs/disable-hooks,
+          runs/ignore-user-config). It does not confine a command to the
+          sandbox: a command the agent runs is not blocked from writing under
+          read-only, nor from the network.
+      - adr: modeled-surface
+        kind: mock-not-modeled
+        statement: >-
+          Safety limit, not codex's behaviour: codex falls back to ~/.codex
+          when CODEX_HOME is unset; the mock refuses to run without CODEX_HOME
+          ("CODEX_HOME is required"), because it writes sessions, trust and
+          installed plugins under its home and must never touch the user's.
+      - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Without --json the mock prints Codex's progress on stderr (banner with
           release, directory, model and session; the prompt; the notices; each
@@ -51,11 +115,13 @@ providers:
           configuration the mock does not have, the stdin notice, or a line per
           hook run.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
-          The mock accepts --ephemeral and does nothing with it (it always
-          writes the session's rollout file), and reads no piped stdin: a
+          The mock reads no piped stdin: a
           prompt argument plus piped input is not combined as additional
-          context.
+          context, and `codex exec -` (stdin as the prompt) is not modeled.
+          `codex exec resume --last` is refused as well: only a session named
+          by its id resumes.
   cursor:
     docs:
       - https://cursor.com/docs/cli/headless#how-it-works
@@ -64,8 +130,17 @@ providers:
       - cursor-mock/snapshots/runs/pretool-refusal
       - cursor-mock/snapshots/runs/noninteractive-no-force
       - cursor-mock/snapshots/runs/noninteractive-force-write
+      - cursor-mock/snapshots/runs/print-long-form
     deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the headless doc (#how-it-works) says
+          "Without --force, changes are only proposed, not applied", and the
+          recording shows a file write applied without --force
+          (runs/noninteractive-no-force). The recording decides.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           Without --force or --yolo the mock rejects every shell command, run
           unprompted, and applies every file write, the two outcomes recorded
@@ -75,15 +150,19 @@ providers:
           read-only commands) is not modeled, nor a background command's
           rejection, which is the same as any other command's.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The recorded streams (runs/pretool-refusal, runs/noninteractive-no-force)
           carry thinking frames: "delta" frames with a piece of the model's
           reasoning text, closed by a "completed" frame, each with a session id
-          and timestamp, and assistant text frames between tool calls. They are
-          the model's own words; the mock calls no model, so it emits none of
-          them. Its stream is the system init, the prompt, the tool-call frames
-          and the result, the same as the recorded sequence without those frames.
+          and timestamp, and assistant frames with the model's text. They are
+          the model's own words; the mock calls no model and no script can
+          produce thinking frames, so it emits none. It prints an assistant frame
+          only for text a script gives it, and the replay scripts give none. Its
+          stream is the system init, the prompt, the tool-call frames and the
+          result, the recorded sequence without its thinking and assistant frames.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock models only the stream-json output format. The docs' default
           text format (the final answer only), the json format and

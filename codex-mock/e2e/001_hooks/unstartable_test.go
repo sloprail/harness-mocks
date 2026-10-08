@@ -39,3 +39,27 @@ func TestUnstartableHookDoesNotBlockTheCall(t *testing.T) {
 	assert.FileExists(t, marker, "an unstartable hook refused the call")
 	assert.Contains(t, r.Stdout, `"text":"DONE"`, "the turn did not go on")
 }
+
+// A PreToolUse hook that exits 1 with stderr lines blocks nothing and its stderr is not shown: the
+// call runs, the agent is told only the command's output, and the turn goes on (recorded:
+// runs/hook-unstartable, whose hook prints two lines to stderr and exits 1).
+// sr:proves hook-exit-code-semantics/codex
+func TestPreToolUseExit1StderrBlocksNothingAndIsNotShown(t *testing.T) {
+	rec := loadRecording(t, "hook-unstartable")
+	for name, rollout := range map[string]string{"recorded": recordedRollout(t, rec)} {
+		assert.NotContains(t, rollout, "line of stderr", name)
+		assert.True(t, resultTold(t, rollout, "one\n", "stderr"), name+": the agent was told the output alone")
+	}
+	got := execMock(t, scenario{
+		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
+		Files:     map[string]string{"hook.sh": readFile(t, filepath.Join(rec.setup, "hook.sh"))},
+		Script:    callThenResult, Prompt: "go", Env: withCalls(t, "echo one"),
+	})
+	assert.Equal(t, 0, got.Code, got.Stderr)
+	cmds, _ := got.commands()
+	assert.Equal(t, []string{"echo one"}, cmds, "the call ran")
+	assert.NotContains(t, got.rollout(t), "line of stderr")
+	assert.NotContains(t, got.Stdout, "line of stderr")
+	assert.True(t, resultTold(t, got.rollout(t), "one\n", "stderr"))
+	assert.Contains(t, got.Stdout, `"text":"DONE"`)
+}

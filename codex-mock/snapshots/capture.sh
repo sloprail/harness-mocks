@@ -4,14 +4,29 @@
 # refuses a snapshot whose seal does not match, so a hand edit is caught at the
 # commit even if it slipped past the gate.
 #
-#   capture.sh run <name>    run the scenario in runs/<name>/setup/ against the
-#                            real `codex exec`, and add a sample
-#   capture.sh doc <url>     freeze a doc page (e.g. https://developers.openai.com/codex/hooks):
-#                            its sha256 goes in the MANIFEST; its text only into a cache
-#                            under the git dir, never into the repo
+#   capture.sh run <name> [--rerecord]
+#                            run the scenario in runs/<name>/setup/ against the
+#                            pinned `codex exec`, and add a sample. A run recorded at
+#                            another version than the pin is refused (its samples
+#                            would mix versions) unless --rerecord drops them first
+#   capture.sh pin <version> install that exact codex (tools/harness-bin) and make it
+#                            the one captures run; nothing already recorded changes
 #   capture.sh drop <run> <ts>  remove one sample (a bad or non-hermetic capture)
-#   capture.sh all           re-capture every run and doc at the installed
-#                            codex's version, and set MANIFEST.version to it
+#   capture.sh all           re-record every run at the pin (each re-freezes its docs, below)
+#
+# Docs follow recordings. Recording a run (run, all) also re-freezes the doc pages this
+# harness's capability cells cite (spec/capabilities/*.yaml, providers.codex.docs) that are not
+# already frozen at the live page's hash: the MANIFEST holds each page's sha256 and fetch date, the
+# text only a cache under the git dir, never the repo. There is no standalone doc re-freeze: an
+# upstream doc that changed is no PR's problem (no check reads the live website); the
+# next recording that cites it pulls it.
+#
+# Two versions, kept apart: the codex a run was recorded with is the run's own (run.yaml),
+# and a doc page is frozen by its own sha256 (MANIFEST docs). MANIFEST `pin` is only which
+# codex this script runs. It is never the global one on PATH: tools/harness-bin installs the
+# pin into a cache of its own and refuses a binary that does not report exactly it.
+# codex has no switch to turn auto-update off (an npm install is updated by npm alone, and
+# `codex exec` only prints an upgrade notice), so none is set.
 #
 # A scenario is hand-authored, and only its setup/ is:
 #   runs/<name>/setup/prompt.txt       the prompt
@@ -27,9 +42,18 @@
 #                                      marketplace and register it with `codex plugin`)
 #   runs/<name>/setup/no-skip-git-check optional: run without --skip-git-repo-check
 #   runs/<name>/setup/no-sandbox-bypass optional: run without --dangerously-bypass-approvals-and-sandbox
+#   runs/<name>/setup/hooks-list       optional: before the run, ask the pinned codex's app-server (hooks/list) for the
+#                                      hooks it finds in the scratch repo and keep its answer as the sample's
+#                                      hooks-list.json: the key, hash and trust status codex gives each hook
+#   runs/<name>/setup/trust-hooks      optional: the sources (user, project, plugin; one per line) whose hooks are
+#                                      trusted in config.toml before the run, at the key and hash hooks/list gives
+#   runs/<name>/setup/no-hook-trust-bypass optional: run without --dangerously-bypass-hook-trust, so
+#                                      only a hook trusted in config.toml runs (prepare.sh can write it)
 #   runs/<name>/setup/no-git           optional: run in a directory that is not a git repository
 #   runs/<name>/setup/schema.json      optional: copied to the run's directory as schema.json
 #                                      (what an `args` line `--output-schema schema.json` names)
+#   runs/<name>/setup/interrupt-after  optional: seconds after which the (first) step is sent SIGINT, as a
+#                                      user's Ctrl-C does a headless run (then-<NN>-interrupt-after for a later step)
 #   runs/<name>/setup/then-<NN>-prompt.txt   optional later steps, run in name order under the
 #                                      same CODEX_HOME, with then-<NN>-args (a line "<SESSION>"
 #                                      is the first step's session id) and then-<NN>-cwd (a
@@ -47,12 +71,39 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 manifest="$here/MANIFEST.yaml"
 die() { echo "capture.sh: $*" >&2; exit 1; }
-version() { yq -r '.version' "$manifest"; }
-installed() { codex --version | awk '{print $2}'; }
+root="$(cd "$here/../.." && pwd)"
+pin() { yq -r '.pin // ""' "$manifest" 2>/dev/null; }
+hbin() { (cd "$root" && go run ./tools/harness-bin "$@"); }
+# pinned_bin — the codex binary of exactly the pin, from tools/harness-bin's cache. It dies
+# unless that install exists and reports the pin: never the codex on PATH.
+pinned_bin() {
+  local v bin got; v="$(pin)"; [ -n "$v" ] || die "MANIFEST.yaml has no pin: run 'capture.sh pin <version>'"
+  bin="$(hbin path codex "$v")" || die "codex $v is not installed for captures: run 'capture.sh pin $v'"
+  got="$("$bin" --version | awk '{print $2}')"
+  [ "$got" = "$v" ] || die "$bin is codex $got, the pin is $v: refusing it"
+  printf '%s' "$bin"
+}
 auth_src="${CODEX_AUTH_JSON:-$HOME/.codex/auth.json}"
-# The first capture creates the MANIFEST, frozen at the installed version: it is
-# a snapshot file too, so nothing else may write it.
-[ -f "$manifest" ] || printf 'version: "%s"\n' "$(installed)" >"$manifest"
+
+# hooks_list REPO — the hooks codex (pinned) lists for REPO under the run's HOME and CODEX_HOME, as the
+# app-server's hooks/list answers: a JSON array of the entries of the one directory asked for.
+hooks_list() {
+  HL_BIN="$codex_bin" HL_REPO="$1" HOME="$home" CODEX_HOME="$chome" python3 - <<'PY'
+import json, os, subprocess
+p = subprocess.Popen([os.environ["HL_BIN"], "app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                     stderr=subprocess.DEVNULL, text=True, cwd=os.environ["HL_REPO"])
+def send(o): p.stdin.write(json.dumps(o) + "\n"); p.stdin.flush()
+def recv(i):
+    for l in p.stdout:
+        m = json.loads(l)
+        if m.get("id") == i: return m
+send({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "capture", "version": "1"}}}); recv(1)
+send({"method": "initialized"})
+send({"id": 2, "method": "hooks/list", "params": {"cwds": [os.environ["HL_REPO"]]}})
+print(json.dumps(recv(2)["result"]["data"][0]["hooks"], indent=1))
+p.kill()
+PY
+}
 
 # One capture at a time: they are real model calls on one account.
 lock=/tmp/capture-codex.lock.d
@@ -80,11 +131,16 @@ normalize() {
 }
 
 capture_run() {
-  local name="$1" run="$here/runs/$1" v ts home chome
+  local name="$1" rerecord="${2:-}" run="$here/runs/$1" v ts home chome rv codex_bin
   work="" cap=""   # global: the EXIT trap below reads them
   [ -f "$run/setup/prompt.txt" ] || die "runs/$name/setup/prompt.txt is missing: author the scenario first"
   [ -f "$auth_src" ] || die "no codex login at $auth_src: run 'codex login' first"
-  v="$(version)"; [ "$(installed)" = "$v" ] || die "installed codex is $(installed), MANIFEST.version is $v: run 'capture.sh all' to move to it"
+  v="$(pin)"; codex_bin="$(pinned_bin)" || exit 1
+  rv="$(yq -r '.version // ""' "$run/run.yaml" 2>/dev/null || true)"
+  if [ -n "$rv" ] && [ "$rv" != "$v" ] && ls "$run"/samples/*/ >/dev/null 2>&1; then
+    [ "$rerecord" = --rerecord ] || die "runs/$name was recorded at codex $rv, the pin is $v: a sample added now would mix versions; re-record it with 'capture.sh run $name --rerecord'"
+    rm -rf "$run/samples"
+  fi
   ts="$(date -u +%Y%m%d-%H%M%S)"
   cap="$run/samples/$ts"
   [ ! -e "$cap" ] || die "a sample named $ts already exists; re-run in a second"
@@ -102,9 +158,20 @@ capture_run() {
     git -C "$work/repo" init -q && git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   fi
   [ -f "$run/setup/schema.json" ] && cp "$run/setup/schema.json" "$work/repo/schema.json"
-  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" CODEX_HOME="$chome" TMPDIR="$work/tmp" sh "$run/setup/prepare.sh")
+  # prepare.sh's `codex` is the pinned one, never the PATH's
+  [ ! -f "$run/setup/prepare.sh" ] || (cd "$work/repo" && env HOME="$home" CODEX_HOME="$chome" TMPDIR="$work/tmp" PATH="$(dirname "$codex_bin"):$PATH" sh "$run/setup/prepare.sh")
+  if [ -f "$run/setup/hooks-list" ] || [ -f "$run/setup/trust-hooks" ]; then
+    hooks_list "$work/repo" >"$cap/hooks-list.json" || die "hooks/list failed"
+    if [ -f "$run/setup/trust-hooks" ]; then
+      while IFS= read -r src; do
+        [ -n "$src" ] || continue
+        jq -r --arg s "$src" '.[] | select(.source == $s) | "[hooks.state.\"\(.key)\"]\ntrusted_hash = \"\(.currentHash)\"\n"' "$cap/hooks-list.json" >>"$chome/config.toml"
+      done <"$run/setup/trust-hooks"
+    fi
+  fi
   bypassflag=(--dangerously-bypass-approvals-and-sandbox); [ -f "$run/setup/no-sandbox-bypass" ] && bypassflag=()
   skipflag=(--skip-git-repo-check); [ -f "$run/setup/no-skip-git-check" ] && skipflag=()
+  trustflag=(--dangerously-bypass-hook-trust); [ -f "$run/setup/no-hook-trust-bypass" ] && trustflag=()
   args=(); [ -f "$run/setup/args" ] && while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done <"$run/setup/args"
   jsonflag=(--json); [ -f "$run/setup/no-json" ] && jsonflag=()
   extra=(); [ -f "$run/setup/env" ] && while IFS= read -r a; do [ -n "$a" ] && extra+=("$a"); done <"$run/setup/env"
@@ -113,7 +180,6 @@ capture_run() {
   # harness's variables) can leak into what the capture records as the
   # harness's own behaviour. stdin is closed so exec does not wait for it. No
   # user config, skills or AGENTS.md exist in the fake home.
-  local codex_bin; codex_bin="$(command -v codex)" || die "codex is not on PATH"
   set +e
   # One codex invocation per step: the scenario's own prompt.txt and args are step
   # 1, and each setup/then-<NN>-prompt.txt (with then-<NN>-args, then-<NN>-cwd) is
@@ -131,16 +197,26 @@ capture_run() {
       sargs+=("$a")
     done <"$run/setup/${step}args"
     sdir="$work/repo"; [ -f "$run/setup/${step}cwd" ] && sdir="$work/$(cat "$run/setup/${step}cwd")" && mkdir -p "$sdir"
-    (cd "$sdir" && env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
+    # a step with setup/<step>interrupt-after (seconds) is sent SIGINT that long after it starts, as a
+    # user's Ctrl-C does a headless run: what the harness does when interrupted mid-turn is recorded
+    (cd "$sdir" && exec env -i PATH="$PATH" HOME="$home" CODEX_HOME="$chome" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
       TERM="${TERM:-dumb}" TMPDIR="$work/tmp" HOOK_LOG="$cap/payloads.jsonl" ${extra[@]+"${extra[@]}"} \
-      "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} --dangerously-bypass-hook-trust \
+      "$codex_bin" exec ${jsonflag[@]+"${jsonflag[@]}"} ${skipflag[@]+"${skipflag[@]}"} ${bypassflag[@]+"${bypassflag[@]}"} ${trustflag[@]+"${trustflag[@]}"} \
         -m gpt-5.6-luna -c 'model_reasoning_effort="low"' \
-        ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt")
-    echo $? >>"$cap/exit.txt"
+        ${sargs[@]+"${sargs[@]}"} "$(cat "$run/setup/${step}prompt.txt")" </dev/null >>"$cap/stream.jsonl" 2>>"$cap/stderr.txt") &
+    cpid=$!
+    if [ -f "$run/setup/${step}interrupt-after" ]; then
+      ( sleep "$(cat "$run/setup/${step}interrupt-after")"; kill -INT "$cpid" 2>/dev/null ) &
+      kpid=$!
+    else kpid=""; fi
+    wait "$cpid"; echo $? >>"$cap/exit.txt"
+    [ -z "$kpid" ] || { kill "$kpid" 2>/dev/null || true; wait "$kpid" 2>/dev/null || true; }
   done
   set -e
   # a token codex refreshed replaced the link: put it back, so the login stays valid
   if [ -f "$chome/auth.json" ] && [ ! -L "$chome/auth.json" ]; then mv "$chome/auth.json" "$auth_src"; fi
+  # what the run left in config.toml (a project it trusted, say), without the login's link
+  [ -f "$chome/config.toml" ] && cp "$chome/config.toml" "$cap/config.toml"
   mkdir -p "$cap/transcript"
   find "$chome/sessions" -name 'rollout-*.jsonl' -type f 2>/dev/null | while IFS= read -r f; do
     # drop what the login and the vendor put there: the account's and user's ids,
@@ -185,7 +261,7 @@ capture_run() {
       rm -rf "$cap"; echo "same events as $(basename "$other"): no new sample"; return 0
     fi
   done
-  printf 'version: %s\ncommand: codex exec %s%s%s--dangerously-bypass-hook-trust -m gpt-5.6-luna\n' "$v" "${jsonflag[*]:+--json }" "${skipflag[*]:+--skip-git-repo-check }" "${bypassflag[*]:+--dangerously-bypass-approvals-and-sandbox }" >"$run/run.yaml"
+  printf 'version: %s\ncommand: codex exec %s%s%s%s-m gpt-5.6-luna\n' "$v" "${jsonflag[*]:+--json }" "${skipflag[*]:+--skip-git-repo-check }" "${bypassflag[*]:+--dangerously-bypass-approvals-and-sandbox }" "${trustflag[*]:+--dangerously-bypass-hook-trust }" >"$run/run.yaml"
   seal "$cap"
   echo "captured runs/$name/samples/$ts"
 }
@@ -193,21 +269,45 @@ capture_run() {
 # capture_doc URL — freeze a doc page: fetch <url>.md, record its sha256 in the
 # MANIFEST, and keep the text only in the cache under the git dir (the rules'
 # doc_copy reads it there). The page's text is never committed: it is the
-# harness vendor's.
+# harness vendor's. A page already frozen at the live hash is left as it is (its fetch date too).
 capture_doc() {
-  local url="${1%%#*}" v tmp sha cache
-  url="${url%/}"; v="$(version)"; tmp="$(mktemp)"
+  local url="${1%%#*}" tmp sha cache old
+  url="${url%/}"; tmp="$(mktemp)"
   curl -fsSL "$url.md" -o "$tmp" || die "could not fetch $url.md"
   head -c 200 "$tmp" | grep -q '<html' && die "$url.md is not markdown"
   sha="$(shasum -a 256 "$tmp" | cut -d' ' -f1)"
   cache="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/sloprail-doc-cache"
+  old="$(U="$url" yq -r '.docs[strenv(U)].sha256 // ""' "$manifest" 2>/dev/null || true)"
+  if [ "$old" = "$sha" ]; then mkdir -p "$cache" && mv "$tmp" "$cache/$sha.md"; echo "$url already frozen at sha256 $sha"; return 0; fi
   mkdir -p "$cache" && mv "$tmp" "$cache/$sha.md"
-  URL="$url" V="$v" SHA="$sha" yq -i '.docs[strenv(URL)] = {"version": strenv(V), "sha256": strenv(SHA)}' "$manifest"
+  URL="$url" FETCHED="$(date -u +%F)" SHA="$sha" yq -i '.docs[strenv(URL)] = {"sha256": strenv(SHA), "fetched": strenv(FETCHED)}' "$manifest"
   echo "froze $url at sha256 $sha (text cached, not committed)"
 }
 
+# cited_docs — the doc pages (no anchor) this harness's capability cells cite, one per line.
+cited_docs() {
+  local h; h="$(basename "$(dirname "$here")")"; h="${h%%-mock}"
+  for f in "$root"/spec/capabilities/*.yaml; do
+    [ -f "$f" ] || continue
+    H="$h" yq -r '(.providers[strenv(H)] | select(tag == "!!map") | .docs // [])[]' "$f" 2>/dev/null || true
+  done | sed 's/#.*$//' | sort -u
+}
+
+# refreeze_cited — a recording is when docs are pulled: re-freeze every cited page not already
+# frozen at its live hash. Runs after every `run` and `all`, whether or not it added a sample.
+refreeze_cited() {
+  local u
+  for u in $(cited_docs); do capture_doc "$u"; done
+}
+
 case "${1:-}" in
-  run) [ -n "${2:-}" ] || die "usage: capture.sh run <name>"; acquire; trap 'rm -rf "$lock"' EXIT; capture_run "$2" ;;
+  run) [ -n "${2:-}" ] || die "usage: capture.sh run <name> [--rerecord]"; acquire; trap 'rm -rf "$lock"' EXIT; capture_run "$2" "${3:-}"; refreeze_cited ;;
+  pin)
+    [ -n "${2:-}" ] || die "usage: capture.sh pin <version>"
+    hbin install codex "$2" >/dev/null || die "could not install codex $2"
+    if [ -f "$manifest" ]; then V="$2" yq -i '.pin = strenv(V)' "$manifest" || die "could not set the pin in $manifest"; else printf 'pin: "%s"\n' "$2" >"$manifest"; fi
+    echo "pinned codex $2"
+    ;;
   drop)
     # The one way to remove a sample: this script is the only writer of
     # snapshots/, and a hand `rm` there is refused by gate/snapshots-read-only.
@@ -217,12 +317,11 @@ case "${1:-}" in
     rm -rf "$here/runs/$2/samples/$3"
     echo "dropped runs/$2/samples/$3"
     ;;
-  doc) [ -n "${2:-}" ] || die "usage: capture.sh doc <url>"; capture_doc "$2" ;;
   all)
+    pinned_bin >/dev/null || exit 1   # before any sample is dropped: no pinned binary, nothing is lost
     acquire; trap 'rm -rf "$lock"' EXIT
-    v="$(installed)"; yq -i ".version = \"$v\"" "$manifest"
     for r in "$here"/runs/*/; do rm -rf "$r/samples"; capture_run "$(basename "$r")"; done
-    for u in $(yq -r '.docs // {} | keys | .[]' "$manifest"); do capture_doc "$u"; done
+    refreeze_cited
     ;;
-  *) die "usage: capture.sh run <name> | drop <run> <ts> | doc <url> | all" ;;
+  *) die "usage: capture.sh run <name> [--rerecord] | pin <version> | drop <run> <ts> | all" ;;
 esac

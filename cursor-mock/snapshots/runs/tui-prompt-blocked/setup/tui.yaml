@@ -1,0 +1,15 @@
+# A prompt the beforeSubmitPrompt hook refuses: typed once the session has started and the input
+# is live; the run waits for the hook and for the user message it answered with to be shown, then
+# quits (Ctrl+C twice). No turn follows, so there is no stop to wait for.
+timeout: 200s
+steps:
+  - wait: {screen: "Plan, search, build anything.*<\\?2004h>", timeout: 60s}
+  - wait: {hook: sessionStart, timeout: 30s}
+  - send: {text_file: prompt.txt, echo: "→ Reply only DONE\\.", keys: [enter]}
+  - wait: {hook: beforeSubmitPrompt, timeout: 60s}
+  - wait: {screen: "PROMPT-BLOCK-MSG", timeout: 30s}
+exit:
+  - send: {keys: [ctrl-c]}
+  - wait: {screen: "Press Ctrl\\+C again to exit"}
+  - send: {keys: [ctrl-c]}
+  - wait: {hook: sessionEnd, timeout: 30s}

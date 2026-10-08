@@ -125,7 +125,7 @@ func TestIsolate_RealWorktreeOnANewBranch(t *testing.T) {
 	repo := t.TempDir()
 	git(t, repo, "init", "-q")
 	git(t, repo, "commit", "-q", "--allow-empty", "-m", "init")
-	iso := Isolate(repo, "a1", wl(), BindGit(context.Background(), repo))
+	iso := Isolate(repo, "a1", wl(), BindGit(context.Background(), repo, ""))
 	want := filepath.Join(repo, ".claude/worktrees/agent-a1")
 	if iso.Cwd != want || iso.Worktree == nil || iso.Worktree.Branch != "worktree-agent-a1" || iso.Worktree.Path != want {
 		t.Fatalf("isolation = %+v", iso)
@@ -141,7 +141,7 @@ func TestIsolate_RealWorktreeOnANewBranch(t *testing.T) {
 
 func TestIsolate_FallsBackToAPlainDirectoryThenToTheParent(t *testing.T) {
 	plain := t.TempDir()
-	iso := Isolate(plain, "a2", wl(), BindGit(context.Background(), plain))
+	iso := Isolate(plain, "a2", wl(), BindGit(context.Background(), plain, ""))
 	if iso.Worktree != nil || iso.Cwd != filepath.Join(plain, ".claude/worktrees/agent-a2") || len(iso.Notes) != 1 {
 		t.Fatalf("not a repo: %+v", iso)
 	}

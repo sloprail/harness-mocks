@@ -71,6 +71,7 @@ func TestCompactionLeavesAChainOfWindowsWithTheKeptTailAndSummary(t *testing.T) 
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	checkCompactionChain(t, readFile(t, files[0]), prompt, 3)
+	checkAcrossCompactions(t, readFile(t, files[0]), jsonLines(readFile(t, filepath.Join(rec.sample, "payloads.jsonl"))), prompt)
 
 	got := execMock(t, scenario{
 		HooksJSON: readFile(t, filepath.Join(rec.setup, "hooks.json")),
@@ -79,4 +80,53 @@ func TestCompactionLeavesAChainOfWindowsWithTheKeptTailAndSummary(t *testing.T) 
 	})
 	require.Equal(t, 0, got.Code, got.Stderr)
 	checkCompactionChain(t, got.rollout(t), prompt, 3)
+	checkAcrossCompactions(t, got.rollout(t), got.hookLog(), prompt)
+}
+
+// checkAcrossCompactions asserts what the recording shows of the rollout and the hooks across compactions:
+// the file only grows (the first tool output, written before the first compaction, is still in it after the
+// last, with the later ones), the session, the turn and the transcript path in every hook payload are the
+// same before and after, the compacted record's retained context holds the prompt of that turn and its
+// resume metadata names it as the turn last started, and the turn's context and the thread's settings follow
+// each compacted record.
+func checkAcrossCompactions(t *testing.T, rollout string, payloads []map[string]any, prompt string) {
+	t.Helper()
+	require.NotEmpty(t, payloads)
+	for _, p := range payloads {
+		for _, k := range []string{"session_id", "turn_id", "transcript_path"} {
+			assert.Equal(t, payloads[0][k], p[k], "%s stays the same across the compactions", k)
+		}
+	}
+	records := jsonLines(rollout)
+	firstCompacted, firstOutput, outputs := -1, -1, 0
+	for i, r := range records {
+		p, _ := r["payload"].(map[string]any)
+		if ty, _ := p["type"].(string); strings.HasSuffix(ty, "_output") {
+			outputs++
+			if firstOutput < 0 {
+				firstOutput = i
+			}
+		}
+		if r["type"] != "compacted" {
+			continue
+		}
+		if firstCompacted < 0 {
+			firstCompacted = i
+		}
+		next := records[i+1:]
+		require.GreaterOrEqual(t, len(next), 2)
+		assert.Equal(t, "turn_context", next[0]["type"], "the turn's context follows a compaction")
+		settings, _ := next[1]["payload"].(map[string]any)
+		assert.Equal(t, "thread_settings_applied", settings["type"], "then the thread's settings")
+		assert.Equal(t, payloads[0]["turn_id"], next[0]["payload"].(map[string]any)["turn_id"])
+		retained := p["retained_context"].(map[string]any)["user_messages"].([]any)
+		require.Len(t, retained, 1)
+		assert.Contains(t, retained[0].(map[string]any)["text"], prompt)
+		assert.Equal(t, payloads[0]["turn_id"], retained[0].(map[string]any)["turn_id"])
+		assert.Equal(t, payloads[0]["turn_id"], p["resume_metadata"].(map[string]any)["last_started_turn_id"])
+		assert.NotEmpty(t, p["compaction_response_id"])
+	}
+	require.GreaterOrEqual(t, firstCompacted, 0)
+	assert.Equal(t, 3, outputs, "the three tool outputs are all still in the file")
+	assert.Less(t, firstOutput, firstCompacted, "the first output, written before the first compaction, is still there")
 }

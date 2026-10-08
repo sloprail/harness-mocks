@@ -2,51 +2,17 @@
 # What a changeset really touches, narrower than "the file changed". Source after changeset.sh
 # and snapshots.sh.
 #
-# A capability's judges read (a) the doc pages its cells cite, each frozen by its own sha256 in a
-# harness MANIFEST, and (b) the declarations its markers sit on. A re-frozen page is no reason to
-# judge a capability that cites a different page, and an edit to one function in a file that
-# also carries other capabilities' markers is no reason to judge theirs. So:
+# A capability's judges read the declarations its markers sit on, its recordings and its cell. An
+# edit to one function in a file that also carries other capabilities' markers is no reason to
+# judge theirs. A doc page is NOT in this list: recordings own the truth and a doc is re-frozen
+# only together with one (capture.sh), so a MANIFEST doc entry changing touches no capability and
+# is in no verdict's key (adr/pinned-harness-versions). So:
 #
-#   load_doc_changes     DOC_CHANGES_TSV   "<harness>\t<url>" per doc entry added, removed or
-#                                          re-hashed (anchor dropped); "<harness>\t*" when the
-#                                          MANIFEST's version moved or cannot be compared (every
-#                                          page of that harness is then in question)
-#   load_doc_shas        DOC_SHAS          JSON {<harness>: {version, docs: {<url>: <sha256>}}}
-#                                          from the head tree: what a verdict's key must carry
-#                                          for each page it reads, in place of the whole MANIFEST
 #   load_touched_markers TOUCHED_MARKERS_TSV  "<path>\t<kind>\t<fqn>" per capability marker
 #                                          whose declaration (the comment block it sits in and
 #                                          the declaration that follows, to its closing brace)
 #                                          has a changed line, or whose file was added, deleted
 #                                          or renamed
-
-load_doc_changes() {
-  [ -z "${DOC_CHANGES_READY:-}" ] || return 0
-  DOC_CHANGES_READY=1
-  local out
-  if out="$(printf '%s' "$payload" | jq -c '[.changeset.files[] | select(.path | test("^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$"))
-        | {h: (.path | split("-mock/")[0]), st: .status, old: ((.oldContent // "") | if . == "" then "null" else . end), new: ((.newContent // "") | if . == "" then "null" else . end)}]' |
-      yq -p=json -o=json -I=0 '.[] | .old |= (@yamld) | .new |= (@yamld)' 2>/dev/null |
-      jq -r '. as $f | if $f.st != "M" or ($f.old | type) != "object" or ($f.new | type) != "object" or $f.old.version != $f.new.version
-               then [$f.h, "*"] | @tsv
-               else (($f.old.docs // {}) as $o | ($f.new.docs // {}) as $n | ($o + $n) | keys[] as $u
-                     | select(($o[$u].sha256 // "") != ($n[$u].sha256 // "")) | [$f.h, $u] | @tsv) end' 2>/dev/null)"; then
-    DOC_CHANGES_TSV="$out"
-  else   # cannot compare: every harness whose MANIFEST changed is wholly in question (the cautious side)
-    DOC_CHANGES_TSV="$(cs '.changeset.files[].path | select(test("^[a-z0-9]+-mock/snapshots/MANIFEST\\.yaml$")) | sub("-mock/.*$"; "") + "\t*"')"
-  fi
-}
-
-load_doc_shas() {
-  [ -z "${DOC_SHAS_READY:-}" ] || return 0
-  DOC_SHAS_READY=1; DOC_SHAS='{}'
-  local h m one
-  for h in $(harnesses); do
-    m="$(snap_dir "$h")/MANIFEST.yaml"; [ -f "$m" ] || continue
-    one="$(yq -o=json -I=0 '{"version": (.version // ""), "docs": ((.docs // {}) | map_values(.sha256))}' "$m" 2>/dev/null)" || continue
-    DOC_SHAS="$(jq -c --arg h "$h" --argjson o "$one" '. + {($h): $o}' <<<"$DOC_SHAS")"
-  done
-}
 
 # diff_lines — stdin: a unified diff; one "o N" per removed line and "n N" per added line.
 diff_lines() {
@@ -84,35 +50,43 @@ marker_regions() {
     }'
 }
 
+# Fails (non-zero) when what the changeset touches cannot be worked out (the markers cannot be read, or
+# a diff or a file's content cannot be had): "nothing touched" is an empty table, a failure is not, so
+# a caller runs `load_touched_markers || refuse ...` and never reads a failed lookup as "no capability
+# touched" (which would skip the judge).
 load_touched_markers() {
   [ -z "${TM_READY:-}" ] || return 0
-  TM_READY=1; TOUCHED_MARKERS_TSV=""
-  local base head rows path st side kind fqn line files f nl ol lines chg hit
-  base="$(cs '.changeset.base')"; head="$(cs '.changeset.head')"
-  rows="$(printf '%s' "$payload" | jq -r '.changeset.files[] | . as $f
+  TOUCHED_MARKERS_TSV=""
+  local base head all rows path st side kind fqn line files f nl ol lines chg hit diff content
+  base="$(cs '.changeset.base')" || return 1; head="$(cs '.changeset.head')" || return 1
+  all="$(printf '%s' "$payload" | jq -r '.changeset.files[] | . as $f
     | ((.newMarkers // []) | map(["n", $f.path, $f.status, .kind, .fqn, (.line | tostring)] | @tsv))[],
-      ((.oldMarkers // []) | map(["o", $f.path, $f.status, .kind, .fqn, (.line | tostring)] | @tsv))[]' |
-    awk -F'\t' '$4 == "capability" || $4 == "provides" || $4 == "proves"')"
-  [ -n "$rows" ] || return 0
+      ((.oldMarkers // []) | map(["o", $f.path, $f.status, .kind, .fqn, (.line | tostring)] | @tsv))[]')" || return 1
+  rows="$(printf '%s\n' "$all" | awk -F'\t' '$4 == "capability" || $4 == "provides" || $4 == "proves"')" || return 1
+  [ -n "$rows" ] || { TM_READY=1; return 0; }
   # added, deleted, renamed or unreadable: every marker of the file; modified: those whose region changed
-  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$rows" | awk -F'\t' '$3 != "M" {print $2 "\t" $4 "\t" $5}')"
-  files="$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "M" {print $2}' | sort -u)"
+  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$rows" | awk -F'\t' '$3 != "M" {print $2 "\t" $4 "\t" $5}')" || return 1
+  files="$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "M" {print $2}' | sort -u)" || return 1
   for f in $files; do
-    lines="$(git -C "$SR_TREE" diff -U0 --no-color --no-renames "$base" "$head" -- "$f" 2>/dev/null | diff_lines)" || lines=""
     if [ -z "$base" ] || [ -z "$head" ] || ! git -C "$SR_TREE" cat-file -e "$head:$f" 2>/dev/null; then
       TOUCHED_MARKERS_TSV="${TOUCHED_MARKERS_TSV}"$'\n'"$(printf '%s\n' "$rows" | awk -F'\t' -v f="$f" '$2 == f {print $2 "\t" $4 "\t" $5}')"; continue
     fi
+    # a diff that cannot be had is not "no changed lines"
+    diff="$(git -C "$SR_TREE" diff -U0 --no-color --no-renames "$base" "$head" -- "$f" 2>/dev/null)" || return 1
+    lines="$(printf '%s\n' "$diff" | diff_lines)" || return 1
     for side in n o; do
       chg="$(printf '%s\n' "$lines" | awk -v s="$side" '$1 == s {print $2}' | tr '\n' ' ')"
       [ -n "$chg" ] || continue
       nl="$(printf '%s\n' "$rows" | awk -F'\t' -v f="$f" -v s="$side" '$2 == f && $1 == s {print $6}' | tr '\n' ' ')"
       [ -n "$nl" ] || continue
-      if [ "$side" = n ]; then hit="$(git -C "$SR_TREE" show "$head:$f" | marker_regions "$nl" "$chg")"
-      else hit="$(git -C "$SR_TREE" show "$base:$f" | marker_regions "$nl" "$chg")"; fi
+      if [ "$side" = n ]; then content="$(git -C "$SR_TREE" show "$head:$f")" || return 1
+      else content="$(git -C "$SR_TREE" show "$base:$f")" || return 1; fi
+      hit="$(printf '%s\n' "$content" | marker_regions "$nl" "$chg")" || return 1
       for line in $hit; do
         TOUCHED_MARKERS_TSV="${TOUCHED_MARKERS_TSV}"$'\n'"$(printf '%s\n' "$rows" | awk -F'\t' -v f="$f" -v s="$side" -v l="$line" '$2 == f && $1 == s && $6 == l {print $2 "\t" $4 "\t" $5}')"
       done
     done
   done
-  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$TOUCHED_MARKERS_TSV" | sed '/^$/d' | sort -u)"
+  TOUCHED_MARKERS_TSV="$(printf '%s\n' "$TOUCHED_MARKERS_TSV" | sed '/^$/d' | sort -u)" || return 1
+  TM_READY=1
 }

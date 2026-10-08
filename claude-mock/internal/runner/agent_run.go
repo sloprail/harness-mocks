@@ -13,6 +13,7 @@ import (
 // two transcripts involved — its own sidechain file, which its records go to,
 // and the session's, which its hooks are told about.
 type subagentRun struct {
+	announced      bool // the sub-agent's prompt has been streamed: a re-run after a blocked stop does not stream it again
 	parent         Config
 	subCwd         string
 	agentID        string
@@ -27,16 +28,23 @@ type subagentRun struct {
 	toolUseID      string
 	description    string
 	outputFile     string
+	launchedBy     string // the Agent call a message resumed the sub-agent of (agent_resume.go)
 	// branch is the branch of an isolated sub-agent's git worktree, when it has one.
 	branch string
 	// limit is the sub-agent's turn limit (its definition's maxTurns), nil when none.
 	limit *subagents.TurnLimit
-	// cleanup removes an isolated sub-agent's clean worktree once it has finished
-	// (subagents.Isolation.Cleanup); nil when it has no real worktree.
+	// cleanup removes an isolated sub-agent's clean worktree once it has finished; nil when it has none.
 	cleanup func(context.Context) bool
-	// begun is the sub-agent as begun at its launch (subagents.Begin), when it
-	// was begun before its run; nil begins it with the run.
+	// begun is the sub-agent as begun at its launch (subagents.Begin); nil begins it with the run.
 	begun func(blockCap int, run func() subagents.Outcome) subagents.Outcome
+	// startAnnounced is that the launch's start frames are written already (announce).
+	startAnnounced bool
+	// startFrames is the SubagentStart hook's frames that are still to be written (hook_frames).
+	startFrames *pendingFrames
+	// began is closed once a sub-agent started after its launching call's PostToolUse has fired its SubagentStart.
+	began chan struct{}
+	// steps are how far the sub-agent's run has got, which a gate of another agent's script may wait on.
+	steps *agentSteps
 }
 
 // subagentOutcome is how a sub-agent's run ended.
@@ -57,16 +65,16 @@ type subagentOutcome struct {
 func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backgroundTasks, prompt string) subagentOutcome {
 	started := time.Now()
 	frames := frameObserver{s.parent}
-	task := tasks.NewTask(tasks.Agent, s.agentID)
-	task.ToolUseID, task.Description, task.AgentType, task.OutputFile = s.toolUseID, s.description, s.agentType, s.outputFile
-	task.Meta = taskStart{
-		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
-		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
+	task := s.frameTask(prompt)
+	if !s.startAnnounced { // a background launch announced itself ahead of the result that answered it
+		tasks.Announce(bg.Registry, task, frames)
 	}
-	tasks.Announce(bg.Registry, task, frames)
 	begin := s.begun
 	if begin == nil {
 		begin = subagents.Begin(s.hooks(ctx, inv, bg))
+		if s.began != nil {
+			close(s.began) // its SubagentStart has fired: the call that launched it may go on
+		}
 	}
 	out := begin(stopHookBlockCap(), func() subagents.Outcome { return s.run(ctx, bg, prompt) })
 	if !s.background { // only a foreground sub-agent's commands end with its response, after SubagentStop has listed them
@@ -79,6 +87,9 @@ func (s *subagentRun) execute(ctx context.Context, inv *hooks.Invoker, bg *backg
 	task.Result, task.Failure = final, out.Failure
 	task.ToolUses, task.DurationMs = out.ToolUses, time.Since(started).Milliseconds()
 	tasks.Conclude(bg.Registry, task, frames)
+	if s.background { // a foreground one ends for a gate when the call that started it has been answered (stream_turn)
+		s.steps.end() // its end is announced: what a sub-agent's gate may wait for
+	}
 	return subagentOutcome{finalText: final, failure: out.Failure, toolUses: out.ToolUses}
 }
 
@@ -106,13 +117,15 @@ func (s *subagentRun) hooks(ctx context.Context, inv *hooks.Invoker, bg *backgro
 		// SubagentStart — cannot block. transcript_path is the SESSION's (the
 		// invoker's default); the sub-agent is named by agent_id.
 		Start: func() {
-			_, _ = sideInv.Fire(ctx, hooks.Input{
+			in := hooks.Input{
 				SessionID:     s.parent.SessionID,
 				Cwd:           s.subCwd,
 				HookEventName: hooks.EventSubagentStart,
 				AgentType:     s.agentType,
 				AgentID:       s.agentID,
-			})
+			}
+			_, runs, _ := sideInv.FireRuns(ctx, in)
+			s.startFrames = startPending(s.parent, in, runs)
 		},
 		// What the hook said is recorded as it fires — into the SUB-AGENT's own
 		// file, where real Claude Code writes a SubagentStop's feedback — so the
@@ -121,4 +134,15 @@ func (s *subagentRun) hooks(ctx context.Context, inv *hooks.Invoker, bg *backgro
 			return fireSubagentStop(ctx, s, sideInv, bg, last, active)
 		},
 	}, s.limit)
+}
+
+// frameTask is the task the sub-agent's frames speak of.
+func (s *subagentRun) frameTask(prompt string) *tasks.Task {
+	task := tasks.NewTask(tasks.Agent, s.agentID)
+	task.ToolUseID, task.Description, task.AgentType, task.OutputFile = s.toolUseID, s.description, s.agentType, s.outputFile
+	task.Meta = taskStart{
+		ID: s.agentID, ToolUseID: s.toolUseID, Description: s.description, TaskType: "local_agent",
+		Backgrounded: s.background, SubagentType: s.agentType, SpawnDepth: s.spawnDepth, Prompt: prompt,
+	}
+	return task
 }

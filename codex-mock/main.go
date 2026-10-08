@@ -31,6 +31,6 @@ Or point A10N_MOCK_SCRIPT at the script instead of passing --script each time.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newExec())
+	root.AddCommand(newExec(), newReplay())
 	return root
 }

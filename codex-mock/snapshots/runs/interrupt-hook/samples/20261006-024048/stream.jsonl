@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"01a10f15-cb40-7510-b5d4-2200ed02d637"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'sleep 25'","aggregated_output":"","exit_code":null,"status":"in_progress"}}

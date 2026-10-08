@@ -1,0 +1,3 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nReply only with exactly: SUB-DONE\nDo not include any other text, explanation, or punctuation.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"SUB-DONE"}]}}
+{"type":"turn_ended","status":"success"}

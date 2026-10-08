@@ -24,6 +24,7 @@ providers:
       - codex-mock/snapshots/runs/file-tools-failure
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex has no tool to read a file and none to write one whole: the
           agent reads through the shell (sed, cat), which returns the file's
@@ -37,6 +38,7 @@ providers:
           that updates a missing file is an error told to the agent, and writes
           nothing, and fires PreToolUse but no PostToolUse.
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock applies the three file sections of a patch (Add File, Update
           File with its hunks, Delete File) and no more: it does not model
@@ -49,11 +51,11 @@ providers:
     runs:
       - cursor-mock/snapshots/runs/file-tools
       - cursor-mock/snapshots/runs/tool-failure
-    deviations:
-      - adr: modeled-surface
-        statement: >-
-          Cursor fires a beforeReadFile hook on each Read, carrying the file's
-          path and content (recorded in runs/file-tools); the mock does not
-          fire it, as it models neither beforeReadFile nor the refusal a hook
-          of it can make, so only the read's result, afterFileEdit and the
-          failure of a missing file are modeled.
+      - cursor-mock/snapshots/runs/before-read-refusal
+      - cursor-mock/snapshots/runs/before-read-timeout
+      - cursor-mock/snapshots/runs/add-dir-access
+      - cursor-mock/snapshots/runs/no-add-dir-access
+      - cursor-mock/snapshots/runs/tui-tools
+      - cursor-mock/snapshots/runs/read-size-cutoff
+      - cursor-mock/snapshots/runs/read-size-cutoff-fine
+      - cursor-mock/snapshots/runs/read-size-cutoff-edge

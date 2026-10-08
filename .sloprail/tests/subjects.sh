@@ -42,8 +42,8 @@ EOF
 run() { w "claude-mock/snapshots/runs/$1/run.yaml" <<<"version: 1"; w "claude-mock/snapshots/runs/$1/samples/20240101-000000/events.jsonl" <<<"$2"; }
 
 # the base: capabilities a and b, invariants i1 and i2, modules m1 and m2, ADRs one and two
-w claude-mock/snapshots/MANIFEST.yaml <<<"version: 1"
-w codex-mock/snapshots/MANIFEST.yaml <<<"version: 1"
+w claude-mock/snapshots/MANIFEST.yaml <<<"pin: 1"
+w codex-mock/snapshots/MANIFEST.yaml <<<"pin: 1"
 w codex-mock/snapshots/runs/c1/run.yaml <<<"version: 1"
 cap a ra; cap b rb; run ra '{"e":1}'; run rb '{"e":1}'
 w spec/invariants/i1.yaml <<<"statement: one"; w spec/invariants/i2.yaml <<<"statement: two"
@@ -94,18 +94,18 @@ eq "cap-grounded: b's cited run changed, a's key does not" "$(key "$K1" a)" "$(k
 back; run rb '{"e":2}'; H4="$(step rb)"
 back; run ra '{"e":2}'; H5="$(step ra)"
 K4="$(keys capability-rigor "$H4")"; K5="$(keys capability-rigor "$H5")"
-eq "cap-rigor: a run of b touches b alone" "$(ids "$K4")" "b "
-eq "cap-rigor: a run of a touches a alone" "$(ids "$K5")" "a "
+eq "cap-rigor: a run of b touches b alone" "$(ids "$K4")" "b/claude "
+eq "cap-rigor: a run of a touches a alone" "$(ids "$K5")" "a/claude "
 back; run rb '{"e":2}'; run ra '{"e":2}'; H6="$(step both-runs)"
 K6="$(keys capability-rigor "$H6")"
-eq "cap-rigor: both runs, both capabilities" "$(ids "$K6")" "a b "
-eq "cap-rigor: b's key is the same whether or not a's run changed" "$(key "$K4" b)" "$(key "$K6" b)"
-eq "cap-rigor: a's key is the same whether or not b's run changed" "$(key "$K5" a)" "$(key "$K6" a)"
+eq "cap-rigor: both runs, both capabilities" "$(ids "$K6")" "a/claude b/claude "
+eq "cap-rigor: b's key is the same whether or not a's run changed" "$(key "$K4" b/claude)" "$(key "$K6" b/claude)"
+eq "cap-rigor: a's key is the same whether or not b's run changed" "$(key "$K5" a/claude)" "$(key "$K6" a/claude)"
 # a proving test b carries but this range does not select (it is unchanged): declared by the fingerprint
 back; cap b rb "b changed"; w claude-mock/e2e/b_test.go <<<$'// sr:proves b/claude\n// edited'; H7="$(step b-test)"
 back; cap b rb "b changed"; w claude-mock/e2e/b_test.go <<<$'// sr:proves b/claude\n// edited more'; H8="$(step b-test2)"
 K7="$(keys capability-rigor "$H7")"; K8="$(keys capability-rigor "$H8")"
-ne "cap-rigor: b's proving test changed, b's key moves" "$(key "$K7" b)" "$(key "$K8" b)"
+ne "cap-rigor: b's proving test changed, b's key moves" "$(key "$K7" b/claude)" "$(key "$K8" b/claude)"
 
 # --- #87's cell kinds: a pending cell is neither judged nor coverage; an unsupported one (with its docs) is grounded, never rigor
 back; w spec/capabilities/u.yaml <<'EOF'
@@ -114,9 +114,24 @@ providers:
   claude: {docs: [https://d.example/u#s], runs: [claude-mock/snapshots/runs/ra]}
   codex: {supported: false, reason: not there, docs: [https://c.example/u#s]}
 EOF
-w codex-mock/snapshots/MANIFEST.yaml <<<"version: 2"; HU="$(step unsupported-cell)"
-eq "cells: an unsupported cell's re-frozen docs ground its capability" "$(ids "$(keys capability-grounded "$HU")")" "u "
+w codex-mock/snapshots/MANIFEST.yaml <<<"pin: 2"; HU="$(step unsupported-cell)"
+eq "cells: an unsupported cell's capability is grounded (its file is new; the codex MANIFEST is no trigger)" "$(ids "$(keys capability-grounded "$HU")")" "u "
 eq "cells: ... and only its supported cell is proven (no rigor subject takes codex's MANIFEST)" "$("$SR" changeset --rule capability-rigor --base "$BASE" --head "$HU" | jq -r '[.subjects[].payload.subject.files[] | select(startswith("codex-mock/"))] | length')" "0"
+
+# --- capability-reconciled: one subject per capability a cell or an sr:provides marker change touches ---
+back; w claude-mock/internal/a.go <<<$'package internal\n// sr:provides a/claude'; w claude-mock/internal/b.go <<<$'package internal\n// sr:provides b/claude'; BASE_R="$(step adapters)"
+RK() { "$SR" changeset --rule capability-reconciled --base "$BASE_R" --head "$1" 2>"$T/err" |
+  jq -r '.subjects[] | .id as $id | .payload as $p | "\($id) \([[($p.subject.files // [])[]], $p.subject.fingerprint // ""] | tojson | @base64 | gsub("\n"; ""))"'; }
+git checkout -q "$BASE_R"; w claude-mock/internal/a.go <<<$'package internal\n// sr:provides a/claude\n// edited'; HR1="$(step a-adapter-edited)"
+git checkout -q "$BASE_R"; cap a ra "a changed"; HR2="$(step a-cell)"
+git checkout -q "$BASE_R"; cap a ra "a changed"; cap b rb "b changed"; HR3="$(step ab-cells)"
+git checkout -q "$BASE_R"; git rm -q claude-mock/internal/b.go; HR4="$(step b-adapter-gone)"
+eq "reconciled: an edit to a's adapter that keeps its marker is no capability's subject (only the unclaimed one, which judges nothing)" "$(ids "$(RK "$HR1")")" "unclaimed "
+eq "reconciled: a cell change is that capability's subject alone" "$(ids "$(RK "$HR2")")" "a "
+eq "reconciled: two cells, two subjects" "$(ids "$(RK "$HR3")")" "a b "
+eq "reconciled: a's key is the same whether or not b's cell changed" "$(key "$(RK "$HR2")" a)" "$(key "$(RK "$HR3")" a)"
+eq "reconciled: a removed adapter is its capability's subject" "$(ids "$(RK "$HR4")")" "b "
+back
 
 # --- invariant-grounded / invariant-rigor ----------------------------------------------------
 back; w spec/invariants/i1.yaml <<<"statement: one!"; w spec/invariants/i2.yaml <<<"statement: two!"; H9="$(step inv)"
@@ -233,28 +248,35 @@ eq "coverage: a widened glob is growth" "$(has "$M5" "exceptions grew")" yes
 back; w internal/other/other.go <<<$'package other\n// edited'; M6="$(mc "$(step edit-excepted)")"
 eq "coverage: editing an excepted file is fine" "$(has "$M6" "added under")$(has "$M6" "exceptions grew")" nono
 
-# --- narrowed touches: a re-frozen doc page or an edited declaration touches only what reads it ----------------
-# (touched.sh) a MANIFEST entry that changed touches the capabilities citing that page, not every capability of the
-# harness; a function edited in a file that carries several capabilities' markers touches those on that function;
-# and a verdict's key still carries every page it reads (its frozen hash) and every file it reads, so nothing is
-# reused stale (a page's hash moving moves the key of each capability citing it).
+# --- docs follow recordings: a doc re-freeze alone re-judges nothing --------------------------------------
+# A MANIFEST doc entry changing (a re-freeze), or its pin or fetch date, touches no capability and is in no
+# verdict's key: only a recording, the cell file and the code it points at decide a judge. A re-freeze that
+# ships WITH a recording changes nothing about the verdict's key beyond the recording.
 OLDBASE="$BASE"
 back; cap a ra; cap b rb
-w claude-mock/snapshots/MANIFEST.yaml <<<$'version: "1"\ndocs:\n  https://d.example/a:\n    version: "1"\n    sha256: aa\n  https://d.example/b:\n    version: "1"\n    sha256: bb'
+mani() { w claude-mock/snapshots/MANIFEST.yaml <<<$'pin: "'"$1"$'"\ndocs:\n  https://d.example/a:\n    sha256: '"$2"$'\n    fetched: "'"${4:-2026-10-01}"$'"\n  https://d.example/b:\n    sha256: '"$3"$'\n    fetched: "'"${4:-2026-10-01}"$'"'; }
+mani 1 aa bb
 w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'
 BASE="$(step narrow-base)"
-mani() { w claude-mock/snapshots/MANIFEST.yaml <<<$'version: "'"$1"$'"\ndocs:\n  https://d.example/a:\n    version: "'"$1"$'"\n    sha256: '"$2"$'\n  https://d.example/b:\n    version: "'"$1"$'"\n    sha256: '"$3"; }
 back; mani 1 aa2 bb; N1="$(step refreeze-a)"
 back; mani 1 aa bb2; N2="$(step refreeze-b)"
 back; mani 1 aa2 bb2; N3="$(step refreeze-both)"
-back; mani 2 aa bb; N4="$(step version-bump)"
+back; mani 2 aa bb; N4="$(step binary-bump)"
+back; mani 3 aa bb 2026-10-09; N5="$(step bump-and-refreeze-same-sha)"
+back; run ra '{"e":3}'; NR1="$(step rerecord-a)"
+back; run ra '{"e":3}'; mani 1 aa2 bb; NR2="$(step rerecord-a-and-refreeze-a)"
+back; run ra '{"e":3}'; mani 1 aa2 bb2; NR3="$(step rerecord-a-and-refreeze-both)"
 for rule in capability-grounded capability-rigor; do
-  K1="$(keys $rule "$N1")"; K2="$(keys $rule "$N2")"; K3="$(keys $rule "$N3")"; K4="$(keys $rule "$N4")"
-  eq "$rule: re-freezing a's page touches a alone" "$(ids "$K1")" "a "
-  eq "$rule: re-freezing b's page touches b alone" "$(ids "$K2")" "b "
-  eq "$rule: re-freezing both pages touches both" "$(ids "$K3")" "a b "
-  eq "$rule: a harness version bump touches every capability citing its docs" "$(ids "$K4")" "a b "
-  ne "$rule: a's page re-frozen again with another hash, a's key moves" "$(key "$K1" a)" "$(key "$(keys $rule "$N4")" a)"
+  for n in "$N1" "$N2" "$N3" "$N4" "$N5"; do
+    # the rule does not even select a MANIFEST: no file is any subject's
+    eq "$rule: a doc-only change (re-freeze, binary bump, same-sha re-freeze) re-judges nothing" "$("$SR" changeset --rule $rule --base "$BASE" --head "$n" | jq -r '[.subjects[] | (.payload.subject.files // [])[]] | length')" "0"
+  done
+  K1="$(keys $rule "$NR1")"; K2="$(keys $rule "$NR2")"; K3="$(keys $rule "$NR3")"
+  s=""; [ "$rule" = capability-rigor ] && s="/claude"   # the rigor subjects are (capability, harness) pairs
+  eq "$rule: a recording of a's touches a alone" "$(ids "$K1")" "a$s "
+  eq "$rule: ... a re-freeze shipped with it leaves a's key as the recording alone has it" "$(key "$K1" a$s)" "$(key "$K2" a$s)"
+  eq "$rule: ... and a re-freeze of a page a does not cite changes nothing either" "$(key "$K1" a$s)" "$(key "$K3" a$s)"
+  eq "$rule: ... and b is not touched by a's recording or the re-freeze" "$(ids "$K3")" "a$s "
 done
 # an edited declaration touches the capabilities marked on it, and a file edit outside every declaration none
 back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n\tmore()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'; X1="$(step edit-A)"
@@ -263,11 +285,22 @@ back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nf
 back; w claude-mock/internal/x/x.go <<<$'package x\n\nfunc helper() {}\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n\n// sr:provides b/claude\nfunc B() {\n\ttwo()\n}\n'; X4="$(step add-unmarked-func)"
 back; w claude-mock/internal/x/x.go <<<$'package x\n\n// sr:provides a/claude\nfunc A() {\n\tone()\n}\n'; X5="$(step drop-B)"
 KX1="$(keys capability-rigor "$X1")"; KX2="$(keys capability-rigor "$X2")"; KX3="$(keys capability-rigor "$X3")"
-eq "cap-rigor: editing A's declaration touches a alone" "$(ids "$KX1")" "a "
-eq "cap-rigor: editing B's declaration touches b alone" "$(ids "$KX2")" "b "
-eq "cap-rigor: editing both touches both" "$(ids "$KX3")" "a b "
+eq "cap-rigor: editing A's declaration touches a alone" "$(ids "$KX1")" "a/claude "
+eq "cap-rigor: editing B's declaration touches b alone" "$(ids "$KX2")" "b/claude "
+eq "cap-rigor: editing both touches both" "$(ids "$KX3")" "a/claude b/claude "
 eq "cap-rigor: an unmarked function added in the file touches no capability" "$(ids "$(keys capability-rigor "$X4")")" "unclaimed "
-eq "cap-rigor: removing B's marked declaration touches b (its old marker), not a" "$(ids "$(keys capability-rigor "$X5")")" "b "
+eq "cap-rigor: removing B's marked declaration touches b (its old marker), not a" "$(ids "$(keys capability-rigor "$X5")")" "b/claude "
+# a doc problem is the refusal reason, never an unbound-variable crash: doc_copy's DOC_ERROR must reach
+# prepare.sh (it once ran in a $(...) subshell and died with "DOC_ERROR: unbound variable")
+back; cap z rz; w spec/capabilities/z.yaml <<<$'statement: z works\nproviders:\n  claude:\n    docs: [https://d.example/unfrozen#s]\n    runs: [claude-mock/snapshots/runs/rz]\n  codex: pending'; run rz '{"e":1}'; w claude-mock/e2e/z_test.go <<<'// sr:proves z/claude'; w claude-mock/e2e/018_replay/replay_allowlist_test.go <<<$'package e2e\n\nvar notReplaying = map[string]string{\n}'; HZ="$(step unfrozen-doc)"
+for rule in capability-grounded capability-rigor; do
+  ZP="$("$SR" changeset --rule $rule --base "$BASE" --head "$HZ" | jq -c '.subjects[] | select(.id | startswith("z")) | .payload' | head -n1)"
+  git checkout -q "$HZ"
+  ZERR="$(printf '%s' "$ZP" | SR_TREE="$R" SR_GUARDRAIL_DIR="$R/.sloprail/file-guard/$rule" "$R/.sloprail/file-guard/$rule/prepare.sh" 2>&1 >/dev/null)"; ZRC=$?
+  eq "$rule: a doc the MANIFEST does not freeze refuses (exit 1)" "$ZRC" "1"
+  case "$ZERR" in *"no snapshot in claude-mock/snapshots/MANIFEST.yaml freezes https://d.example/unfrozen"*) ok ;; *) bad "$rule: the refusal names the doc problem, got: $ZERR" ;; esac
+  case "$ZERR" in *"unbound variable"*) bad "$rule: a doc problem crashed on an unbound variable: $ZERR" ;; *) ok ;; esac
+done
 BASE="$OLDBASE"
 
 echo "subjects tests: $PASS passed, $FAIL failed"

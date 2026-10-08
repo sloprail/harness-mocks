@@ -10,6 +10,7 @@ providers:
       - claude-mock/snapshots/runs/schedule-wakeup-limits
     deviations:
       - adr: modeled-surface
+        kind: mock-not-modeled
         statement: >-
           The mock has no clock to wait on: a valid request is acknowledged and the
           turn goes on at once, as the wake-up having fired, so the harness's

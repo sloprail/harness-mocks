@@ -14,13 +14,15 @@ type Config struct {
 	ScriptPath string
 	// SessionID is the Claude Code session identifier passed via --resume or --session-id.
 	SessionID string
-	// AgentID is the sub-agent's id when this Config drives a nested SUB-AGENT run (set by
-	// runAgentTool). Empty for the ROOT run. It is stamped onto every PreToolUse payload
-	// fired inside this run, so a hook can tell a sub-agent's tool call from the root's —
-	// mirroring real claude, where a sub-agent's PreToolUse carries agent_id.
+	// AgentID is the sub-agent's id when this Config drives a nested SUB-AGENT run (empty for the ROOT
+	// run), stamped onto its PreToolUse payloads as real claude does.
 	AgentID string
 	// IsResume is true when the caller used --resume (existing session) vs --session-id (new).
 	IsResume bool
+	// ResumeLookup: --resume named its session by a name or path, or --continue chose it.
+	ResumeLookup bool
+	// the run's --name and --tools
+	Invocation
 	// Prompt is the user prompt forwarded to the script via the A10N_MOCK_PROMPT env var.
 	Prompt string
 	// AdditionalContext is populated from a UserPromptSubmit hook's additionalContext
@@ -46,20 +48,17 @@ type Config struct {
 	Stderr io.Writer
 	// Out receives the passthrough JSONL (defaults to os.Stdout).
 	Out io.Writer
-
 	// SuppressSubagentHooks marks a NESTED sub-agent run (set only by the Agent
 	// tool, agent.go): no SessionStart, UserPromptSubmit, Stop or SessionEnd of
 	// its own — the Agent-tool layer fires SubagentStart/SubagentStop with the
 	// sub-agent's agent_id around it, as real Claude Code does.
 	// sr:docs https://code.claude.com/docs/en/hooks#subagentstart
 	SuppressSubagentHooks bool
-
 	// AgentType is the sub-agent's type when this Config drives a nested SUB-AGENT
 	// run. Real Claude Code sends agent_type beside agent_id on every hook event
 	// fired inside a sub-agent.
 	// sr:docs https://code.claude.com/docs/en/hooks#common-input-fields
 	AgentType string
-
 	// SidechainPath is the sub-agent's own transcript
 	// (<session>/subagents/agent-<id>.jsonl) for a nested SUB-AGENT run. Real
 	// Claude Code writes a sub-agent's records there, never into the parent's
@@ -102,13 +101,16 @@ type Config struct {
 	// response, and its receipts say so (the 2.1.282 Bash tool's
 	// backgroundEndsWithFinalResponse).
 	SyncSubagent bool
-
+	Prompting    // what hook payloads tell of the prompt the session is on
+	*SubFrames   // what a sub-agent's stream frames name (nil for the root run)
 	// BgWaitCeiling is how long a `claude -p` run waits idle for background agents
 	// after its final turn; zero waits without a limit.
 	BgWaitCeiling time.Duration
 	// SpawnLimit is how many layers of sub-agents nest below the main thread;
 	// 0 is the default.
 	SpawnLimit int
+	// ConcurrentLimit is how many sub-agents may run at once (0: the default).
+	ConcurrentLimit int
 	// BackgroundTasksDisabled turns run_in_background off for Bash: the command
 	// runs in the foreground. The harness's CLAUDE_CODE_DISABLE_BACKGROUND_TASKS.
 	BackgroundTasksDisabled bool
@@ -120,6 +122,11 @@ type Config struct {
 	// and every nested sub-agent run (Stop and SubagentStop list the whole
 	// session's tasks). Nil for the root run, which creates it.
 	bg *backgroundTasks
+
+	// steps is what this run's script gates are read against (steps.go); nil for a bare Config.
+	steps *agentSteps
+	// background marks a background sub-agent (its frames differ: writeToolUse in steps.go).
+	background bool
 
 	// wake is the session's pending ScheduleWakeup, shared by the root run and
 	// every nested run like bg. Nil for the root run, which creates it.
@@ -138,13 +145,4 @@ type Config struct {
 	// sessionFile is the session's actual transcript, next to which every
 	// sub-agent's subagents/agent-<id>.jsonl lives. Set by the root run.
 	sessionFile string
-}
-
-// projectDirOf is the project root the run's hooks are told: the one given, else
-// the working directory.
-func projectDirOf(cfg Config) string {
-	if cfg.ProjectDir != "" {
-		return cfg.ProjectDir
-	}
-	return cfg.Cwd
 }

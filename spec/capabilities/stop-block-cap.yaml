@@ -27,8 +27,27 @@ providers:
   cursor:
     supported: false
     reason: >-
-      In the non-interactive run the stop hook never fires, even after a tool
-      call, so a stop hook cannot block the turn and there is nothing for a
-      cap to limit.
+      In the recorded non-interactive run (cursor-agent -p) the stop hook
+      never fires, even after a tool call and a completed turn, so a stop
+      hook cannot block the turn and there is nothing for a cap to limit.
+      Only that mode was recorded; the interactive agent was not.
+    docs:
+      - https://cursor.com/docs/hooks#stop
+      - https://cursor.com/docs/hooks#per-script-configuration-options
     runs:
       - cursor-mock/snapshots/runs/stop-block-cap-always
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          Doc and recording conflict: the hooks doc (#stop) says "Called when
+          the agent loop ends" and "The default limit is 5 auto follow-ups per
+          script, configurable via the `loop_limit` option", and the
+          per-script options table (#per-script-configuration-options) gives
+          `loop_limit` a default of 5. The recording
+          (runs/stop-block-cap-always) configures a stop hook that always
+          answers with a followup_message, and shows the stop hook never
+          called in cursor-agent -p: only sessionStart and sessionEnd (and no
+          afterAgentResponse) reach the hook log, the run ends after one
+          turn, and no follow-up is submitted. The recording decides: the cap
+          is never reached in print mode.

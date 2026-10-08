@@ -28,6 +28,7 @@ providers:
       - codex-mock/snapshots/runs/hook-matchers
     deviations:
       - adr: capability-grounding
+        kind: harness-lacks
         statement: >-
           Codex does not hand a background-task notification to the agent, so
           its UserPromptSubmit hook does not fire for one: recorded, the hook
@@ -36,8 +37,31 @@ providers:
           (runs/user-prompt-submit-hook-bg, runs/task-notifications-bg). The
           mock does the same.
   cursor:
-    supported: false
-    reason: In print mode cursor-agent never fires a configured beforeSubmitPrompt hook; one that tries to refuse the prompt is not run and the prompt reaches the agent, which acts on it.
+    docs:
+      - https://cursor.com/docs/hooks#beforesubmitprompt
+    deviations:
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          In print mode cursor-agent never fires a configured beforeSubmitPrompt
+          hook: one that tries to refuse the prompt is not run and the prompt
+          reaches the agent, which acts on it (runs/user-prompt-submit-hook,
+          runs/hook-exit-codes). Only the TUI fires it, before the agent runs, and
+          a hook answering continue false refuses the prompt (runs/tui-prompt-blocked,
+          which the mock models).
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          No recording shows the hook adding context to the prompt, or firing for
+          a background-task notification handed to the agent, so those parts of the
+          statement are not shown.
+      - adr: capability-grounding
+        kind: harness-lacks
+        statement: >-
+          No recording tries to rewrite the prompt (no beforeSubmitPrompt hook
+          returned a changed prompt), so that the hook cannot rewrite it is not
+          shown for Cursor; the mock gives a hook no way to.
     runs:
       - cursor-mock/snapshots/runs/user-prompt-submit-hook
       - cursor-mock/snapshots/runs/hook-exit-codes
+      - cursor-mock/snapshots/runs/tui-prompt-blocked

@@ -12,6 +12,7 @@ type Registry struct {
 	mu      sync.Mutex
 	tasks   []*Task
 	changed chan struct{} // signalled (non-blocking) whenever a task finishes
+	added   chan struct{} // closed and replaced whenever a task is registered
 	wg      sync.WaitGroup
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -20,7 +21,7 @@ type Registry struct {
 // NewRegistry is an empty registry.
 func NewRegistry() *Registry {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Registry{changed: make(chan struct{}, 1), ctx: ctx, cancel: cancel}
+	return &Registry{changed: make(chan struct{}, 1), added: make(chan struct{}), ctx: ctx, cancel: cancel}
 }
 
 // Context is cancelled when the registry shuts down; background sub-agents run
@@ -43,10 +44,27 @@ func (r *Registry) has(id string) bool {
 	return false
 }
 
+// Find is the task with this id, finished or not; nil when the registry holds none.
+func (r *Registry) Find(id string) *Task {
+	if r == nil {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, t := range r.tasks {
+		if t.ID == id {
+			return t
+		}
+	}
+	return nil
+}
+
 // Add registers a task, in launch order.
 func (r *Registry) Add(t *Task) {
 	r.mu.Lock()
 	r.tasks = append(r.tasks, t)
+	close(r.added)
+	r.added = make(chan struct{})
 	r.mu.Unlock()
 }
 

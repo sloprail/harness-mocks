@@ -1,0 +1,10 @@
+{"event":"hook","hook":null,"payload":{"hook_ran":"p1","root":"<TMP>/home/.codex/plugins/cache/mk/p1/1.1.0","files":". ./.codex-plugin ./.codex-plugin/plugin.json ./.hidden ./.hidden/h ./hooks ./hooks/hooks.json ./hooks/log.sh ./scripts ./scripts/new.sh ./scripts/run.sh "}}
+{"event":"hook","hook":null,"payload":{"hook_ran":"p2","root":"<TMP>/home/.codex/plugins/cache/mk/p2/local","files":". ./.codex-plugin ./.codex-plugin/plugin.json ./.hidden ./.hidden/h ./README.md ./hooks ./hooks/hooks.json ./hooks/log.sh ./scripts ./scripts/run.sh "}}
+{"event":"stream","type":"thread.started","subtype":null}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"item.completed","subtype":"error"}
+{"event":"stream","type":"turn.started","subtype":null}
+{"event":"stream","type":"item.started","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"command_execution"}
+{"event":"stream","type":"item.completed","subtype":"agent_message"}
+{"event":"stream","type":"turn.completed","subtype":null}

@@ -69,19 +69,35 @@ func Patch(oldText, newText string) []Hunk {
 	for _, l := range o[pre-before : pre] {
 		h.Lines = append(h.Lines, " "+l)
 	}
+	noNLOld, noNLNew := lacksFinalNewline(oldText), lacksFinalNewline(newText)
 	for _, l := range o[pre : len(o)-suf] {
 		h.Lines = append(h.Lines, "-"+l)
+	}
+	if suf == 0 && noNLOld && len(o) > pre { // the last removed line is the file's last, with no newline
+		h.Lines = append(h.Lines, noNewlineMarker)
 	}
 	for _, l := range n[pre : len(n)-suf] {
 		h.Lines = append(h.Lines, "+"+l)
 	}
+	if suf == 0 && noNLNew && len(n) > pre {
+		h.Lines = append(h.Lines, noNewlineMarker)
+	}
 	for _, l := range o[len(o)-suf : len(o)-suf+after] {
 		h.Lines = append(h.Lines, " "+l)
+	}
+	if suf > 0 && after == suf && noNLOld && noNLNew { // a last line both files share, with no newline in either
+		h.Lines = append(h.Lines, noNewlineMarker)
 	}
 	h.OldLines = before + (len(o) - pre - suf) + after
 	h.NewLines = before + (len(n) - pre - suf) + after
 	return []Hunk{h}
 }
+
+// noNewlineMarker follows a hunk's last line when the file ends without a newline, as a unified diff
+// says (recorded: Edit's structuredPatch in runs/fgsub-tool-stats).
+const noNewlineMarker = "\\ No newline at end of file"
+
+func lacksFinalNewline(s string) bool { return s != "" && !strings.HasSuffix(s, "\n") }
 
 func patchLines(s string) []string {
 	if s == "" {

@@ -20,6 +20,10 @@ if [ "$n" = 0 ]; then
   printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_0","name":"spawn_agent","input":{"message":"Reply with exactly the word PINEAPPLE-7 and nothing else.","script":"sub.sh"}}]}}'
   exit 0
 fi
+if [ "$n" = 1 ]; then
+  printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"call_wait","name":"wait_agent","input":{"targets":["%s"],"timeout_ms":60000}}]}}\n' "$(jq -r 'select(.payload.type=="function_call_output")|.payload.output|try (fromjson|.agent_id) catch empty|select(.!=null)' "$A10N_MOCK_SESSION_FILE" | head -1)"
+  exit 0
+fi
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"PINEAPPLE-7"}]}}' '{"type":"result","subtype":"success","result":"PINEAPPLE-7"}'
 `
 

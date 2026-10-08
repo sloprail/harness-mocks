@@ -12,7 +12,7 @@ func TestCleanupWorktree_RemovesACleanOneAndKeepsOneWithWork(t *testing.T) {
 	repo := t.TempDir()
 	git(t, repo, "init", "-q")
 	git(t, repo, "commit", "-q", "--allow-empty", "-m", "init")
-	bind := BindGit(context.Background(), repo)
+	bind := BindGit(context.Background(), repo, "")
 
 	clean := Isolate(repo, "clean", wl(), bind)
 	if !clean.Cleanup(context.Background()) {
@@ -40,5 +40,31 @@ func TestCleanupWorktree_RemovesACleanOneAndKeepsOneWithWork(t *testing.T) {
 	}
 	if _, err := os.Stat(committed.Cwd); err != nil {
 		t.Fatalf("the kept worktree is gone: %v", err)
+	}
+}
+
+// A sub-agent that switches to another branch and commits there left work the
+// agent branch does not show: the worktree is kept. One that only switched
+// branch, changing nothing, is removed.
+func TestCleanupWorktree_KeepsOneWhoseHeadMovedToACommittedBranch(t *testing.T) {
+	repo := t.TempDir()
+	git(t, repo, "init", "-q")
+	git(t, repo, "commit", "-q", "--allow-empty", "-m", "init")
+	bind := BindGit(context.Background(), repo, "")
+
+	switched := Isolate(repo, "switched", wl(), bind)
+	git(t, switched.Cwd, "switch", "-q", "-c", "other")
+	git(t, switched.Cwd, "commit", "-q", "--allow-empty", "-m", "work")
+	if switched.Cleanup(context.Background()) {
+		t.Fatal("a worktree that committed on a new branch was removed")
+	}
+	if _, err := os.Stat(switched.Cwd); err != nil {
+		t.Fatalf("the kept worktree is gone: %v", err)
+	}
+
+	moved := Isolate(repo, "moved", wl(), bind)
+	git(t, moved.Cwd, "switch", "-q", "-c", "empty")
+	if !moved.Cleanup(context.Background()) {
+		t.Fatal("a worktree on another branch with no changes is kept")
 	}
 }

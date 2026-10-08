@@ -203,8 +203,9 @@ func TestFailedFileCallsAreErrors(t *testing.T) {
 // call (the payload still names apply_patch), and not for a shell command (the
 // doc's hooks#posttooluse matcher aliases).
 // sr:proves posttooluse-payload/codex
+// sr:proves hook-matcher-filter/codex
 func TestEditMatcherSelectsPatchCalls(t *testing.T) {
-	for _, matcher := range []string{"Edit", "Write"} {
+	for _, matcher := range []string{"Edit", "Write", "^apply_patch$"} {
 		t.Run(matcher, func(t *testing.T) {
 			rec := loadRecording(t, "file-tools")
 			hooks := map[string]any{"hooks": map[string]any{"PostToolUse": []any{map[string]any{
@@ -229,6 +230,31 @@ func TestEditMatcherSelectsPatchCalls(t *testing.T) {
 			require.Len(t, log, 1)
 			assert.Equal(t, "PostToolUse", log[0]["hook_event_name"])
 			assert.Equal(t, "apply_patch", log[0]["tool_name"])
+		})
+	}
+}
+
+// A PreToolUse hook refuses an apply_patch call as it does a shell command
+// (hooks#pretooluse, hooks#tool-coverage), by deny or by exit 2: the file is not
+// written, no change is shown, and the agent is told of the refusal.
+// sr:proves pretooluse-refusal/codex
+func TestAPatchCallCanBeRefusedByAPreToolUseHook(t *testing.T) {
+	for name, hook := range map[string]string{
+		"deny by JSON": `cat >/dev/null; echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"no patches"}}'`,
+		"exit 2":       `cat >/dev/null; echo "no patches" >&2; exit 2`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			b, _ := json.Marshal(toolCall{"apply_patch", map[string]any{"command": "*** Begin Patch\n*** Add File: refused.txt\n+X\n*** End Patch"}})
+			f := filepath.Join(t.TempDir(), "calls")
+			require.NoError(t, os.WriteFile(f, append(b, '\n'), 0o644))
+			got := execMock(t, scenario{
+				HooksJSON: hooksJSON("sh hook.sh", "PreToolUse", "PostToolUse"),
+				Files:     map[string]string{"hook.sh": hook},
+				Script:    patchScript, Prompt: "go", Env: []string{"CALLS=" + f}})
+			require.Equal(t, 0, got.Code, got.Stderr)
+			assert.NoFileExists(t, filepath.Join(got.Repo, "refused.txt"), "a refused patch was applied")
+			assert.Empty(t, fileChanges(got.stream(), got.Repo))
+			assert.Contains(t, got.rollout(t), "Command blocked by PreToolUse hook: no patches.")
 		})
 	}
 }
