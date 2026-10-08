@@ -2,10 +2,12 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/sloprail/harness-mocks/cursor-mock/internal/toolexec"
+	"github.com/sloprail/harness-mocks/internal/scenario"
 )
 
 // refusal is the first refusal of something the mock does not model that a run
@@ -47,4 +49,34 @@ func (r *refusal) message() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.msg
+}
+
+// refusesTUITool refuses the run when a tool call in a TUI session is not modeled (tuiToolRefusal),
+// and says whether it did.
+func (s *session) refusesTUITool(tu scenario.ToolUse) bool {
+	if !s.cfg.Interactive {
+		return false
+	}
+	msg := s.tuiToolRefusal(tu)
+	if msg != "" {
+		s.refusal.refuse(msg)
+	}
+	return msg != ""
+}
+
+// tuiToolRefusal is why a tool call is not modeled in a TUI session, "" when it is: a shell
+// command, a file write or edit and a file read, run with --force (recorded: runs/tui-tools; the
+// TUI asks before it runs a command without it, and what it asks was not recorded). Everything
+// else the print mode models (a command left in the background, a search, a sub-agent, an MCP
+// tool) was not recorded in the TUI.
+func (s *session) tuiToolRefusal(tu scenario.ToolUse) string {
+	if !s.cfg.Force {
+		return "cursor-mock: a tool call in a TUI session is modeled only with --force (the mode its recordings cover): without it the TUI asks before it runs one"
+	}
+	c := toolexec.FromScript(tu.Name, tu.Input)
+	switch {
+	case c.Kind == "shellToolCall" && !c.Background(), c.Kind == "editToolCall", c.Kind == "readToolCall":
+		return ""
+	}
+	return fmt.Sprintf("cursor-mock: the %s tool call (as a %s) in a TUI session is not modeled: only Shell commands that finish, Write, Edit and Read were recorded (runs/tui-tools)", tu.Name, c.Kind)
 }
