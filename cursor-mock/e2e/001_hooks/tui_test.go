@@ -95,6 +95,7 @@ func names(shapes []map[string]any) (out []string) {
 // -p), the TUI fires beforeSubmitPrompt with the prompt, then afterAgentResponse with the agent's
 // message, then stop with status completed and loop_count 0 (no last message: that is the
 // response hook's), and no stream or result: the mock fires the same.
+// sr:proves stop-hook-payload/cursor
 func TestTuiTurnEndsWithAStopHookThatFollowsTheResponse(t *testing.T) {
 	want, _ := tuiRecorded(t, "tui-stop")
 	got, _ := tuiMock(t, "tui-stop", "Reply only DONE.\n")
@@ -157,6 +158,7 @@ func TestTuiStopHookThatAlwaysBlocksIsOverriddenAfterFiveFollowUps(t *testing.T)
 // TestTuiPromptRefusedByAHookNeverReachesTheAgent: recorded (runs/tui-prompt-blocked), a
 // beforeSubmitPrompt hook answering {"continue": false} stops the prompt: no response, no stop,
 // the session ends; the mock does the same.
+// sr:proves user-prompt-submit-hook/cursor
 func TestTuiPromptRefusedByAHookNeverReachesTheAgent(t *testing.T) {
 	want, _ := tuiRecorded(t, "tui-prompt-blocked")
 	got, _ := tuiMock(t, "tui-prompt-blocked", "Reply only DONE.\n")
@@ -168,8 +170,9 @@ func TestTuiPromptRefusedByAHookNeverReachesTheAgent(t *testing.T) {
 // /compress typed at the idle input fires preCompact with trigger "manual", then a response with
 // no text and a stop, and the transcript of the session still begins with every record it held
 // at preCompact, byte for byte, in the same file; the mock does the same. (Not a proof of the
-// manual-compaction or compaction-transcript-continuity cells, which Cursor does not meet: its
-// compaction cannot be stopped by the hook, and writes no boundary or summary.)
+// compaction-transcript-continuity cell, which Cursor does not meet: its compaction writes no
+// boundary or summary; manual-compaction's cell declares that its hook cannot stop the compaction.)
+// sr:proves manual-compaction/cursor
 func TestTuiCompressCompactsWithoutTouchingTheTranscript(t *testing.T) {
 	want, wantResults := tuiRecorded(t, "tui-manual-compaction")
 	got, gotResults := tuiMock(t, "tui-manual-compaction", "Reply only DONE.\n/compress\n")

@@ -85,6 +85,9 @@ func (s *session) interactive(ctx context.Context) error {
 // submitPrompt fires beforeSubmitPrompt for the prompt the user sent: a hook that answers
 // continue:false refuses it, and the agent never sees it. Otherwise it is the conversation's
 // next message.
+//
+// sr:provides user-prompt-submit-hook/cursor
+// sr:docs https://cursor.com/docs/hooks#beforesubmitprompt
 func (s *session) submitPrompt(ctx context.Context) (string, bool) {
 	s.gen = coresession.NewID()
 	for _, d := range s.hooks.Fire(ctx, hooks.BeforeSubmitPrompt, "UserPromptSubmit", map[string]any{"prompt": s.prompt, "attachments": []any{}}) {
@@ -114,6 +117,7 @@ func (s *session) responded() {
 // wins, as the docs say of merged responses).
 //
 // sr:provides stop-block-continuation/cursor
+// sr:provides stop-hook-payload/cursor
 // sr:docs https://cursor.com/docs/hooks#stop
 func (s *session) stopped(ctx context.Context) (string, bool) {
 	s.responded()
@@ -145,4 +149,11 @@ func (s *session) blockCap() int {
 		return stopLoopLimit
 	}
 	return 0
+}
+
+// withUsage adds what the payloads of the end of a response carry of the model's usage: counts
+// the real service measures, which the mock has no model to give, so they are fixed.
+func (s *session) withUsage(p map[string]any) map[string]any {
+	p["input_tokens"], p["output_tokens"], p["cache_read_tokens"], p["cache_write_tokens"] = 1000, 10, 500, 0
+	return p
 }
