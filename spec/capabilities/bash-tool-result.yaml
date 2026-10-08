@@ -32,3 +32,4 @@ providers:
       - cursor-mock/snapshots/runs/shell-compound-forms
       - cursor-mock/snapshots/runs/shell-compound-more
       - cursor-mock/snapshots/runs/shell-compound-test
+      - cursor-mock/snapshots/runs/shell-glob-tilde

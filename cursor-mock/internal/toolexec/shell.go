@@ -32,7 +32,7 @@ func shell(ctx context.Context, c Call, dir string, env []string) Result {
 		cwd = wd
 	}
 	start := time.Now()
-	res := tools.BashArgv(ctx, []string{Shell, "-c", c.Command()}, cwd, env)
+	res := tools.BashArgv(ctx, []string{Shell, "-c", withNoMatchCheck(c.Command())}, cwd, env)
 	took := time.Since(start)
 	body := map[string]any{
 		"command": c.Command(), "workingDirectory": c.str("workingDirectory"), "exitCode": res.ExitCode, "signal": "",

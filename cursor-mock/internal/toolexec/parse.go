@@ -73,8 +73,12 @@ var number = regexp.MustCompile(`^[0-9]+$`)
 // any other word (recorded: runs/shell-exit-status, runs/shell-syntax). An unquoted
 // variable is a simple_expansion ($V, $1, $@), a braced one an expansion (${V}), and
 // $(( )) an arithmetic_expansion (recorded: runs/shell-compound-forms,
-// runs/shell-compound-more, runs/shell-compound-test).
+// runs/shell-compound-more, runs/shell-compound-test). A word with a bracket glob is a
+// concatenation (runs/shell-glob-tilde).
 func wordType(w *syntax.Word) string {
+	if bracketGlob(w) {
+		return "concatenation" // `*`, `?` and `~` stay a word (recorded: runs/shell-glob-tilde)
+	}
 	if len(w.Parts) == 1 {
 		switch p := w.Parts[0].(type) {
 		case *syntax.ParamExp:
@@ -154,4 +158,17 @@ func (p parsed) inputRedirects() bool {
 		}
 	}
 	return false
+}
+
+// bracketGlob is whether a word is plain text with a "[" in it (`[ab].txt`, `x[1]y`).
+func bracketGlob(w *syntax.Word) bool {
+	bracket := false
+	for _, part := range w.Parts {
+		lit, ok := part.(*syntax.Lit)
+		if !ok {
+			return false
+		}
+		bracket = bracket || strings.Contains(lit.Value, "[")
+	}
+	return bracket
 }
