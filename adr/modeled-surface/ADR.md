@@ -42,11 +42,11 @@ visible and deliberate, not a test nobody wrote.
   hook, aborts the turn and exits 1, as runs/interrupt-hook records; a mock may
   interrupt a running tool when a recording drives it. The code is
   `codex-mock/internal/runner/interrupt.go`.
-- The cursor mock models what its TUI recordings drive (runs `tui-*`): the
-  hooks only a TUI fires (beforeSubmitPrompt, afterAgentResponse, stop), a stop
-  hook's follow-up, and manual compaction (`/compress`). Its print mode, which
-  fires none of them, stays as recorded unless a test opts in to the TUI's stop
-  hooks (a deviation: `cursor-agent -p` fires neither).
+- The cursor mock models the hooks only a TUI fires (beforeSubmitPrompt,
+  afterAgentResponse, stop), a stop hook's follow-up and manual compaction
+  (`/compress`), as far as its TUI recordings (runs `tui-*`) show. Its print
+  mode, which fires none of them, stays as recorded unless a test opts in to
+  the stop hooks, as a deviation (`cursor-agent -p` fires neither).
 - A capability whose docs describe behaviour on a part left out declares it in
   that harness's cell, as a `deviations` entry citing this ADR and naming the
   part. Its tests prove the rest.
