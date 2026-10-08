@@ -26,6 +26,13 @@ func findRollout(home, id string) string {
 	return ""
 }
 
+// Rollouts are the rollout files under <home>/sessions, whichever day each was
+// begun.
+func Rollouts(home string) []string {
+	paths, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
+	return paths
+}
+
 // ErrNoRollout is `codex exec resume <id>` naming a session that has no
 // rollout: it fails with this message before any session starts, so no hook
 // fires at all, neither its start nor its end (recorded:
