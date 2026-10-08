@@ -31,7 +31,9 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock reads the project's .cursor/hooks.json only, and runs its
-          hooks from the project root. The user-level hooks of
-          ~/.cursor/hooks.json (which run from ~/.cursor), and the team and
-          enterprise sources, are not modeled.
+          The mock reads the project's .cursor/hooks.json and the user's
+          ~/.cursor/hooks.json, and runs the hooks of both from the project
+          root. The docs (#configuration) say the user's hooks run from
+          ~/.cursor, which no recording shows, so the mock's working directory
+          for a user hook is not that of the real harness. The team and
+          enterprise sources are not modeled.

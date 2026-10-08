@@ -20,6 +20,7 @@ const compactionModel = "gemini-3.7-flash-low"
 // conversation and the transcript path stay what they were. How full the context was, and how many
 // messages it held, are the real model's own counts, so they are fixed here.
 //
+// sr:provides manual-compaction/cursor
 // sr:docs https://cursor.com/docs/hooks#precompact
 func (s *session) compress(ctx context.Context) {
 	s.gen = coresession.NewID()

@@ -3,6 +3,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -134,20 +135,26 @@ func TestSandboxTakesCodexsThreeModes(t *testing.T) {
 }
 
 // A plugin's hook command is told its plugin's root and data directory, under Claude Code's names and its own
-// (runs/plugin-hook-env); a user's or project's hook is told none.
+// (runs/plugin-hook-env records the four variable names set for it, not their values); a user's hook is
+// told none. The directories' values are the mock's own choice (a deviation of plugin-hooks).
 // sr:proves plugin-hooks/codex
 func TestAPluginHookIsToldItsRootAndDataDirectories(t *testing.T) {
-	hook := `{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"env | grep -E '^(CLAUDE_)?PLUGIN_' | sort >> \"$HOOK_LOG\""}]}]}}`
+	envHook := `{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"env | grep -E '^(CLAUDE_)?PLUGIN_' | cut -d= -f1 | sort >> \"$HOOK_LOG\""}]}]}}`
 	got := execMock(t, scenario{
 		HomeFiles: map[string]string{"config.toml": declaredMk + p1On},
 		Files: map[string]string{
 			"mk/.agents/plugins/marketplace.json": pluginMarketplace,
-			"mk/plugins/p1/hooks/hooks.json":      hook,
+			"mk/plugins/p1/hooks/hooks.json":      envHook,
 		},
 		Script: callThenResult, Prompt: "go", Env: withCalls(t, "true"),
 	})
 	require.Equal(t, 0, got.Code, got.Stderr)
 	log, _ := os.ReadFile(filepath.Join(got.Tmp, "hook.log"))
-	root, data := got.Home+"/plugins/cache/mk/p1/local", got.Home+"/plugins/data/p1-mk"
-	assert.Equal(t, "CLAUDE_PLUGIN_DATA="+data+"\nCLAUDE_PLUGIN_ROOT="+root+"\nPLUGIN_DATA="+data+"\nPLUGIN_ROOT="+root+"\n", string(log))
+	assert.Equal(t, "CLAUDE_PLUGIN_DATA\nCLAUDE_PLUGIN_ROOT\nPLUGIN_DATA\nPLUGIN_ROOT\n", string(log))
+
+	userHook := strings.Replace(envHook, `env | grep`, `echo ran >> \"$HOOK_LOG\"; env | grep`, 1)
+	user := execMock(t, scenario{HooksJSON: userHook, Script: callThenResult, Prompt: "go", Env: withCalls(t, "true")})
+	require.Equal(t, 0, user.Code, user.Stderr)
+	userLog, _ := os.ReadFile(filepath.Join(user.Tmp, "hook.log"))
+	assert.Equal(t, "ran\n", string(userLog), "the user's hook ran, and was told none of the plugin variables")
 }
