@@ -1,0 +1,82 @@
+{"event":"hook","hook":"sessionStart","payload":{"is_background_agent":false,"session_id":"<SESSION_ID>","hook_event_name":"sessionStart"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"ls *.txt","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"ls *.txt","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"ls *.txt","output":"a.txt\nb.txt\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"ls *.txt","timeout":30000},"tool_output":"{\"output\":\"a.txt\\nb.txt\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo [ab].txt","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo [ab].txt","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo [ab].txt","output":"a.txt b.txt\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo [ab].txt","timeout":30000},"tool_output":"{\"output\":\"a.txt b.txt\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"(cd ~ && pwd)","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"(cd ~ && pwd)","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"(cd ~ && pwd)","output":"<TMP>/home\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"(cd ~ && pwd)","timeout":30000},"tool_output":"{\"output\":\"<TMP>/home\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo ~/x","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo ~/x","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo ~/x","output":"<TMP>/home/x\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo ~/x","timeout":30000},"tool_output":"{\"output\":\"<TMP>/home/x\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"git -c remote.origin.fetch=+refs/sloprail/*:refs/sloprail/* config --get remote.origin.fetch","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"git -c remote.origin.fetch=+refs/sloprail/*:refs/sloprail/* config --get remote.origin.fetch","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"git -c remote.origin.fetch=+refs/sloprail/*:refs/sloprail/* config --get remote.origin.fetch","output":"(eval):1: no matches found: remote.origin.fetch=+refs/sloprail/*:refs/sloprail/*\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"git -c remote.origin.fetch=+refs/sloprail/*:refs/sloprail/* config --get remote.origin.fetch","timeout":30000},"error_message":"(eval):1: no matches found: remote.origin.fetch=+refs/sloprail/*:refs/sloprail/*","failure_type":"error","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"git config --add remote.origin.fetch '+refs/heads/*:refs/sloprail/*'","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"git config --add remote.origin.fetch '+refs/heads/*:refs/sloprail/*'","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"git config --add remote.origin.fetch '+refs/heads/*:refs/sloprail/*'","output":"","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"git config --add remote.origin.fetch '+refs/heads/*:refs/sloprail/*'","timeout":30000},"tool_output":"{\"output\":\"\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"git config --get-all remote.origin.fetch","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"git config --get-all remote.origin.fetch","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"git config --get-all remote.origin.fetch","output":"+refs/heads/*:refs/sloprail/*\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"git config --get-all remote.origin.fetch","timeout":30000},"tool_output":"{\"output\":\"+refs/heads/*:refs/sloprail/*\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo ?.txt","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo ?.txt","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo ?.txt","output":"a.txt b.txt\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo ?.txt","timeout":30000},"tool_output":"{\"output\":\"a.txt b.txt\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo x[1]y","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo x[1]y","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo x[1]y","output":"(eval):1: no matches found: x[1]y\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo x[1]y","timeout":30000},"error_message":"(eval):1: no matches found: x[1]y","failure_type":"error","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo a~b","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo a~b","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo a~b","output":"a~b\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo a~b","timeout":30000},"tool_output":"{\"output\":\"a~b\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo \"*.txt\"","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo \"*.txt\"","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo \"*.txt\"","output":"*.txt\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo \"*.txt\"","timeout":30000},"tool_output":"{\"output\":\"*.txt\\n\",\"exitCode\":0}","session_id":"<SESSION_ID>","hook_event_name":"postToolUse"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo *.nomatch","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo *.nomatch","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo *.nomatch","output":"(eval):1: no matches found: *.nomatch\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo *.nomatch","timeout":30000},"error_message":"(eval):1: no matches found: *.nomatch","failure_type":"error","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":"preToolUse","payload":{"tool_name":"Shell","tool_input":{"command":"echo *.txt *.nomatch","timeout":30000},"session_id":"<SESSION_ID>","hook_event_name":"preToolUse"}}
+{"event":"hook","hook":"beforeShellExecution","payload":{"command":"echo *.txt *.nomatch","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"beforeShellExecution"}}
+{"event":"hook","hook":"afterShellExecution","payload":{"command":"echo *.txt *.nomatch","output":"(eval):1: no matches found: *.nomatch\n","sandbox":false,"session_id":"<SESSION_ID>","hook_event_name":"afterShellExecution"}}
+{"event":"hook","hook":"postToolUseFailure","payload":{"tool_name":"Shell","tool_input":{"command":"echo *.txt *.nomatch","timeout":30000},"error_message":"(eval):1: no matches found: *.nomatch","failure_type":"error","is_interrupt":false,"session_id":"<SESSION_ID>","hook_event_name":"postToolUseFailure"}}
+{"event":"hook","hook":"sessionEnd","payload":{"reason":"completed","is_background_agent":false,"final_status":"completed","session_id":"<SESSION_ID>","hook_event_name":"sessionEnd"}}
+{"event":"stream","type":"system","subtype":"init"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"failure"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"failure"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"success"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"failure"}
+{"event":"stream","type":"tool_call","subtype":"started","tool":"shellToolCall","outcome":null}
+{"event":"stream","type":"tool_call","subtype":"completed","tool":"shellToolCall","outcome":"failure"}
+{"event":"stream","type":"result","subtype":"success"}

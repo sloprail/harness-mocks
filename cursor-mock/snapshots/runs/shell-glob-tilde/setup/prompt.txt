@@ -1,0 +1,2 @@
+Do these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) ls *.txt 2) echo [ab].txt 3) (cd ~ && pwd) 4) echo ~/x 5) git -c remote.origin.fetch=+refs/sloprail/*:refs/sloprail/* config --get remote.origin.fetch 6) git config --add remote.origin.fetch '+refs/heads/*:refs/sloprail/*' 7) git config --get-all remote.origin.fetch 8) echo ?.txt 9) echo x[1]y 10) echo a~b 11) echo "*.txt" 12) echo *.nomatch 13) echo *.txt *.nomatch
+Then reply only DONE.

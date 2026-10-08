@@ -16,9 +16,10 @@ import (
 // a command included), with variables and $(( )), here-documents and here-strings
 // besides the words, pipes, command substitution and redirections > >> < >&. The
 // rest (process substitution, backquotes, (( )), a coprocess, other redirections, a
-// glob or a home directory in a word, a here-document on anything but a command) is
-// refused rather than reported with a guessed parse, so a run cannot pass on frames
-// the real harness was never seen to write.
+// here-document on anything but a command) is refused rather than reported with a
+// guessed parse, so a run cannot pass on frames the real harness was never seen to write. (A glob or a `~` in a word is modeled: it
+// is expanded by the shell, and a glob matching nothing fails the command; recorded:
+// runs/shell-glob-tilde.)
 func UnmodeledSyntax(line string) string {
 	f, err := syntax.NewParser().Parse(strings.NewReader(line), "")
 	if err != nil {
@@ -31,29 +32,12 @@ func UnmodeledSyntax(line string) string {
 		}
 		return false
 	}
-	listed := map[*syntax.Word]bool{} // the words a for loop runs over: they are not in the frame
 	syntax.Walk(f, func(n syntax.Node) bool {
 		switch x := n.(type) {
 		case *syntax.ArithmCmd:
 			return flag("arithmetic as a command")
 		case *syntax.ProcSubst:
 			return flag("a process substitution")
-		case *syntax.ForClause:
-			if w, ok := x.Loop.(*syntax.WordIter); ok {
-				for _, item := range w.Items {
-					listed[item] = true
-				}
-			}
-		case *syntax.CaseClause: // the patterns of a case are matched by the shell, not listed in the frame (recorded: runs/shell-compound-more)
-			for _, item := range x.Items {
-				for _, pat := range item.Patterns {
-					listed[pat] = true
-				}
-			}
-		case *syntax.CallExpr: // `[ … ]` is a test: its brackets are not a glob (recorded: runs/shell-compound-test)
-			if len(x.Args) > 1 && x.Args[0].Lit() == "[" && x.Args[len(x.Args)-1].Lit() == "]" {
-				listed[x.Args[0]], listed[x.Args[len(x.Args)-1]] = true, true
-			}
 		case *syntax.Stmt:
 			if x.Coprocess {
 				return flag("a coprocess")
@@ -72,15 +56,6 @@ func UnmodeledSyntax(line string) string {
 		case *syntax.CmdSubst:
 			if x.Backquotes {
 				return flag("a command substitution in backquotes")
-			}
-		case *syntax.Word: // an unquoted piece of a word: quoted text is never a glob
-			if listed[x] {
-				break
-			}
-			for _, part := range x.Parts {
-				if lit, ok := part.(*syntax.Lit); ok && (strings.ContainsAny(lit.Value, "*?[") || strings.HasPrefix(lit.Value, "~")) {
-					return flag("a glob or a home directory")
-				}
 			}
 		}
 		return true

@@ -1,0 +1,16 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp/>\n<user_query>\nDo these as separate shell tool calls, one command per call, in order, each command exactly as written, whatever happens: 1) ls *.txt 2) echo [ab].txt 3) (cd ~ && pwd) 4) echo ~/x 5) git -c remote.origin.fetch=+refs/sloprail/*:refs/sloprail/* config --get remote.origin.fetch 6) git config --add remote.origin.fetch '+refs/heads/*:refs/sloprail/*' 7) git config --get-all remote.origin.fetch 8) echo ?.txt 9) echo x[1]y 10) echo a~b 11) echo \"*.txt\" 12) echo *.nomatch 13) echo *.txt *.nomatch\nThen reply only DONE.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Running the commands one at a time, in order."},{"type":"tool_use","name":"Shell","input":{"command":"ls *.txt","description":"List txt files"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo [ab].txt","description":"Echo bracket glob pattern"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"(cd ~ && pwd)","description":"Print home directory path"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo ~/x","description":"Echo tilde path expansion"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"git -c remote.origin.fetch=+refs/sloprail/*:refs/sloprail/* config --get remote.origin.fetch","description":"Get remote origin fetch config"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"git config --add remote.origin.fetch '+refs/heads/*:refs/sloprail/*'","description":"Add remote origin fetch refspec"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"git config --get-all remote.origin.fetch","description":"Get all origin fetch refspecs"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo ?.txt","description":"Echo question mark glob"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo x[1]y","description":"Echo character class pattern"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo a~b","description":"Echo tilde in middle"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo \"*.txt\"","description":"Echo quoted glob string"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo *.nomatch","description":"Echo unmatched glob pattern"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"echo *.txt *.nomatch","description":"Echo mixed glob patterns"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"turn_ended","status":"success"}
