@@ -76,9 +76,9 @@ providers:
       - adr: modeled-surface
         kind: mock-not-modeled
         statement: >-
-          The mock reads hooks only from the user's and the project's
-          hooks.json: the inline [hooks] tables of config.toml (user and
-          project), plugin-bundled hooks and managed hooks, which Codex also
+          The mock reads hooks from the user's and the project's hooks.json and
+          from enabled plugins' hooks (plugin-hooks): the inline [hooks] tables
+          of config.toml (user and project) and managed hooks, which Codex also
           loads and runs beside them, are not modeled.
   cursor:
     docs:
