@@ -38,14 +38,7 @@ func (h *Hooks) Fire(ctx context.Context, e Event, subject string, own map[strin
 	for _, entry := range h.Config.Entries(e) {
 		if subject == NoSubject || corehooks.Matches(entry.Matcher, subject) {
 			entries = append(entries, entry)
-			c := corehooks.Command{Line: entry.Command, Timeout: entry.Timeout}
-			if entry.PluginRoot != "" { // a plugin's hook runs in the plugin, which it is told of (runs/plugin-hook-cwd-env)
-				c.Dir, c.Env = entry.PluginRoot, []string{"CURSOR_PLUGIN_ROOT=" + entry.PluginRoot}
-				if entry.Dir != "" {
-					c.Dir = entry.Dir
-				}
-			}
-			cmds = append(cmds, c)
+			cmds = append(cmds, command(entry))
 		}
 	}
 	if len(cmds) == 0 {
@@ -57,4 +50,17 @@ func (h *Hooks) Fire(ctx context.Context, e Event, subject string, own map[strin
 		ds[i] = Interpret(e, entries[i], o)
 	}
 	return ds
+}
+
+// command is the process an entry starts. A plugin's hook runs in the plugin,
+// which it is told of (runs/plugin-hook-cwd-env).
+func command(entry Entry) corehooks.Command {
+	if entry.PluginRoot == "" {
+		return corehooks.Command{Line: entry.Command, Timeout: entry.Timeout}
+	}
+	dir := entry.PluginRoot
+	if entry.Dir != "" {
+		dir = entry.Dir
+	}
+	return corehooks.Command{Line: entry.Command, Timeout: entry.Timeout, Dir: dir, Env: []string{"CURSOR_PLUGIN_ROOT=" + entry.PluginRoot}}
 }

@@ -1,5 +1,5 @@
 # A module is an area of code with a boundary; its decisions live here, not in an ADR.
 # Its core is internal/toolspec (the schema, its check and its grounding in recordings); each harness's schema (the tools its mock implements, in one file of its own) is declared in its mock.
 concern: "checking the tool calls a scenario script asks a mock to make against the tools the harness's mock implements"
-home: ["internal/toolspec/**", "claude-mock/internal/runner/toolschema.go", "cursor-mock/internal/runner/toolschema.go", "cursor-mock/internal/runner/validate.go", "codex-mock/internal/runner/toolschema.go", "codex-mock/internal/runner/validate.go"]   # everything about the concern lives here
+home: ["internal/toolspec/**", "claude-mock/internal/runner/toolschema.go", "cursor-mock/internal/runner/toolschema.go", "cursor-mock/internal/runner/validate.go", "codex-mock/internal/runner/toolschema.go", "codex-mock/internal/runner/validate.go", "cursor-mock/internal/runner/interactive_tools.go"]   # everything about the concern lives here
 api: ["internal/toolspec"]       # the only packages others may import

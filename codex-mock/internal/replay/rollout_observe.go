@@ -46,11 +46,6 @@ func recordedRollouts(sample string) []string {
 	return paths
 }
 
-func mockRollouts(home string) []string {
-	paths, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
-	return paths
-}
-
 // named is the call's input with what differs in every run by name only, which the run's own
 // stream and hooks compare by identity: the agents a wait_agent waits for (a recorded script names
 // them by the receipt it was told, which the JS reads from a result, and a literal id is another

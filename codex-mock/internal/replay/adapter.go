@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sloprail/harness-mocks/codex-mock/internal/session"
 	"github.com/sloprail/harness-mocks/internal/procexec"
 	core "github.com/sloprail/harness-mocks/internal/replay"
 )
@@ -134,7 +135,7 @@ func (a Adapter) Replay(mock string, rec core.Recording) (want, got core.Observe
 			return want, got, err
 		}
 		w, g := observe(Rules(repo, root), asyncEvents(s.HooksJSON), recStream, recHooks, mockStream, mockHooks,
-			rolloutCalls(recordedRollouts(sample)), rolloutCalls(mockRollouts(home)))
+			rolloutCalls(recordedRollouts(sample)), rolloutCalls(session.Rollouts(home)))
 		header := "sample " + filepath.Base(sample)
 		want.Events, got.Events = append(append(want.Events, header), w.Events...), append(append(got.Events, header), g.Events...)
 		want.Hooks, got.Hooks = append(append(want.Hooks, header), w.Hooks...), append(append(got.Hooks, header), g.Hooks...)
