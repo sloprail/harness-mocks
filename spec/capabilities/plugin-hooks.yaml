@@ -65,8 +65,17 @@ providers:
       - adr: capability-grounding
         kind: harness-lacks
         statement: >-
-          A plugin's hooks do not all run in a TUI session, though it is
-          loaded. The user's local plugins (~/.cursor/plugins/local/<name>) are
+          Doc and recording conflict: the plugins reference
+          (reference/plugins#hooks-format, "Available hook events") lists, for a
+          plugin's hooks/hooks.json, "Agent hooks: `sessionStart`, `sessionEnd`,
+          `preToolUse`, `postToolUse`, `postToolUseFailure`, `subagentStart`,
+          `subagentStop`, `beforeShellExecution`, `afterShellExecution`,
+          `beforeMCPExecution`, `afterMCPExecution`, `beforeReadFile`,
+          `afterFileEdit`, `beforeSubmitPrompt`, `preCompact`, `stop`,
+          `afterAgentResponse`, `afterAgentThought`" as available, but the
+          recordings show a plugin's hooks do not all run in a TUI session, though
+          it is loaded. The recordings decide.
+          The user's local plugins (~/.cursor/plugins/local/<name>) are
           loaded after the session has started: with the project's sessionStart
           hook taking 12 s, only the plugin loaded with --plugin-dir ran its
           sessionStart hook, and all of them ran every later one (runs/tui-plugins);
