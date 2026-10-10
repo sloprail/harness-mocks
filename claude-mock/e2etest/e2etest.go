@@ -7,8 +7,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"testing"
+	"time"
 )
+
+// MockHangLimit is how long one mock run may take before RunInDir treats it as hung.
+const MockHangLimit = 10 * time.Minute
 
 // MockBinaryPath is the a10n-claude-mock binary path, set by Main.
 var MockBinaryPath string
@@ -93,7 +99,22 @@ func RunInDir(t *testing.T, dir string, env []string, args ...string) (string, i
 	var out strings.Builder
 	cmd.Stdout = &out
 	cmd.Stderr = &out
-	_ = cmd.Run()
+	cmd.WaitDelay = 10 * time.Second // a descendant that keeps the pipe open must not hold the test either
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start mock: %v", err)
+	}
+	// A mock that never exits would hold the whole package until go test's own timeout, with a dump of the
+	// test binary only. SIGQUIT makes the mock dump its own goroutines into the captured output instead.
+	var hung atomic.Bool
+	timer := time.AfterFunc(MockHangLimit, func() {
+		hung.Store(true)
+		_ = cmd.Process.Signal(syscall.SIGQUIT)
+	})
+	_ = cmd.Wait()
+	timer.Stop()
+	if hung.Load() {
+		t.Errorf("the mock was still running after %s and was sent SIGQUIT; its goroutine dump is in the output:\n%s", MockHangLimit, out.String())
+	}
 	code := 0
 	if cmd.ProcessState != nil {
 		code = cmd.ProcessState.ExitCode()
